@@ -25,8 +25,8 @@ Developer notes — LoRA Manager Backend (MVP)
     unless `DATABASE_URL` is supplied.
   - `schemas.py` - Pydantic request and response shapes used by routers.
   - `services.py` - core helpers:
-    - `validate_file_path(path)` - validates file paths using the configured
-      storage adapter.
+    - `validate_file_path(path)` - validates file paths using the local
+      filesystem.
     - `save_adapter_from_payload(payload)` - converts payload to Adapter and
       persists it.
     - `list_active_adapters_ordered()` - composer helper that orders,
@@ -35,9 +35,8 @@ Developer notes — LoRA Manager Backend (MVP)
     - `deliver_http`, `deliver_cli` - delivery helpers used by BackgroundTasks
       for simple, immediate deliveries.
 
-  - `storage.py` - provides a storage abstraction layer (`Storage` protocol) and
-    concrete implementations for different backends (e.g., `LocalFileSystemStorage`).
-    A factory function `get_storage()` returns the configured adapter.
+  - `storage.py` - provides helpers for interacting with the local filesystem
+    storage where LoRA models are stored.
 
   - `config.py` - defines and manages application configuration using
     Pydantic's `BaseSettings`. It loads settings from environment variables
@@ -47,123 +46,42 @@ Developer notes — LoRA Manager Backend (MVP)
   Linting & docstring policy
   -------------------------
 
-  We use `ruff` as the primary linter with a small, conservative pydocstyle policy
-  for docstrings. Key settings contributors should know about:
-
-  - Line length: 88 characters (PEP 8 compatible).
+  We use `ruff` for linting and formatting. Key settings:
+  - Line length: 88 characters.
   - Target Python: 3.10.
-  - Rules selected: typical error/warning rules (E, F), import/order (I),
-    bugbear (B), comprehensions (COM) and docstring checks (D).
-  - We explicitly ignore two pydocstyle rules which conflict with the project's
-    chosen docstring formatting: `D203` (blank line before class) and `D213`
-    (multi-line summary second line). This allows using a single style
-    (`no-blank-line-before-class` and `multi-line-summary-first-line`) consistently
-    across the codebase.
-  - Per-file ignore: `__init__.py` may re-export names and therefore allows
-    `F401`.
+  - Rules: Standard error/warning rules plus import ordering, bugbear,
+    comprehensions, and docstring checks.
 
-  Rationale: `ruff` is fast and provides an auto-fix mode for many issues. We
-  keep docstring checks enabled (D-series) to improve API documentation and
-  maintainability, but we silence the two incompatible rules so contributors don't
-  get conflicting fix suggestions. Please run `ruff --fix` locally before
-  committing when possible.
+  Run `ruff --fix` locally before committing.
 
 
-  Design decisions to be aware of
+  Design decisions
+  ----------------
 
-  - Tags storage: SQLite does not have a native JSON list mapping in this simple
-    setup. To keep the schema stable the `tags` column stores a JSON-encoded
-    string and routers decode/encode as-needed. With Postgres you can replace
-    this with a JSONB column or a normalized tags table.
-  - Timezones: all timestamps use timezone-aware UTC datetimes.
-  - Serialization: routers use `model_dump()` to serialize SQLModel objects.
-    Upgrading SQLModel and Pydantic versions may change serialization semantics;
-    tests lock current expected behavior.
-  - Background work: small, immediate tasks use `fastapi.BackgroundTasks`. A
-    queue-backed worker flow (RQ) is scaffolded for asynchronous processing and is
-    used by `tasks.py` for DeliveryJob processing in non-trivial runs.
+  - **Tags**: Stored as a JSON-encoded string in SQLite.
+  - **Timezones**: All timestamps are timezone-aware UTC.
+  - **Serialization**: Routers use `model_dump()` for serialization.
+  - **Background work**: Simple tasks use `fastapi.BackgroundTasks`. Complex jobs
+    use an RQ worker queue.
 
-  SQLite-specific considerations (for eventual PostgreSQL migration)
+  Database Notes
+  --------------
 
-  - Purpose: keep common SQLite quirks and migration steps documented so switching
-    to Postgres is predictable and auditable.
-  - Data types and JSON/tags:
-    - Current pattern: `tags` is stored as a JSON-encoded string because SQLite
-      lacks a native JSONB type. On Postgres replace this with a JSONB column
-      (preferred) or a normalized tags table.
-    - Migration note: prefer JSONB + a GIN index for tag queries (faster,
-      flexible). Alembic autogeneration may not detect JSON string -> JSONB; inspect
-      generated migrations and adjust types manually.
-  - Datetime & timezone:
-    - Use timezone-aware UTC datetimes everywhere (already a repo convention).
-      Postgres supports TIMESTAMP WITH TIME ZONE; ensure SQLModel/SQLAlchemy column
-      types include timezone=True so Alembic can detect the change.
-  - Primary keys, AUTOINCREMENT and sequences:
-    - SQLite `INTEGER PRIMARY KEY` behaves like AUTOINCREMENT but Postgres
-      requires SERIAL/BIGSERIAL or explicit sequences. When migrating, ensure
-      primary key type and sequences are correct for expected scale.
-  - Booleans & NULL semantics:
-    - SQLite is loose about types; Postgres is strict. Verify boolean columns and
-      NOT NULL constraints in migrations and tests.
-  - Indexes & performance:
-    - Add explicit indexes in models/migrations for fields used in WHERE/ORDER BY
-      (e.g., `status`, `created_at`). Postgres benefits from typed indexes and
-      partial indexes; plan them in Alembic migrations.
-  - SQL dialect differences:
-    - SQL functions and operators differ (e.g., `ILIKE` vs `LIKE`, JSON
-      operators). Review raw SQL snippets or SQLAlchemy text queries before
-      migration.
-  - Connection pooling & tests:
-    - SQLite in-process usage requires `connect_args={"check_same_thread":
-      False}` and a small/no pool (we use NullPool in tests to avoid
-      ResourceWarning). For Postgres use a proper connection pool (default
-      SQLAlchemy QueuePool) and consider pool_pre_ping in long-lived processes.
-  - Concurrency & transactions:
-    - SQLite has database-level locking for writes; Postgres supports concurrent
-      writers with row-level locking. Test concurrent worker behavior in Postgres
-      specifically (delivery workers, migrations under load).
-  - DDL and Alembic autogenerate caveats:
-    - Alembic autogeneration may miss column type changes (JSON string -> JSONB,
-      timezone flags); set `compare_type=True` in `env.py` and review diffs
-      closely.
-    - SQLite has limited ALTER TABLE support; migrations that require column
-      redefinitions may be easy in Postgres but cumbersome in SQLite; prefer
-      writing migrations which are compatible with the target DB or run them only
-      against Postgres in CI.
-  - Dependencies & drivers:
-    - Add `psycopg[binary]` or `psycopg2-binary` to the production requirements
-      for Postgres. Tests/CI should install the Postgres driver when running
-      Postgres matrix jobs.
-  - Testing & CI recommendations:
-    - Add a CI matrix job that runs tests against Postgres (use a service in
-      GitHub Actions or a testing container). Set `DATABASE_URL` in the job before
-      importing the app so Alembic/SQLModel/engine are configured correctly.
-    - Keep the SQLite-based tests for fast local runs but gate migration-sensitive
-      tests (JSONB, partial indexes, concurrent writes) on the Postgres job.
-    - Migration checklist (short):
-      1. Add Postgres to `docker-compose` (service `postgres`) or add a Postgres
-         service in CI.
-      2. Install Postgres driver in CI and local env (e.g., `psycopg[binary]`).
-      3. Set `DATABASE_URL` to Postgres DSN and run `alembic revision --autogenerate -m "initial"`.
-      4. Review autogen migration: fix type changes (JSON -> JSONB), add
-         indexes, and ensure sequences/serials are correct.
-      5. Run `alembic upgrade head` against a test Postgres instance and run
-         full test suite.
-      6. Add a CI job that runs migrations + tests against Postgres on push/PR.
+  The default database is SQLite. For production, you may want to migrate to
+  PostgreSQL. This would involve:
+  - Using a `JSONB` column for tags.
+  - Ensuring primary keys and sequences are correctly configured.
+  - Using a proper connection pool.
+  - Adding `psycopg[binary]` to requirements.
+  - Using Alembic to generate and apply migrations.
 
-  Notes: these changes are intentionally conservative — write and review
-  migrations by hand when they alter types or constraints. The repository already
-  contains Alembic scaffolding (config and `env.py`) so creating an initial
-  autogenerate revision is straightforward; review it before applying to Postgres.
 
   Testing
+  -------
 
-  - `tests/test_main.py` contains basic tests for health, adapter lifecycle, and
-    enqueuing a delivery.
-  - Tests now use an isolated temporary SQLite database per run by setting
-    `DATABASE_URL` in the test setup. This avoids DB collisions in local runs and
-    CI. The code in `db.py` respects `DATABASE_URL` so tests can control the
-    engine before the app is initialized.
+  - Tests are in `tests/` and use an isolated in-memory SQLite database per run.
+  - `test_main.py` covers the adapter lifecycle and delivery enqueuing.
+
 
   Recommended next steps
 
@@ -176,12 +94,10 @@ Developer notes — LoRA Manager Backend (MVP)
     Gaps: add production-grade retry policies, backoff tuning and worker
     observability if you plan to run high-volume workloads.
 
-  2) Storage adapter
-  - A storage adapter has been implemented, decoupling file validation from the
-    local filesystem. The new `storage.py` module defines a `Storage` protocol,
-    a `LocalFileSystemStorage` implementation, and a `get_storage` factory.
-    `services.validate_file_path` now uses the configured adapter. This makes
-    it easy to add other backends like S3 in the future.
+  2) File storage
+  - The `storage.py` module handles interactions with the local filesystem,
+    where LoRA models are stored. It ensures that file paths are validated
+    correctly. This makes it easy to manage models in a local directory.
 
   3) Migrations
   - Alembic scaffolding has been added to the repository (config, `env.py`, and
@@ -263,7 +179,7 @@ Developer notes — LoRA Manager Backend (MVP)
 
       - Test results (local run): 4 passed.
 
-  - Storage adapter (S3/MinIO abstraction): PARTIAL ✅
+  - File storage: PARTIAL ✅
     - Status: A storage abstraction layer has been implemented (`storage.py`)
       with a `LocalFileSystemStorage` adapter. `services.validate_file_path`
       now uses the configured storage backend.
@@ -385,25 +301,3 @@ Developer notes — LoRA Manager Backend (MVP)
   me which and I'll scaffold the change, add tests, and run the fast validation
   (tests/lint) in this workspace.
 
-  Reconciling `README.md` with current progress
-  ---------------------------------------------
-
-  The main `README.md` is slightly out of date and lists several items as "next
-  steps" that have already been implemented or scaffolded. This section provides
-  a short reconciliation map.
-
-  - "Worker queue": `README.md` suggests implementing a worker.
-    - Status: DONE ✅. An RQ-based worker is fully scaffolded and integrated. See
-      `tasks.py`, `run_worker.py`, and `docker-compose.yml`.
-  - "Migrations": `README.md` suggests adding an Alembic config.
-    - Status: DONE ✅. Alembic is configured and ready for use. See `alembic.ini`
-      and the `alembic/` directory.
-  - "Serialization": `README.md` suggests using `response_model`.
-    - Status: DONE ✅. Routers now use explicit Pydantic "read" models and
-      `response_model` to harden the API contract.
-  - "File storage": `README.md` suggests adding a storage abstraction.
-    - Status: DONE ✅. A storage protocol and a local filesystem implementation
-      exist in `storage.py`.
-
-  The `README.md` should be updated to reflect these changes. For now, this
-  document provides the most accurate status overview.

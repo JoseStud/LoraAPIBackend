@@ -42,7 +42,9 @@ def create_delivery(
                     pass
             elif delivery.mode == "cli":
                 background_tasks.add_task(
-                    deliver_cli, delivery.prompt, delivery.params or {},
+                    deliver_cli,
+                    delivery.prompt,
+                    delivery.params or {},
                 )
     else:
         # no redis configured, run via BackgroundTasks as before
@@ -52,13 +54,17 @@ def create_delivery(
 
                 params = ComposeDeliveryHTTP(**delivery.params)
                 background_tasks.add_task(
-                    deliver_http, delivery.prompt, params,
+                    deliver_http,
+                    delivery.prompt,
+                    params,
                 )
             except Exception:
                 pass
         elif delivery.mode == "cli":
             background_tasks.add_task(
-                deliver_cli, delivery.prompt, delivery.params or {},
+                deliver_cli,
+                delivery.prompt,
+                delivery.params or {},
             )
 
     return {"delivery_id": dj.id}

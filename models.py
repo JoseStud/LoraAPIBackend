@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
+from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
 
 
@@ -13,8 +14,8 @@ class Adapter(SQLModel, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     name: str
     version: Optional[str] = None
-    # store tags as a JSON-encoded string for portability with SQLite
-    tags: Optional[str] = None
+    # tags stored as JSON-compatible column (portable across SQLite/Postgres)
+    tags: list = Field(default_factory=list, sa_column=Column(JSON))
     file_path: str
     weight: float = 1.0
     active: bool = False

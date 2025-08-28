@@ -12,7 +12,8 @@ class AdapterCreate(BaseModel):
     name: str
     version: Optional[str] = None
     tags: Optional[List[str]] = None
-    file_path: str
+    file_path: Optional[str] = None
+    metadata_uri: Optional[str] = None
     weight: Optional[float] = 1.0
     active: Optional[bool] = False
     ordinal: Optional[int] = None

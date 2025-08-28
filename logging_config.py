@@ -9,7 +9,9 @@ import structlog
 def setup_logging():
     """Configure structured logging for the application."""
     logging.basicConfig(
-        level=logging.INFO, format="%(message)s", stream=sys.stdout,
+        level=logging.INFO,
+        format="%(message)s",
+        stream=sys.stdout,
     )
 
     structlog.configure(

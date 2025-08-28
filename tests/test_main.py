@@ -16,6 +16,7 @@ def test_adapter_lifecycle(client: TestClient, mock_storage: MagicMock):
     """Full adapter lifecycle: create, read, activate, compose, deactivate."""
     mock_storage.exists.return_value = True
     import uuid
+
     name = "t1-" + uuid.uuid4().hex
     data = {
         "name": name,
@@ -51,6 +52,7 @@ def test_deliveries_enqueue(client: TestClient, mock_storage: MagicMock):
     """Compose with delivery should create a DeliveryJob and be retrievable."""
     mock_storage.exists.return_value = True
     import uuid
+
     name = "t2-" + uuid.uuid4().hex
     data = {
         "name": name,

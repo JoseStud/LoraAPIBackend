@@ -9,7 +9,7 @@ from typing import Optional
 from sqlalchemy.pool import NullPool
 from sqlmodel import Session, SQLModel, create_engine
 
-from .config import settings
+from config import settings
 
 # Allow overriding the DB via the configured settings or the DATABASE_URL env var
 # `config.Settings` reads environment variables, so prefer settings.DATABASE_URL.

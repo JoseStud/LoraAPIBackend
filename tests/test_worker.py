@@ -1,17 +1,22 @@
-"""Worker tests using fakeredis and a SimpleWorker for synchronous processing."""
+"""Worker tests using fakeredis and a SimpleWorker for synchronous processing.
 
-from fakeredis import FakeStrictRedis
-from rq import Queue, SimpleWorker
+These tests are skipped if `fakeredis` is not installed in the environment.
+"""
 
-from db import get_session, init_db
-from models import DeliveryJob
-from tasks import enqueue_delivery
+import pytest
+
+fakeredis = pytest.importorskip("fakeredis")
+from rq import Queue, SimpleWorker  # noqa: E402
+
+from db import get_session, init_db  # noqa: E402
+from models import DeliveryJob  # noqa: E402
+from tasks import enqueue_delivery  # noqa: E402
 
 
 def test_worker_process_cycle(tmp_path, monkeypatch):
     """Run a full enqueue -> worker cycle using a FakeRedis connection."""
     # Use FakeRedis for the queue connection
-    fake_redis = FakeStrictRedis()
+    fake_redis = fakeredis.FakeStrictRedis()
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
 
     # patch the queue in tasks to use a fake connection

@@ -8,30 +8,29 @@ from typing import List
 import requests
 from sqlmodel import Session, select
 
+from db import get_session
 from models import Adapter, DeliveryJob
 from schemas import AdapterCreate
-from storage import Storage
+from storage import file_exists
 
 
 class AdapterService:
     """Service for adapter-related operations."""
 
-    def __init__(self, db_session: Session, storage: Storage):
-        """Initialize AdapterService with a DB session and storage adapter."""
+    def __init__(self, db_session: Session):
+        """Initialize AdapterService with a DB session."""
         self.db_session = db_session
-        self.storage = storage
 
     def validate_file_path(self, path: str) -> bool:
         """Return True if the given path exists and is readable."""
-        return self.storage.exists(path)
+        return file_exists(path)
 
     def save_adapter(self, payload: AdapterCreate) -> Adapter:
         """Create and persist an Adapter from a creation payload."""
-        tags_val = json.dumps(payload.tags) if payload.tags else None
         adapter = Adapter(
             name=payload.name,
             version=payload.version,
-            tags=tags_val,
+            tags=payload.tags or [],
             file_path=payload.file_path,
             weight=payload.weight or 1.0,
             active=payload.active or False,
@@ -103,3 +102,21 @@ def deliver_cli(prompt: str, params) -> dict:
         return {"status": "ok", "detail": f"prompt written to {path}"}
     except Exception as exc:
         return {"status": "error", "detail": str(exc)}
+
+
+# Module-level helpers used by routers (thin wrappers around service classes).
+def list_active_adapters_ordered() -> List[Adapter]:  # noqa: D103
+    with get_session() as sess:
+        svc = AdapterService(sess)
+        return svc.list_active_ordered()
+
+
+def format_token(name: str, weight: float) -> str:  # noqa: D103
+    svc = ComposeService()
+    return svc.format_token(name, weight)
+
+
+def create_delivery_job(prompt: str, mode: str, params: dict) -> DeliveryJob:  # noqa: D103
+    with get_session() as sess:
+        svc = DeliveryService(sess)
+        return svc.create_job(prompt, mode, params)

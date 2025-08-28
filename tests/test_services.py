@@ -30,14 +30,20 @@ class TestAdapterService:
         adapter = adapter_service.save_adapter(payload)
         assert adapter.id is not None
         assert adapter.name == "test-adapter"
-        assert adapter.tags == '["test"]'
+        assert adapter.tags == ["test"]
 
     def test_list_active_ordered(self, adapter_service, db_session):
         """Test listing active adapters in the correct order."""
         # Create some adapters
-        a1 = Adapter(name="adapter1", weight=0.7, active=True, ordinal=1)
-        a2 = Adapter(name="adapter2", weight=0.8, active=True, ordinal=2)
-        a3 = Adapter(name="adapter3", weight=0.9, active=False, ordinal=3)
+        a1 = Adapter(
+            name="adapter1", weight=0.7, active=True, ordinal=1, file_path="/tmp/1",
+        )  # noqa: E501
+        a2 = Adapter(
+            name="adapter2", weight=0.8, active=True, ordinal=2, file_path="/tmp/2",
+        )  # noqa: E501
+        a3 = Adapter(
+            name="adapter3", weight=0.9, active=False, ordinal=3, file_path="/tmp/3",
+        )  # noqa: E501
         db_session.add_all([a1, a2, a3])
         db_session.commit()
 
@@ -53,7 +59,9 @@ class TestDeliveryService:
     def test_create_job(self, delivery_service):
         """Test creating a new delivery job."""
         job = delivery_service.create_job(
-            prompt="test prompt", mode="http", params={"url": "http://test.com"},
+            prompt="test prompt",
+            mode="http",
+            params={"url": "http://test.com"},
         )
         assert job.id is not None
         assert job.prompt == "test prompt"

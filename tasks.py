@@ -19,12 +19,14 @@ except Exception:
     try:
         from rq import Retry  # type: ignore
     except Exception:
+
         @dataclass
         class Retry:  # type: ignore
             """Fallback Retry dataclass used when RQ's Retry is unavailable."""
 
             max: int = 0
             interval: list | None = None
+
 
 from db import get_session
 from models import DeliveryJob
@@ -50,7 +52,7 @@ def enqueue_delivery(prompt: str, mode: str, params: dict, max_retries: int = 3)
     max_retries is the number of retry attempts (not counting the first try).
     """
     dj = create_delivery_job(prompt, mode, params)
-    intervals = [2 ** i for i in range(max_retries)] if max_retries > 0 else []
+    intervals = [2**i for i in range(max_retries)] if max_retries > 0 else []
     retry = Retry(max=max_retries, interval=intervals) if max_retries > 0 else None
     job = q.enqueue(process_delivery, dj.id, retry=retry)
     logger.info(
@@ -91,6 +93,7 @@ def process_delivery(delivery_id: str):
 
     try:
         if dj.mode == "http":
+
             @dataclass
             class H:
                 """HTTP delivery parameter holder."""
@@ -106,6 +109,7 @@ def process_delivery(delivery_id: str):
             )
             result = deliver_http(dj.prompt, hp)
         elif dj.mode == "cli":
+
             @dataclass
             class C:
                 """CLI delivery parameter holder."""

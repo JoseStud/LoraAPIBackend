@@ -7,10 +7,27 @@ from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
+import services
+import storage
 from db import get_session
 from main import app
 from services import AdapterService, ComposeService, DeliveryService
-from storage import Storage, get_storage
+
+
+@pytest.fixture(name="mock_storage")
+def mock_storage_fixture(monkeypatch) -> MagicMock:
+    """Mock storage adapter fixture that patches `storage.file_exists`.
+
+    Tests can set `mock_storage.exists.return_value` and the patch will cause
+    `storage.file_exists` to call the mock.
+    """
+    mock = MagicMock()
+    # Patch both the storage module and the services module reference so
+    # AdapterService.validate_file_path (which imported file_exists at
+    # module import time) will call the test mock.
+    monkeypatch.setattr(storage, "file_exists", lambda path: mock.exists(path))
+    monkeypatch.setattr(services, "file_exists", lambda path: mock.exists(path))
+    return mock
 
 
 @pytest.fixture(name="db_session")
@@ -29,17 +46,10 @@ def db_session_fixture():
         yield session
 
 
-@pytest.fixture(name="mock_storage")
-def mock_storage_fixture() -> MagicMock:
-    """Mock storage adapter fixture."""
-    mock = MagicMock(spec=Storage)
-    return mock
-
-
 @pytest.fixture
-def adapter_service(db_session: Session, mock_storage: MagicMock) -> AdapterService:
+def adapter_service(db_session: Session) -> AdapterService:
     """AdapterService fixture."""
-    return AdapterService(db_session, mock_storage)
+    return AdapterService(db_session)
 
 
 @pytest.fixture
@@ -55,20 +65,16 @@ def compose_service() -> ComposeService:
 
 
 @pytest.fixture(name="client")
-def client_fixture(db_session: Session, mock_storage: MagicMock):
+def client_fixture(db_session: Session):
     """FastAPI TestClient fixture.
 
-    This overrides `get_session` and `get_storage` with test doubles.
+    This overrides `get_session` with a test double.
     """
 
     def get_session_override():
         return db_session
 
-    def get_storage_override():
-        return mock_storage
-
     app.dependency_overrides[get_session] = get_session_override
-    app.dependency_overrides[get_storage] = get_storage_override
 
     yield TestClient(app)
 
