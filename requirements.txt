@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+pydantic
+requests
+sqlmodel
+alembic
+redis
+rq
+fakeredis
+boto3
+psycopg[binary]
+
+# Developer tooling (linting/formatting/test helpers)
+# Install locally with: pip install -r dev-requirements.txt

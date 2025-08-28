@@ -1,0 +1,77 @@
+openapi: 3.0.3
+info:
+  title: LoRA Manager API (MVP)
+  version: 0.1.0
+paths:
+  /adapters:
+    post:
+      summary: Register a LoRA adapter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, file_path]
+              properties:
+                name:
+                  type: string
+                version:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+                file_path:
+                  type: string
+                weight:
+                  type: number
+                active:
+                  type: boolean
+      responses:
+        '201':
+          description: Created
+  /adapters:
+    get:
+      summary: List adapters
+      parameters:
+        - name: active
+          in: query
+          schema:
+            type: boolean
+        - name: tag
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+  /compose:
+    post:
+      summary: Compose a prompt from active adapters and optionally deliver
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prefix:
+                  type: string
+                suffix:
+                  type: string
+                delivery:
+                  type: object
+                  properties:
+                    mode:
+                      type: string
+                      enum: [http, cli]
+      responses:
+        '200':
+          description: OK

@@ -1,0 +1,20 @@
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+# Fixable rules when running `ruff --fix`
+fix = true
+exclude = [".git", "__pycache__", "build", "dist", "venv", ".venv"]
+
+[tool.ruff.lint]
+# enable ruff rules that mirror common flake8/best practices
+select = ["E", "F", "I", "B", "COM", "D"]
+extend-select = ["E", "F"]
+# Ignore docstring style rules which conflict in our chosen policy
+# D203 vs D211 and D212 vs D213 are mutually incompatible; prefer
+# no-blank-line-before-class and multi-line-summary-first-line behavior
+# so we ignore D203 and D213.
+ignore = ["D203", "D213"]
+
+# Allow __init__.py to have unused imports used for re-exporting
+per-file-ignores = {"__init__.py" = ["F401"]}
+
