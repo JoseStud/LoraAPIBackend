@@ -10,6 +10,8 @@ class Settings(BaseSettings):
 
     # Database URL (override default sqlite). Example: postgresql+psycopg://user:pw@host:5432/db
     DATABASE_URL: Optional[str] = None
+    API_KEY: Optional[str] = None
+
 
 
 settings = Settings()

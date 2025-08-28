@@ -18,3 +18,6 @@ ignore = ["D203", "D213"]
 # Allow __init__.py to have unused imports used for re-exporting
 per-file-ignores = {"__init__.py" = ["F401"]}
 
+[tool.pytest.ini_options]
+pythonpath = "."
+

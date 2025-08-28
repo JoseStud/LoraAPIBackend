@@ -25,15 +25,11 @@ Developer notes — LoRA Manager Backend (MVP)
     unless `DATABASE_URL` is supplied.
   - `schemas.py` - Pydantic request and response shapes used by routers.
   - `services.py` - core helpers:
-    - `validate_file_path(path)` - validates file paths using the local
-      filesystem.
-    - `save_adapter_from_payload(payload)` - converts payload to Adapter and
-      persists it.
-    - `list_active_adapters_ordered()` - composer helper that orders,
-      deduplicates and returns adapters ready for token formatting.
-    - `create_delivery_job(prompt, mode, params)` - inserts a DeliveryJob record.
-    - `deliver_http`, `deliver_cli` - delivery helpers used by BackgroundTasks
-      for simple, immediate deliveries.
+    - `AdapterService` - handles adapter validation, persistence, and listing.
+    - `DeliveryService` - creates and manages `DeliveryJob` records.
+    - `ComposeService` - formats LoRA tokens for prompt composition.
+    - `deliver_http`, `deliver_cli` - delivery helpers used by background
+      tasks.
 
   - `storage.py` - provides helpers for interacting with the local filesystem
     storage where LoRA models are stored.
@@ -46,42 +42,63 @@ Developer notes — LoRA Manager Backend (MVP)
   Linting & docstring policy
   -------------------------
 
-  We use `ruff` for linting and formatting. Key settings:
-  - Line length: 88 characters.
+  We use `ruff` as the primary linter with a small, conservative pydocstyle policy
+  for docstrings. Key settings contributors should know about:
+
+  - Line length: 88 characters (PEP 8 compatible).
   - Target Python: 3.10.
-  - Rules: Standard error/warning rules plus import ordering, bugbear,
-    comprehensions, and docstring checks.
+  - Rules selected: typical error/warning rules (E, F), import/order (I),
+    bugbear (B), comprehensions (COM) and docstring checks (D).
+  - We explicitly ignore two pydocstyle rules which conflict with the project's
+    chosen docstring formatting: `D203` (blank line before class) and `D213`
+    (multi-line summary second line). This allows using a single style
+    (`no-blank-line-before-class` and `multi-line-summary-first-line`) consistently
+    across the codebase.
+  - Per-file ignore: `__init__.py` may re-export names and therefore allows
+    `F401`.
 
-  Run `ruff --fix` locally before committing.
+  Rationale: `ruff` is fast and provides an auto-fix mode for many issues. We
+  keep docstring checks enabled (D-series) to improve API documentation and
+  maintainability, but we silence the two incompatible rules so contributors don't
+  get conflicting fix suggestions. Please run `ruff --fix` locally before
+  committing when possible.
 
 
-  Design decisions
-  ----------------
+  Design decisions to be aware of
 
-  - **Tags**: Stored as a JSON-encoded string in SQLite.
-  - **Timezones**: All timestamps are timezone-aware UTC.
-  - **Serialization**: Routers use `model_dump()` for serialization.
-  - **Background work**: Simple tasks use `fastapi.BackgroundTasks`. Complex jobs
-    use an RQ worker queue.
-
-  Database Notes
-  --------------
-
-  The default database is SQLite. For production, you may want to migrate to
-  PostgreSQL. This would involve:
-  - Using a `JSONB` column for tags.
-  - Ensuring primary keys and sequences are correctly configured.
-  - Using a proper connection pool.
-  - Adding `psycopg[binary]` to requirements.
-  - Using Alembic to generate and apply migrations.
+  - Tags storage: The initial Alembic migration (`5f681a8fe826`) defines `tags`
+    as a `sa.JSON()` column. Under SQLite this maps to a TEXT field with
+    transparent JSON (no querying operators). Routers still (de)serialize
+    Python list <-> JSON automatically via SQLAlchemy's JSON type. When moving
+    to Postgres, replace / retain as JSONB and add a GIN index for tag
+    membership queries; or consider a normalized tag table if you require
+    relational constraints.
+  - Timezones: Code intends to use timezone-aware UTC datetimes, but the
+    initial migration currently creates naive `sa.DateTime()` columns (no
+    `timezone=True`). A follow-up migration should alter these to
+    `DateTime(timezone=True)` and application code should ensure `datetime.now(timezone.utc)` (or equivalent) is used. Documented here so the mismatch is explicit.
+  - Serialization: routers use `model_dump()` to serialize SQLModel objects.
+    Upgrading SQLModel and Pydantic versions may change serialization semantics;
+    tests lock current expected behavior.
+  - Background work: small, immediate tasks use `fastapi.BackgroundTasks` as a
+    fallback. A more robust queue-backed worker flow (Redis + RQ) is the
+    primary mechanism for asynchronous processing and is used by `tasks.py` for
+    `DeliveryJob` processing when `REDIS_URL` is configured.
 
 
   Testing
-  -------
 
-  - Tests are in `tests/` and use an isolated in-memory SQLite database per run.
-  - `test_main.py` covers the adapter lifecycle and delivery enqueuing.
-
+  - `tests/test_main.py` contains basic API lifecycle tests for adapters and
+    deliveries.
+  - `tests/test_services.py` contains unit tests for the service layer classes
+    (`AdapterService`, `DeliveryService`, `ComposeService`).
+  - `tests/test_worker.py` contains tests for the RQ worker, using `fakeredis` to
+    simulate the queue.
+  - Tests use an isolated in-memory SQLite database per run, configured in
+    `tests/conftest.py`. The `db.py` module respects the `DATABASE_URL` so tests
+    can control the engine before the app is initialized.
+  - The `mock_storage` fixture in `conftest.py` is used to mock filesystem
+    interactions.
 
   Recommended next steps
 
@@ -100,16 +117,24 @@ Developer notes — LoRA Manager Backend (MVP)
     correctly. This makes it easy to manage models in a local directory.
 
   3) Migrations
-  - Alembic scaffolding has been added to the repository (config, `env.py`, and
-    templates). Create an initial autogenerate revision with:
+  - Alembic scaffolding is in place and the initial migration has been applied
+    (database is at head).
 
     ```bash
-    PYTHONPATH=$(pwd) alembic revision --autogenerate -m "initial"
     PYTHONPATH=$(pwd) alembic upgrade head
     ```
 
-    Review generated migrations carefully (JSON -> JSONB, timezone flags,
-    indexes) before applying to Postgres.
+  Future autogenerated migrations should still be reviewed carefully (JSON ->
+  JSONB indexing, timezone flags, indexes) especially before switching to
+  Postgres.
+  Initial migration snapshot (key points):
+  - `adapter` & `deliveryjob` tables created with string primary keys (AutoString, application-generated IDs expected).
+  - `tags` column uses `sa.JSON()` (TEXT + JSON serialization in SQLite).
+  - Timestamps (`created_at`, `updated_at`, etc.) are naive `DateTime()`.
+  Follow-up actions:
+  - Add `timezone=True` to datetime columns via a new migration (before Postgres deploy).
+  - Add indexes for frequent lookups (e.g., `deliveryjob.status`, `adapter.active`, `adapter.created_at`).
+  - Plan a GIN index on `tags` when moving to Postgres JSONB.
 
   4) API contract hardening
   - Most critical endpoints now declare explicit `response_model=` types and the
@@ -142,10 +167,9 @@ Developer notes — LoRA Manager Backend (MVP)
       passed.
 
   - Provide a docker-compose that wires Redis + Postgres + worker + API for easy
-    integration testing: PARTIAL ⚠️
-    - `docker-compose.yml` wires Redis, API and an RQ worker; Postgres is not
-      included by default and should be added for a full Postgres-backed
-      integration environment.
+    integration testing: DONE ✅
+    - `docker-compose.yml` now wires Redis, Postgres, API, and an RQ worker,
+      providing a full integration environment.
 
   If you want, I can implement any of the recommended next steps. Tell me which
   one and I'll scaffold it, add tests, and run fast validation (tests/lint) in
@@ -157,145 +181,85 @@ Developer notes — LoRA Manager Backend (MVP)
   document to what exists in the codebase (short pointers to files). This is
   intended to help maintainers pick the next work with minimal discovery.
 
-  - Worker queue: PARTIAL ✅
-    - Status: A Redis + RQ-based worker flow has been scaffolded and integrated.
+  - Worker queue: DONE ✅
+    - Status: A Redis + RQ-based worker flow is fully integrated with logging,
+      retries, and exponential backoff.
     - Evidence: `tasks.py` contains `process_delivery` which updates `DeliveryJob`
-      status/result and uses `rq.Queue`; `routers/deliveries.py` will enqueue when
-      `REDIS_URL` is set; `docker-compose.yml` includes `redis` and a `worker`
-      service; `run_worker.py` documents how to run an RQ worker.
-    - Gaps: some improvements have been made and tests added, but you may want
-      production-grade retry/backoff and more observability before high-volume
-      deployment.
-      - Implemented: RQ-based scaffold, worker processing in `tasks.py`, and a
-        smoke test using `fakeredis` + `rq.SimpleWorker`.
-      - Files changed: `tasks.py`, `requirements.txt` (+ `fakeredis`),
-        `tests/test_worker.py` (worker smoke test).
-      - How to run (local):
+      status/result and uses `rq.Queue`; `routers/deliveries.py` enqueues jobs;
+      `docker-compose.yml` includes `redis` and a `worker` service;
+      `run_worker.py` provides instructions for running a worker.
+    - Gaps: Production-grade monitoring and observability could be enhanced.
 
-        ```bash
-        . .venv/bin/activate
-        PYTHONPATH=$(pwd) pytest -q
-        ```
-
-      - Test results (local run): 4 passed.
-
-  - File storage: PARTIAL ✅
+  - File storage: DONE ✅
     - Status: A storage abstraction layer has been implemented (`storage.py`)
-      with a `LocalFileSystemStorage` adapter. `services.validate_file_path`
+      with a `LocalFileSystemStorage` adapter. `services.AdapterService`
       now uses the configured storage backend.
-    - Evidence: `storage.py` contains the `Storage` protocol and implementations;
-      `services.py` calls `get_storage().exists(path)`.
+    - Evidence: `storage.py` contains the `file_exists` helper;
+      `services.py` calls it via `AdapterService.validate_file_path`.
     - Gaps: An S3/MinIO adapter has not been implemented yet.
 
-  - Migrations (Alembic): PARTIAL ✅
-    - Status: Alembic scaffolding (config and env) has been added and is present
-      in the repo. Create and review an autogenerate migration before applying to
-      Postgres.
+  - Migrations (Alembic): DONE ✅
+    - Status: Alembic scaffolding is in place, and an initial migration has been
+      generated. The database schema is now under version control.
     - Files present: `alembic.ini`, `alembic/env.py`, `alembic/script.py.mako`,
-      `alembic/versions/` and `alembic/README.md`.
-    - How to create/apply migrations locally:
+      `alembic/versions/5f681a8fe826_initial.py` and `alembic/README.md`.
+    - How to apply migrations locally:
 
       ```bash
       . .venv/bin/activate
-      PYTHONPATH=$(pwd) alembic revision --autogenerate -m "initial"
       PYTHONPATH=$(pwd) alembic upgrade head
       ```
 
     - Note: For production Postgres usage, set `DATABASE_URL` to your Postgres DSN
-      before running `alembic upgrade head` and review generated migrations.
+      before running `alembic upgrade head`.
 
-  - API contract hardening (`response_model=` and RFC7807 details): PARTIAL ⚠️
+  - API contract hardening (`response_model=` and RFC7807 details): DONE ✅
     - Status: The project now includes explicit Pydantic "read" models and key
       endpoints declare `response_model=`. This improves OpenAPI generation and
-      reduces accidental field exposure.
+      reduces accidental field exposure. RFC7807-style problem detail handlers
+      have been added to centralize error responses.
     - Evidence: `schemas.py` includes read/response models and routers reference
       them; `main.py` contains a central handler for RFC7807-style problem
       responses.
-    - How to run (local):
 
-      ```bash
-      . .venv/bin/activate
-      PYTHONPATH=$(pwd) pytest -q
-      ```
+  - Observability (structured logging, metrics): PARTIAL ✅
+    - Status: Structured logging with `structlog` is integrated.
+    - Evidence: `logging_config.py` sets up structured JSON logging. `tasks.py`
+      and other modules use it.
+    - Gaps: Prometheus metrics are not yet integrated.
 
-    - Test results (local run): full suite passes (4 passed).
-
-  Why `response_model=` is important (short)
-
-  - Stable API contract: `response_model` locks the output shape for clients and
-    OpenAPI, reducing accidental schema drift when internal models change.
-  - Serialization & validation: FastAPI/Pydantic will serialize returned objects
-    according to the response model and validate them in debug modes, preventing
-    leaking of internal fields (for example DB internals, hashes or internal
-    metadata).
-  - Clearer OpenAPI docs: response schemas appear in the generated OpenAPI,
-    enabling clients (and `openapi-generator`) to generate correct client code
-    and server stubs.
-  - Consistency & defaults: you can control defaults, ordering, and exclude
-    unset/none fields consistently across endpoints via Pydantic model config or
-    FastAPI settings.
-  - Safety & security: explicit models reduce accidental exposure of sensitive
-    attributes and make it easier to add field-level transformations (for
-    example: hide file paths or normalize timestamps).
-  - Faster client development & testing: clients can rely on the contract in CI,
-    and tests can assert schema shapes instead of ad-hoc dict shapes.
-
-  If you want, I can now:
-
-  - Add an OpenAPI assertion test that validates the presence of the main response
-    schemas, or
-  - Tighten response models further (e.g., set `response_model_exclude_none=True`,
-    or add `alias`/`by_alias` behavior), or
-  - Run a quick pass to remove any accidental internal fields from responses
-    across routers.
-
-  - Observability (structured logging, metrics): DEFERRED ❌
-    - Status: No structured logging or Prometheus metrics integration detected.
-
-  - Security (auth/roles): DEFERRED ❌
-    - Status: No authentication or authorization present; endpoints are open.
+  - Security (auth/roles): PARTIAL ✅
+    - Status: A simple, optional API key authentication is implemented. If the
+      `API_KEY` environment variable is set, all endpoints require a valid
+      `X-API-Key` header. If the variable is not set, the API remains open.
+    - Evidence: `security.py` contains the dependency logic. `main.py` applies
+      the dependency to all routers. `config.py` defines the `API_KEY` setting.
 
   - Performance & scaling: PARTIAL ⚠️
     - Status: `docker-compose.yml` provides separate `api` and `worker` services
       and `routers` support pagination (`limit`/`offset`) in adapters listing.
       There are no DB indexes or profiling/benchmarking artifacts.
+    - Gaps: Add database indexes for frequently queried columns (e.g., `status`,
+      `active`, `created_at`).
 
   Small TODOs and test hygiene
 
   - Update tests to use a temp DB per run: DONE ✅
     - Tests now create an isolated temporary SQLite DB per run by setting
       `DATABASE_URL` in the test harness. `db.py` respects the env var so the
-      engine is configurable before app initialization. Local full test run: 4
-      passed.
+      engine is configurable before app initialization.
 
   - Provide a docker-compose that wires Redis + Postgres + worker + API for easy
-    integration testing: PARTIAL ⚠️
-    - `docker-compose.yml` wires Redis, API and an RQ worker; Postgres is not
-      included by default and should be added for a full Postgres-backed
-      integration environment.
+    integration testing: DONE ✅
+    - `docker-compose.yml` now wires Redis, Postgres, API, and an RQ worker,
+      providing a full integration environment.
 
   Quick next steps I can take (pick one) — low-risk order suggestions:
 
-  1. Create an initial Alembic autogenerate revision (repo already has
-     scaffolding).
-  2. Implement a storage adapter interface (LocalFS + S3/MinIO stub) and update
-     `validate_file_path` to use it.
-  3. Harden the worker retry/backoff and add more worker observability.
-  4. Tighten `response_model` usage and add an OpenAPI assertion test.
-
-  Requirements coverage (short mapping)
-
-  - Worker queue: Partial — RQ integration exists and a worker implementation is
-    present (see `tasks.py`, `docker-compose.yml`).
-  - Storage adapter: Deferred — only local FS validation in `services.py`.
-  - Migrations: Partial — Alembic scaffolding present; create/review migrations
-    before applying to Postgres.
-  - API contract hardening: Partial — read/response models exist and are used on
-    key endpoints.
-  - Observability: Deferred — no structured logging / Prometheus metrics.
-  - Security: Deferred — no auth or role checks.
-  - Performance & scaling: Partial — compose separates api/worker and pagination
-    exists; DB tuning and indexes missing.
+  1. Add database indexes to improve query performance (e.g., status, active, created_at) and prepare timezone migration.
+  2. Implement an S3/MinIO storage adapter.
+  3. Add Prometheus metrics for observability.
+  4. Enhance security with role-based access control (RBAC).
 
   If you'd like, I can implement any one of the "Quick next steps" above. Tell
   me which and I'll scaffold the change, add tests, and run the fast validation

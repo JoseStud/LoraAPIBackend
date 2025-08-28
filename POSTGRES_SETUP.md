@@ -1,7 +1,7 @@
-Postgres + MinIO local development setup
+Postgres local development setup
 
-This document shows how to run the project locally with Postgres and S3-compatible
-storage (MinIO) using the provided `docker-compose.yml`.
+This document shows how to run the project locally with Postgres using the provided `docker-compose.yml`.
+The S3-compatible storage (MinIO) has been removed in favor of a local-only storage model.
 
 Prerequisites
 - Docker & docker-compose installed
@@ -11,8 +11,8 @@ Start the stack
 
 ```bash
 cd /path/to/backend-api
-# Start Redis, Postgres, MinIO, API and worker
-docker compose up -d
+# Start Redis and Postgres
+docker compose up -d postgres redis
 ```
 
 Initialize the database (from inside the `api` container or locally with the same env)
@@ -26,15 +26,8 @@ PYTHONPATH=$(pwd) alembic upgrade head
 Notes
 - `DATABASE_URL` is set in `docker-compose.yml` for the `api` and `worker` services.
   It points to `postgresql+psycopg://postgres:postgres@postgres:5432/lora`.
-- MinIO is reachable at `http://localhost:9000` and credentials are `minioadmin/minioadmin`.
-  Create a bucket named `lora-bucket` via the MinIO Console or `mc` before testing S3-backed flows.
+- The API and worker can be run locally, and they will connect to the Postgres and Redis containers.
 
-Creating the bucket with `mc` (MinIO client)
-
-```bash
-mc alias set local http://localhost:9000 minioadmin minioadmin
-mc mb local/lora-bucket
-```
 
 Running tests locally
 

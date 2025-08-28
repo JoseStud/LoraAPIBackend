@@ -2,13 +2,14 @@
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from db import init_db
 from logging_config import setup_logging
 from routers import adapters, compose, deliveries
+from security import get_api_key
 
 
 @asynccontextmanager
@@ -34,9 +35,9 @@ app.add_middleware(
 # DB initialization is handled by the FastAPI lifespan handler above.
 
 
-app.include_router(adapters.router)
-app.include_router(compose.router)
-app.include_router(deliveries.router)
+app.include_router(adapters.router, dependencies=[Depends(get_api_key)])
+app.include_router(compose.router, dependencies=[Depends(get_api_key)])
+app.include_router(deliveries.router, dependencies=[Depends(get_api_key)])
 
 
 @app.get("/health")
