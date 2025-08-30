@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDNext WebSocket Progress Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.connected { background-color: #d4edda; color: #155724; }
+        .status.disconnected { background-color: #f8d7da; color: #721c24; }
+        .status.waiting { background-color: #fff3cd; color: #856404; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #28a745;
+            transition: width 0.3s ease;
+        }
+        .job-status {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 SDNext WebSocket Progress Monitor</h1>
+    
+    <div class="container">
+        <h2>Connection Status</h2>
+        <div id="connection-status" class="status disconnected">
+            Disconnected
+        </div>
+        
+        <div class="controls">
+            <button id="connect-btn" onclick="connect()">Connect</button>
+            <button id="disconnect-btn" onclick="disconnect()" disabled>Disconnect</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Active Jobs</h2>
+        <div id="active-jobs">
+            <p class="status waiting">No active jobs</p>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Message Log</h2>
+        <div id="log" class="log">Waiting for connection...</div>
+    </div>
+    
+    <div class="container">
+        <h2>Test Generation</h2>
+        <p>Use these commands to test WebSocket functionality:</p>
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; font-family: monospace;">
+# Queue a generation job<br>
+curl -X POST http://localhost:8000/generation/queue-generation \<br>
+     -H "Content-Type: application/json" \<br>
+     -d '{"prompt": "a beautiful sunset over mountains", "steps": 10}'<br><br>
+
+# Or compose and generate<br>
+curl -X POST http://localhost:8000/generation/compose-and-generate \<br>
+     -H "Content-Type: application/json" \<br>
+     -d '{"prompt": "a cat", "generation_params": {"prompt": "a cute cat", "steps": 5}}'
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let activeJobs = {};
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function updateConnectionStatus(status, message) {
+            const statusDiv = document.getElementById('connection-status');
+            statusDiv.className = `status ${status}`;
+            statusDiv.textContent = message;
+            
+            document.getElementById('connect-btn').disabled = (status === 'connected');
+            document.getElementById('disconnect-btn').disabled = (status !== 'connected');
+        }
+        
+        function updateActiveJobs() {
+            const activeJobsDiv = document.getElementById('active-jobs');
+            const jobCount = Object.keys(activeJobs).length;
+            
+            if (jobCount === 0) {
+                activeJobsDiv.innerHTML = '<p class="status waiting">No active jobs</p>';
+                return;
+            }
+            
+            let html = '';
+            for (const [jobId, job] of Object.entries(activeJobs)) {
+                const progressPercent = (job.progress * 100).toFixed(1);
+                html += `
+                    <div class="job-status">
+                        <strong>Job:</strong> ${jobId.substring(0, 8)}...<br>
+                        <strong>Status:</strong> ${job.status}<br>
+                        <strong>Progress:</strong> ${progressPercent}%<br>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                        </div>
+                        ${job.error ? `<div style="color: red;">Error: ${job.error}</div>` : ''}
+                    </div>
+                `;
+            }
+            activeJobsDiv.innerHTML = html;
+        }
+        
+        function connect() {
+            if (ws) {
+                ws.close();
+            }
+            
+            updateConnectionStatus('waiting', 'Connecting...');
+            log('Attempting to connect to WebSocket...');
+            
+            ws = new WebSocket('ws://localhost:8000/ws/progress');
+            
+            ws.onopen = function(event) {
+                updateConnectionStatus('connected', 'Connected');
+                log('✅ Connected to WebSocket');
+                
+                // Subscribe to all jobs
+                const subscription = {
+                    type: "subscribe",
+                    job_ids: null,
+                    include_previews: false
+                };
+                ws.send(JSON.stringify(subscription));
+                log('📤 Sent subscription request');
+            };
+            
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    const msgType = data.type;
+                    const timestamp = data.timestamp;
+                    
+                    log(`📥 ${msgType}: ${JSON.stringify(data.data, null, 2)}`);
+                    
+                    switch (msgType) {
+                        case 'connected':
+                            log(`🔗 Connection ID: ${data.data.connection_id}`);
+                            break;
+                            
+                        case 'subscription_confirmed':
+                            log(`✅ Subscribed to: ${data.data.job_ids || 'all jobs'}`);
+                            break;
+                            
+                        case 'generation_started':
+                            const startedData = data.data;
+                            activeJobs[startedData.job_id] = {
+                                status: 'started',
+                                progress: 0,
+                                prompt: startedData.params.prompt
+                            };
+                            updateActiveJobs();
+                            log(`🚀 Generation started: ${startedData.job_id}`);
+                            break;
+                            
+                        case 'progress_update':
+                            const progressData = data.data;
+                            if (activeJobs[progressData.job_id]) {
+                                activeJobs[progressData.job_id].status = progressData.status;
+                                activeJobs[progressData.job_id].progress = progressData.progress;
+                                activeJobs[progressData.job_id].error = progressData.error_message;
+                            } else {
+                                activeJobs[progressData.job_id] = {
+                                    status: progressData.status,
+                                    progress: progressData.progress,
+                                    error: progressData.error_message
+                                };
+                            }
+                            updateActiveJobs();
+                            log(`📊 Progress: ${progressData.job_id} -> ${(progressData.progress * 100).toFixed(1)}%`);
+                            break;
+                            
+                        case 'generation_complete':
+                            const completeData = data.data;
+                            if (activeJobs[completeData.job_id]) {
+                                activeJobs[completeData.job_id].status = completeData.status;
+                                activeJobs[completeData.job_id].progress = 1.0;
+                                if (completeData.status === 'completed') {
+                                    // Remove completed jobs after a delay
+                                    setTimeout(() => {
+                                        delete activeJobs[completeData.job_id];
+                                        updateActiveJobs();
+                                    }, 5000);
+                                }
+                            }
+                            updateActiveJobs();
+                            log(`✅ Generation complete: ${completeData.job_id} -> ${completeData.status}`);
+                            if (completeData.images) {
+                                log(`🖼️ Generated ${completeData.images.length} images`);
+                            }
+                            break;
+                    }
+                } catch (e) {
+                    log(`❌ Error parsing message: ${e.message}`);
+                }
+            };
+            
+            ws.onclose = function(event) {
+                updateConnectionStatus('disconnected', 'Disconnected');
+                log('❌ WebSocket connection closed');
+                ws = null;
+            };
+            
+            ws.onerror = function(error) {
+                updateConnectionStatus('disconnected', 'Connection Error');
+                log(`❌ WebSocket error: ${error}`);
+            };
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+        
+        // Auto-connect on page load
+        window.onload = function() {
+            log('🚀 WebSocket test client loaded');
+            log('💡 Click "Connect" to start monitoring generation progress');
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+version: '3.8'
+
+# GPU-enabled development setup for SDNext + LoRA Backend
+# Usage: docker-compose -f docker-compose.gpu.yml up
+
+services:
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - '6380:6379'
+
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=lora
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # SDNext with GPU support for faster generation
+  sdnext:
+    image: vladmandic/automatic:latest
+    restart: unless-stopped
+    ports:
+      - '7860:7860'
+    volumes:
+      # Your specific model directory structure
+      - /home/anxilinux/DeepVault/models/Stable-diffusion:/app/models/Stable-diffusion
+      - /home/anxilinux/DeepVault/models/Diffusers:/app/models/Diffusers
+      - /home/anxilinux/DeepVault/models/huggingface:/app/models/huggingface
+      - /home/anxilinux/DeepVault/models/VAE:/app/models/VAE
+      - /home/anxilinux/DeepVault/models/UNET:/app/models/UNET
+      - /home/anxilinux/DeepVault/models/Text-encoder:/app/models/Text-encoder
+      - /home/anxilinux/DeepVault/models/Lora:/app/models/Lora
+      - /home/anxilinux/DeepVault/models/tunable:/app/models/tunable
+      - /home/anxilinux/DeepVault/models/embeddings:/app/models/embeddings
+      - /home/anxilinux/DeepVault/models/ONNX:/app/models/ONNX
+      - /home/anxilinux/DeepVault/models/styles:/app/models/styles
+      - /home/anxilinux/DeepVault/models/yolo:/app/models/yolo
+      - /home/anxilinux/DeepVault/models/wildcards:/app/models/wildcards
+      - ./sdnext_config:/app/config   # SDNext configuration
+      - sdnext_data:/app/repositories # Extensions and repos
+      - sdnext_outputs:/app/outputs   # Generated images
+    environment:
+      # Optimized SDNext configuration for development
+      - COMMANDLINE_ARGS=--listen --port 7860 --api --cors-allow-origins=* --enable-insecure-extension-access --xformers --opt-split-attention --use-cpu all --precision full --no-half-vae
+      # GPU-specific settings
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/sdapi/v1/options"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s  # GPU initialization takes longer
+
+  api:
+    build: .
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./:/app
+      - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
+      - sdnext_outputs:/app/outputs   # Access to generated images
+    ports:
+      - '8782:8000'
+    environment:
+      REDIS_URL: "redis://redis:6379/0"
+      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
+      # SDNext integration
+      SDNEXT_BASE_URL: "http://sdnext:7860"
+      SDNEXT_TIMEOUT: "180"
+      SDNEXT_POLL_INTERVAL: "1"        # Faster polling for development
+      SDNEXT_DEFAULT_STEPS: "15"       # Faster generation for testing
+      SDNEXT_DEFAULT_SAMPLER: "DPM++ 2M"
+      SDNEXT_DEFAULT_CFG_SCALE: "7.0"
+      SDNEXT_OUTPUT_DIR: "/app/outputs"
+      # Development settings
+      API_KEY: "dev-api-key-123"       # Fixed API key for development
+    depends_on:
+      sdnext:
+        condition: service_healthy     # Wait for SDNext to be ready
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_started
+
+  worker:
+    build: .
+    command: sh -c "rq worker --url $$REDIS_URL default"
+    volumes:
+      - ./:/app
+      - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
+      - sdnext_outputs:/app/outputs
+    environment:
+      REDIS_URL: "redis://redis:6379/0"
+      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
+      # SDNext integration
+      SDNEXT_BASE_URL: "http://sdnext:7860"
+      SDNEXT_TIMEOUT: "180"
+      SDNEXT_POLL_INTERVAL: "1"
+      SDNEXT_DEFAULT_STEPS: "15"
+      SDNEXT_DEFAULT_SAMPLER: "DPM++ 2M"
+      SDNEXT_DEFAULT_CFG_SCALE: "7.0"
+      SDNEXT_OUTPUT_DIR: "/app/outputs"
+    depends_on:
+      sdnext:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_started
+
+networks:
+  default:
+    name: lora_backend_gpu_net
+
+volumes:
+  postgres_data:
+  sdnext_data:
+  sdnext_outputs:

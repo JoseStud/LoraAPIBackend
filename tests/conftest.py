@@ -7,26 +7,61 @@ from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
-import services
-import storage
-from db import get_session
-from main import app
-from services import AdapterService, ComposeService, DeliveryService
+# Use new app import paths
+from app.core.database import get_session
+from app.main import app
+from app.services import ServiceContainer
+from app.services.adapters import AdapterService
+from app.services.composition import ComposeService
+from app.services.deliveries import DeliveryService
+
+# Import legacy modules for backward compatibility patching (if they exist)
+try:
+    import services
+except ImportError:
+    services = None
+
+try:
+    import storage
+except ImportError:
+    storage = None
 
 
 @pytest.fixture(name="mock_storage")
 def mock_storage_fixture(monkeypatch) -> MagicMock:
-    """Mock storage adapter fixture that patches `storage.file_exists`.
+    """Mock storage adapter fixture that patches storage functions.
 
     Tests can set `mock_storage.exists.return_value` and the patch will cause
-    `storage.file_exists` to call the mock.
+    both legacy and new storage systems to use the mock.
     """
     mock = MagicMock()
-    # Patch both the storage module and the services module reference so
-    # AdapterService.validate_file_path (which imported file_exists at
-    # module import time) will call the test mock.
-    monkeypatch.setattr(storage, "file_exists", lambda path: mock.exists(path))
-    monkeypatch.setattr(services, "file_exists", lambda path: mock.exists(path))
+    
+    # The legacy compatibility modules have been removed
+    # All mocking is now handled through the new app structure
+    
+    # Create a mock storage backend
+    mock_backend = MagicMock()
+    mock_backend.file_exists.side_effect = lambda path: mock.exists(path)
+    
+    # Create a mock storage service that uses our mock backend
+    mock_storage_service = MagicMock()
+    mock_storage_service.backend = mock_backend
+    mock_storage_service.validate_file_path.side_effect = lambda path: mock.exists(path)
+    
+    # Patch the storage service factory in all possible locations
+    import app.services.storage
+    monkeypatch.setattr(app.services.storage, "get_storage_service", lambda: mock_storage_service)
+    monkeypatch.setattr("app.services.storage.get_storage_service", lambda: mock_storage_service)
+    
+    # Also patch the ServiceContainer's property method directly
+    from app.services import ServiceContainer
+    original_storage_property = ServiceContainer.storage
+    
+    def mock_storage_property(self):
+        return mock_storage_service
+    
+    monkeypatch.setattr(ServiceContainer, "storage", property(mock_storage_property))
+    
     return mock
 
 
@@ -42,26 +77,37 @@ def db_session_fixture():
         poolclass=StaticPool,
     )
     SQLModel.metadata.create_all(engine)
+    # Ensure tests enforce the same uniqueness we add via Alembic
+    # Create a unique index on (name, version) for the adapter table so
+    # test behavior matches production DB expectations.
+    with engine.begin() as conn:
+        conn.exec_driver_sql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_adapter_name_version ON adapter (name, version)",
+        )
     with Session(engine) as session:
         yield session
 
 
 @pytest.fixture
-def adapter_service(db_session: Session) -> AdapterService:
-    """AdapterService fixture."""
-    return AdapterService(db_session)
+def adapter_service(db_session: Session, mock_storage) -> AdapterService:
+    """AdapterService fixture using the new modular service."""
+    # Use the mocked storage service
+    container = ServiceContainer(db_session)
+    return container.adapters
 
 
 @pytest.fixture
 def delivery_service(db_session: Session) -> DeliveryService:
-    """DeliveryService fixture."""
-    return DeliveryService(db_session)
+    """DeliveryService fixture using the new modular service."""
+    container = ServiceContainer(db_session)
+    return container.deliveries
 
 
 @pytest.fixture
 def compose_service() -> ComposeService:
-    """ComposeService fixture."""
-    return ComposeService()
+    """ComposeService fixture using the new modular service."""
+    container = ServiceContainer(db_session=None)
+    return container.compose
 
 
 @pytest.fixture(name="client")

@@ -1,0 +1,124 @@
+version: '3.8'
+
+# CPU-only setup for SDNext + LoRA Backend (for testing without GPU)
+# Usage: docker-compose -f docker-compose.cpu.yml up
+
+services:
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - '6380:6379'
+
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=lora
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # SDNext with CPU-only configuration (slower but works everywhere)
+  sdnext:
+    image: vladmandic/automatic:latest
+    restart: unless-stopped
+    ports:
+      - '7860:7860'
+    volumes:
+      # Your specific model directory structure
+      - /home/anxilinux/DeepVault/models/Stable-diffusion:/app/models/Stable-diffusion
+      - /home/anxilinux/DeepVault/models/Diffusers:/app/models/Diffusers
+      - /home/anxilinux/DeepVault/models/huggingface:/app/models/huggingface
+      - /home/anxilinux/DeepVault/models/VAE:/app/models/VAE
+      - /home/anxilinux/DeepVault/models/UNET:/app/models/UNET
+      - /home/anxilinux/DeepVault/models/Text-encoder:/app/models/Text-encoder
+      - /home/anxilinux/DeepVault/models/Lora:/app/models/Lora
+      - /home/anxilinux/DeepVault/models/tunable:/app/models/tunable
+      - /home/anxilinux/DeepVault/models/embeddings:/app/models/embeddings
+      - /home/anxilinux/DeepVault/models/ONNX:/app/models/ONNX
+      - /home/anxilinux/DeepVault/models/styles:/app/models/styles
+      - /home/anxilinux/DeepVault/models/yolo:/app/models/yolo
+      - /home/anxilinux/DeepVault/models/wildcards:/app/models/wildcards
+      - ./sdnext_config:/app/config   # SDNext configuration
+      - sdnext_data:/app/repositories # Extensions and repos
+      - sdnext_outputs:/app/outputs   # Generated images
+    environment:
+      # CPU-optimized SDNext configuration
+      - COMMANDLINE_ARGS=--listen --port 7860 --api --cors-allow-origins=* --enable-insecure-extension-access --use-cpu all --precision full --no-half --no-half-vae --skip-torch-cuda-test
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/sdapi/v1/options"]
+      interval: 45s
+      timeout: 15s
+      retries: 5
+      start_period: 240s  # CPU startup is slower
+
+  api:
+    build: .
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./:/app
+      - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
+      - sdnext_outputs:/app/outputs
+    ports:
+      - '8782:8000'
+    environment:
+      REDIS_URL: "redis://redis:6379/0"
+      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
+      # SDNext integration with longer timeouts for CPU
+      SDNEXT_BASE_URL: "http://sdnext:7860"
+      SDNEXT_TIMEOUT: "300"            # Longer timeout for CPU generation
+      SDNEXT_POLL_INTERVAL: "5"       # Less frequent polling for CPU
+      SDNEXT_DEFAULT_STEPS: "10"      # Fewer steps for faster CPU generation
+      SDNEXT_DEFAULT_SAMPLER: "Euler"  # Faster sampler for CPU
+      SDNEXT_DEFAULT_CFG_SCALE: "7.0"
+      SDNEXT_OUTPUT_DIR: "/app/outputs"
+      # Development settings
+      API_KEY: "dev-api-key-123"
+    depends_on:
+      sdnext:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_started
+
+  worker:
+    build: .
+    command: sh -c "rq worker --url $$REDIS_URL default"
+    volumes:
+      - ./:/app
+      - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
+      - sdnext_outputs:/app/outputs
+    environment:
+      REDIS_URL: "redis://redis:6379/0"
+      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
+      # SDNext integration with CPU settings
+      SDNEXT_BASE_URL: "http://sdnext:7860"
+      SDNEXT_TIMEOUT: "300"
+      SDNEXT_POLL_INTERVAL: "5"
+      SDNEXT_DEFAULT_STEPS: "10"
+      SDNEXT_DEFAULT_SAMPLER: "Euler"
+      SDNEXT_DEFAULT_CFG_SCALE: "7.0"
+      SDNEXT_OUTPUT_DIR: "/app/outputs"
+    depends_on:
+      sdnext:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_started
+
+networks:
+  default:
+    name: lora_backend_cpu_net
+
+volumes:
+  postgres_data:
+  sdnext_data:
+  sdnext_outputs:

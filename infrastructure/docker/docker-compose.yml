@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - '6380:6379'
+
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=lora
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # SDNext (Stable Diffusion) service for image generation
+  sdnext:
+    image: vladmandic/automatic:latest
+    restart: unless-stopped
+    ports:
+      - '7860:7860'
+    volumes:
+      - ./models:/app/models  # Mount models directory
+      - ./loras:/app/models/lora  # Mount LoRA models
+      - sdnext_data:/app/repositories  # Persistent repositories
+      - sdnext_outputs:/app/outputs    # Generated images
+    environment:
+      # SDNext configuration
+      - COMMANDLINE_ARGS=--listen --port 7860 --api --cors-allow-origins=* --enable-insecure-extension-access --xformers
+      # GPU support (uncomment if using NVIDIA GPU)
+      # - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            # Uncomment for NVIDIA GPU support
+            # - driver: nvidia
+            #   count: 1
+            #   capabilities: [gpu]
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/sdapi/v1/options"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s  # SDNext takes time to start
+
+  api:
+    build: .
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./:/app
+      - ./loras:/app/loras
+    ports:
+      - '8782:8000'
+    environment:
+      REDIS_URL: "redis://redis:6379/0"
+      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
+      # SDNext integration configuration
+      SDNEXT_BASE_URL: "http://sdnext:7860"
+      SDNEXT_TIMEOUT: "120"
+      SDNEXT_POLL_INTERVAL: "2"
+      SDNEXT_DEFAULT_STEPS: "20"
+      SDNEXT_DEFAULT_SAMPLER: "DPM++ 2M"
+      SDNEXT_DEFAULT_CFG_SCALE: "7.0"
+      SDNEXT_OUTPUT_DIR: "/app/outputs"
+    depends_on:
+      - redis
+      - postgres
+      - sdnext
+
+  worker:
+    build: .
+    command: sh -c "rq worker --url $$REDIS_URL default"
+    volumes:
+      - ./:/app
+      - ./loras:/app/loras
+    environment:
+      REDIS_URL: "redis://redis:6379/0"
+      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
+      # SDNext integration configuration for worker
+      SDNEXT_BASE_URL: "http://sdnext:7860"
+      SDNEXT_TIMEOUT: "120"
+      SDNEXT_POLL_INTERVAL: "2"
+      SDNEXT_DEFAULT_STEPS: "20"
+      SDNEXT_DEFAULT_SAMPLER: "DPM++ 2M"
+      SDNEXT_DEFAULT_CFG_SCALE: "7.0"
+      SDNEXT_OUTPUT_DIR: "/app/outputs"
+    depends_on:
+      - redis
+      - postgres
+      - sdnext
+
+networks:
+  default:
+    name: lora_backend_net
+
+volumes:
+  postgres_data:
+  sdnext_data:     # SDNext repositories and extensions
+  sdnext_outputs:  # Generated images storage

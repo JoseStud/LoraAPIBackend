@@ -1,0 +1,141 @@
+version: '3.8'
+
+# ROCm-enabled setup for SDNext + LoRA Backend (AMD GPUs)
+# Usage: docker-compose -f docker-compose.rocm.yml up
+
+services:
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - '6380:6379'
+
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=lora
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # SDNext with ROCm support for AMD GPUs
+  sdnext:
+    image: disty0/sdnext-rocm:latest
+    restart: unless-stopped
+    ports:
+      - '7860:7860'
+    volumes:
+      # Your specific model directory structure
+      - /home/anxilinux/DeepVault/models/Stable-diffusion:/app/models/Stable-diffusion
+      - /home/anxilinux/DeepVault/models/Diffusers:/app/models/Diffusers
+      - /home/anxilinux/DeepVault/models/huggingface:/app/models/huggingface
+      - /home/anxilinux/DeepVault/models/VAE:/app/models/VAE
+      - /home/anxilinux/DeepVault/models/UNET:/app/models/UNET
+      - /home/anxilinux/DeepVault/models/Text-encoder:/app/models/Text-encoder
+      - /home/anxilinux/DeepVault/models/Lora:/app/models/Lora
+      - /home/anxilinux/DeepVault/models/tunable:/app/models/tunable
+      - /home/anxilinux/DeepVault/models/embeddings:/app/models/embeddings
+      - /home/anxilinux/DeepVault/models/ONNX:/app/models/ONNX
+      - /home/anxilinux/DeepVault/models/styles:/app/models/styles
+      - /home/anxilinux/DeepVault/models/yolo:/app/models/yolo
+      - /home/anxilinux/DeepVault/models/wildcards:/app/models/wildcards
+      - ./sdnext_config:/app/config   # SDNext configuration
+      - sdnext_data:/app/repositories # Extensions and repos
+      - sdnext_outputs:/app/outputs   # Generated images
+    devices:
+      # ROCm device access (required for AMD GPU acceleration)
+      - /dev/dri:/dev/dri             # DRI devices for GPU access
+      - /dev/kfd:/dev/kfd             # KFD device for compute
+    environment:
+      # ROCm-optimized SDNext configuration for your setup
+      - COMMANDLINE_ARGS=--listen --port 7860 --api --cors-allow-origins=* --enable-insecure-extension-access --use-rocm --precision fp16 --opt-sub-quad-attention --opt-split-attention --data-dir /app/models --models-dir /app/models/Stable-diffusion --vae-dir /app/models/VAE --lora-dir /app/models/Lora
+      # ROCm performance tuning environment variables
+      - HSA_OVERRIDE_GFX_VERSION=10.3.0  # Set to your GPU version (e.g., 10.3.0 for RDNA2, 11.0.0 for RDNA3)
+      - ROC_ENABLE_PRE_VEGA=1           # Enable for older AMD GPUs
+      - HIP_VISIBLE_DEVICES=0           # Use first GPU
+      - MIOPEN_FIND_MODE=FAST           # Faster startup, slightly worse performance
+      # Alternative: MIOPEN_FIND_ENFORCE=SEARCH for best performance but slower startup
+      - MIOPEN_USER_DB_PATH=/tmp/.miopen  # MIOpen database path
+      # Hugging Face token from your config
+      - HF_TOKEN=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
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/sdapi/v1/options"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 240s  # ROCm initialization takes longer than CUDA
+
+  api:
+    build: .
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./:/app
+      - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
+      - sdnext_outputs:/app/outputs   # Access to generated images
+    ports:
+      - '8782:8000'
+    environment:
+      REDIS_URL: "redis://redis:6379/0"
+      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
+      # SDNext integration
+      SDNEXT_BASE_URL: "http://sdnext:7860"
+      SDNEXT_TIMEOUT: "240"             # Longer timeout for ROCm
+      SDNEXT_POLL_INTERVAL: "2"        # Slightly slower polling for ROCm
+      SDNEXT_DEFAULT_STEPS: "20"       # Standard steps for ROCm
+      SDNEXT_DEFAULT_SAMPLER: "DPM++ 2M"
+      SDNEXT_DEFAULT_CFG_SCALE: "7.0"
+      SDNEXT_OUTPUT_DIR: "/app/outputs"
+      # Your specific setup
+      LORA_DIRECTORY: "/app/loras"
+      # Development settings
+      API_KEY: "dev-api-key-123"       # Fixed API key for development
+    depends_on:
+      sdnext:
+        condition: service_healthy     # Wait for SDNext to be ready
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_started
+
+  worker:
+    build: .
+    command: sh -c "rq worker --url $$REDIS_URL default"
+    volumes:
+      - ./:/app
+      - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
+      - sdnext_outputs:/app/outputs
+    environment:
+      REDIS_URL: "redis://redis:6379/0"
+      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
+      # SDNext integration
+      SDNEXT_BASE_URL: "http://sdnext:7860"
+      SDNEXT_TIMEOUT: "240"
+      SDNEXT_POLL_INTERVAL: "2"
+      SDNEXT_DEFAULT_STEPS: "20"
+      SDNEXT_DEFAULT_SAMPLER: "DPM++ 2M"
+      SDNEXT_DEFAULT_CFG_SCALE: "7.0"
+      SDNEXT_OUTPUT_DIR: "/app/outputs"
+      # Your specific setup
+      LORA_DIRECTORY: "/app/loras"
+    depends_on:
+      sdnext:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_started
+
+networks:
+  default:
+    name: lora_backend_rocm_net
+
+volumes:
+  postgres_data:
+  sdnext_data:
+  sdnext_outputs:

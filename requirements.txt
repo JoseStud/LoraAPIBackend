@@ -1,7 +1,9 @@
 fastapi
 uvicorn[standard]
 pydantic
+pydantic-settings
 requests
+aiohttp
 sqlmodel
 alembic
 redis
@@ -9,6 +11,8 @@ rq
 fakeredis
 boto3
 psycopg[binary]
+structlog
+websockets
 
 # Developer tooling (linting/formatting/test helpers)
 # Install locally with: pip install -r dev-requirements.txt

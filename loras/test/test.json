@@ -1,0 +1,1 @@
+{"name": "test_adapter_updated", "model": {"name": "Test Model Updated", "type": "LORA"}, "modelVersions": [{"name": "v1.1", "files": [{"name": "test.safetensors", "downloadUrl": "http://example.com/test.safetensors", "hashes": {"SHA256": "abc123"}, "sizeKB": 1000}]}]}

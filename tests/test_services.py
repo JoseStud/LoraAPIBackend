@@ -1,7 +1,7 @@
 """Tests for the service layer."""
 
-from models import Adapter
-from schemas import AdapterCreate
+from app.models.adapters import Adapter
+from app.schemas.adapters import AdapterCreate
 
 
 class TestAdapterService:
