@@ -3,6 +3,7 @@
  */
 
 import { defineConfig, devices } from '@playwright/test';
+import process from 'node:process'; // <-- added to ensure 'process' is defined in ESM environments
 
 export default defineConfig({
   // Test directory

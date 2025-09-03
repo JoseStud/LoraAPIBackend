@@ -4,8 +4,8 @@
     "rootDir": "/home/anxilinux/DeepVault/models/Lora/lora-manager/tests",
     "forbidOnly": false,
     "fullyParallel": false,
-    "globalSetup": "/home/anxilinux/DeepVault/models/Lora/lora-manager/tests/playwright.global-setup.js",
-    "globalTeardown": "/home/anxilinux/DeepVault/models/Lora/lora-manager/tests/playwright.global-teardown.js",
+    "globalSetup": null,
+    "globalTeardown": null,
     "globalTimeout": 0,
     "grep": {},
     "grepInvert": null,
@@ -184,18 +184,4735 @@
       }
     }
   },
-  "suites": [],
-  "errors": [
+  "suites": [
     {
-      "message": "Error: Timed out waiting 30000ms from config.webServer.",
-      "stack": "Error: Timed out waiting 30000ms from config.webServer."
+      "title": "e2e/homepage.spec.js",
+      "file": "e2e/homepage.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Homepage",
+          "file": "e2e/homepage.spec.js",
+          "line": 8,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should load homepage when backend is available",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop Chrome",
+                  "projectName": "Desktop Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-a0f902b197f0bd538429",
+              "file": "e2e/homepage.spec.js",
+              "line": 14,
+              "column": 7
+            },
+            {
+              "title": "should have proper viewport",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop Chrome",
+                  "projectName": "Desktop Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-e9d4be1e20b0ab39c9fb",
+              "file": "e2e/homepage.spec.js",
+              "line": 34,
+              "column": 7
+            },
+            {
+              "title": "can navigate and interact with browser",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop Chrome",
+                  "projectName": "Desktop Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-5e927b6772d9e7589e68",
+              "file": "e2e/homepage.spec.js",
+              "line": 40,
+              "column": 7
+            },
+            {
+              "title": "should load homepage when backend is available",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop Firefox",
+                  "projectName": "Desktop Firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-2e1f39ef1dc7a45b0560",
+              "file": "e2e/homepage.spec.js",
+              "line": 14,
+              "column": 7
+            },
+            {
+              "title": "should have proper viewport",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop Firefox",
+                  "projectName": "Desktop Firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-1485f0c8e2cefc20fafa",
+              "file": "e2e/homepage.spec.js",
+              "line": 34,
+              "column": 7
+            },
+            {
+              "title": "can navigate and interact with browser",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop Firefox",
+                  "projectName": "Desktop Firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-1eb55a9da6023deeefd4",
+              "file": "e2e/homepage.spec.js",
+              "line": 40,
+              "column": 7
+            },
+            {
+              "title": "should load homepage when backend is available",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop Safari",
+                  "projectName": "Desktop Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-742ad57c30f5af20f19a",
+              "file": "e2e/homepage.spec.js",
+              "line": 14,
+              "column": 7
+            },
+            {
+              "title": "should have proper viewport",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop Safari",
+                  "projectName": "Desktop Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-12fe38cf452ca1b56186",
+              "file": "e2e/homepage.spec.js",
+              "line": 34,
+              "column": 7
+            },
+            {
+              "title": "can navigate and interact with browser",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop Safari",
+                  "projectName": "Desktop Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-60a4d5320c1610c9aded",
+              "file": "e2e/homepage.spec.js",
+              "line": 40,
+              "column": 7
+            },
+            {
+              "title": "should load homepage when backend is available",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-c7dfb87da25c517489a0",
+              "file": "e2e/homepage.spec.js",
+              "line": 14,
+              "column": 7
+            },
+            {
+              "title": "should have proper viewport",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-e3c1dddb7969d360b7c9",
+              "file": "e2e/homepage.spec.js",
+              "line": 34,
+              "column": 7
+            },
+            {
+              "title": "can navigate and interact with browser",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-8c50042a9f65f793436a",
+              "file": "e2e/homepage.spec.js",
+              "line": 40,
+              "column": 7
+            },
+            {
+              "title": "should load homepage when backend is available",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-cee44672cdc8fe14aad7",
+              "file": "e2e/homepage.spec.js",
+              "line": 14,
+              "column": 7
+            },
+            {
+              "title": "should have proper viewport",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-39fd72965bfdeeb3daf3",
+              "file": "e2e/homepage.spec.js",
+              "line": 34,
+              "column": 7
+            },
+            {
+              "title": "can navigate and interact with browser",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-3bd117266545a670a896",
+              "file": "e2e/homepage.spec.js",
+              "line": 40,
+              "column": 7
+            },
+            {
+              "title": "should load homepage when backend is available",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Tablet",
+                  "projectName": "Tablet",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-aebbf0b77d6c2c623936",
+              "file": "e2e/homepage.spec.js",
+              "line": 14,
+              "column": 7
+            },
+            {
+              "title": "should have proper viewport",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Tablet",
+                  "projectName": "Tablet",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-c619d29b045ff2097486",
+              "file": "e2e/homepage.spec.js",
+              "line": 34,
+              "column": 7
+            },
+            {
+              "title": "can navigate and interact with browser",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Tablet",
+                  "projectName": "Tablet",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2220e1c20e90836bed36-e4385b97dc2661c4a32b",
+              "file": "e2e/homepage.spec.js",
+              "line": 40,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "e2e/lora-manager.spec.js",
+      "file": "e2e/lora-manager.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "LoRA Manager E2E Tests",
+          "file": "e2e/lora-manager.spec.js",
+          "line": 8,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "Navigation and Layout",
+              "file": "e2e/lora-manager.spec.js",
+              "line": 14,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should display main navigation",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-2769ae1666dca06715af",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 15,
+                  "column": 13
+                },
+                {
+                  "title": "should toggle mobile navigation",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-0146696b211b7e5384f1",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 23,
+                  "column": 13
+                },
+                {
+                  "title": "should navigate between pages",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-765e4da00eb46b31fd93",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 44,
+                  "column": 13
+                },
+                {
+                  "title": "should display main navigation",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-502d8c2984a1ed75eff0",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 15,
+                  "column": 13
+                },
+                {
+                  "title": "should toggle mobile navigation",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-b6043f48cd9045a166db",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 23,
+                  "column": 13
+                },
+                {
+                  "title": "should navigate between pages",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-116a39d80bfff1e945bf",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 44,
+                  "column": 13
+                },
+                {
+                  "title": "should display main navigation",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-f04352b807662ae09b0d",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 15,
+                  "column": 13
+                },
+                {
+                  "title": "should toggle mobile navigation",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-1657d08d48072336507d",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 23,
+                  "column": 13
+                },
+                {
+                  "title": "should navigate between pages",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-16b18f225d4ceca0b73b",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 44,
+                  "column": 13
+                },
+                {
+                  "title": "should display main navigation",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-d43b05995d7f3fa97748",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 15,
+                  "column": 13
+                },
+                {
+                  "title": "should toggle mobile navigation",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-283862cef4f7e55ac469",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 23,
+                  "column": 13
+                },
+                {
+                  "title": "should navigate between pages",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-923488059348a0bbf36d",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 44,
+                  "column": 13
+                },
+                {
+                  "title": "should display main navigation",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-84dbcc21ce1515243e2d",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 15,
+                  "column": 13
+                },
+                {
+                  "title": "should toggle mobile navigation",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-ad1ebfd7dfd88b7d9909",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 23,
+                  "column": 13
+                },
+                {
+                  "title": "should navigate between pages",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-2b7a810c006e0a4a4b16",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 44,
+                  "column": 13
+                },
+                {
+                  "title": "should display main navigation",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-4adbee092dee0a59707a",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 15,
+                  "column": 13
+                },
+                {
+                  "title": "should toggle mobile navigation",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-40e8b156152f8fa2d7d4",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 23,
+                  "column": 13
+                },
+                {
+                  "title": "should navigate between pages",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-66b1086f511988113186",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 44,
+                  "column": 13
+                }
+              ]
+            },
+            {
+              "title": "LoRA Management",
+              "file": "e2e/lora-manager.spec.js",
+              "line": 61,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should display LoRA list",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-3f532eaf0f74cc0f1328",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 62,
+                  "column": 13
+                },
+                {
+                  "title": "should filter LoRAs by tags",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-1a4009b7a32ba2b147c2",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 85,
+                  "column": 13
+                },
+                {
+                  "title": "should search LoRAs",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-a561350d9e087b7b1843",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 113,
+                  "column": 13
+                },
+                {
+                  "title": "should view LoRA details",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-ac51a007f893b34cdd4d",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 140,
+                  "column": 13
+                },
+                {
+                  "title": "should upload new LoRA",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-d88553d86e5b1f0c4607",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 165,
+                  "column": 13
+                },
+                {
+                  "title": "should display LoRA list",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-679d1de5de0259e1ce06",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 62,
+                  "column": 13
+                },
+                {
+                  "title": "should filter LoRAs by tags",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-11f6ba3eff935bbdae00",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 85,
+                  "column": 13
+                },
+                {
+                  "title": "should search LoRAs",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-fa3568cb2dc10b284af4",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 113,
+                  "column": 13
+                },
+                {
+                  "title": "should view LoRA details",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-139e98b8c7edf1da9df5",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 140,
+                  "column": 13
+                },
+                {
+                  "title": "should upload new LoRA",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-cfc234500f19546ef471",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 165,
+                  "column": 13
+                },
+                {
+                  "title": "should display LoRA list",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-19b30d0add0473ca0730",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 62,
+                  "column": 13
+                },
+                {
+                  "title": "should filter LoRAs by tags",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-c0509b522736f6cb30e6",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 85,
+                  "column": 13
+                },
+                {
+                  "title": "should search LoRAs",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-b552d6a9a3337b6cd110",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 113,
+                  "column": 13
+                },
+                {
+                  "title": "should view LoRA details",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-b5ff8b8ea3d2fdb84965",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 140,
+                  "column": 13
+                },
+                {
+                  "title": "should upload new LoRA",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-a8efec826d36f0f5f581",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 165,
+                  "column": 13
+                },
+                {
+                  "title": "should display LoRA list",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-b2ae081d17a06886528d",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 62,
+                  "column": 13
+                },
+                {
+                  "title": "should filter LoRAs by tags",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-0d0c3654c0a6e68d2679",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 85,
+                  "column": 13
+                },
+                {
+                  "title": "should search LoRAs",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-a1bc717073c7b9ba7ace",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 113,
+                  "column": 13
+                },
+                {
+                  "title": "should view LoRA details",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-29e194639e15126e4634",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 140,
+                  "column": 13
+                },
+                {
+                  "title": "should upload new LoRA",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-48907b4b6aaa777a2eaa",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 165,
+                  "column": 13
+                },
+                {
+                  "title": "should display LoRA list",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-558240952815917623d9",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 62,
+                  "column": 13
+                },
+                {
+                  "title": "should filter LoRAs by tags",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-2d26cf3ccafe837e009e",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 85,
+                  "column": 13
+                },
+                {
+                  "title": "should search LoRAs",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-ad6e46f95d44672ebd71",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 113,
+                  "column": 13
+                },
+                {
+                  "title": "should view LoRA details",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-5452ab4e0f601967b158",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 140,
+                  "column": 13
+                },
+                {
+                  "title": "should upload new LoRA",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-1efc7f7a18427b1abe80",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 165,
+                  "column": 13
+                },
+                {
+                  "title": "should display LoRA list",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-c2bbcecff2a72abff831",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 62,
+                  "column": 13
+                },
+                {
+                  "title": "should filter LoRAs by tags",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-d401bc27c26eda35118f",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 85,
+                  "column": 13
+                },
+                {
+                  "title": "should search LoRAs",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-af2c64d5b3b546768b89",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 113,
+                  "column": 13
+                },
+                {
+                  "title": "should view LoRA details",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-5f22e3af80eb0fff0768",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 140,
+                  "column": 13
+                },
+                {
+                  "title": "should upload new LoRA",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-8c4fe68d6b4ed7cafee6",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 165,
+                  "column": 13
+                }
+              ]
+            },
+            {
+              "title": "Recommendations",
+              "file": "e2e/lora-manager.spec.js",
+              "line": 196,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should display recommendations",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-b6054f1f6369af054409",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 197,
+                  "column": 13
+                },
+                {
+                  "title": "should provide feedback on recommendations",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-54a0e82cdcec6b49b9dd",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 219,
+                  "column": 13
+                },
+                {
+                  "title": "should filter recommendations by preferences",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-83b459aee651dfc0f334",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 243,
+                  "column": 13
+                },
+                {
+                  "title": "should display recommendations",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-34261ae6e3c6045952c4",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 197,
+                  "column": 13
+                },
+                {
+                  "title": "should provide feedback on recommendations",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-16fb2b5dde5eb49c6bec",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 219,
+                  "column": 13
+                },
+                {
+                  "title": "should filter recommendations by preferences",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-a8e6120bd28badc18589",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 243,
+                  "column": 13
+                },
+                {
+                  "title": "should display recommendations",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-b5e9622603d9a0c20d94",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 197,
+                  "column": 13
+                },
+                {
+                  "title": "should provide feedback on recommendations",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-2d285c5b41c2abefc803",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 219,
+                  "column": 13
+                },
+                {
+                  "title": "should filter recommendations by preferences",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-5b21de4a5163de65e14a",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 243,
+                  "column": 13
+                },
+                {
+                  "title": "should display recommendations",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-bb70ee4384b29159c838",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 197,
+                  "column": 13
+                },
+                {
+                  "title": "should provide feedback on recommendations",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-ec564ba23ca661942efa",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 219,
+                  "column": 13
+                },
+                {
+                  "title": "should filter recommendations by preferences",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-18d1bdb518d4492b9602",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 243,
+                  "column": 13
+                },
+                {
+                  "title": "should display recommendations",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-30ded4612cb83f35b66a",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 197,
+                  "column": 13
+                },
+                {
+                  "title": "should provide feedback on recommendations",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-adc14ac417ad9cd034e8",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 219,
+                  "column": 13
+                },
+                {
+                  "title": "should filter recommendations by preferences",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-c994c9c0826f000d89b2",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 243,
+                  "column": 13
+                },
+                {
+                  "title": "should display recommendations",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-b0eb6e0ca574edb7b9ba",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 197,
+                  "column": 13
+                },
+                {
+                  "title": "should provide feedback on recommendations",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-4e58f80dcf308354dfb2",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 219,
+                  "column": 13
+                },
+                {
+                  "title": "should filter recommendations by preferences",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-a15fa7d708b4870f31c8",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 243,
+                  "column": 13
+                }
+              ]
+            },
+            {
+              "title": "System Administration",
+              "file": "e2e/lora-manager.spec.js",
+              "line": 277,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should access admin panel",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-2b9ee558b6090d5066d7",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 278,
+                  "column": 13
+                },
+                {
+                  "title": "should display system overview",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-f1483e7460172aa7c14a",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 292,
+                  "column": 13
+                },
+                {
+                  "title": "should manage workers",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-d016a623c7d518707f68",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 309,
+                  "column": 13
+                },
+                {
+                  "title": "should view system logs",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-5d2f743a91fda9c2d341",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 329,
+                  "column": 13
+                },
+                {
+                  "title": "should access admin panel",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-2165feb1e24a03d45f1d",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 278,
+                  "column": 13
+                },
+                {
+                  "title": "should display system overview",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-20efc810945661441b11",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 292,
+                  "column": 13
+                },
+                {
+                  "title": "should manage workers",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-19f0921dd1bdc3263aca",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 309,
+                  "column": 13
+                },
+                {
+                  "title": "should view system logs",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-1908ea6453ffea27cb8f",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 329,
+                  "column": 13
+                },
+                {
+                  "title": "should access admin panel",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-1dd649b0d95067246bb4",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 278,
+                  "column": 13
+                },
+                {
+                  "title": "should display system overview",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-8c04dd7d526b0033c3a5",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 292,
+                  "column": 13
+                },
+                {
+                  "title": "should manage workers",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-97b4cde6c7c2ec75164f",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 309,
+                  "column": 13
+                },
+                {
+                  "title": "should view system logs",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-3c319dce9ddc8dc1934f",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 329,
+                  "column": 13
+                },
+                {
+                  "title": "should access admin panel",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-b6d3e3138d599d5942a8",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 278,
+                  "column": 13
+                },
+                {
+                  "title": "should display system overview",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-fe131f2186bb805eaa13",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 292,
+                  "column": 13
+                },
+                {
+                  "title": "should manage workers",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-7e34643b07f331261859",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 309,
+                  "column": 13
+                },
+                {
+                  "title": "should view system logs",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-512fd3ede3cb9e258877",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 329,
+                  "column": 13
+                },
+                {
+                  "title": "should access admin panel",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-10af323c44b6ea217a64",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 278,
+                  "column": 13
+                },
+                {
+                  "title": "should display system overview",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-fd8973c3cbac9b26f5b4",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 292,
+                  "column": 13
+                },
+                {
+                  "title": "should manage workers",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-532e327759a4c6007d95",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 309,
+                  "column": 13
+                },
+                {
+                  "title": "should view system logs",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-ee00a8779da782a02fa3",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 329,
+                  "column": 13
+                },
+                {
+                  "title": "should access admin panel",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-e7bd30d561b5c01d811b",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 278,
+                  "column": 13
+                },
+                {
+                  "title": "should display system overview",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-ef7259f93a0551b36c53",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 292,
+                  "column": 13
+                },
+                {
+                  "title": "should manage workers",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-77e45e3bcaaa5b4cad13",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 309,
+                  "column": 13
+                },
+                {
+                  "title": "should view system logs",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-000e0c6376437b915219",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 329,
+                  "column": 13
+                }
+              ]
+            },
+            {
+              "title": "Performance Analytics",
+              "file": "e2e/lora-manager.spec.js",
+              "line": 358,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should display analytics dashboard",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-a395eae9c36c1af3e996",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 359,
+                  "column": 13
+                },
+                {
+                  "title": "should change time range",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-b2d65737233dcd24f8ff",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 378,
+                  "column": 13
+                },
+                {
+                  "title": "should export analytics data",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-60282edf23f2befd5172",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 398,
+                  "column": 13
+                },
+                {
+                  "title": "should display analytics dashboard",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-b90de9c111fbf0c4952b",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 359,
+                  "column": 13
+                },
+                {
+                  "title": "should change time range",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-7c6f8d43b846846f4121",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 378,
+                  "column": 13
+                },
+                {
+                  "title": "should export analytics data",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-38332e998110fac46c71",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 398,
+                  "column": 13
+                },
+                {
+                  "title": "should display analytics dashboard",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-6c22a538bdf39ab85f55",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 359,
+                  "column": 13
+                },
+                {
+                  "title": "should change time range",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-2a2c01db21af917c2180",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 378,
+                  "column": 13
+                },
+                {
+                  "title": "should export analytics data",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-92f88b939ed2742c4c42",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 398,
+                  "column": 13
+                },
+                {
+                  "title": "should display analytics dashboard",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-42ddfd96d065b6718c1a",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 359,
+                  "column": 13
+                },
+                {
+                  "title": "should change time range",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-48aac62c0c2068bc7012",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 378,
+                  "column": 13
+                },
+                {
+                  "title": "should export analytics data",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-275bf9091647f926ff50",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 398,
+                  "column": 13
+                },
+                {
+                  "title": "should display analytics dashboard",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-0436ea3ee1a6af2e0b00",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 359,
+                  "column": 13
+                },
+                {
+                  "title": "should change time range",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-8e9d1eadce8c7b8584db",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 378,
+                  "column": 13
+                },
+                {
+                  "title": "should export analytics data",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-f8a28364cb6daa68e5a3",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 398,
+                  "column": 13
+                },
+                {
+                  "title": "should display analytics dashboard",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-8a746df715355c182695",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 359,
+                  "column": 13
+                },
+                {
+                  "title": "should change time range",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-5e9ff0de1c57d5ee87f6",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 378,
+                  "column": 13
+                },
+                {
+                  "title": "should export analytics data",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-260f98a225046c87fcfa",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 398,
+                  "column": 13
+                }
+              ]
+            },
+            {
+              "title": "Import/Export Functionality",
+              "file": "e2e/lora-manager.spec.js",
+              "line": 427,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should access import/export interface",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-26befcce437d93dfd727",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 428,
+                  "column": 13
+                },
+                {
+                  "title": "should configure data export",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-cc50ac0b79bad2af7fcb",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 441,
+                  "column": 13
+                },
+                {
+                  "title": "should handle file import",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-8ada3e4c841004942273",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 462,
+                  "column": 13
+                },
+                {
+                  "title": "should manage backups",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-a5355c9ca0b6f630a995",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 486,
+                  "column": 13
+                },
+                {
+                  "title": "should access import/export interface",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-65ab876761d9be4253c4",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 428,
+                  "column": 13
+                },
+                {
+                  "title": "should configure data export",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-ef2262e7f4f613d92ce5",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 441,
+                  "column": 13
+                },
+                {
+                  "title": "should handle file import",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-03894e053e8d3cfea17b",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 462,
+                  "column": 13
+                },
+                {
+                  "title": "should manage backups",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-e0077b50da7d3bc19525",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 486,
+                  "column": 13
+                },
+                {
+                  "title": "should access import/export interface",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-a9c5e477af66dddc8fab",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 428,
+                  "column": 13
+                },
+                {
+                  "title": "should configure data export",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-de23140a08677f9c4228",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 441,
+                  "column": 13
+                },
+                {
+                  "title": "should handle file import",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-0b5acf273df7188f5a61",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 462,
+                  "column": 13
+                },
+                {
+                  "title": "should manage backups",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-64c1b8923deffac86e32",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 486,
+                  "column": 13
+                },
+                {
+                  "title": "should access import/export interface",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-035d22fa928160fc8668",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 428,
+                  "column": 13
+                },
+                {
+                  "title": "should configure data export",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-3b5b544532101582a66f",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 441,
+                  "column": 13
+                },
+                {
+                  "title": "should handle file import",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-77a165455f6f9a8eda5c",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 462,
+                  "column": 13
+                },
+                {
+                  "title": "should manage backups",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-faf0c2e053e3fb9e47c9",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 486,
+                  "column": 13
+                },
+                {
+                  "title": "should access import/export interface",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-87a69ec87dd47b2d9f67",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 428,
+                  "column": 13
+                },
+                {
+                  "title": "should configure data export",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-55379cb5b5ddf48138f5",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 441,
+                  "column": 13
+                },
+                {
+                  "title": "should handle file import",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-3f9a4b70bd61128aabd1",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 462,
+                  "column": 13
+                },
+                {
+                  "title": "should manage backups",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-d71ba95516edb5a00c09",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 486,
+                  "column": 13
+                },
+                {
+                  "title": "should access import/export interface",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-968b37db51bcdc90da83",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 428,
+                  "column": 13
+                },
+                {
+                  "title": "should configure data export",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-f5a5f79eed447aea0f79",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 441,
+                  "column": 13
+                },
+                {
+                  "title": "should handle file import",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-c66c82f107df29e15494",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 462,
+                  "column": 13
+                },
+                {
+                  "title": "should manage backups",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-1015672078715ef8a980",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 486,
+                  "column": 13
+                }
+              ]
+            },
+            {
+              "title": "Responsive Design",
+              "file": "e2e/lora-manager.spec.js",
+              "line": 515,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should work on mobile devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-ef005c7c2096312e433e",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 516,
+                  "column": 13
+                },
+                {
+                  "title": "should work on tablet devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-d2832d001743eb4d83d6",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 551,
+                  "column": 13
+                },
+                {
+                  "title": "should work on desktop",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-4e183e4df40cc31fe434",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 569,
+                  "column": 13
+                },
+                {
+                  "title": "should work on mobile devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-cbaa090dec3b4150fbcb",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 516,
+                  "column": 13
+                },
+                {
+                  "title": "should work on tablet devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-6a7bbe8dc6ed0577f04d",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 551,
+                  "column": 13
+                },
+                {
+                  "title": "should work on desktop",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-4b9d16c5fe8bb25b3b18",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 569,
+                  "column": 13
+                },
+                {
+                  "title": "should work on mobile devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-17cbe4ee84871d621648",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 516,
+                  "column": 13
+                },
+                {
+                  "title": "should work on tablet devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-66df5f80cc6c6c9ffcd2",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 551,
+                  "column": 13
+                },
+                {
+                  "title": "should work on desktop",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-398521b57d67d362b8a3",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 569,
+                  "column": 13
+                },
+                {
+                  "title": "should work on mobile devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-bb5984a2f8945a5474fd",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 516,
+                  "column": 13
+                },
+                {
+                  "title": "should work on tablet devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-ac9a18f2f791f0782085",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 551,
+                  "column": 13
+                },
+                {
+                  "title": "should work on desktop",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-75bdb4ec222e59218f36",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 569,
+                  "column": 13
+                },
+                {
+                  "title": "should work on mobile devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-15ce4081eedadd650d8d",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 516,
+                  "column": 13
+                },
+                {
+                  "title": "should work on tablet devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-86ea761510e5c9313ccc",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 551,
+                  "column": 13
+                },
+                {
+                  "title": "should work on desktop",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-0053c488b69c6cb75da3",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 569,
+                  "column": 13
+                },
+                {
+                  "title": "should work on mobile devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-034418859f2d95ac67d1",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 516,
+                  "column": 13
+                },
+                {
+                  "title": "should work on tablet devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-14901b2552479be9025c",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 551,
+                  "column": 13
+                },
+                {
+                  "title": "should work on desktop",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-c42a885fdc38be2832ea",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 569,
+                  "column": 13
+                }
+              ]
+            },
+            {
+              "title": "Performance",
+              "file": "e2e/lora-manager.spec.js",
+              "line": 591,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should load pages quickly",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-117cb08adedfdcc86c92",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 592,
+                  "column": 13
+                },
+                {
+                  "title": "should have good Core Web Vitals",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-acbac612807d1591da44",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 606,
+                  "column": 13
+                },
+                {
+                  "title": "should handle large datasets efficiently",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-6f0fb47b12991186a318",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 624,
+                  "column": 13
+                },
+                {
+                  "title": "should load pages quickly",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-293f206a0ec72bcaba55",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 592,
+                  "column": 13
+                },
+                {
+                  "title": "should have good Core Web Vitals",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-c423bb0ab868cf064f91",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 606,
+                  "column": 13
+                },
+                {
+                  "title": "should handle large datasets efficiently",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-3b3951e7c4b6a46f871f",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 624,
+                  "column": 13
+                },
+                {
+                  "title": "should load pages quickly",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-9e17c50f14ed17c11f53",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 592,
+                  "column": 13
+                },
+                {
+                  "title": "should have good Core Web Vitals",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-7487c13e883bacf9371c",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 606,
+                  "column": 13
+                },
+                {
+                  "title": "should handle large datasets efficiently",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-3faceebf2a52a07d5f10",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 624,
+                  "column": 13
+                },
+                {
+                  "title": "should load pages quickly",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-7dc6b713ebc25d8958f7",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 592,
+                  "column": 13
+                },
+                {
+                  "title": "should have good Core Web Vitals",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-58aad671083e43c4603e",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 606,
+                  "column": 13
+                },
+                {
+                  "title": "should handle large datasets efficiently",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-cc6a29a40299bc755ecb",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 624,
+                  "column": 13
+                },
+                {
+                  "title": "should load pages quickly",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-efae3332f61376d3d112",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 592,
+                  "column": 13
+                },
+                {
+                  "title": "should have good Core Web Vitals",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-ce0f86d2575a0de84b19",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 606,
+                  "column": 13
+                },
+                {
+                  "title": "should handle large datasets efficiently",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-544fbde0e8e090d29426",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 624,
+                  "column": 13
+                },
+                {
+                  "title": "should load pages quickly",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-40beb7c7e8843d381b0c",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 592,
+                  "column": 13
+                },
+                {
+                  "title": "should have good Core Web Vitals",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-caa47f152e2a9e6786c6",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 606,
+                  "column": 13
+                },
+                {
+                  "title": "should handle large datasets efficiently",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-a096be00174b1e249111",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 624,
+                  "column": 13
+                }
+              ]
+            },
+            {
+              "title": "Accessibility",
+              "file": "e2e/lora-manager.spec.js",
+              "line": 648,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should be keyboard navigable",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-3150d5eed768c5813459",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 649,
+                  "column": 13
+                },
+                {
+                  "title": "should have proper ARIA labels",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-390bee819b4a733dbc8a",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 670,
+                  "column": 13
+                },
+                {
+                  "title": "should have sufficient color contrast",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-49e18cc28a72333a5a23",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 697,
+                  "column": 13
+                },
+                {
+                  "title": "should work with screen readers",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Chrome",
+                      "projectName": "Desktop Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-bef2a36486c8716d1e7a",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 709,
+                  "column": 13
+                },
+                {
+                  "title": "should be keyboard navigable",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-ce1a1da9bc397aa4582f",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 649,
+                  "column": 13
+                },
+                {
+                  "title": "should have proper ARIA labels",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-bfcc0277a0996cae72d8",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 670,
+                  "column": 13
+                },
+                {
+                  "title": "should have sufficient color contrast",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-0f9b8383c2456a93ec56",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 697,
+                  "column": 13
+                },
+                {
+                  "title": "should work with screen readers",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Firefox",
+                      "projectName": "Desktop Firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-2193381f25806535c026",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 709,
+                  "column": 13
+                },
+                {
+                  "title": "should be keyboard navigable",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-1b29cf5a219d73a33e30",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 649,
+                  "column": 13
+                },
+                {
+                  "title": "should have proper ARIA labels",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-529423f59670ba393249",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 670,
+                  "column": 13
+                },
+                {
+                  "title": "should have sufficient color contrast",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-edee4176224908c9a3a4",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 697,
+                  "column": 13
+                },
+                {
+                  "title": "should work with screen readers",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Desktop Safari",
+                      "projectName": "Desktop Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-0d8c25255084fcc43e63",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 709,
+                  "column": 13
+                },
+                {
+                  "title": "should be keyboard navigable",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-c8d35e0d28ab006b486b",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 649,
+                  "column": 13
+                },
+                {
+                  "title": "should have proper ARIA labels",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-b73d4ca2625b04c4fea7",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 670,
+                  "column": 13
+                },
+                {
+                  "title": "should have sufficient color contrast",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-62698bafb72d22309188",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 697,
+                  "column": 13
+                },
+                {
+                  "title": "should work with screen readers",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-3fbe58247735a73760c9",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 709,
+                  "column": 13
+                },
+                {
+                  "title": "should be keyboard navigable",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-fd658de5f0e3ef0252c5",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 649,
+                  "column": 13
+                },
+                {
+                  "title": "should have proper ARIA labels",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-284f4ac4d7701aa5b96d",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 670,
+                  "column": 13
+                },
+                {
+                  "title": "should have sufficient color contrast",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-cf30c7dee4529845a3d5",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 697,
+                  "column": 13
+                },
+                {
+                  "title": "should work with screen readers",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Safari",
+                      "projectName": "Mobile Safari",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-d0862e8fde5a2ef04e16",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 709,
+                  "column": 13
+                },
+                {
+                  "title": "should be keyboard navigable",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-20fd4608225572279682",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 649,
+                  "column": 13
+                },
+                {
+                  "title": "should have proper ARIA labels",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-e4bbe2f55bd5cd0c58a4",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 670,
+                  "column": 13
+                },
+                {
+                  "title": "should have sufficient color contrast",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-bb735cacb275c0273c3c",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 697,
+                  "column": 13
+                },
+                {
+                  "title": "should work with screen readers",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Tablet",
+                      "projectName": "Tablet",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "874abbd78f6706f9b3fd-2ad80e4acf9978c1ac5c",
+                  "file": "e2e/lora-manager.spec.js",
+                  "line": 709,
+                  "column": 13
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "performance/performance.spec.js",
+      "file": "performance/performance.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Performance Tests",
+          "file": "performance/performance.spec.js",
+          "line": 8,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "Page Load Performance",
+              "file": "performance/performance.spec.js",
+              "line": 9,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should load home page within performance budget",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Performance Tests",
+                      "projectName": "Performance Tests",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "e4767ef4dda8941d15c6-4aea2980e98c7d61e2b0",
+                  "file": "performance/performance.spec.js",
+                  "line": 10,
+                  "column": 13
+                },
+                {
+                  "title": "should load LoRA list efficiently with pagination",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Performance Tests",
+                      "projectName": "Performance Tests",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "e4767ef4dda8941d15c6-a52ccca9d6be91781f28",
+                  "file": "performance/performance.spec.js",
+                  "line": 38,
+                  "column": 13
+                },
+                {
+                  "title": "should handle search results efficiently",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Performance Tests",
+                      "projectName": "Performance Tests",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "e4767ef4dda8941d15c6-5b545885b5afd9037365",
+                  "file": "performance/performance.spec.js",
+                  "line": 62,
+                  "column": 13
+                }
+              ]
+            },
+            {
+              "title": "Resource Loading",
+              "file": "performance/performance.spec.js",
+              "line": 89,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should optimize image loading",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Performance Tests",
+                      "projectName": "Performance Tests",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "e4767ef4dda8941d15c6-45216aa24138f52038f4",
+                  "file": "performance/performance.spec.js",
+                  "line": 90,
+                  "column": 13
+                },
+                {
+                  "title": "should minimize bundle sizes",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Performance Tests",
+                      "projectName": "Performance Tests",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "e4767ef4dda8941d15c6-060034242968f127d283",
+                  "file": "performance/performance.spec.js",
+                  "line": 120,
+                  "column": 13
+                },
+                {
+                  "title": "should use efficient caching strategies",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Performance Tests",
+                      "projectName": "Performance Tests",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "e4767ef4dda8941d15c6-b12c98cdc8dbf372c796",
+                  "file": "performance/performance.spec.js",
+                  "line": 152,
+                  "column": 13
+                }
+              ]
+            },
+            {
+              "title": "Runtime Performance",
+              "file": "performance/performance.spec.js",
+              "line": 181,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should handle large datasets without blocking UI",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Performance Tests",
+                      "projectName": "Performance Tests",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "e4767ef4dda8941d15c6-199c615846bfede8552a",
+                  "file": "performance/performance.spec.js",
+                  "line": 182,
+                  "column": 13
+                },
+                {
+                  "title": "should efficiently update charts and visualizations",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Performance Tests",
+                      "projectName": "Performance Tests",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "e4767ef4dda8941d15c6-9a9dacc2663e270e0b08",
+                  "file": "performance/performance.spec.js",
+                  "line": 210,
+                  "column": 13
+                },
+                {
+                  "title": "should manage memory efficiently",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Performance Tests",
+                      "projectName": "Performance Tests",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "e4767ef4dda8941d15c6-331f71573652a5042239",
+                  "file": "performance/performance.spec.js",
+                  "line": 248,
+                  "column": 13
+                }
+              ]
+            },
+            {
+              "title": "API Performance",
+              "file": "performance/performance.spec.js",
+              "line": 295,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should handle concurrent API requests efficiently",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Performance Tests",
+                      "projectName": "Performance Tests",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "e4767ef4dda8941d15c6-868b304807a5a1e8721a",
+                  "file": "performance/performance.spec.js",
+                  "line": 296,
+                  "column": 13
+                },
+                {
+                  "title": "should implement efficient data fetching strategies",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Performance Tests",
+                      "projectName": "Performance Tests",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "e4767ef4dda8941d15c6-7e8c5eb13d1b930660e3",
+                  "file": "performance/performance.spec.js",
+                  "line": 350,
+                  "column": 13
+                }
+              ]
+            },
+            {
+              "title": "Mobile Performance",
+              "file": "performance/performance.spec.js",
+              "line": 398,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should perform well on mobile devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Performance Tests",
+                      "projectName": "Performance Tests",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "e4767ef4dda8941d15c6-440143f1cc7eff596e44",
+                  "file": "performance/performance.spec.js",
+                  "line": 399,
+                  "column": 13
+                },
+                {
+                  "title": "should handle touch interactions efficiently",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Performance Tests",
+                      "projectName": "Performance Tests",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "e4767ef4dda8941d15c6-b18c55e5e6f515c0f018",
+                  "file": "performance/performance.spec.js",
+                  "line": 427,
+                  "column": 13
+                }
+              ]
+            },
+            {
+              "title": "Stress Testing",
+              "file": "performance/performance.spec.js",
+              "line": 466,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should handle rapid navigation",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Performance Tests",
+                      "projectName": "Performance Tests",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "e4767ef4dda8941d15c6-e8913b0a27c8885cfce3",
+                  "file": "performance/performance.spec.js",
+                  "line": 467,
+                  "column": 13
+                },
+                {
+                  "title": "should handle large form submissions",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Performance Tests",
+                      "projectName": "Performance Tests",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "e4767ef4dda8941d15c6-365ad2816b625adc0efd",
+                  "file": "performance/performance.spec.js",
+                  "line": 493,
+                  "column": 13
+                },
+                {
+                  "title": "should handle multiple websocket connections",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Performance Tests",
+                      "projectName": "Performance Tests",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "e4767ef4dda8941d15c6-e30a2a860bdb68acba58",
+                  "file": "performance/performance.spec.js",
+                  "line": 521,
+                  "column": 13
+                }
+              ]
+            },
+            {
+              "title": "Performance Regression Detection",
+              "file": "performance/performance.spec.js",
+              "line": 559,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should maintain performance baselines",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Performance Tests",
+                      "projectName": "Performance Tests",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "e4767ef4dda8941d15c6-ba0535ec3c72d480b1d4",
+                  "file": "performance/performance.spec.js",
+                  "line": 560,
+                  "column": 13
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
+  "errors": [],
   "stats": {
-    "startTime": "2025-09-03T16:15:25.002Z",
-    "duration": 30039.056,
+    "startTime": "2025-09-03T16:32:39.265Z",
+    "duration": 239.10799999999995,
     "expected": 0,
-    "skipped": 0,
+    "skipped": 227,
     "unexpected": 0,
     "flaky": 0
   }
