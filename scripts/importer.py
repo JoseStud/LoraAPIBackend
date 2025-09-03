@@ -18,9 +18,9 @@ from typing import Any, Dict, Optional
 # Add parent directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from app.core.config import settings
-from app.core.database import get_session
-from app.services import AdapterService
+from backend.core.config import settings
+from backend.core.database import get_session
+from backend.services import AdapterService
 
 logger = logging.getLogger("lora.importer")
 
@@ -221,8 +221,8 @@ def register_adapter_from_metadata(parsed: ParsedMetadata, json_path: Optional[s
         return result
 
     # persist using service-level upsert helper (idempotent)
-    from app.schemas.adapters import AdapterCreate
-    from app.services import upsert_adapter_from_payload
+    from backend.schemas.adapters import AdapterCreate
+    from backend.services import upsert_adapter_from_payload
 
     # validate file exists before attempting to persist
     svc = AdapterService(get_session())

@@ -1,0 +1,492 @@
+/* 
+Mobile Responsiveness Enhancements
+===================================
+
+This file contains mobile-specific styles and responsive enhancements
+to ensure the LoRA Manager works seamlessly on all device sizes.
+*/
+
+/* Mobile Navigation Enhancements */
+.mobile-nav-toggle {
+    @apply lg:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-white shadow-lg border;
+    @apply hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500;
+}
+
+.mobile-nav-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden;
+}
+
+.mobile-nav-menu {
+    @apply fixed top-0 left-0 h-full w-80 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out lg:hidden;
+}
+
+.mobile-nav-menu.closed {
+    @apply -translate-x-full;
+}
+
+.mobile-nav-menu.open {
+    @apply translate-x-0;
+}
+
+.mobile-nav-header {
+    @apply p-4 border-b border-gray-200 flex items-center justify-between;
+}
+
+.mobile-nav-close {
+    @apply p-2 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500;
+}
+
+.mobile-nav-links {
+    @apply p-4 space-y-2;
+}
+
+.mobile-nav-link {
+    @apply block w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100;
+    @apply transition-colors duration-200 font-medium;
+}
+
+.mobile-nav-link.active {
+    @apply bg-primary-100 text-primary-700;
+}
+
+/* Mobile Layout Adjustments */
+@media (max-width: 768px) {
+    .main-nav {
+        @apply px-4;
+    }
+    
+    .nav-container {
+        @apply px-0;
+    }
+    
+    .nav-links {
+        @apply hidden;
+    }
+    
+    .main-content {
+        @apply px-4 py-4;
+    }
+    
+    .content-wrapper {
+        @apply px-0 py-4;
+    }
+}
+
+/* Mobile-Friendly Cards */
+.card-mobile {
+    @apply transition-all duration-200;
+}
+
+@media (max-width: 768px) {
+    .card {
+        @apply rounded-lg;
+    }
+    
+    .card-body {
+        @apply p-3;
+    }
+    
+    .card-header {
+        @apply px-3 py-2;
+    }
+}
+
+/* Touch-Friendly Controls */
+.touch-target {
+    @apply min-h-12 min-w-12 flex items-center justify-center;
+}
+
+.touch-button {
+    @apply min-h-12 px-4 py-3 text-base font-medium rounded-lg;
+    @apply active:scale-95 transition-transform duration-150;
+}
+
+/* Mobile Button Adjustments */
+@media (max-width: 768px) {
+    .btn {
+        @apply min-h-12 px-4 py-3 text-base;
+    }
+    
+    .btn-sm {
+        @apply min-h-10 px-3 py-2 text-sm;
+    }
+    
+    .btn-xs {
+        @apply min-h-8 px-2 py-1 text-xs;
+    }
+}
+
+/* Mobile Form Controls */
+.form-input-mobile {
+    @apply min-h-12 px-4 py-3 text-base rounded-lg;
+    @apply focus:ring-4 focus:ring-primary-200;
+}
+
+@media (max-width: 768px) {
+    .form-input {
+        @apply min-h-12 px-4 py-3 text-base rounded-lg;
+        @apply focus:ring-4 focus:ring-primary-200;
+    }
+    
+    .form-label {
+        @apply text-base mb-2;
+    }
+}
+
+/* Mobile Grid Adjustments */
+.mobile-grid-1 {
+    @apply grid-cols-1;
+}
+
+.mobile-grid-2 {
+    @apply grid-cols-1 sm:grid-cols-2;
+}
+
+.mobile-stack {
+    @apply flex flex-col space-y-4;
+}
+
+@media (max-width: 768px) {
+    .mobile-stack-sm {
+        @apply flex flex-col space-y-2;
+    }
+}
+
+/* Mobile Tab Navigation */
+.mobile-tabs {
+    @apply flex overflow-x-auto scrollbar-hide;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.mobile-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.mobile-tab-button {
+    @apply flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap;
+    @apply border-b-2 border-transparent hover:border-gray-300;
+    @apply focus:outline-none focus:border-primary-500;
+}
+
+.mobile-tab-button.active {
+    @apply border-primary-500 text-primary-600;
+}
+
+/* Mobile Modal Adjustments */
+@media (max-width: 768px) {
+    .modal-content {
+        @apply m-4 max-h-screen overflow-y-auto;
+    }
+    
+    .modal-header {
+        @apply px-4 py-3;
+    }
+    
+    .modal-body {
+        @apply px-4 py-4;
+    }
+    
+    .modal-footer {
+        @apply px-4 py-3 flex flex-col space-y-2;
+    }
+    
+    .modal-footer .btn {
+        @apply w-full;
+    }
+}
+
+/* Mobile Table Responsiveness */
+.mobile-table-container {
+    @apply overflow-x-auto -mx-4 sm:mx-0;
+}
+
+.mobile-table {
+    @apply min-w-full;
+}
+
+@media (max-width: 768px) {
+    .mobile-table th,
+    .mobile-table td {
+        @apply px-3 py-2 text-sm;
+    }
+    
+    .mobile-table th:first-child,
+    .mobile-table td:first-child {
+        @apply pl-4;
+    }
+    
+    .mobile-table th:last-child,
+    .mobile-table td:last-child {
+        @apply pr-4;
+    }
+}
+
+/* Mobile Card List */
+.mobile-card-list {
+    @apply space-y-3;
+}
+
+.mobile-card-item {
+    @apply bg-white rounded-lg p-4 shadow-sm border border-gray-200;
+    @apply active:bg-gray-50 transition-colors duration-150;
+}
+
+.mobile-card-header {
+    @apply flex items-start justify-between mb-2;
+}
+
+.mobile-card-title {
+    @apply font-semibold text-gray-900 flex-1;
+}
+
+.mobile-card-actions {
+    @apply flex items-center space-x-2 ml-2;
+}
+
+.mobile-card-body {
+    @apply text-sm text-gray-600 space-y-1;
+}
+
+.mobile-card-footer {
+    @apply mt-3 pt-3 border-t border-gray-100 flex items-center justify-between;
+}
+
+/* Swipe Actions for Mobile */
+.swipe-container {
+    @apply relative overflow-hidden;
+}
+
+.swipe-content {
+    @apply transition-transform duration-200 ease-out;
+}
+
+.swipe-actions {
+    @apply absolute inset-y-0 right-0 flex items-center;
+}
+
+.swipe-action {
+    @apply h-full px-4 flex items-center justify-center text-white font-medium;
+}
+
+.swipe-action-edit {
+    @apply bg-blue-500;
+}
+
+.swipe-action-delete {
+    @apply bg-red-500;
+}
+
+/* Pull-to-Refresh */
+.pull-refresh-container {
+    @apply relative;
+}
+
+.pull-refresh-indicator {
+    @apply absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full;
+    @apply transition-all duration-300 ease-out;
+}
+
+.pull-refresh-indicator.active {
+    @apply translate-y-4;
+}
+
+/* Mobile Loading States */
+.mobile-loading {
+    @apply flex items-center justify-center py-8;
+}
+
+.mobile-loading-spinner {
+    @apply w-8 h-8 animate-spin;
+}
+
+.mobile-loading-text {
+    @apply ml-3 text-gray-600;
+}
+
+/* Mobile Skeleton Loaders */
+.skeleton {
+    @apply animate-pulse bg-gray-200 rounded;
+}
+
+.skeleton-text {
+    @apply h-4 bg-gray-200 rounded animate-pulse;
+}
+
+.skeleton-text-sm {
+    @apply h-3 bg-gray-200 rounded animate-pulse;
+}
+
+.skeleton-circle {
+    @apply rounded-full bg-gray-200 animate-pulse;
+}
+
+.skeleton-button {
+    @apply h-12 bg-gray-200 rounded-lg animate-pulse;
+}
+
+/* Mobile Toast Notifications */
+.mobile-toast {
+    @apply fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-sm;
+    @apply bg-white rounded-lg shadow-lg border p-4;
+    @apply transform transition-all duration-300 ease-out;
+}
+
+.mobile-toast.enter {
+    @apply translate-y-full opacity-0;
+}
+
+.mobile-toast.enter-active {
+    @apply translate-y-0 opacity-100;
+}
+
+.mobile-toast.exit {
+    @apply translate-y-0 opacity-100;
+}
+
+.mobile-toast.exit-active {
+    @apply translate-y-full opacity-0;
+}
+
+/* Mobile FAB (Floating Action Button) */
+.mobile-fab {
+    @apply fixed bottom-6 right-6 w-14 h-14 bg-primary-600 text-white rounded-full shadow-lg;
+    @apply flex items-center justify-center z-40;
+    @apply hover:bg-primary-700 active:scale-95 transition-all duration-200;
+}
+
+.mobile-fab-mini {
+    @apply w-10 h-10 text-sm;
+}
+
+.mobile-fab-extended {
+    @apply w-auto h-14 px-6 rounded-full;
+}
+
+/* Mobile Bottom Sheet */
+.mobile-bottom-sheet {
+    @apply fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50;
+    @apply transform transition-transform duration-300 ease-out;
+}
+
+.mobile-bottom-sheet.closed {
+    @apply translate-y-full;
+}
+
+.mobile-bottom-sheet.open {
+    @apply translate-y-0;
+}
+
+.mobile-bottom-sheet-handle {
+    @apply w-12 h-1 bg-gray-300 rounded-full mx-auto mt-3 mb-4;
+}
+
+.mobile-bottom-sheet-header {
+    @apply px-6 pb-4 border-b border-gray-200;
+}
+
+.mobile-bottom-sheet-body {
+    @apply px-6 py-4 max-h-96 overflow-y-auto;
+}
+
+/* Mobile Safe Areas */
+.mobile-safe-top {
+    padding-top: env(safe-area-inset-top);
+}
+
+.mobile-safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.mobile-safe-left {
+    padding-left: env(safe-area-inset-left);
+}
+
+.mobile-safe-right {
+    padding-right: env(safe-area-inset-right);
+}
+
+/* Mobile Scroll Snap */
+.mobile-scroll-snap-x {
+    @apply overflow-x-auto;
+    scroll-snap-type: x mandatory;
+}
+
+.mobile-scroll-snap-item {
+    scroll-snap-align: start;
+}
+
+/* Mobile Image Optimization */
+.mobile-image {
+    @apply w-full h-auto object-cover;
+}
+
+.mobile-image-thumb {
+    @apply w-16 h-16 object-cover rounded-lg;
+}
+
+.mobile-image-preview {
+    @apply w-full max-h-64 object-cover rounded-lg;
+}
+
+/* Mobile Typography Adjustments */
+@media (max-width: 768px) {
+    .page-title {
+        @apply text-xl font-bold;
+    }
+    
+    .page-subtitle {
+        @apply text-sm text-gray-600;
+    }
+    
+    .section-title {
+        @apply text-lg font-semibold;
+    }
+    
+    .section-subtitle {
+        @apply text-sm text-gray-600;
+    }
+}
+
+/* Mobile Accessibility */
+.mobile-focus-visible:focus-visible {
+    @apply ring-4 ring-primary-200 ring-opacity-75;
+}
+
+.mobile-high-contrast {
+    @apply contrast-125;
+}
+
+/* Mobile Performance Optimizations */
+.mobile-will-change {
+    will-change: transform;
+}
+
+.mobile-contain-layout {
+    contain: layout;
+}
+
+.mobile-contain-paint {
+    contain: paint;
+}
+
+/* Mobile-Specific Utilities */
+.mobile-hidden {
+    @apply lg:block hidden;
+}
+
+.mobile-only {
+    @apply lg:hidden block;
+}
+
+.mobile-flex-col {
+    @apply flex flex-col lg:flex-row;
+}
+
+.mobile-text-center {
+    @apply text-center lg:text-left;
+}
+
+.mobile-full-width {
+    @apply w-full lg:w-auto;
+}

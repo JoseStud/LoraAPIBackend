@@ -8,23 +8,12 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
 # Use new app import paths
-from app.core.database import get_session
-from app.main import app
-from app.services import ServiceContainer
-from app.services.adapters import AdapterService
-from app.services.composition import ComposeService
-from app.services.deliveries import DeliveryService
-
-# Import legacy modules for backward compatibility patching (if they exist)
-try:
-    import services
-except ImportError:
-    services = None
-
-try:
-    import storage
-except ImportError:
-    storage = None
+from backend.core.database import get_session
+from backend.main import app
+from backend.services import ServiceContainer
+from backend.services.adapters import AdapterService
+from backend.services.composition import ComposeService
+from backend.services.deliveries import DeliveryService
 
 
 @pytest.fixture(name="mock_storage")
@@ -49,12 +38,12 @@ def mock_storage_fixture(monkeypatch) -> MagicMock:
     mock_storage_service.validate_file_path.side_effect = lambda path: mock.exists(path)
     
     # Patch the storage service factory in all possible locations
-    import app.services.storage
-    monkeypatch.setattr(app.services.storage, "get_storage_service", lambda: mock_storage_service)
-    monkeypatch.setattr("app.services.storage.get_storage_service", lambda: mock_storage_service)
+    import backend.services.storage
+    # Since we moved to backend, we need to patch the backend app's services
+    monkeypatch.setattr("backend.services.storage.get_storage_service", lambda: mock_storage_service)
     
     # Also patch the ServiceContainer's property method directly
-    from app.services import ServiceContainer
+    from backend.services import ServiceContainer
     original_storage_property = ServiceContainer.storage
     
     def mock_storage_property(self):

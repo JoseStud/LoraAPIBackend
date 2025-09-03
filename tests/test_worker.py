@@ -8,9 +8,9 @@ import pytest
 fakeredis = pytest.importorskip("fakeredis")
 from rq import Queue, SimpleWorker  # noqa: E402
 
-from app.core.database import get_session, init_db  # noqa: E402
-from app.models.deliveries import DeliveryJob  # noqa: E402
-from app.workers.tasks import enqueue_delivery  # noqa: E402
+from backend.core.database import get_session, init_db  # noqa: E402
+from backend.models.deliveries import DeliveryJob  # noqa: E402
+from backend.workers.tasks import enqueue_delivery  # noqa: E402
 
 
 def test_worker_process_cycle(tmp_path, monkeypatch):
@@ -21,7 +21,7 @@ def test_worker_process_cycle(tmp_path, monkeypatch):
 
     # patch the queue in tasks to use a fake connection
     fake_q = Queue("default", connection=fake_redis)
-    monkeypatch.setattr("app.workers.tasks.q", fake_q)
+    monkeypatch.setattr("backend.workers.tasks.q", fake_q)
 
     # Ensure DB initialized in a temp directory to avoid collisions. The DB
     # is created in the module path, so ensure init_db runs (it will create

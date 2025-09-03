@@ -2,9 +2,9 @@
 
 from sqlalchemy.exc import IntegrityError
 
-from app.schemas.adapters import AdapterCreate
-from app.services import upsert_adapter_from_payload
-from app.services.adapters import AdapterService
+from backend.schemas.adapters import AdapterCreate
+from backend.services import upsert_adapter_from_payload
+from backend.services.adapters import AdapterService
 
 
 def test_upsert_creates_and_updates(db_session, mock_storage):

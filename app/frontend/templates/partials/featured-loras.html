@@ -1,0 +1,57 @@
+<!-- Featured LoRAs Partial Template -->
+<div class="featured-loras-container">
+    {% if featured_loras %}
+        {% for lora in featured_loras %}
+        <div class="featured-lora-item">
+            <div class="featured-lora-icon-container">
+                <div class="featured-lora-icon">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    </svg>
+                </div>
+            </div>
+            <div class="featured-lora-content">
+                <div class="featured-lora-header">
+                    <h4 class="featured-lora-name">{{ lora.name }}</h4>
+                    <span class="status-badge-sm {% if lora.active %}status-badge-active{% else %}status-badge-inactive{% endif %}">
+                        {% if lora.active %}Active{% else %}Inactive{% endif %}
+                    </span>
+                </div>
+                {% if lora.description %}
+                <p class="featured-lora-description">{{ lora.description[:60] }}{% if lora.description|length > 60 %}...{% endif %}</p>
+                {% endif %}
+                <div class="tags-container mt-2">
+                    {% if lora.tags %}
+                        {% for tag_name in lora.tags[:3] %}
+                        <span class="tag tag-sm">
+                            {{ tag_name }}
+                        </span>
+                        {% endfor %}
+                        {% if lora.tags|length > 3 %}
+                        <span class="text-xs text-gray-500">+{{ lora.tags|length - 3 }} more</span>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="featured-lora-action">
+                <a href="/loras/{{ lora.id }}" class="view-link">
+                    View →
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state-container">
+            <svg class="empty-state-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+            </svg>
+            <h3 class="empty-state-title">No LoRAs found</h3>
+            <p class="empty-state-message">Get started by importing some LoRAs.</p>
+            <div class="mt-6">
+                <button class="btn btn-primary">Import LoRAs</button>
+            </div>
+        </div>
+    {% endif %}
+</div>

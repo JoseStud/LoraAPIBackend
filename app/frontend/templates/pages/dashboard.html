@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - LoRA Manager{% endblock %}
+
+{% block content %}
+<div x-data="dashboard()" x-init="init()" class="dashboard-container">
+    <!-- Header Section -->
+    <div class="dashboard-header">
+        <div>
+            <h1 class="page-title">Dashboard</h1>
+            <p class="page-subtitle">Overview of your LoRA collection and system status</p>
+        </div>
+        <div class="header-actions">
+            <button @click="refreshData()" 
+                    class="btn btn-secondary btn-sm with-icon">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                <span>Refresh</span>
+            </button>
+            <a href="/loras" class="btn btn-primary btn-sm">
+                Browse LoRAs
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="stats-grid-4">
+        <!-- Total LoRAs -->
+        <div class="card">
+            <div class="stat-card-header">
+                <div>
+                    <p class="stat-card-label">Total LoRAs</p>
+                    <p class="stat-card-value" x-text="stats.total_loras">-</p>
+                </div>
+                <div class="stat-card-icon bg-blue-100">
+                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    </svg>
+                </div>
+            </div>
+            <div class="stat-card-footer">
+                <span class="text-sm text-gray-500">
+                    <span x-text="stats.active_loras">-</span> active
+                </span>
+            </div>
+        </div>
+
+        <!-- Embeddings Coverage -->
+        <div class="card">
+            <div class="stat-card-header">
+                <div>
+                    <p class="stat-card-label">Embeddings</p>
+                    <p class="stat-card-value" x-text="stats.embeddings_coverage + '%'">-%</p>
+                </div>
+                <div class="stat-card-icon bg-green-100">
+                    <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+            <div class="stat-card-footer">
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fg bg-green-500" 
+                         :style="`width: ${stats.embeddings_coverage}%`"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Health -->
+        <div class="card">
+            <div class="stat-card-header">
+                <div>
+                    <p class="stat-card-label">System Health</p>
+                    <p class="stat-card-value" 
+                       :class="systemHealth.status === 'healthy' ? 'text-green-600' : 'text-red-600'"
+                       x-text="systemHealth.status">-</p>
+                </div>
+                <div class="stat-card-icon"
+                     :class="systemHealth.status === 'healthy' ? 'bg-green-100' : 'bg-red-100'">
+                    <svg class="w-4 h-4" 
+                         :class="systemHealth.status === 'healthy' ? 'text-green-600' : 'text-red-600'"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                    </svg>
+                </div>
+            </div>
+            <div class="stat-card-footer">
+                <span class="text-sm text-gray-500" x-text="systemHealth.gpu_status">-</span>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card">
+            <div class="stat-card-header">
+                <div>
+                    <p class="stat-card-label">Recent Activity</p>
+                    <p class="stat-card-value" x-text="stats.recent_activities_count">-</p>
+                </div>
+                <div class="stat-card-icon bg-purple-100">
+                    <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+            <div class="stat-card-footer">
+                <span class="text-sm text-gray-500">in last 24h</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column: Embedding Status & Featured LoRAs -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Embedding Status -->
+            <div id="embedding-status-container" 
+                 hx-get="/embedding-status" 
+                 hx-trigger="load, every 10s"
+                 hx-swap="innerHTML">
+                <div class="card">
+                    <div class="flex items-center justify-center text-gray-500">
+                        <svg class="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Loading embedding status...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Featured LoRAs -->
+            <div class="card">
+                <h2 class="card-title">Featured LoRAs</h2>
+                <div id="featured-loras-container" 
+                     hx-get="/featured-loras" 
+                     hx-trigger="load"
+                     hx-swap="innerHTML">
+                    <p class="text-sm text-gray-500">Loading featured LoRAs...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Activity Feed -->
+        <div class="card">
+            <h2 class="card-title">Activity Feed</h2>
+            <div id="activity-feed-container" 
+                 hx-get="/activity-feed" 
+                 hx-trigger="load, every 15s"
+                 hx-swap="innerHTML">
+                <p class="text-sm text-gray-500">Loading activity...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function dashboard() {
+    return {
+        stats: {
+            total_loras: 0,
+            active_loras: 0,
+            embeddings_coverage: 0,
+            recent_activities_count: 0,
+        },
+        systemHealth: {
+            status: 'checking...',
+            gpu_status: 'checking...',
+        },
+
+        init() {
+            this.fetchStats();
+            this.fetchSystemHealth();
+            
+            // Listen for global data updates
+            document.body.addEventListener('lora-data-updated', () => {
+                this.fetchStats();
+            });
+        },
+
+        fetchStats() {
+            fetch('/api/v1/stats/dashboard')
+                .then(response => response.json())
+                .then(data => {
+                    this.stats.total_loras = data.total_loras;
+                    this.stats.active_loras = data.active_loras;
+                    this.stats.embeddings_coverage = data.embeddings_coverage_percent;
+                    this.stats.recent_activities_count = data.recent_activities_count;
+                })
+                .catch(error => console.error('Error fetching stats:', error));
+        },
+
+        fetchSystemHealth() {
+            fetch('/api/v1/system/health')
+                .then(response => response.json())
+                .then(data => {
+                    this.systemHealth.status = data.overall_status;
+                    this.systemHealth.gpu_status = data.gpu_status.status;
+                })
+                .catch(error => {
+                    console.error('Error fetching system health:', error);
+                    this.systemHealth.status = 'error';
+                    this.systemHealth.gpu_status = 'error';
+                });
+        },
+
+        refreshData() {
+            this.fetchStats();
+            this.fetchSystemHealth();
+            htmx.trigger('#embedding-status-container', 'load');
+            htmx.trigger('#featured-loras-container', 'load');
+            htmx.trigger('#activity-feed-container', 'load');
+            
+            // Show a notification
+            htmx.trigger(document.body, 'show-notification', {
+                detail: { message: 'Dashboard data refreshed!', type: 'success' }
+            });
+        }
+    }
+}
+</script>
+{% endblock %}

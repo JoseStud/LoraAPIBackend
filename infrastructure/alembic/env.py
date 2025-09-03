@@ -22,11 +22,11 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Import app metadata
+# Import backend metadata
 try:
-    # Add parent directory to path to import from app
+    # Add parent directory to path to import from backend
     sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-    from app.models import SQLModel
+    from backend.models import SQLModel
 
     target_metadata = SQLModel.metadata
 except Exception:
@@ -44,7 +44,7 @@ def get_engine():
     """
     # Try to import the project's ENGINE if available (db.py creates it)
     try:
-        from app.core.database import ENGINE
+        from backend.core.database import ENGINE
 
         return ENGINE
     except Exception:

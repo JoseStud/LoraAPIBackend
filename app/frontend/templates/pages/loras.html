@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+
+{% block title %}LoRA Gallery - LoRA Manager{% endblock %}
+
+{% block content %}
+<div x-data="loraGallery()" x-init="init()" class="loras-page-container">
+    <!-- Header Section -->
+    <div class="loras-page-header">
+        <div>
+            <h1 class="page-title">LoRA Collection</h1>
+            <p class="page-subtitle">Browse and manage your LoRA adapters</p>
+        </div>
+        <div class="header-actions">
+            <button @click="bulkMode = !bulkMode" 
+                    :class="bulkMode ? 'btn-warning' : 'btn-secondary'"
+                    class="btn btn-sm">
+                <span x-text="bulkMode ? 'Exit Bulk' : 'Bulk Actions'"></span>
+            </button>
+            <div class="view-mode-toggle">
+                <button @click="viewMode = 'grid'; applyFilters()" 
+                        :class="viewMode === 'grid' ? 'active' : ''"
+                        class="view-mode-btn">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                    </svg>
+                </button>
+                <button @click="viewMode = 'list'; applyFilters()" 
+                        :class="viewMode === 'list' ? 'active' : ''"
+                        class="view-mode-btn">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="card">
+        <div class="filters-container">
+            <!-- Search Bar -->
+            <div class="search-bar-container">
+                <input type="text" 
+                       x-model="searchTerm" 
+                       @input.debounce.300ms="search()"
+                       placeholder="Search LoRAs by name, description, tags..."
+                       class="search-input">
+                <div class="search-icon-container">
+                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+                <div x-show="searchTerm" 
+                     class="clear-search-container">
+                    <button @click="clearSearch()" class="clear-search-btn">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="filter-options-container">
+                <!-- Status Filter -->
+                <div class="filter-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" 
+                               x-model="filters.activeOnly" 
+                               @change="applyFilters()"
+                               class="form-checkbox">
+                        <span class="checkbox-text">Active Only</span>
+                    </label>
+                </div>
+
+                <!-- Tag Filters -->
+                <div class="filter-group">
+                    <span class="filter-label">Tags:</span>
+                    <div class="tag-filter-group">
+                        <template x-for="tag in availableTags.slice(0, 5)" :key="tag">
+                            <label class="checkbox-label">
+                                <input type="checkbox" 
+                                       :value="tag"
+                                       x-model="filters.tags"
+                                       @change="applyFilters()"
+                                       class="form-checkbox">
+                                <span class="checkbox-text" x-text="tag"></span>
+                            </label>
+                        </template>
+                        <button x-show="availableTags.length > 5" 
+                                @click="showAllTags = !showAllTags"
+                                class="more-tags-btn">
+                            <span x-text="showAllTags ? 'Less' : 'More'"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sort By -->
+                <div class="filter-group">
+                    <label for="sort-by" class="filter-label">Sort by:</label>
+                    <select id="sort-by" 
+                            x-model="sortBy" 
+                            @change="applyFilters()"
+                            class="form-select">
+                        <option value="name_asc">Name (A-Z)</option>
+                        <option value="name_desc">Name (Z-A)</option>
+                        <option value="created_at_desc">Newest</option>
+                        <option value="created_at_asc">Oldest</option>
+                        <option value="last_updated_desc">Recently Updated</option>
+                    </select>
+                </div>
+
+                <div class="ml-auto">
+                    <button @click="clearFilters()" class="btn btn-secondary btn-sm">
+                        Clear Filters
+                    </button>
+                </div>
+            </div>
+            
+            <!-- All Tags Modal -->
+            <div x-show="showAllTags" @click.away="showAllTags = false" class="modal-backdrop" x-cloak>
+                <div class="modal-content">
+                    <h3 class="modal-title">All Tags</h3>
+                    <div class="all-tags-list">
+                        <template x-for="tag in availableTags" :key="tag">
+                            <label class="checkbox-label">
+                                <input type="checkbox" 
+                                       :value="tag"
+                                       x-model="filters.tags"
+                                       @change="applyFilters()"
+                                       class="form-checkbox">
+                                <span class="checkbox-text" x-text="tag"></span>
+                            </label>
+                        </template>
+                    </div>
+                    <div class="modal-actions">
+                        <button @click="showAllTags = false" class="btn btn-primary">Done</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Actions Bar -->
+    <div x-show="bulkMode" 
+         x-transition
+         class="bulk-actions-bar" x-cloak>
+        <div class="flex items-center space-x-4">
+            <span class="text-sm font-medium text-gray-700">
+                <span x-text="selectedLoras.length"></span> selected
+            </span>
+            <button @click="performBulkAction('activate')" 
+                    :disabled="selectedLoras.length === 0"
+                    class="btn btn-success btn-sm">Activate</button>
+            <button @click="performBulkAction('deactivate')" 
+                    :disabled="selectedLoras.length === 0"
+                    class="btn btn-warning btn-sm">Deactivate</button>
+            <button @click="performBulkAction('delete')" 
+                    :disabled="selectedLoras.length === 0"
+                    class="btn btn-danger btn-sm">Delete</button>
+        </div>
+        <button @click="toggleSelectAll()" class="btn btn-secondary btn-sm">
+            <span x-text="allSelected ? 'Deselect All' : 'Select All'"></span>
+        </button>
+    </div>
+
+    <!-- LoRA Gallery Container -->
+    <div id="lora-container" 
+         class="lora-gallery-container"
+         hx-get="{{ url_for('lora_grid') }}"
+         hx-trigger="load, lora-data-updated from:body"
+         hx-swap="innerHTML"
+         hx-indicator="#lora-gallery-spinner">
+        
+        <div id="lora-gallery-spinner" class="htmx-indicator">
+            <div class="spinner"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function loraGallery() {
+    return {
+        viewMode: 'grid',
+        searchTerm: '',
+        filters: {
+            activeOnly: false,
+            tags: []
+        },
+        sortBy: 'name_asc',
+        availableTags: [],
+        showAllTags: false,
+        bulkMode: false,
+        selectedLoras: [],
+        allSelected: false,
+        totalLoras: 0,
+
+        init() {
+            this.fetchAvailableTags();
+            
+            // Persist view mode
+            const savedViewMode = localStorage.getItem('loraViewMode');
+            if (savedViewMode) {
+                this.viewMode = savedViewMode;
+            }
+            this.$watch('viewMode', (value) => {
+                localStorage.setItem('loraViewMode', value);
+            });
+
+            // Listen for selection updates from lora-card components
+            document.addEventListener('lora-selection-changed', (e) => {
+                const { loraId, selected } = e.detail;
+                if (selected) {
+                    if (!this.selectedLoras.includes(loraId)) {
+                        this.selectedLoras.push(loraId);
+                    }
+                } else {
+                    this.selectedLoras = this.selectedLoras.filter(id => id !== loraId);
+                }
+            });
+        },
+
+        fetchAvailableTags() {
+            fetch('/api/v1/tags')
+                .then(response => response.json())
+                .then(data => {
+                    this.availableTags = data.tags;
+                })
+                .catch(error => console.error('Error fetching tags:', error));
+        },
+
+        applyFilters() {
+            const params = new URLSearchParams();
+            params.append('view_mode', this.viewMode);
+            if (this.searchTerm) {
+                params.append('search', this.searchTerm);
+            }
+            if (this.filters.activeOnly) {
+                params.append('is_active', 'true');
+            }
+            this.filters.tags.forEach(tag => {
+                params.append('tags', tag);
+            });
+            params.append('sort_by', this.sortBy);
+            
+            if (this.bulkMode) {
+                params.append('bulk_mode', 'true');
+            }
+
+            const url = `{{ url_for('lora_grid') }}?${params.toString()}`;
+            htmx.ajax('GET', url, { target: '#lora-container', swap: 'innerHTML' });
+        },
+
+        search() {
+            this.applyFilters();
+        },
+
+        clearSearch() {
+            this.searchTerm = '';
+            this.search();
+        },
+
+        clearFilters() {
+            this.searchTerm = '';
+            this.filters.activeOnly = false;
+            this.filters.tags = [];
+            this.sortBy = 'name_asc';
+            this.applyFilters();
+        },
+
+        toggleSelectAll() {
+            this.allSelected = !this.allSelected;
+            this.selectedLoras = [];
+            
+            const checkboxes = document.querySelectorAll('.lora-card-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.allSelected;
+                const loraId = checkbox.dataset.loraId;
+                if (this.allSelected) {
+                    this.selectedLoras.push(loraId);
+                }
+            });
+        },
+
+        performBulkAction(action) {
+            if (this.selectedLoras.length === 0) {
+                htmx.trigger(document.body, 'show-notification', {
+                    detail: { message: 'No LoRAs selected.', type: 'warning' }
+                });
+                return;
+            }
+
+            const confirmation = {
+                'activate': 'Are you sure you want to activate the selected LoRAs?',
+                'deactivate': 'Are you sure you want to deactivate the selected LoRAs?',
+                'delete': 'Are you sure you want to permanently delete the selected LoRAs? This cannot be undone.'
+            };
+
+            if (!confirm(confirmation[action])) {
+                return;
+            }
+
+            htmx.ajax('POST', `/api/v1/loras/bulk-action`, {
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: action,
+                    lora_ids: this.selectedLoras
+                }),
+                swap: 'none'
+            }).then(response => {
+                if (response.ok) {
+                    htmx.trigger(document.body, 'show-notification', {
+                        detail: { message: `Successfully performed ${action} on ${this.selectedLoras.length} LoRAs.`, type: 'success' }
+                    });
+                    this.selectedLoras = [];
+                    this.allSelected = false;
+                    htmx.trigger(document.body, 'lora-data-updated');
+                } else {
+                    response.text().then(text => {
+                        const error = JSON.parse(text);
+                        htmx.trigger(document.body, 'show-notification', {
+                            detail: { message: `Error: ${error.detail}`, type: 'error' }
+                        });
+                    });
+                }
+            });
+        }
+    }
+}
+</script>
+{% endblock %}

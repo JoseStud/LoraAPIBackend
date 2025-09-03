@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+
+{% block title %}Generation Studio{% endblock %}
+
+{% block content %}
+<div class="generation-page-container" x-data="generationStudio()" x-init="init()">
+    
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="page-title">Generation Studio</h1>
+                <p class="page-subtitle">Generate images with AI-powered LoRA integration</p>
+            </div>
+            <div class="header-actions">
+                <button @click="showHistory = !showHistory" 
+                        class="btn btn-secondary btn-sm"
+                        :class="{ 'btn-primary': showHistory }">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    History
+                </button>
+                <button @click="clearQueue()" 
+                        class="btn btn-secondary btn-sm"
+                        :disabled="activeJobs.length === 0">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                    Clear Queue
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left Panel: Generation Parameters -->
+        <div class="lg:col-span-1">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Generation Parameters</h3>
+                </div>
+                <div class="card-body space-y-6">
+                    
+                    <!-- Prompt Input -->
+                    <div>
+                        <label class="form-label">Prompt</label>
+                        <textarea x-model="params.prompt" 
+                                  placeholder="Enter your prompt..."
+                                  class="form-input h-24 resize-none"></textarea>
+                    </div>
+                    
+                    <!-- Negative Prompt -->
+                    <div>
+                        <label class="form-label">Negative Prompt</label>
+                        <textarea x-model="params.negative_prompt" 
+                                  placeholder="Enter negative prompt..."
+                                  class="form-input h-16 resize-none"></textarea>
+                    </div>
+                    
+                    <!-- Image Dimensions -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="form-label">Width</label>
+                            <select x-model="params.width" class="form-input">
+                                <option value="512">512px</option>
+                                <option value="768">768px</option>
+                                <option value="1024">1024px</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Height</label>
+                            <select x-model="params.height" class="form-input">
+                                <option value="512">512px</option>
+                                <option value="768">768px</option>
+                                <option value="1024">1024px</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Advanced Parameters -->
+                    <div class="space-y-4">
+                        <div>
+                            <label class="form-label">
+                                Steps: <span x-text="params.steps" class="font-semibold"></span>
+                            </label>
+                            <input type="range" 
+                                   x-model="params.steps" 
+                                   min="10" max="100" step="5" 
+                                   class="weight-slider-input">
+                            <div class="slider-labels">
+                                <span>10</span>
+                                <span>50</span>
+                                <span>100</span>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="form-label">
+                                CFG Scale: <span x-text="params.cfg_scale" class="font-semibold"></span>
+                            </label>
+                            <input type="range" 
+                                   x-model="params.cfg_scale" 
+                                   min="1" max="20" step="0.5" 
+                                   class="weight-slider-input">
+                            <div class="slider-labels">
+                                <span>1</span>
+                                <span>7</span>
+                                <span>20</span>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="form-label">Seed</label>
+                            <div class="flex space-x-2">
+                                <input type="number" 
+                                       x-model="params.seed" 
+                                       placeholder="-1 for random"
+                                       class="form-input flex-1">
+                                <button @click="params.seed = -1" 
+                                        class="btn btn-secondary btn-sm">
+                                    Random
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Batch Settings -->
+                    <div class="border-t pt-4">
+                        <h4 class="font-medium text-gray-900 mb-3">Batch Settings</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="form-label">Batch Count</label>
+                                <input type="number" 
+                                       x-model="params.batch_count" 
+                                       min="1" max="10" 
+                                       class="form-input">
+                            </div>
+                            <div>
+                                <label class="form-label">Batch Size</label>
+                                <input type="number" 
+                                       x-model="params.batch_size" 
+                                       min="1" max="4" 
+                                       class="form-input">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Generate Button -->
+                    <button @click="startGeneration()" 
+                            class="btn btn-primary w-full"
+                            :disabled="!params.prompt.trim() || isGenerating">
+                        <template x-if="!isGenerating">
+                            <div class="flex items-center justify-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                Generate Image
+                            </div>
+                        </template>
+                        <template x-if="isGenerating">
+                            <div class="flex items-center justify-center">
+                                <svg class="animate-spin w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="m 12 2 a 10,10 0 0,1 10,10 h -4 a 6,6 0 0,0 -6,-6 z"></path>
+                                </svg>
+                                Generating...
+                            </div>
+                        </template>
+                    </button>
+                    
+                    <!-- Quick Actions -->
+                    <div class="border-t pt-4">
+                        <h4 class="font-medium text-gray-900 mb-3">Quick Actions</h4>
+                        <div class="space-y-2">
+                            <button @click="loadFromComposer()" 
+                                    class="btn btn-secondary btn-sm w-full">
+                                Load from Composer
+                            </button>
+                            <button @click="useRandomPrompt()" 
+                                    class="btn btn-secondary btn-sm w-full">
+                                Random Prompt
+                            </button>
+                            <button @click="savePreset()" 
+                                    class="btn btn-secondary btn-sm w-full">
+                                Save Preset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Panel: Generation Queue & Progress -->
+        <div class="lg:col-span-1">
+            <div class="space-y-6">
+                
+                <!-- Real-time Generation Queue -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="flex items-center justify-between">
+                            <h3 class="card-title">Generation Queue</h3>
+                            <span class="text-sm text-gray-500" x-text="`${activeJobs.length} active`"></span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- Active Jobs -->
+                        <div class="space-y-3 max-h-96 overflow-y-auto">
+                            <template x-for="job in activeJobs" :key="job.id">
+                                <div class="border border-gray-200 rounded-lg p-3">
+                                    <div class="flex items-start justify-between mb-2">
+                                        <div class="flex-1 min-w-0">
+                                            <div class="text-sm font-medium text-gray-900 truncate" 
+                                                 x-text="job.prompt"></div>
+                                            <div class="text-xs text-gray-500" 
+                                                 x-text="`${job.width}x${job.height} • ${job.steps} steps`"></div>
+                                        </div>
+                                        <button @click="cancelJob(job.id)" 
+                                                class="text-gray-400 hover:text-red-500 ml-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Progress Bar -->
+                                    <div class="space-y-1">
+                                        <div class="flex justify-between text-xs">
+                                            <span x-text="job.status" class="text-gray-600"></span>
+                                            <span x-text="`${job.progress}%`" class="text-gray-600"></span>
+                                        </div>
+                                        <div class="progress-bar-bg">
+                                            <div class="progress-bar-fg bg-blue-500" 
+                                                 :style="`width: ${job.progress}%`"></div>
+                                        </div>
+                                        <div class="flex justify-between text-xs text-gray-500">
+                                            <span x-text="job.eta ? `ETA: ${job.eta}` : ''"></span>
+                                            <span x-text="job.current_step ? `Step ${job.current_step}/${job.total_steps}` : ''"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <!-- Empty State -->
+                            <template x-if="activeJobs.length === 0">
+                                <div class="empty-state-container">
+                                    <svg class="empty-state-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"></path>
+                                    </svg>
+                                    <div class="empty-state-title">No active generations</div>
+                                    <div class="empty-state-message">Start a generation to see progress here</div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Status -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">System Status</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <div class="text-gray-600">GPU Status</div>
+                                <div class="font-semibold" 
+                                     :class="systemStatus.gpu_available ? 'text-green-600' : 'text-red-600'"
+                                     x-text="systemStatus.gpu_available ? 'Available' : 'Unavailable'"></div>
+                            </div>
+                            <div>
+                                <div class="text-gray-600">Queue Length</div>
+                                <div class="font-semibold" x-text="systemStatus.queue_length || 0"></div>
+                            </div>
+                            <div>
+                                <div class="text-gray-600">Memory Usage</div>
+                                <div class="font-semibold" x-text="systemStatus.memory_usage || 'N/A'"></div>
+                            </div>
+                            <div>
+                                <div class="text-gray-600">Active LoRAs</div>
+                                <div class="font-semibold" x-text="systemStatus.active_loras || 0"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Recent Results / History -->
+        <div class="lg:col-span-1">
+            <div class="card h-full">
+                <div class="card-header">
+                    <div class="flex items-center justify-between">
+                        <h3 class="card-title" x-text="showHistory ? 'Generation History' : 'Recent Results'"></h3>
+                        <button @click="refreshResults()" 
+                                class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- Results Gallery -->
+                    <div class="space-y-4 max-h-96 overflow-y-auto">
+                        <template x-for="result in recentResults" :key="result.id">
+                            <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                <!-- Image Thumbnail -->
+                                <template x-if="result.image_url">
+                                    <img :src="result.image_url" 
+                                         :alt="result.prompt"
+                                         class="w-full h-32 object-cover cursor-pointer"
+                                         @click="showImageModal(result)">
+                                </template>
+                                
+                                <!-- Result Info -->
+                                <div class="p-3">
+                                    <div class="text-sm text-gray-900 mb-1 line-clamp-2" 
+                                         x-text="result.prompt"></div>
+                                    <div class="flex items-center justify-between text-xs text-gray-500">
+                                        <span x-text="result.created_at"></span>
+                                        <div class="flex space-x-2">
+                                            <button @click="reuseParameters(result)" 
+                                                    class="text-blue-500 hover:text-blue-700">
+                                                Reuse
+                                            </button>
+                                            <button @click="deleteResult(result.id)" 
+                                                    class="text-red-500 hover:text-red-700">
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                        
+                        <!-- Empty State -->
+                        <template x-if="recentResults.length === 0">
+                            <div class="empty-state-container">
+                                <svg class="empty-state-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                <div class="empty-state-title">No results yet</div>
+                                <div class="empty-state-message">Generated images will appear here</div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Image Modal -->
+    <div x-show="showModal" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto"
+         style="display: none;">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="showModal = false"></div>
+            
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <template x-if="selectedResult">
+                    <div>
+                        <img :src="selectedResult.image_url" 
+                             :alt="selectedResult.prompt"
+                             class="w-full">
+                        <div class="p-4">
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">Generation Details</h3>
+                            <div class="space-y-1 text-sm text-gray-600">
+                                <div><strong>Prompt:</strong> <span x-text="selectedResult.prompt"></span></div>
+                                <div><strong>Size:</strong> <span x-text="`${selectedResult.width}x${selectedResult.height}`"></span></div>
+                                <div><strong>Steps:</strong> <span x-text="selectedResult.steps"></span></div>
+                                <div><strong>CFG Scale:</strong> <span x-text="selectedResult.cfg_scale"></span></div>
+                                <div><strong>Seed:</strong> <span x-text="selectedResult.seed"></span></div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast Notifications -->
+    <div x-show="showToast" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 transform translate-y-2"
+         x-transition:enter-end="opacity-100 transform translate-y-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 transform translate-y-0"
+         x-transition:leave-end="opacity-0 transform translate-y-2"
+         class="fixed top-4 right-4 z-50 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg"
+         style="display: none;">
+        <span x-text="toastMessage"></span>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='/js/components/generation-studio.js') }}"></script>
+{% endblock %}

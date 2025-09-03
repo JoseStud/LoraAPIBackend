@@ -1,0 +1,626 @@
+{% extends "base.html" %}
+
+{% block title %}AI Recommendations - LoRA Manager{% endblock %}
+
+{% block content %}
+<div x-data="recommendationsData()" x-init="init()" class="recommendations-page-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1 class="page-title">AI-Powered Recommendations</h1>
+        <p class="page-subtitle">Discover LoRAs using advanced similarity matching and prompt-based recommendations.</p>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tabs-container">
+        <nav class="tabs-nav">
+            <button 
+                @click="activeTab = 'similarity'"
+                :class="activeTab === 'similarity' ? 'active' : ''"
+                class="tab-btn"
+            >
+                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                Similarity Explorer
+            </button>
+            <button 
+                @click="activeTab = 'prompt'"
+                :class="activeTab === 'prompt' ? 'active' : ''"
+                class="tab-btn"
+            >
+                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>
+                Prompt-Based
+            </button>
+            <button 
+                @click="activeTab = 'status'"
+                :class="activeTab === 'status' ? 'active' : ''"
+                class="tab-btn"
+            >
+                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                Embedding Status
+            </button>
+        </nav>
+    </div>
+
+    <!-- Similarity Explorer Tab -->
+    <div x-show="activeTab === 'similarity'" x-transition class="tab-content">
+        <!-- Target LoRA Selection -->
+        <div class="card">
+            <h3 class="card-title flex items-center">
+                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                Find Similar LoRAs
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- LoRA Selection -->
+                <div>
+                    <label class="form-label">Select Target LoRA</label>
+                    <select 
+                        x-model="selectedLoraId" 
+                        @change="loadSelectedLora()"
+                        class="form-select w-full"
+                    >
+                        <option value="">Choose a LoRA to find similar ones...</option>
+                        <template x-for="lora in availableLoras" :key="lora.id">
+                            <option :value="lora.id" x-text="lora.name"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <!-- Selected LoRA Preview -->
+                <div x-show="selectedLora" class="lora-preview-box">
+                    <div class="flex items-center space-x-3">
+                        <div class="lora-preview-icon-container">
+                            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-medium text-gray-900" x-text="selectedLora?.name"></h4>
+                            <p class="text-sm text-gray-600" x-text="selectedLora?.description || 'No description'"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Similarity Controls -->
+        <div x-show="selectedLoraId" x-transition class="card">
+            <h4 class="font-medium mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"></path>
+                </svg>
+                Similarity Settings
+            </h4>
+            
+            <div class="weight-sliders-container">
+                <!-- Semantic Weight -->
+                <div class="slider-group">
+                    <label class="form-label">
+                        Semantic Weight
+                        <span class="slider-value text-blue-600" x-text="weights.semantic"></span>
+                    </label>
+                    <input 
+                        type="range" 
+                        x-model.number="weights.semantic" 
+                        @input="updateRecommendations()"
+                        min="0" max="1" step="0.1" 
+                        class="form-range"
+                    />
+                    <div class="slider-labels">
+                        <span>Content</span>
+                        <span>Description</span>
+                    </div>
+                </div>
+
+                <!-- Artistic Weight -->
+                <div class="slider-group">
+                    <label class="form-label">
+                        Artistic Weight
+                        <span class="slider-value text-purple-600" x-text="weights.artistic"></span>
+                    </label>
+                    <input 
+                        type="range" 
+                        x-model.number="weights.artistic" 
+                        @input="updateRecommendations()"
+                        min="0" max="1" step="0.1" 
+                        class="form-range"
+                    />
+                    <div class="slider-labels">
+                        <span>Style</span>
+                        <span>Aesthetic</span>
+                    </div>
+                </div>
+
+                <!-- Technical Weight -->
+                <div class="slider-group">
+                    <label class="form-label">
+                        Technical Weight
+                        <span class="slider-value text-orange-600" x-text="weights.technical"></span>
+                    </label>
+                    <input 
+                        type="range" 
+                        x-model.number="weights.technical" 
+                        @input="updateRecommendations()"
+                        min="0" max="1" step="0.1" 
+                        class="form-range"
+                    />
+                    <div class="slider-labels">
+                        <span>Compatibility</span>
+                        <span>Technical</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Options -->
+            <div class="additional-options-container">
+                <label class="flex items-center">
+                    <input 
+                        type="number" 
+                        x-model.number="similarityLimit"
+                        @change="updateRecommendations()"
+                        min="1" max="50" 
+                        class="form-input-sm w-16"
+                    />
+                    <span class="ml-2 text-sm text-gray-700">results</span>
+                </label>
+                
+                <label class="flex items-center">
+                    <input 
+                        type="range" 
+                        x-model.number="similarityThreshold"
+                        @input="updateRecommendations()"
+                        min="0" max="1" step="0.05" 
+                        class="w-20"
+                    />
+                    <span class="ml-2 text-sm text-gray-700">
+                        Threshold: <span x-text="similarityThreshold"></span>
+                    </span>
+                </label>
+
+                <button 
+                    @click="resetWeights()"
+                    class="btn btn-secondary btn-sm"
+                >
+                    Reset Defaults
+                </button>
+            </div>
+        </div>
+
+        <!-- Similarity Results -->
+        <div x-show="selectedLoraId" x-transition>
+            <div 
+                id="similarity-results"
+                hx-post="/api/htmx/recommendations/similar"
+                hx-trigger="similarity-search from:body"
+                hx-include="[data-similarity]"
+                class="results-container"
+            >
+                <!-- Results will be loaded here -->
+                <div class="placeholder-message">
+                    <svg class="placeholder-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                    <p class="placeholder-text">Select a LoRA to see recommendations</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prompt-Based Recommendations Tab -->
+    <div x-show="activeTab === 'prompt'" x-transition class="tab-content">
+        <!-- Prompt Input -->
+        <div class="card">
+            <h3 class="card-title flex items-center">
+                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>
+                Prompt-Based Recommendations
+            </h3>
+            
+            <!-- Prompt Textarea -->
+            <div class="form-group">
+                <label class="form-label">
+                    Describe what you're looking for
+                </label>
+                <textarea 
+                    x-model="promptText" 
+                    @input.debounce.500ms="searchByPrompt()"
+                    placeholder="Enter your prompt (e.g., 'anime girl with pink hair', 'realistic portrait', 'fantasy landscape')..."
+                    class="form-textarea h-24"
+                ></textarea>
+            </div>
+
+            <!-- Quick Suggestions -->
+            <div class="form-group">
+                <label class="form-label">Quick Suggestions</label>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="suggestion in promptSuggestions" :key="suggestion">
+                        <button 
+                            @click="promptText = suggestion; searchByPrompt()" 
+                            class="suggestion-chip"
+                        >
+                            <span x-text="suggestion"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Prompt Options -->
+            <div class="additional-options-container">
+                <label class="flex items-center">
+                    <input 
+                        type="number" 
+                        x-model.number="promptLimit"
+                        @change="searchByPrompt()"
+                        min="1" max="50" 
+                        class="form-input-sm w-16"
+                    />
+                    <span class="ml-2 text-sm text-gray-700">results</span>
+                </label>
+                
+                <label class="flex items-center">
+                    <input 
+                        type="checkbox" 
+                        x-model="promptIncludeInactive"
+                        @change="searchByPrompt()"
+                        class="form-checkbox"
+                    />
+                    <span class="ml-2 text-sm text-gray-700">Include inactive LoRAs</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Prompt Results -->
+        <div x-show="promptText.length > 0" x-transition>
+            <div 
+                id="prompt-results"
+                hx-post="/api/htmx/recommendations/prompt"
+                hx-trigger="prompt-search from:body"
+                hx-include="[data-prompt]"
+                class="results-container"
+            >
+                <!-- Results will be loaded here -->
+                <div class="placeholder-message">
+                    <svg class="placeholder-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <p class="placeholder-text">Enter a prompt to see recommendations</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Embedding Status Tab -->
+    <div x-show="activeTab === 'status'" x-transition class="tab-content">
+        <div 
+            id="embedding-status-content"
+            hx-get="/api/htmx/recommendations/embedding-status"
+            hx-trigger="load, every 30s"
+        >
+            <!-- Loading placeholder -->
+            <div class="animate-pulse">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-gray-200 rounded-lg h-32"></div>
+                    <div class="bg-gray-200 rounded-lg h-32"></div>
+                    <div class="bg-gray-200 rounded-lg h-32"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+            <!-- Embedding Stats -->
+            <div class="card">
+                <h3 class="card-title flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    Embeddings
+                </h3>
+                <div 
+                    hx-get="/api/htmx/recommendations/status/embeddings"
+                    hx-trigger="load, every 10s"
+                    class="space-y-2"
+                >
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Coverage</span>
+                        <span class="text-sm font-medium text-blue-600">Loading...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance -->
+            <div class="card">
+                <h3 class="card-title flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    Performance
+                </h3>
+                <div 
+                    hx-get="/api/htmx/recommendations/status/performance"
+                    hx-trigger="load, every 10s"
+                    class="space-y-2"
+                >
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Avg Response</span>
+                        <span class="text-sm font-medium text-purple-600">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Embedding Management -->
+        <div class="card">
+            <h3 class="card-title flex items-center">
+                <svg class="w-5 h-5 mr-2 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                </svg>
+                Embedding Management
+            </h3>
+            
+            <div class="flex flex-wrap gap-4">
+                <button 
+                    @click="computeAllEmbeddings()"
+                    :disabled="computingEmbeddings"
+                    class="btn btn-primary"
+                    :class="{'btn-disabled': computingEmbeddings}"
+                >
+                    <span x-show="!computingEmbeddings">Compute All Embeddings</span>
+                    <span x-show="computingEmbeddings" class="flex items-center">
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Computing...
+                    </span>
+                </button>
+                
+                <button 
+                    @click="rebuildIndex()"
+                    :disabled="rebuildingIndex"
+                    class="btn btn-success"
+                    :class="{'btn-disabled': rebuildingIndex}"
+                >
+                    <span x-show="!rebuildingIndex">Rebuild Index</span>
+                    <span x-show="rebuildingIndex" class="flex items-center">
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Rebuilding...
+                    </span>
+                </button>
+                
+                <button 
+                    @click="viewHealthReport()"
+                    class="btn btn-secondary"
+                >
+                    Health Report
+                </button>
+            </div>
+        </div>
+
+        <!-- Embedding Progress -->
+        <div x-show="computingEmbeddings || rebuildingIndex" class="card">
+            <h4 class="font-medium mb-4">Operation Progress</h4>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Progress</span>
+                    <span class="text-sm font-medium" x-text="`${embeddingProgress}%`"></span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                        class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        :style="`width: ${embeddingProgress}%`"
+                    ></div>
+                </div>
+                <div class="text-sm text-gray-600" x-text="embeddingStatus"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden form inputs for HTMX -->
+    <div class="hidden">
+        <input type="hidden" name="lora_id" :value="selectedLoraId" data-similarity />
+        <input type="hidden" name="semantic_weight" :value="weights.semantic" data-similarity />
+        <input type="hidden" name="artistic_weight" :value="weights.artistic" data-similarity />
+        <input type="hidden" name="technical_weight" :value="weights.technical" data-similarity />
+        <input type="hidden" name="limit" :value="similarityLimit" data-similarity />
+        <input type="hidden" name="threshold" :value="similarityThreshold" data-similarity />
+        
+        <input type="hidden" name="prompt" :value="promptText" data-prompt />
+        <input type="hidden" name="limit" :value="promptLimit" data-prompt />
+        <input type="hidden" name="include_inactive" :value="promptIncludeInactive" data-prompt />
+    </div>
+</div>
+
+<script>
+    function recommendationsData() {
+        return {
+            // Tab state
+            activeTab: 'similarity',
+            
+            // Available LoRAs
+            availableLoras: [],
+            
+            // Similarity explorer
+            selectedLoraId: '',
+            selectedLora: null,
+            weights: {
+                semantic: 0.6,
+                artistic: 0.3,
+                technical: 0.1
+            },
+            similarityLimit: 10,
+            similarityThreshold: 0.1,
+            
+            // Prompt-based recommendations
+            promptText: '',
+            promptLimit: 10,
+            promptIncludeInactive: false,
+            promptSuggestions: [
+                'anime girl with pink hair',
+                'realistic portrait photography',
+                'fantasy landscape with magic',
+                'cyberpunk character design',
+                'traditional art style',
+                'watercolor painting effect',
+                'detailed facial features',
+                'medieval fantasy armor',
+                'modern city background',
+                'artistic lighting effects'
+            ],
+            
+            // Embedding status
+            computingEmbeddings: false,
+            rebuildingIndex: false,
+            embeddingProgress: 0,
+            embeddingStatus: '',
+
+            // Initialize
+            async init() {
+                await this.loadAvailableLoras();
+            },
+
+            // Load available LoRAs
+            async loadAvailableLoras() {
+                try {
+                    const response = await fetch('/api/v1/adapters?limit=1000');
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.availableLoras = data.items || [];
+                    }
+                } catch (error) {
+                    console.error('Failed to load available LoRAs:', error);
+                }
+            },
+
+            // Load selected LoRA details
+            loadSelectedLora() {
+                if (this.selectedLoraId) {
+                    this.selectedLora = this.availableLoras.find(lora => lora.id === this.selectedLoraId);
+                    this.updateRecommendations();
+                }
+            },
+
+            // Update similarity recommendations
+            updateRecommendations() {
+                if (this.selectedLoraId) {
+                    document.body.dispatchEvent(new CustomEvent('similarity-search'));
+                }
+            },
+
+            // Search by prompt
+            searchByPrompt() {
+                if (this.promptText.trim()) {
+                    document.body.dispatchEvent(new CustomEvent('prompt-search'));
+                }
+            },
+
+            // Reset similarity weights to defaults
+            resetWeights() {
+                this.weights.semantic = 0.6;
+                this.weights.artistic = 0.3;
+                this.weights.technical = 0.1;
+                this.updateRecommendations();
+            },
+
+            // Compute all embeddings
+            async computeAllEmbeddings() {
+                this.computingEmbeddings = true;
+                this.embeddingProgress = 0;
+                this.embeddingStatus = 'Starting embedding computation...';
+                
+                try {
+                    const response = await fetch('/api/v1/recommendations/embeddings/compute', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            lora_ids: this.availableLoras.map(lora => lora.id),
+                            force_recompute: false
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        this.embeddingStatus = 'Embeddings computed successfully!';
+                        this.embeddingProgress = 100;
+                    } else {
+                        this.embeddingStatus = 'Failed to compute embeddings';
+                    }
+                } catch (error) {
+                    this.embeddingStatus = 'Error: ' + error.message;
+                } finally {
+                    setTimeout(() => {
+                        this.computingEmbeddings = false;
+                    }, 2000);
+                }
+            },
+
+            // Rebuild similarity index
+            async rebuildIndex() {
+                this.rebuildingIndex = true;
+                this.embeddingProgress = 0;
+                this.embeddingStatus = 'Rebuilding similarity index...';
+                
+                try {
+                    const response = await fetch('/api/v1/recommendations/index/rebuild', {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        this.embeddingStatus = 'Index rebuilt successfully!';
+                        this.embeddingProgress = 100;
+                    } else {
+                        this.embeddingStatus = 'Failed to rebuild index';
+                    }
+                } catch (error) {
+                    this.embeddingStatus = 'Error: ' + error.message;
+                } finally {
+                    setTimeout(() => {
+                        this.rebuildingIndex = false;
+                    }, 2000);
+                }
+            },
+
+            // View health report
+            viewHealthReport() {
+                // Open health report in new tab/window
+                window.open('/api/v1/recommendations/health', '_blank');
+            }
+        }
+    }
+</script>
+
+<style>
+    /* Custom slider styles */
+    .slider::-webkit-slider-thumb {
+        appearance: none;
+        height: 20px;
+        width: 20px;
+        border-radius: 50%;
+        background: #3b82f6;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .slider::-moz-range-thumb {
+        height: 20px;
+        width: 20px;
+        border-radius: 50%;
+        background: #3b82f6;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+</style>
+{% endblock %}

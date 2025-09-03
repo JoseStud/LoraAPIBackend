@@ -1,74 +1,60 @@
-"""FastAPI application factory and global wiring for the LoRA backend."""
+"""
+LoRA Manager - Main Application Entry Point
 
-from contextlib import asynccontextmanager
+This file integrates both the backend API and frontend routes.
+The backend is located in the backend/ directory.
+The frontend templates and static files are in app/frontend/.
+"""
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
-from app.api.v1 import adapters, compose, deliveries, generation, recommendations, websocket
-from app.core.database import init_db
-from app.core.logging import setup_logging
-from app.core.security import get_api_key
+# Import backend application
+from backend.main import app as backend_app
+from backend.core.config import settings
 
+# Import frontend routes
+from app.frontend import routes_fastapi as frontend_routes
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """App lifespan handler used to initialize resources on startup."""
-    # Initialize logging and DB at startup
-    setup_logging()
-    init_db()
-    yield
+# Create the main application
+app = FastAPI(
+    title="LoRA Manager",
+    description="LoRA Adapter Management System with AI-Powered Recommendations",
+    version="1.0.0"
+)
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-def create_app() -> FastAPI:
-    """Create and configure the FastAPI application."""
-    app = FastAPI(title="LoRA Manager Backend (MVP)", lifespan=lifespan)
+# Mount static files for frontend
+app.mount("/static", StaticFiles(directory="app/frontend/static"), name="static")
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+# Include frontend routes (serve HTML pages)
+app.include_router(frontend_routes.router, tags=["frontend"])
+
+# Include backend API routes
+app.mount("/api", backend_app)
+
+# Root endpoint redirect to dashboard
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "service": "lora-manager"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True
     )
-
-    # Include API routers
-    app.include_router(adapters.router, dependencies=[Depends(get_api_key)])
-    app.include_router(compose.router, dependencies=[Depends(get_api_key)])
-    app.include_router(deliveries.router, dependencies=[Depends(get_api_key)])
-    app.include_router(generation.router, dependencies=[Depends(get_api_key)])
-    app.include_router(recommendations.router, dependencies=[Depends(get_api_key)])
-    app.include_router(websocket.router)  # WebSocket doesn't use API key auth
-
-    @app.get("/health")
-    def health():
-        """Return a simple health status used by tests and readiness checks."""
-        return {"status": "ok"}
-
-    @app.exception_handler(HTTPException)
-    async def http_exception_handler(request: Request, exc: HTTPException):
-        """Format HTTPException as an RFC7807 problem detail response."""
-        problem = {
-            "type": "about:blank",
-            "title": exc.detail if isinstance(exc.detail, str) else "HTTP error",
-            "status": exc.status_code,
-        }
-        return JSONResponse(status_code=exc.status_code, content=problem)
-
-    @app.exception_handler(Exception)
-    async def generic_exception_handler(request: Request, exc: Exception):
-        """Return an RFC7807-style problem detail for unexpected errors."""
-        problem = {
-            "type": "about:blank",
-            "title": "Internal Server Error",
-            "status": 500,
-            "detail": str(exc),
-        }
-        return JSONResponse(status_code=500, content=problem)
-
-    return app
-
-
-# Create the app instance for backward compatibility
-app = create_app()

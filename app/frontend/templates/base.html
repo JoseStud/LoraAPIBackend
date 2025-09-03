@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ title }}{% endblock %} - LoRA Manager</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Comprehensive LoRA model management system with AI-powered recommendations and generation studio">
+    <meta name="keywords" content="LoRA, AI, machine learning, stable diffusion, image generation, model management">
+    <meta name="author" content="LoRA Manager">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="{{ url_for('static', path='/manifest.json') }}">
+    
+    <!-- PWA Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', path='/images/icons/icon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', path='/images/icons/icon-16x16.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', path='/images/icons/icon-180x180.png') }}">
+    <link rel="apple-touch-icon" sizes="152x152" href="{{ url_for('static', path='/images/icons/icon-152x152.png') }}">
+    <link rel="apple-touch-icon" sizes="144x144" href="{{ url_for('static', path='/images/icons/icon-144x144.png') }}">
+    <link rel="apple-touch-icon" sizes="120x120" href="{{ url_for('static', path='/images/icons/icon-120x120.png') }}">
+    <link rel="apple-touch-icon" sizes="114x114" href="{{ url_for('static', path='/images/icons/icon-114x114.png') }}">
+    <link rel="apple-touch-icon" sizes="76x76" href="{{ url_for('static', path='/images/icons/icon-76x76.png') }}">
+    <link rel="apple-touch-icon" sizes="72x72" href="{{ url_for('static', path='/images/icons/icon-72x72.png') }}">
+    <link rel="apple-touch-icon" sizes="60x60" href="{{ url_for('static', path='/images/icons/icon-60x60.png') }}">
+    <link rel="apple-touch-icon" sizes="57x57" href="{{ url_for('static', path='/images/icons/icon-57x57.png') }}">
+    
+    <!-- PWA Theme Colors -->
+    <meta name="theme-color" content="#2563eb">
+    <meta name="msapplication-TileColor" content="#2563eb">
+    <meta name="msapplication-TileImage" content="{{ url_for('static', path='/images/icons/icon-144x144.png') }}">
+    
+    <!-- PWA Apple-specific -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="LoRA Manager">
+    
+    <!-- PWA Windows-specific -->
+    <meta name="msapplication-starturl" content="/">
+    <meta name="msapplication-navbutton-color" content="#2563eb">
+    
+    <!-- Security -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="{{ url_for('static', path='/css/styles.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', path='/css/components.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', path='/css/mobile.css') }}" rel="stylesheet">
+    
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Custom scripts -->
+    <script src="{{ url_for('static', path='/js/common.js') }}"></script>
+    <script src="{{ url_for('static', path='/js/alpine-config.js') }}"></script>
+    <script src="{{ url_for('static', path='/js/htmx-config.js') }}"></script>
+    <script src="{{ url_for('static', path='/js/mobile-nav.js') }}"></script>
+    <script src="{{ url_for('static', path='/js/pwa-manager.js') }}"></script>
+</head>
+<body class="page-body" x-data="mobileNav()">
+    <!-- Mobile Navigation Toggle -->
+    <button @click="toggleMenu()" 
+            class="mobile-nav-toggle lg:hidden"
+            :class="{ 'mobile-safe-top': true }">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                  :d="isOpen ? 'M6 18L18 6M6 6l12 12' : 'M4 6h16M4 12h16M4 18h16'">
+            </path>
+        </svg>
+    </button>
+
+    <!-- Mobile Navigation Overlay -->
+    <div x-show="isOpen" 
+         x-transition:enter="transition-opacity ease-linear duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition-opacity ease-linear duration-300"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         @click="closeMenu()"
+         class="mobile-nav-overlay"
+         style="display: none;">
+    </div>
+
+    <!-- Mobile Navigation Menu -->
+    <nav class="mobile-nav-menu"
+         :class="isOpen ? 'open' : 'closed'"
+         x-transition:enter="transition ease-in-out duration-300 transform"
+         x-transition:enter-start="-translate-x-full"
+         x-transition:enter-end="translate-x-0"
+         x-transition:leave="transition ease-in-out duration-300 transform"
+         x-transition:leave-start="translate-x-0"
+         x-transition:leave-end="-translate-x-full">
+        
+        <div class="mobile-nav-header mobile-safe-top">
+            <h2 class="text-lg font-semibold text-gray-900">LoRA Manager</h2>
+            <button @click="closeMenu()" class="mobile-nav-close">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="mobile-nav-links">
+            <a href="/" 
+               @click="closeMenu()"
+               class="mobile-nav-link {% if page == 'dashboard' %}active{% endif %}">
+                <svg class="w-5 h-5 mr-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v3H8V5z"></path>
+                </svg>
+                Dashboard
+            </a>
+            
+            <a href="/loras" 
+               @click="closeMenu()"
+               class="mobile-nav-link {% if page == 'loras' %}active{% endif %}">
+                <svg class="w-5 h-5 mr-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                </svg>
+                LoRAs
+            </a>
+            
+            <a href="/recommendations" 
+               @click="closeMenu()"
+               class="mobile-nav-link {% if page == 'recommendations' %}active{% endif %}">
+                <svg class="w-5 h-5 mr-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                </svg>
+                Recommendations
+            </a>
+            
+            <a href="/compose" 
+               @click="closeMenu()"
+               class="mobile-nav-link {% if page == 'compose' %}active{% endif %}">
+                <svg class="w-5 h-5 mr-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                </svg>
+                Compose
+            </a>
+            
+            <a href="/generate" 
+               @click="closeMenu()"
+               class="mobile-nav-link {% if page == 'generate' %}active{% endif %}">
+                <svg class="w-5 h-5 mr-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                Generate
+            </a>
+            
+            <a href="/admin" 
+               @click="closeMenu()"
+               class="mobile-nav-link {% if page == 'admin' %}active{% endif %}">
+                <svg class="w-5 h-5 mr-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                Admin
+            </a>
+            
+            <a href="/analytics" 
+               @click="closeMenu()"
+               class="mobile-nav-link {% if page == 'analytics' %}active{% endif %}">
+                <svg class="w-5 h-5 mr-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                Analytics
+            </a>
+            
+            <a href="/import-export" 
+               @click="closeMenu()"
+               class="mobile-nav-link {% if page == 'import-export' %}active{% endif %}">
+                <svg class="w-5 h-5 mr-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"></path>
+                </svg>
+                Import/Export
+            </a>
+        </div>
+        
+        <div class="p-4 border-t border-gray-200 mobile-safe-bottom">
+            <div class="text-xs text-gray-500">
+                LoRA Manager v2.1
+            </div>
+        </div>
+    </nav>
+
+    <!-- Desktop Navigation -->
+    <nav class="main-nav">
+        <div class="nav-container">
+            <div class="nav-header">
+                <h1 class="nav-title">LoRA Manager</h1>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="nav-link {% if page == 'dashboard' %}active{% endif %}">
+                    Dashboard
+                </a>
+                <a href="/loras" class="nav-link {% if page == 'loras' %}active{% endif %}">
+                    LoRAs
+                </a>
+                <a href="/recommendations" class="nav-link {% if page == 'recommendations' %}active{% endif %}">
+                    Recommendations
+                </a>
+                <a href="/compose" class="nav-link {% if page == 'compose' %}active{% endif %}">
+                    Compose
+                </a>
+                <a href="/generate" class="nav-link {% if page == 'generate' %}active{% endif %}">
+                    Generate
+                </a>
+                <a href="/admin" class="nav-link {% if page == 'admin' %}active{% endif %}">
+                    Admin
+                </a>
+                <a href="/analytics" class="nav-link {% if page == 'analytics' %}active{% endif %}">
+                    Analytics
+                </a>
+                <a href="/import-export" class="nav-link {% if page == 'import-export' %}active{% endif %}">
+                    Import/Export
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="main-content">
+        <div class="content-wrapper">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+        <div class="footer-container">
+            <p class="footer-text">
+                LoRA Manager - AI-Powered LoRA Management System
+            </p>
+        </div>
+    </footer>
+</body>
+</html>

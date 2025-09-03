@@ -5,9 +5,9 @@ import numpy as np
 from datetime import datetime, timezone
 from unittest.mock import patch, MagicMock
 
-from app.models import Adapter, LoRAEmbedding
-from app.services.recommendations import RecommendationService
-from app.schemas.recommendations import RecommendationItem
+from backend.models import Adapter, LoRAEmbedding
+from backend.services.recommendations import RecommendationService
+from backend.schemas.recommendations import RecommendationItem
 
 
 @pytest.fixture
@@ -284,7 +284,7 @@ class TestRecommendationModels:
     def test_lora_semantic_embedder_initialization(self):
         """Test LoRASemanticEmbedder initialization."""
         with patch('sentence_transformers.SentenceTransformer'):
-            from app.services.recommendation_models import LoRASemanticEmbedder
+            from backend.services.recommendation_models import LoRASemanticEmbedder
             
             embedder = LoRASemanticEmbedder(device='cpu', batch_size=16, mixed_precision=False)
             
@@ -295,7 +295,7 @@ class TestRecommendationModels:
     def test_lora_semantic_embedder_prepare_text(self, sample_adapter):
         """Test text preparation for embeddings."""
         with patch('sentence_transformers.SentenceTransformer'):
-            from app.services.recommendation_models import LoRASemanticEmbedder
+            from backend.services.recommendation_models import LoRASemanticEmbedder
             
             embedder = LoRASemanticEmbedder(device='cpu')
             texts = embedder._prepare_multi_modal_text(sample_adapter)
@@ -312,7 +312,7 @@ class TestRecommendationModels:
 
     def test_gpu_feature_extractor_fallback_methods(self, sample_adapter):
         """Test fallback methods when advanced NLP libraries aren't available."""
-        from app.services.recommendation_models import GPULoRAFeatureExtractor
+        from backend.services.recommendation_models import GPULoRAFeatureExtractor
         
         extractor = GPULoRAFeatureExtractor(device='cpu')
         
