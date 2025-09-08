@@ -750,5 +750,8 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- New Modular System Admin Components -->
+<script src="{{ url_for('static', path='/js/components/system-admin/index.js') }}"></script>
+<!-- Legacy fallback -->
 <script src="{{ url_for('static', path='/js/components/system-admin.js') }}"></script>
 {% endblock %}

@@ -41,12 +41,12 @@ window.LoRAManager = {
                 document.body.dispatchEvent(event);
                 return true;
             } else {
-                console.error('Failed to update LoRA status:', response.status);
+                window.DevLogger && window.DevLogger.error && window.DevLogger.error('Failed to update LoRA status:', response.status);
                 this.showError('Failed to update LoRA status');
                 return false;
             }
         } catch (error) {
-            console.error('Error updating LoRA status:', error);
+            window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error updating LoRA status:', error);
             this.showError('Error: ' + error.message);
             return false;
         }
@@ -89,8 +89,8 @@ window.LoRAManager = {
      * @param {string} message - Success message
      */
     showSuccess(message) {
-        // Simple alert for now, could be enhanced with a toast system
-        console.log('Success:', message);
+    // Simple alert for now, could be enhanced with a toast system
+    window.DevLogger && window.DevLogger.debug && window.DevLogger.debug('Success:', message);
     }
 };
 
@@ -123,9 +123,16 @@ window.HTMXUtils = {
      * @param {string} selector - CSS selector for the element
      */
     showLoading(selector) {
-        const element = document.querySelector(selector);
-        if (element) {
-            element.classList.add('htmx-loading');
+        try {
+            if (!selector || typeof selector !== 'string' || selector.trim() === '' || selector === '#') {
+                window.DevLogger && window.DevLogger.warn && window.DevLogger.warn('showLoading: invalid selector', selector);
+                return;
+            }
+            const element = document.querySelector(selector);
+            if (element) element.classList.add('htmx-loading');
+        } catch (e) {
+            // Invalid selector; ignore to avoid DOMException
+            window.DevLogger && window.DevLogger.warn && window.DevLogger.warn('showLoading: invalid selector', selector, e);
         }
     },
 
@@ -134,9 +141,15 @@ window.HTMXUtils = {
      * @param {string} selector - CSS selector for the element
      */
     hideLoading(selector) {
-        const element = document.querySelector(selector);
-        if (element) {
-            element.classList.remove('htmx-loading');
+        try {
+            if (!selector || typeof selector !== 'string' || selector.trim() === '' || selector === '#') {
+                window.DevLogger && window.DevLogger.warn && window.DevLogger.warn('hideLoading: invalid selector', selector);
+                return;
+            }
+            const element = document.querySelector(selector);
+            if (element) element.classList.remove('htmx-loading');
+        } catch (e) {
+            window.DevLogger && window.DevLogger.warn && window.DevLogger.warn('hideLoading: invalid selector', selector, e);
         }
     }
 };
@@ -226,16 +239,26 @@ window.AlpineUtils = {
 document.addEventListener('DOMContentLoaded', function() {
     // Global HTMX event listeners
     document.body.addEventListener('htmx:beforeRequest', function(event) {
-        HTMXUtils.showLoading('#' + event.target.id);
+        try {
+            const id = event.target && event.target.id ? event.target.id.trim() : null;
+            if (id && id.length > 0 && id !== '#') {
+                HTMXUtils.showLoading('#' + id);
+            }
+        } catch (e) { window.DevLogger && window.DevLogger.warn && window.DevLogger.warn('htmx:beforeRequest handler error', e); }
     });
 
     document.body.addEventListener('htmx:afterRequest', function(event) {
-        HTMXUtils.hideLoading('#' + event.target.id);
+        try {
+            const id = event.target && event.target.id ? event.target.id.trim() : null;
+            if (id && id.length > 0 && id !== '#') {
+                HTMXUtils.hideLoading('#' + id);
+            }
         
-        // Handle errors
-        if (event.detail.xhr.status >= 400) {
-            LoRAManager.showError('Request failed with status: ' + event.detail.xhr.status);
-        }
+            // Handle errors
+            if (event.detail && event.detail.xhr && event.detail.xhr.status >= 400) {
+                LoRAManager.showError('Request failed with status: ' + event.detail.xhr.status);
+            }
+        } catch (e) { window.DevLogger && window.DevLogger.warn && window.DevLogger.warn('htmx:afterRequest handler error', e); }
     });
 
     // Global keyboard shortcuts

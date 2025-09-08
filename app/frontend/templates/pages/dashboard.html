@@ -1,50 +1,64 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - LoRA Manager{% endblock %}
+{% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<div x-data="dashboard()" x-init="init()" class="dashboard-container">
-    <!-- Header Section -->
+<div x-data="dashboard()" x-init="init()" class="dashboard-container fade-in">
+    <!-- Enhanced Header Section -->
     <div class="dashboard-header">
         <div>
-            <h1 class="page-title">Dashboard</h1>
-            <p class="page-subtitle">Overview of your LoRA collection and system status</p>
+            <h1 class="page-title">
+                <span class="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    Welcome to LoRA Manager
+                </span>
+            </h1>
+            <p class="page-subtitle">
+                Manage your LoRA collection with AI-powered recommendations and advanced analytics
+            </p>
         </div>
         <div class="header-actions">
             <button @click="refreshData()" 
-                    class="btn btn-secondary btn-sm with-icon">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="btn btn-secondary btn-sm"
+                    :disabled="loading"
+                    aria-label="Refresh dashboard data">
+                <svg class="w-4 h-4 mr-2" :class="{ 'animate-spin': loading }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
                           d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                 </svg>
-                <span>Refresh</span>
+                <span x-text="loading ? 'Refreshing...' : 'Refresh'"></span>
             </button>
             <a href="/loras" class="btn btn-primary btn-sm">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                </svg>
                 Browse LoRAs
             </a>
         </div>
     </div>
 
-    <!-- Statistics Cards -->
-    <div class="stats-grid-4">
-        <!-- Total LoRAs -->
-        <div class="card">
+    <!-- Enhanced Statistics Cards -->
+    <div class="stats-grid">
+        <!-- Total LoRAs Card -->
+        <div class="stat-card card-interactive scale-in">
             <div class="stat-card-header">
                 <div>
                     <p class="stat-card-label">Total LoRAs</p>
-                    <p class="stat-card-value" x-text="stats.total_loras">-</p>
+                    <p class="stat-card-value" x-text="stats.total_loras || '-'">-</p>
                 </div>
-                <div class="stat-card-icon bg-blue-100">
-                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="stat-card-icon bg-gradient-to-br from-blue-100 to-blue-200">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
                     </svg>
                 </div>
             </div>
             <div class="stat-card-footer">
-                <span class="text-sm text-gray-500">
-                    <span x-text="stats.active_loras">-</span> active
-                </span>
+                <div class="flex items-center">
+                    <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                    <span class="text-sm text-gray-600">
+                        <span x-text="stats.active_loras || '-'">-</span> active
+                    </span>
+                </div>
             </div>
         </div>
 
@@ -98,6 +112,21 @@
         <div class="card">
             <div class="stat-card-header">
                 <div>
+                    <p class="stat-card-label">Recent Activity</p>
+                    <p class="stat-card-value" x-text="stats.recent_imports">-</p>
+                </div>
+                <div class="stat-card-icon bg-purple-100">
+                    <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+            <div class="stat-card-footer">
+                <span class="text-sm text-gray-500">in last 24h</span>
+            </div>
+        </div>
+    </div>
                     <p class="stat-card-label">Recent Activity</p>
                     <p class="stat-card-value" x-text="stats.recent_activities_count">-</p>
                 </div>
@@ -161,69 +190,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-function dashboard() {
-    return {
-        stats: {
-            total_loras: 0,
-            active_loras: 0,
-            embeddings_coverage: 0,
-            recent_activities_count: 0,
-        },
-        systemHealth: {
-            status: 'checking...',
-            gpu_status: 'checking...',
-        },
-
-        init() {
-            this.fetchStats();
-            this.fetchSystemHealth();
-            
-            // Listen for global data updates
-            document.body.addEventListener('lora-data-updated', () => {
-                this.fetchStats();
-            });
-        },
-
-        fetchStats() {
-            fetch('/api/v1/stats/dashboard')
-                .then(response => response.json())
-                .then(data => {
-                    this.stats.total_loras = data.total_loras;
-                    this.stats.active_loras = data.active_loras;
-                    this.stats.embeddings_coverage = data.embeddings_coverage_percent;
-                    this.stats.recent_activities_count = data.recent_activities_count;
-                })
-                .catch(error => console.error('Error fetching stats:', error));
-        },
-
-        fetchSystemHealth() {
-            fetch('/api/v1/system/health')
-                .then(response => response.json())
-                .then(data => {
-                    this.systemHealth.status = data.overall_status;
-                    this.systemHealth.gpu_status = data.gpu_status.status;
-                })
-                .catch(error => {
-                    console.error('Error fetching system health:', error);
-                    this.systemHealth.status = 'error';
-                    this.systemHealth.gpu_status = 'error';
-                });
-        },
-
-        refreshData() {
-            this.fetchStats();
-            this.fetchSystemHealth();
-            htmx.trigger('#embedding-status-container', 'load');
-            htmx.trigger('#featured-loras-container', 'load');
-            htmx.trigger('#activity-feed-container', 'load');
-            
-            // Show a notification
-            htmx.trigger(document.body, 'show-notification', {
-                detail: { message: 'Dashboard data refreshed!', type: 'success' }
-            });
-        }
-    }
-}
-</script>
+<!-- Dashboard component is now registered in alpine-config.js -->
 {% endblock %}

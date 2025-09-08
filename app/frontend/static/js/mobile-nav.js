@@ -8,6 +8,8 @@ function mobileNav() {
         isOpen: false,
         
         init() {
+            window.DevLogger?.debug?.('[MobileNav] Real implementation initialized');
+            
             // Handle escape key
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && this.isOpen) {
@@ -102,16 +104,20 @@ class MobileTouch {
         // Handle swipe to open navigation
         if (!this.isScrolling && diffX < -this.touchThreshold && this.touchStartX < 50) {
             // Swipe right from left edge
-            if (typeof Alpine !== 'undefined') {
-                const mobileNavComponent = Alpine.$data(document.body);
-                if (mobileNavComponent && mobileNavComponent.openMenu) {
-                    mobileNavComponent.openMenu();
+            if (typeof window.Alpine !== 'undefined') {
+                try {
+                    const mobileNavComponent = Alpine.$data && Alpine.$data(document.body);
+                    if (mobileNavComponent && mobileNavComponent.openMenu) {
+                        mobileNavComponent.openMenu();
+                    }
+                } catch (e) {
+                    // Alpine may not be fully initialized; ignore safely
                 }
             }
         }
     }
     
-    handleTouchEnd(e) {
+    handleTouchEnd(_e) {
         this.touchStartX = 0;
         this.touchStartY = 0;
         this.isScrolling = false;
@@ -303,8 +309,7 @@ class MobilePerformance {
     preloadCriticalResources() {
         // Preload critical images and fonts
         const criticalImages = [
-            '/static/images/logo.svg',
-            '/static/images/placeholder.jpg'
+            '/static/images/logo.svg'
         ];
         
         criticalImages.forEach(src => {
@@ -390,16 +395,28 @@ class MobileAccessibility {
     initKeyboardNavigation() {
         // Add keyboard shortcuts for mobile
         document.addEventListener('keydown', (e) => {
-            // Alt + M to toggle mobile menu
+                // Alt + M to toggle mobile menu
             if (e.altKey && e.key === 'm') {
                 e.preventDefault();
-                const mobileNavComponent = Alpine.$data(document.body);
-                if (mobileNavComponent && mobileNavComponent.toggleMenu) {
-                    mobileNavComponent.toggleMenu();
+                if (typeof window.Alpine !== 'undefined') {
+                    try {
+                        const mobileNavComponent = Alpine.$data && Alpine.$data(document.body);
+                        if (mobileNavComponent && mobileNavComponent.toggleMenu) {
+                            mobileNavComponent.toggleMenu();
+                        }
+                    } catch (e) { /* ignore if Alpine not ready */ }
                 }
             }
         });
     }
+}
+
+// Register with ComponentLoader when available
+if (window.ComponentLoader) {
+    window.ComponentLoader.registerComponent('mobileNav', mobileNav);
+} else {
+    // Fallback: ensure global availability
+    window.mobileNav = mobileNav;
 }
 
 // Initialize mobile enhancements when DOM is loaded

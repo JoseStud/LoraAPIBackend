@@ -31,7 +31,9 @@ def test_importer_integration_creates_adapter(tmp_path, db_session, mock_storage
         yield db_session
     
     monkeypatch.setattr(importer, "get_session", get_test_session)
-    monkeypatch.setattr(app.services, "get_session", get_test_session)
+    # Patch the backend.services module to ensure service helpers use test session
+    import backend.services as _backend_services
+    monkeypatch.setattr(_backend_services, "get_session", get_test_session)
 
     # Parse and register (non-dry run). register_adapter_from_metadata will
     # call the service helper which now uses the patched get_session.

@@ -28,6 +28,8 @@ function performanceAnalytics() {
             active_loras: 0,
             total_loras: 0
         },
+    // Safe default referenced in templates
+    success: true,
         
         // Top performing LoRAs
         topLoras: [],

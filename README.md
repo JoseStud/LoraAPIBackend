@@ -83,3 +83,14 @@ docker-compose -f infrastructure/docker/docker-compose.gpu.yml up
 **Production Ready** - All core features implemented with comprehensive test coverage (28/28 tests passing).
 
 See [IMPLEMENTATION_COMPLETE.md](docs/IMPLEMENTATION_COMPLETE.md) for detailed feature status and [contract.md](docs/contract.md) for complete API documentation.
+
+## Frontend architecture notes & known issue (Alpine ExpressionErrors)
+
+The project renders pages server-side with Jinja2 and enriches them with Alpine.js components and HTMX partials. A recurring failure mode is an `Uncaught ReferenceError` (Alpine ExpressionError) caused by templates referencing variables that are not declared on a component's `x-data` object at the time Alpine evaluates the template.
+
+Key mitigations applied:
+- Defer Alpine initialization and register safe stubs via `ComponentLoader` before real factories register.
+- Add explicit defaults to component factories for commonly used keys (loading flags, progress, selection arrays, weights, etc.).
+- Use guarded template expressions and `x-cloak` to avoid rendering until data is present.
+
+If you encounter a remaining error, open the browser console, copy the exact ReferenceError (identifier and filename), and use the repo search to find which component should declare that identifier.

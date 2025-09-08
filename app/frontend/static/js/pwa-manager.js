@@ -10,11 +10,20 @@ class PWAManager {
         this.isOnline = navigator.onLine;
         this.isInstalled = false;
         this.hasUpdate = false;
+        this.queuedActions = []; // Initialize queued actions array
         
         this.init();
     }
     
     async init() {
+        // Load queued actions from localStorage
+        try {
+            const stored = localStorage.getItem('pwa-queued-actions');
+            this.queuedActions = stored ? JSON.parse(stored) : [];
+        } catch (error) {
+            this.queuedActions = [];
+        }
+        
         // Check if PWA is already installed
         this.checkInstallationStatus();
         
@@ -44,7 +53,7 @@ class PWAManager {
                     scope: '/'
                 });
                 
-                console.log('[PWA] Service Worker registered:', this.swRegistration);
+                window.DevLogger && window.DevLogger.debug && window.DevLogger.debug('[PWA] Service Worker registered:', this.swRegistration);
                 
                 // Handle service worker updates
                 this.swRegistration.addEventListener('updatefound', () => {
@@ -64,7 +73,7 @@ class PWAManager {
                 });
                 
             } catch (error) {
-                console.error('[PWA] Service Worker registration failed:', error);
+                window.DevLogger && window.DevLogger.debug && window.DevLogger.debug('[PWA] Service Worker registration failed:', error);
             }
         }
     }
@@ -258,9 +267,9 @@ class PWAManager {
     async installApp() {
         if (!this.deferredPrompt) return;
         
-        try {
-            const result = await this.deferredPrompt.prompt();
-            console.log('[PWA] Install prompt result:', result);
+            try {
+                const result = await this.deferredPrompt.prompt();
+                window.DevLogger && window.DevLogger.debug && window.DevLogger.debug('[PWA] Install prompt result:', result);
             
             if (result.outcome === 'accepted') {
                 this.showNotification('Installing...', 'LoRA Manager is being installed.', 'info');
@@ -270,8 +279,22 @@ class PWAManager {
             this.hideInstallPrompt();
             
         } catch (error) {
-            console.error('[PWA] Install failed:', error);
-            this.showNotification('Installation failed', 'Please try again later.', 'error');
+            window.DevLogger && window.DevLogger.debug && window.DevLogger.debug('[PWA] Install failed:', error);
+            // Fallback to Alpine notifications when available
+            try {
+                if (window.Alpine && typeof Alpine.store === 'function') {
+                    const notifications = Alpine.store('notifications');
+                    if (notifications && typeof notifications.add === 'function') {
+                        notifications.add('Installation failed', 'error');
+                    } else {
+                        this.showNotification('Installation failed', 'Please try again later.', 'error');
+                    }
+                } else {
+                    this.showNotification('Installation failed', 'Please try again later.', 'error');
+                }
+            } catch (e) {
+                this.showNotification('Installation failed', 'Please try again later.', 'error');
+            }
         }
     }
     
@@ -312,9 +335,9 @@ class PWAManager {
         
         try {
             await this.swRegistration.update();
-        } catch (error) {
-            console.error('[PWA] Update check failed:', error);
-        }
+            } catch (error) {
+                window.DevLogger && window.DevLogger.debug && window.DevLogger.debug('[PWA] Update check failed:', error);
+            }
     }
     
     /**
@@ -362,12 +385,17 @@ class PWAManager {
      * Initialize background sync
      */
     initBackgroundSync() {
-        // Queue actions when offline
-        this.queuedActions = JSON.parse(localStorage.getItem('pwa-queued-actions') || '[]');
-        
+        // Queue actions when offline (defensive)
+        try {
+            this.queuedActions = JSON.parse(localStorage.getItem('pwa-queued-actions') || '[]');
+            if (!Array.isArray(this.queuedActions)) this.queuedActions = [];
+        } catch (e) {
+            this.queuedActions = [];
+        }
+
         // Process queue when coming online
-        if (this.isOnline && this.queuedActions.length > 0) {
-            this.syncPendingActions();
+        if (this.isOnline && this.queuedActions && this.queuedActions.length > 0) {
+            try { this.syncPendingActions(); } catch (e) { window.DevLogger && window.DevLogger.error && window.DevLogger.error('[PWA] syncPendingActions error:', e); }
         }
     }
     
@@ -375,6 +403,14 @@ class PWAManager {
      * Queue action for background sync
      */
     queueAction(action) {
+        // Defensive: ensure queuedActions is properly initialized
+        if (!this.queuedActions) {
+            this.queuedActions = [];
+        }
+        if (!Array.isArray(this.queuedActions)) {
+            this.queuedActions = [];
+        }
+        
         this.queuedActions.push({
             ...action,
             timestamp: Date.now()
@@ -392,17 +428,24 @@ class PWAManager {
      * Sync pending actions
      */
     async syncPendingActions() {
+        // Defensive: ensure queuedActions is an array
+        if (!this.queuedActions) {
+            this.queuedActions = [];
+        }
+        if (!Array.isArray(this.queuedActions)) {
+            this.queuedActions = [];
+        }
         if (!this.isOnline || this.queuedActions.length === 0) return;
-        
+
         const actionsToSync = [...this.queuedActions];
         this.queuedActions = [];
         
         for (const action of actionsToSync) {
             try {
                 await fetch(action.url, action.options);
-                console.log('[PWA] Synced action:', action.url);
+                window.DevLogger && window.DevLogger.debug && window.DevLogger.debug('[PWA] Synced action:', action.url);
             } catch (error) {
-                console.error('[PWA] Failed to sync action:', error);
+                window.DevLogger && window.DevLogger.debug && window.DevLogger.debug('[PWA] Failed to sync action:', error);
                 // Re-queue failed actions
                 this.queuedActions.push(action);
             }

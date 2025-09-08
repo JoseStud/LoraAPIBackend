@@ -8,6 +8,9 @@ function generationHistory() {
         // State
         results: [],
         filteredResults: [],
+    // Safe defaults for template-referenced keys
+    cfg_scale: 1.0,
+    created_at: null,
         selectedItems: [],
         selectedResult: null,
         
@@ -26,6 +29,8 @@ function generationHistory() {
         dateFilter: 'all',
         ratingFilter: 0,
         dimensionFilter: 'all',
+    // template expects steps sometimes
+    steps: 0,
         
         // Statistics
         stats: {
@@ -546,8 +551,13 @@ function generationHistory() {
 
 // Add keyboard event listener
 document.addEventListener('keydown', function(event) {
-    const historyComponent = Alpine.$data(document.querySelector('[x-data="generationHistory()"]'));
-    if (historyComponent && typeof historyComponent.handleKeydown === 'function') {
-        historyComponent.handleKeydown(event);
-    }
+    if (typeof window.Alpine === 'undefined') return;
+    try {
+        const el = document.querySelector('[x-data="generationHistory()"]');
+        if (!el) return;
+        const historyComponent = Alpine.$data && Alpine.$data(el);
+        if (historyComponent && typeof historyComponent.handleKeydown === 'function') {
+            historyComponent.handleKeydown(event);
+        }
+    } catch (e) { /* ignore if Alpine not ready or DOM query fails */ }
 });

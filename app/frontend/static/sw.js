@@ -39,9 +39,8 @@ const STATIC_ASSETS = [
     'https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js',
     'https://cdn.jsdelivr.net/npm/chart.js',
     
-    // Images and icons
-    '/static/images/icons/icon-192x192.png',
-    '/static/images/icons/icon-512x512.png',
+    // Images and icons (use svg logo as single icon)
+    '/static/images/logo.svg',
     '/static/manifest.json'
 ];
 
@@ -421,8 +420,8 @@ self.addEventListener('push', (event) => {
     const data = event.data.json();
     const options = {
         body: data.body,
-        icon: '/static/images/icons/icon-192x192.png',
-        badge: '/static/images/icons/badge-72x72.png',
+        icon: '/static/images/logo.svg',
+        // badge left undefined to avoid missing badge PNG
         vibrate: [100, 50, 100],
         data: data.data || {},
         actions: data.actions || []
@@ -448,8 +447,15 @@ self.addEventListener('notificationclick', (event) => {
         return;
     }
     
+    // Use the service worker scoped `self.clients` and guard against missing API
     event.waitUntil(
-        clients.openWindow(url)
+        (async () => {
+            if (self.clients && typeof self.clients.openWindow === 'function') {
+                return self.clients.openWindow(url);
+            }
+            // Fallback: resolve immediately if openWindow isn't available
+            return Promise.resolve();
+        })()
     );
 });
 

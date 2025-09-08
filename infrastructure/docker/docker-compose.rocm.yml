@@ -29,53 +29,74 @@ services:
     ports:
       - '7860:7860'
     volumes:
-      # Your specific model directory structure
-      - /home/anxilinux/DeepVault/models/Stable-diffusion:/app/models/Stable-diffusion
-      - /home/anxilinux/DeepVault/models/Diffusers:/app/models/Diffusers
-      - /home/anxilinux/DeepVault/models/huggingface:/app/models/huggingface
-      - /home/anxilinux/DeepVault/models/VAE:/app/models/VAE
-      - /home/anxilinux/DeepVault/models/UNET:/app/models/UNET
-      - /home/anxilinux/DeepVault/models/Text-encoder:/app/models/Text-encoder
-      - /home/anxilinux/DeepVault/models/Lora:/app/models/Lora
-      - /home/anxilinux/DeepVault/models/tunable:/app/models/tunable
-      - /home/anxilinux/DeepVault/models/embeddings:/app/models/embeddings
-      - /home/anxilinux/DeepVault/models/ONNX:/app/models/ONNX
-      - /home/anxilinux/DeepVault/models/styles:/app/models/styles
-      - /home/anxilinux/DeepVault/models/yolo:/app/models/yolo
-      - /home/anxilinux/DeepVault/models/wildcards:/app/models/wildcards
-      - ./sdnext_config:/app/config   # SDNext configuration
-      - sdnext_data:/app/repositories # Extensions and repos
-      - sdnext_outputs:/app/outputs   # Generated images
+      # Mount host model directories under /host to avoid blocking /app
+      - /home/anxilinux/DeepVault/models/Stable-diffusion:/host/models/Stable-diffusion
+      - /home/anxilinux/DeepVault/models/Diffusers:/host/models/Diffusers
+      - /home/anxilinux/DeepVault/models/huggingface:/host/models/huggingface
+      - /home/anxilinux/DeepVault/models/VAE:/host/models/VAE
+      - /home/anxilinux/DeepVault/models/UNET:/host/models/UNET
+      - /home/anxilinux/DeepVault/models/Text-encoder:/host/models/Text-encoder
+      - /home/anxilinux/DeepVault/models/Lora:/host/models/Lora
+      - /home/anxilinux/DeepVault/models/tunable:/host/models/tunable
+      - /home/anxilinux/DeepVault/models/embeddings:/host/models/embeddings
+      - /home/anxilinux/DeepVault/models/ONNX:/host/models/ONNX
+      - /home/anxilinux/DeepVault/models/styles:/host/models/styles
+      - /home/anxilinux/DeepVault/models/yolo:/host/models/yolo
+      - /home/anxilinux/DeepVault/models/wildcards:/host/models/wildcards
+      - ./sdnext_config:/host/config   # SDNext configuration
+      - sdnext_data:/host/repositories # Extensions and repos
+      - sdnext_outputs:/host/outputs   # Generated images
+      # Mount local cloned sdnext source so container has /app contents pre-populated
+      - ./sdnext_src:/app
     devices:
       # ROCm device access (required for AMD GPU acceleration)
       - /dev/dri:/dev/dri             # DRI devices for GPU access
       - /dev/kfd:/dev/kfd             # KFD device for compute
     environment:
-      # ROCm-optimized SDNext configuration for your setup
-      - COMMANDLINE_ARGS=--listen --port 7860 --api --cors-allow-origins=* --enable-insecure-extension-access --use-rocm --precision fp16 --opt-sub-quad-attention --opt-split-attention --data-dir /app/models --models-dir /app/models/Stable-diffusion --vae-dir /app/models/VAE --lora-dir /app/models/Lora
+      # ROCm-optimized SDNext configuration for your setup (mapping style prevents YAML folding issues)
+      COMMANDLINE_ARGS: "--listen --port 7860 --api --cors-allow-origins=* --enable-insecure-extension-access --use-rocm --precision fp16 --opt-sub-quad-attention --opt-split-attention --data-dir /host/models --models-dir /host/models/Stable-diffusion --vae-dir /host/models/VAE --lora-dir /host/models/Lora"
       # ROCm performance tuning environment variables
-      - HSA_OVERRIDE_GFX_VERSION=10.3.0  # Set to your GPU version (e.g., 10.3.0 for RDNA2, 11.0.0 for RDNA3)
-      - ROC_ENABLE_PRE_VEGA=1           # Enable for older AMD GPUs
-      - HIP_VISIBLE_DEVICES=0           # Use first GPU
-      - MIOPEN_FIND_MODE=FAST           # Faster startup, slightly worse performance
+      HSA_OVERRIDE_GFX_VERSION: "10.3.0"  # Set to your GPU version (e.g., 10.3.0 for RDNA2, 11.0.0 for RDNA3)
+      ROC_ENABLE_PRE_VEGA: "1"             # Enable for older AMD GPUs
+      HIP_VISIBLE_DEVICES: "0"              # Use first GPU
+      MIOPEN_FIND_MODE: "FAST"              # Faster startup, slightly worse performance
       # Alternative: MIOPEN_FIND_ENFORCE=SEARCH for best performance but slower startup
-      - MIOPEN_USER_DB_PATH=/tmp/.miopen  # MIOpen database path
+      MIOPEN_USER_DB_PATH: "/tmp/.miopen"  # MIOpen database path
       # Hugging Face token from your config
-      - HF_TOKEN=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
+      HF_TOKEN: "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"
     networks:
       - default
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7860/sdapi/v1/options"]
-      interval: 30s
-      timeout: 15s
-      retries: 5
-      start_period: 240s  # ROCm initialization takes longer than CUDA
+    # Run a tiny entrypoint to mark /app as a safe git directory (prevents "dubious ownership")
+    entrypoint:
+      - /bin/sh
+      - -c
+      - "git config --global --add safe.directory /app || true; exec startup.sh $$COMMANDLINE_ARGS"
+  # Healthcheck disabled because repeated network checks can create virtual
+  # interfaces on the host and trigger NetworkManager events (causes
+  # ERR_NETWORK_CHANGED in browser/Electron apps). Re-enable only if you
+  # confirm it won't disturb your local network manager.
+  # healthcheck:
+  #   test: ["CMD", "curl", "-f", "http://localhost:7860/sdapi/v1/options"]
+  #   interval: 30s
+  #   timeout: 15s
+  #   retries: 5
+  #   start_period: 240s  # ROCm initialization takes longer than CUDA
 
   api:
-    build: .
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --reload
     volumes:
-      - ./:/app
+      # mount repo root into container so `package.json` at project root is available
+      - ../..:/app
       - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
       - sdnext_outputs:/app/outputs   # Access to generated images
     ports:
@@ -97,17 +118,19 @@ services:
       API_KEY: "dev-api-key-123"       # Fixed API key for development
     depends_on:
       sdnext:
-        condition: service_healthy     # Wait for SDNext to be ready
+        condition: service_started     # SDNext start is sufficient; healthcheck is disabled
       redis:
         condition: service_started
       postgres:
         condition: service_started
 
   worker:
-    build: .
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile
     command: sh -c "rq worker --url $$REDIS_URL default"
     volumes:
-      - ./:/app
+      - ../..:/app
       - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
       - sdnext_outputs:/app/outputs
     environment:
@@ -125,7 +148,48 @@ services:
       LORA_DIRECTORY: "/app/loras"
     depends_on:
       sdnext:
-        condition: service_healthy
+        condition: service_started
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_started
+
+  frontend:
+    image: node:20
+    restart: unless-stopped
+    working_dir: /app
+    # Use `npm install` because `npm ci` requires a package-lock.json. For reproducible builds consider adding a package-lock.json or switching to a Dockerfile build step.
+    command:
+      - sh
+      - -c
+      - npm install && npm run dev
+    volumes:
+      - /home/anxilinux/DeepVault/models/Lora/lora-manager:/app
+    ports:
+      - '3000:3000' # optional: if frontend serves a dev server later
+    environment:
+      NODE_ENV: development
+    networks:
+      - default
+
+  # Production-style frontend: Node builds assets in a build stage, final image is Python-only
+  frontend-python:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/frontend-python.Dockerfile
+    restart: unless-stopped
+    ports:
+      - '8000:8000'
+    environment:
+      # runtime env for python app
+      REDIS_URL: "redis://redis:6379/0"
+      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
+      LORA_DIRECTORY: "/app/loras"
+    volumes:
+      - /home/anxilinux/DeepVault/models/Lora:/app/loras
+      # Mount the static files to serve our updated CSS
+      - ../..:/app
+    depends_on:
       redis:
         condition: service_started
       postgres:

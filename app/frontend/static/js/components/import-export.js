@@ -50,6 +50,9 @@ function importExport() {
         importPreview: [],
         backupHistory: [],
         hasEncryptedFiles: false,
+    // Safe defaults
+    date_range: 'all',
+    success: true,
         
         // Progress Tracking
         showProgress: false,

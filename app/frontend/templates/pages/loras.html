@@ -171,7 +171,7 @@
     <div id="lora-container" 
          class="lora-gallery-container"
          hx-get="{{ url_for('lora_grid') }}"
-         hx-trigger="load, lora-data-updated from:body"
+         hx-trigger="lora-data-updated from:body"
          hx-swap="innerHTML"
          hx-indicator="#lora-gallery-spinner">
         
@@ -201,24 +201,37 @@ function loraGallery() {
         totalLoras: 0,
 
         init() {
-            this.fetchAvailableTags();
-            
-            // Persist view mode
+            // Do not auto-load LoRAs or tags on initial startup. This page will
+            // be populated when the app is ready or when an explicit reload is
+            // triggered (offline-first / first-load safety).
+
+            // Restore persisted view mode if present
             const savedViewMode = localStorage.getItem('loraViewMode');
-            if (savedViewMode) {
-                this.viewMode = savedViewMode;
-            }
-            this.$watch('viewMode', (value) => {
-                localStorage.setItem('loraViewMode', value);
+            if (savedViewMode) this.viewMode = savedViewMode;
+            this.$watch('viewMode', (value) => localStorage.setItem('loraViewMode', value));
+
+            // Listen for selection updates from lora-card components.
+            // loraCard currently dispatches `lora-selected` / `lora-deselected` (detail: { id })
+            // while older code used `lora-selection-changed` (detail: { loraId, selected }).
+            // Support both so selection works regardless of which component version loaded.
+            document.addEventListener('lora-selected', (e) => {
+                const id = e.detail && (e.detail.id || e.detail.loraId);
+                if (!id) return;
+                if (!this.selectedLoras.includes(id)) this.selectedLoras.push(id);
             });
 
-            // Listen for selection updates from lora-card components
+            document.addEventListener('lora-deselected', (e) => {
+                const id = e.detail && (e.detail.id || e.detail.loraId);
+                if (!id) return;
+                this.selectedLoras = this.selectedLoras.filter(i => i !== id);
+            });
+
+            // Legacy listener for backward compatibility
             document.addEventListener('lora-selection-changed', (e) => {
-                const { loraId, selected } = e.detail;
+                const { loraId, selected } = e.detail || {};
+                if (!loraId) return;
                 if (selected) {
-                    if (!this.selectedLoras.includes(loraId)) {
-                        this.selectedLoras.push(loraId);
-                    }
+                    if (!this.selectedLoras.includes(loraId)) this.selectedLoras.push(loraId);
                 } else {
                     this.selectedLoras = this.selectedLoras.filter(id => id !== loraId);
                 }

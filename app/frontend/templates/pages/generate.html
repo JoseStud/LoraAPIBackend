@@ -404,5 +404,12 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', path='/js/components/generation-studio.js') }}"></script>
+<!-- Generation Studio Modular Components -->
+<script src="{{ url_for('static', path='/js/components/generation-studio/state.js') }}"></script>
+<script src="{{ url_for('static', path='/js/components/generation-studio/websocket.js') }}"></script>
+<script src="{{ url_for('static', path='/js/components/generation-studio/api.js') }}"></script>
+<script src="{{ url_for('static', path='/js/components/generation-studio/progress.js') }}"></script>
+<script src="{{ url_for('static', path='/js/components/generation-studio/results.js') }}"></script>
+<script src="{{ url_for('static', path='/js/components/generation-studio/ui.js') }}"></script>
+<script src="{{ url_for('static', path='/js/components/generation-studio/index.js') }}"></script>
 {% endblock %}

@@ -1,30 +1,10 @@
-"""
-Frontend Routes for LoRA Manager
-
-FastAPI routes that serve HTML templates and ha            if response.statu    except Exception as e:
-        return templates.TemplateResponse("partials/prompt-results-refactored.html", {
-            "request": request,
-            "recommendations": [], 
-            "error": f"Error: {str(e)}"
-        }) == 200:
-                recommendations = response.json()
-                return templates.TemplateResponse("partials/prompt-results-refactored.html", {
-                    "request": request,
-                    "recommendations": recommendations,
-                    "original_prompt": prompt,
-                    "weights": {"semantic": semantic_weight, "artistic": artistic_weight, "technical": technical_weight}
-                })
-            else:
-                error_msg = f"Backend API error: {response.status_code}"
-                return templates.TemplateResponse("partials/prompt-results-refactored.html", {
-                    "request": request,
-                    "recommendations": [],
-                    "error": error_msg
-                })sts
-for the AI Recommendations interface.
-"""
-
 from fastapi import APIRouter, Request, Form, HTTPException
+import logging
+from pydantic import ValidationError
+from app.frontend.schemas import SimilarityForm, PromptForm
+
+# Logger for frontend routes
+logger = logging.getLogger(__name__)
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 import httpx
@@ -127,39 +107,93 @@ async def offline_page(request: Request):
     }
     return templates.TemplateResponse("pages/offline.html", context)
 
+
+@router.get("/api/htmx/dashboard/featured-loras", response_class=HTMLResponse)
+async def htmx_featured_loras(request: Request):
+    """HTMX endpoint for loading featured LoRAs on dashboard."""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{BACKEND_URL}/api/dashboard/featured-loras", timeout=5.0)
+            if response.status_code == 200:
+                featured_loras = response.json()
+            else:
+                featured_loras = []
+    except Exception:
+        featured_loras = []
+    
+    return templates.TemplateResponse("partials/featured-loras.html", {
+        "request": request,
+        "featured_loras": featured_loras
+    })
+
+
+@router.get("/api/htmx/dashboard/activity-feed", response_class=HTMLResponse)
+async def htmx_activity_feed(request: Request):
+    """HTMX endpoint for loading activity feed on dashboard."""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{BACKEND_URL}/api/dashboard/activity-feed", timeout=5.0)
+            if response.status_code == 200:
+                activities = response.json()
+            else:
+                activities = []
+    except Exception:
+        activities = []
+    
+    return templates.TemplateResponse("partials/activity-feed.html", {
+        "request": request,
+        "activities": activities
+    })
+
 # HTMX API Endpoints for Recommendations
 @router.post("/api/htmx/recommendations/similar", response_class=HTMLResponse)
-async def htmx_similarity_recommendations(
-    request: Request,
-    lora_id: str = Form(...),
-    semantic_weight: float = Form(0.4),
-    artistic_weight: float = Form(0.3),
-    technical_weight: float = Form(0.3),
-    limit: int = Form(10),
-    threshold: float = Form(0.1)
-):
+async def htmx_similarity_recommendations(request: Request):
+    """HTMX endpoint for similarity-based recommendations"""
+    form = None
+    try:
+        data = await request.form()
+        form = SimilarityForm(**{
+            'lora_id': data.get('lora_id', ''),
+            'semantic_weight': float(data.get('semantic_weight', 0.4)),
+            'artistic_weight': float(data.get('artistic_weight', 0.3)),
+            'technical_weight': float(data.get('technical_weight', 0.3)),
+            'limit': int(data.get('limit', 10)),
+            'threshold': float(data.get('threshold', 0.1)),
+        })
+    except ValidationError as ve:
+        # Log validation error for observability and return partial with errors
+        try:
+            logger.warning("SimilarityForm validation failed", extra={"errors": ve.errors()})
+        except Exception:
+            logger.warning("SimilarityForm validation failed: %s", ve)
+        errors = {e['loc'][0]: e['msg'] for e in ve.errors()}
+        return templates.TemplateResponse("partials/similarity-results-refactored.html", {
+            "request": request,
+            "recommendations": [],
+            "error": "Validation failed",
+            "validation_errors": errors
+        })
+    except Exception as e:
+        return templates.TemplateResponse("partials/similarity-results-refactored.html", {
+            "request": request,
+            "recommendations": [],
+            "error": f"Invalid input: {e}"
+        })
     """HTMX endpoint for similarity-based recommendations"""
     try:
-        if not lora_id:
-            return templates.TemplateResponse("partials/similarity-results-refactored.html", {
-                "request": request,
-                "recommendations": [], 
-                "error": "Please select a LoRA to find similar items"
-            })
-        
         # Prepare parameters for backend API
         params = {
-            'semantic_weight': semantic_weight,
-            'artistic_weight': artistic_weight,
-            'technical_weight': technical_weight,
-            'limit': limit,
-            'threshold': threshold
+            'semantic_weight': form.semantic_weight,
+            'artistic_weight': form.artistic_weight,
+            'technical_weight': form.technical_weight,
+            'limit': form.limit,
+            'threshold': form.threshold
         }
         
         # Make request to backend API
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{BACKEND_URL}/api/v1/recommendations/similar/{lora_id}",
+                f"{BACKEND_URL}/api/v1/recommendations/similar/{form.lora_id}",
                 params=params,
                 timeout=30.0
             )
@@ -169,8 +203,8 @@ async def htmx_similarity_recommendations(
                 return templates.TemplateResponse("partials/similarity-results-refactored.html", {
                     "request": request,
                     "recommendations": recommendations,
-                    "original_lora_id": lora_id,
-                    "weights": {"semantic": semantic_weight, "artistic": artistic_weight, "technical": technical_weight}
+                    "original_lora_id": form.lora_id,
+                    "weights": {"semantic": form.semantic_weight, "artistic": form.artistic_weight, "technical": form.technical_weight}
                 })
             else:
                 error_msg = f"Backend API error: {response.status_code}"
@@ -187,32 +221,41 @@ async def htmx_similarity_recommendations(
         })
 
 @router.post("/api/htmx/recommendations/prompt", response_class=HTMLResponse)
-async def htmx_prompt_recommendations(
-    request: Request,
-    prompt: str = Form(...),
-    semantic_weight: float = Form(0.4),
-    style_weight: float = Form(0.3),
-    context_weight: float = Form(0.3),
-    limit: int = Form(10)
-):
+async def htmx_prompt_recommendations(request: Request):
     """HTMX endpoint for prompt-based recommendations"""
     try:
-        if not prompt:
+        data = await request.form()
+        try:
+            form = PromptForm(**{
+                'prompt': data.get('prompt', ''),
+                'semantic_weight': float(data.get('semantic_weight', 0.4)),
+                'style_weight': float(data.get('style_weight', 0.3)),
+                'context_weight': float(data.get('context_weight', 0.3)),
+                'limit': int(data.get('limit', 10)),
+            })
+        except ValidationError as ve:
+            # Log validation error for observability and return partial with errors
+            try:
+                logger.warning("PromptForm validation failed", extra={"errors": ve.errors()})
+            except Exception:
+                logger.warning("PromptForm validation failed: %s", ve)
+            errors = {e['loc'][0]: e['msg'] for e in ve.errors()}
             return templates.TemplateResponse("partials/prompt-results-refactored.html", {
                 "request": request,
-                "recommendations": [], 
-                "error": "Please enter a prompt to get recommendations"
+                "recommendations": [],
+                "error": "Validation failed",
+                "validation_errors": errors
             })
-        
+
         # Prepare payload for backend API
         payload = {
-            'prompt': prompt.strip(),
+            'prompt': form.prompt.strip(),
             'weights': {
-                'semantic': semantic_weight,
-                'style': style_weight,
-                'context': context_weight
+                'semantic': form.semantic_weight,
+                'style': form.style_weight,
+                'context': form.context_weight
             },
-            'limit': limit
+            'limit': form.limit
         }
         
         # Make request to backend API
@@ -228,7 +271,7 @@ async def htmx_prompt_recommendations(
             return templates.TemplateResponse("partials/prompt-results.html", {
                 "request": request,
                 "recommendations": data.get('recommendations', []),
-                "original_prompt": prompt,
+                "original_prompt": form.prompt,
                 "processing_time_ms": data.get('processing_time_ms', 0),
                 "analysis_summary": data.get('analysis_summary', {})
             })
@@ -237,15 +280,20 @@ async def htmx_prompt_recommendations(
             return templates.TemplateResponse("partials/prompt-results.html", {
                 "request": request,
                 "recommendations": [], 
-                "original_prompt": prompt,
+                "original_prompt": form.prompt,
                 "error": error_msg
             })
             
     except Exception as e:
+        original_prompt = ''
+        try:
+            original_prompt = form.prompt if 'form' in locals() and hasattr(form, 'prompt') else ''
+        except Exception:
+            original_prompt = ''
         return templates.TemplateResponse("partials/prompt-results.html", {
             "request": request,
             "recommendations": [], 
-            "original_prompt": prompt if 'prompt' in locals() else '',
+            "original_prompt": original_prompt,
             "error": f"Error: {str(e)}"
         })
 
@@ -308,16 +356,141 @@ async def htmx_embedding_status(request: Request):
             
             return templates.TemplateResponse("partials/embedding-status-refactored.html", context)
         else:
-            error_msg = f"Backend error: {response.status_code}"
+            # Return safe fallback for non-200 responses
             return HTMLResponse(
-                content=f'<div class="text-red-600 p-4">Error loading status: {error_msg}</div>',
-                status_code=response.status_code
+                content=f'''
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="text-lg font-semibold text-gray-900">Embedding Status</h3>
+                    </div>
+                    <div class="p-4 text-center text-gray-500">
+                        <p>Backend service unavailable</p>
+                        <p class="text-sm">Status: {response.status_code}</p>
+                    </div>
+                </div>
+                ''',
+                status_code=200
             )
             
     except Exception as e:
+        # Return safe fallback for any errors
         return HTMLResponse(
-            content=f'<div class="text-red-600 p-4">Error: {str(e)}</div>',
-            status_code=500
+            content=f'''
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-lg font-semibold text-gray-900">Embedding Status</h3>
+                </div>
+                <div class="p-4 text-center text-gray-500">
+                    <p>Unable to load embedding status</p>
+                    <p class="text-sm">Error: Connection failed</p>
+                </div>
+            </div>
+            ''',
+            status_code=200
+        )
+
+@router.get("/api/htmx/recommendations/status/embeddings", response_class=HTMLResponse)
+async def htmx_embeddings_status(request: Request):
+    """HTMX endpoint for embeddings-specific status"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{BACKEND_URL}/api/v1/recommendations/stats",
+                timeout=10.0
+            )
+        
+        if response.status_code == 200:
+            data = response.json()
+            embedding_stats = data.get('embedding_stats', {
+                'total_count': 0,
+                'processed_count': 0,
+                'coverage_percent': 0
+            })
+            
+            return HTMLResponse(
+                content=f'''
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Coverage</span>
+                    <span class="text-sm font-medium text-blue-600">{embedding_stats.get('coverage_percent', 0):.1f}%</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Processed</span>
+                    <span class="text-sm font-medium">{embedding_stats.get('processed_count', 0)}/{embedding_stats.get('total_count', 0)}</span>
+                </div>
+                ''',
+                status_code=200
+            )
+        else:
+            return HTMLResponse(
+                content='''
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Status</span>
+                    <span class="text-sm font-medium text-red-600">Unavailable</span>
+                </div>
+                ''',
+                status_code=200
+            )
+    except Exception as e:
+        return HTMLResponse(
+            content='''
+            <div class="flex items-center justify-between">
+                <span class="text-sm text-gray-600">Status</span>
+                <span class="text-sm font-medium text-red-600">Error</span>
+            </div>
+            ''',
+            status_code=200
+        )
+
+@router.get("/api/htmx/recommendations/status/performance", response_class=HTMLResponse)
+async def htmx_performance_status(request: Request):
+    """HTMX endpoint for performance-specific status"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{BACKEND_URL}/api/v1/recommendations/stats",
+                timeout=10.0
+            )
+        
+        if response.status_code == 200:
+            data = response.json()
+            performance = data.get('performance', {
+                'avg_search_time_ms': 0,
+                'searches_today': 0,
+                'cache_hit_rate': 0
+            })
+            
+            return HTMLResponse(
+                content=f'''
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Avg Response</span>
+                    <span class="text-sm font-medium text-purple-600">{performance.get('avg_search_time_ms', 0):.0f}ms</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Cache Hit Rate</span>
+                    <span class="text-sm font-medium">{performance.get('cache_hit_rate', 0):.1f}%</span>
+                </div>
+                ''',
+                status_code=200
+            )
+        else:
+            return HTMLResponse(
+                content='''
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Status</span>
+                    <span class="text-sm font-medium text-red-600">Unavailable</span>
+                </div>
+                ''',
+                status_code=200
+            )
+    except Exception as e:
+        return HTMLResponse(
+            content='''
+            <div class="flex items-center justify-between">
+                <span class="text-sm text-gray-600">Status</span>
+                <span class="text-sm font-medium text-red-600">Error</span>
+            </div>
+            ''',
+            status_code=200
         )
 
 @router.get("/api/htmx/loras/available")
@@ -342,3 +515,64 @@ async def htmx_available_loras():
             
     except Exception as e:
         return {'adapters': [], 'error': str(e)}
+
+
+# Dashboard compatibility routes (legacy paths used in templates)
+@router.get("/embedding-status", response_class=HTMLResponse)
+async def embedding_status_legacy(request: Request):
+    """Legacy embedding status endpoint - safely delegates to HTMX embedding status"""
+    try:
+        # Delegate to HTMX embedding status endpoint
+        return await htmx_embedding_status(request)
+    except Exception as e:
+        # Return safe fallback HTML if backend/HTMX fails
+        return HTMLResponse(
+            content=f'''
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-lg font-semibold text-gray-900">Embedding Status</h3>
+                </div>
+                <div class="p-4 text-center text-gray-500">
+                    <p>Embedding status temporarily unavailable</p>
+                    <p class="text-sm mt-2">Error: {str(e)}</p>
+                </div>
+            </div>
+            ''',
+            status_code=200
+        )
+
+
+@router.get("/featured-loras", response_class=HTMLResponse)
+async def featured_loras_legacy(request: Request):
+    # Delegate to HTMX featured loRas partial
+    return await htmx_featured_loras(request)
+
+
+@router.get("/activity-feed", response_class=HTMLResponse)
+async def activity_feed_legacy(request: Request):
+    # Delegate to HTMX activity feed partial
+    return await htmx_activity_feed(request)
+
+
+from fastapi.responses import FileResponse
+
+@router.get("/sw.js")
+async def service_worker():
+    """Serve the service worker at the site root (PWA expects /sw.js)."""
+    sw_path = os.path.join("app", "frontend", "static", "sw.js")
+    if os.path.exists(sw_path):
+        return FileResponse(sw_path, media_type="application/javascript")
+    else:
+        # Return 404-like JS to avoid console errors
+        return HTMLResponse(content='// no service worker available', status_code=404, media_type='application/javascript')
+
+
+@router.get("/api/htmx/loras/grid", response_class=HTMLResponse, name="lora_grid")
+async def lora_grid(request: Request):
+    """HTMX endpoint for LoRA grid display - placeholder to fix template routing error."""
+    # Return empty grid placeholder until backend is properly connected
+    return templates.TemplateResponse("partials/lora-grid.html", {
+        "request": request,
+        "loras": [],
+        "message": "LoRA grid loading..."
+    })

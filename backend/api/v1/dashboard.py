@@ -67,7 +67,7 @@ async def get_featured_loras(session: Session = Depends(get_session)):
             "version": lora.version,
             "tags": lora.tags or [],
             "active": lora.active,
-            "civitai_url": lora.civitai_url,
+            "civitai_url": None,  # Field doesn't exist in model, use None or implement later
             "description": lora.description
         }
         for lora in featured_loras

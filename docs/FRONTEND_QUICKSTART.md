@@ -99,6 +99,49 @@ app/frontend/
 
 ## 🎨 Initial Implementation
 
+## 🧭 Developer guideline: component loading state
+
+Recommendation: always declare UI loading flags inside the component's `x-data` rather than relying on globals or implicit mixin defaults.
+
+- Declare `isLoading` or `loading` in the component factory, e.g. `isLoading: false,`.
+- Use the mixin helper `withLoading()` or a local helper to set/clear the flag around async calls, but keep the flag local to the component.
+- Avoid bare identifiers in templates (e.g., `:class="{ 'animate-spin': loading }"`) unless `loading` is in the component's `x-data`.
+
+Why: this prevents ReferenceError when Alpine evaluates templates before scripts load, avoids cross-component shared state, and makes the component's data shape explicit for maintenance and testing.
+
+Example:
+
+```javascript
+function myComponent() {
+  return {
+    isLoading: false,
+    items: [],
+    async loadItems() {
+      this.isLoading = true;
+      try {
+        const resp = await fetch('/api/items');
+        this.items = await resp.json();
+      } finally {
+        this.isLoading = false;
+      }
+    }
+  };
+}
+```
+
+## ⚙️ Script ordering and Alpine initialization
+
+To avoid Alpine ExpressionErrors where templates reference component state before the component code is registered, the app defers Alpine's automatic initialization and uses `ComponentLoader` to register components first.
+
+- `base.html` sets `window.deferLoadingAlpine = true;` and loads `component-loader.js` and `alpine-config.js` before the Alpine CDN. `ComponentLoader` registers stubs and components, then calls `Alpine.start()` once ready.
+- This avoids race conditions and is a safer default for progressive enhancement.
+
+## 🔍 Linting / Developer reminders
+
+- Prefer explicit component state declarations. Add `isLoading: false` (or `loading: false`) to your component returned object.
+- Avoid bare identifiers in templates; always reference properties available on the component's `x-data`.
+- If you use ESLint or a template linter, consider adding a rule to flag bare identifiers in templates (I can add an ESLint/plugin suggestion if you want).
+
 ### 1. Tailwind CSS Input File
 
 ```css

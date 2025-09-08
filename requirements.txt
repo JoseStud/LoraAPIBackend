@@ -13,6 +13,28 @@ boto3
 psycopg[binary]
 structlog
 websockets
+numpy
+httpx
+jinja2
+python-multipart
+# Developer tooling (linting/formatting/test helpers)
+# Install locally with: pip install -r dev-requirements.txt
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+requests
+aiohttp
+sqlmodel
+alembic
+redis
+rq
+fakeredis
+boto3
+psycopg[binary]
+structlog
+websockets
+
 
 # Developer tooling (linting/formatting/test helpers)
 # Install locally with: pip install -r dev-requirements.txt

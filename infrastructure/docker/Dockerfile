@@ -18,4 +18,5 @@ COPY . /app
 EXPOSE 8000
 
 # Default command runs the API; worker uses `rq worker ...` override in compose
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Point uvicorn at the package-level app entry `app.main:app` to match the project layout
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

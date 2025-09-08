@@ -67,6 +67,10 @@ module.exports = {
       }
     },
   },
+  safelist: [
+    'hero-container', 'hero-inner', 'hero-copy', 'hero-title', 'hero-sub',
+    'cta-row', 'cta-primary', 'cta-secondary', 'hero-card', 'svg-icon', 'svg-icon.lg'
+  ],
   plugins: [
     require('@tailwindcss/forms'),
     require('@tailwindcss/typography'),

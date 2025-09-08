@@ -12,6 +12,8 @@ function systemAdmin() {
         showToast: false,
         toastMessage: '',
         toastType: 'success',
+        // Safe default referenced in templates
+        success: true,
         
         // System Status
         systemStatus: {

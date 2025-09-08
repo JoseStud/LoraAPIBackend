@@ -312,13 +312,13 @@ function loraCard(config) {
             this.isSelected = !this.isSelected;
             // Notify parent component
             if (this.isSelected) {
-                window.dispatchEvent(new CustomEvent('lora-selected', { 
-                    detail: { id: this.id } 
-                }));
+                // Primary event (current implementation)
+                window.dispatchEvent(new CustomEvent('lora-selected', { detail: { id: this.id } }));
+                // Legacy compatibility: also emit the older combined event shape
+                window.dispatchEvent(new CustomEvent('lora-selection-changed', { detail: { loraId: this.id, selected: true } }));
             } else {
-                window.dispatchEvent(new CustomEvent('lora-deselected', { 
-                    detail: { id: this.id } 
-                }));
+                window.dispatchEvent(new CustomEvent('lora-deselected', { detail: { id: this.id } }));
+                window.dispatchEvent(new CustomEvent('lora-selection-changed', { detail: { loraId: this.id, selected: false } }));
             }
         },
         

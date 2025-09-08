@@ -29,47 +29,62 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     document.body.addEventListener('htmx:beforeRequest', function(evt) {
-        // Show loading state
-        console.log('HTMX request starting:', evt.detail.requestConfig.url);
+        // Minimal logging in production; keep guard to avoid breaking when evt.detail is absent
+        try {
+            if (evt && evt.detail && evt.detail.requestConfig && evt.detail.requestConfig.url) {
+                // Use centralized DevLogger (falls back to console when available)
+                window.DevLogger && window.DevLogger.debug && window.DevLogger.debug('HTMX request starting:', evt.detail.requestConfig.url);
+            }
+        } catch (e) { /* ignore */ }
     });
     
     document.body.addEventListener('htmx:afterRequest', function(evt) {
-        // Handle response
-        console.log('HTMX request completed:', evt.detail.xhr.status);
-        
-        if (evt.detail.xhr.status >= 400) {
-            console.error('HTMX request failed:', evt.detail.xhr.status, evt.detail.xhr.responseText);
-            
-            // Show error notification
-            if (window.Alpine) {
-                Alpine.store('notifications').add(
-                    `Request failed: ${evt.detail.xhr.status}`,
-                    'error'
-                );
+        // Handle response (only log at debug level)
+        try {
+            if (evt && evt.detail && evt.detail.xhr) {
+                window.DevLogger && window.DevLogger.debug && window.DevLogger.debug('HTMX request completed:', evt.detail.xhr.status);
+
+                if (evt.detail.xhr.status >= 400) {
+                    // Show error notification, only if Alpine and notifications store are available
+                    try {
+                        if (window.Alpine && typeof Alpine.store === 'function') {
+                            const notifications = Alpine.store('notifications');
+                            if (notifications && typeof notifications.add === 'function') {
+                                notifications.add(`Request failed: ${evt.detail.xhr.status}`, 'error');
+                            }
+                        }
+                    } catch (e) {
+                        // fail silently
+                    }
+                }
             }
+        } catch (e) {
+            // swallow any errors to avoid HTMX handler crashes
         }
     });
     
     document.body.addEventListener('htmx:responseError', function(evt) {
-        console.error('HTMX response error:', evt.detail);
-        
-        if (window.Alpine) {
-            Alpine.store('notifications').add(
-                'Network error occurred',
-                'error'
-            );
-        }
+            try {
+                window.DevLogger && window.DevLogger.debug && window.DevLogger.debug('HTMX response error:', evt && evt.detail);
+            if (window.Alpine && typeof Alpine.store === 'function') {
+                const notifications = Alpine.store('notifications');
+                if (notifications && typeof notifications.add === 'function') {
+                    notifications.add('Network error occurred', 'error');
+                }
+            }
+        } catch (e) { /* fail silently */ }
     });
     
     document.body.addEventListener('htmx:timeout', function(evt) {
-        console.error('HTMX request timeout:', evt.detail);
-        
-        if (window.Alpine) {
-            Alpine.store('notifications').add(
-                'Request timed out',
-                'error'
-            );
-        }
+            try {
+                window.DevLogger && window.DevLogger.debug && window.DevLogger.debug('HTMX request timeout:', evt && evt.detail);
+            if (window.Alpine && typeof Alpine.store === 'function') {
+                const notifications = Alpine.store('notifications');
+                if (notifications && typeof notifications.add === 'function') {
+                    notifications.add('Request timed out', 'error');
+                }
+            }
+        } catch (e) { /* fail silently */ }
     });
     
     // Custom HTMX extensions
@@ -80,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         },
         
-        encodeParameters: function(xhr, parameters, elt) {
+        encodeParameters: function(xhr, parameters, _elt) {
             xhr.overrideMimeType('application/json');
             return JSON.stringify(parameters);
         }
@@ -136,7 +151,7 @@ window.HTMXHelpers = {
     // Debounced trigger for search inputs
     debouncedTrigger: null,
     setupDebouncedSearch(element, delay = 300) {
-        element.addEventListener('input', (e) => {
+            element.addEventListener('input', (_e) => {
             clearTimeout(this.debouncedTrigger);
             this.debouncedTrigger = setTimeout(() => {
                 htmx.trigger(element, 'search-input');

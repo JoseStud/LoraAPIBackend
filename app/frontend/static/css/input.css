@@ -1,6 +1,6 @@
+/* Import custom components so Tailwind processes @apply rules inside them */
+@import './components.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import custom components */
-@import './components.css';
