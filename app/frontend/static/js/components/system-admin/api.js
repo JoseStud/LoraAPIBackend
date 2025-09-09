@@ -10,7 +10,7 @@
  */
 class SystemAdminAPI {
     constructor() {
-        this.baseUrl = '/api/v1/admin';
+        this.baseUrl = (window?.BACKEND_URL || '') + '/admin';
     }
 
     /**

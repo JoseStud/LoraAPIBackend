@@ -126,7 +126,7 @@ export function createRecommendationsComponent() {
         async loadAvailableLoras() {
             this.isLoading = true;
             try {
-                const response = await fetch('/api/v1/loras');
+                const response = await fetch((window?.BACKEND_URL || '') + '/adapters');
                 if (response.ok) {
                     const data = await response.json();
                     this.availableLoras = data.items || data || [];
@@ -218,7 +218,7 @@ export function createRecommendationsComponent() {
         },
 
         viewHealthReport() {
-            window.open('/api/v1/recommendations/health', '_blank');
+            window.open((window?.BACKEND_URL || '') + '/recommendations/health', '_blank');
         },
         
         showToastMessage(message, type = 'success') {

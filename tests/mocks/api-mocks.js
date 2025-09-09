@@ -100,7 +100,7 @@ const mockData = {
 // API Mock Functions
 const apiMocks = {
     // LoRA Management
-    'GET /api/v1/loras': (url) => {
+    'GET /api/loras': (url) => {
         const urlObj = new URL(url, 'http://localhost');
         const page = parseInt(urlObj.searchParams.get('page')) || 1;
         const limit = parseInt(urlObj.searchParams.get('limit')) || 10;
@@ -135,7 +135,7 @@ const apiMocks = {
         };
     },
     
-    'GET /api/v1/loras/:id': (url) => {
+    'GET /api/loras/:id': (url) => {
         const id = url.split('/').pop();
         const lora = mockData.loras.find(l => l.id === id);
         
@@ -146,7 +146,7 @@ const apiMocks = {
         return lora;
     },
     
-    'POST /api/v1/loras/upload': (url, options) => {
+    'POST /api/loras/upload': (url, options) => {
         // Check if proper form data was sent
         const hasFormData = options.body instanceof FormData;
         
@@ -170,12 +170,12 @@ const apiMocks = {
         };
     },
     
-    'DELETE /api/v1/loras/:id': () => ({
+    'DELETE /api/loras/:id': () => ({
         message: 'LoRA deleted successfully'
     }),
     
     // Recommendations
-    'GET /api/v1/recommendations': (url) => {
+    'GET /api/recommendations': (url) => {
         const urlObj = new URL(url, 'http://localhost');
         const limit = parseInt(urlObj.searchParams.get('limit')) || 10;
         
@@ -184,12 +184,12 @@ const apiMocks = {
         };
     },
     
-    'POST /api/v1/recommendations/feedback': () => ({
+    'POST /api/recommendations/feedback': () => ({
         message: 'Feedback recorded successfully'
     }),
     
     // Analytics
-    'GET /api/v1/analytics': (url) => {
+    'GET /api/analytics': (url) => {
         const urlObj = new URL(url, 'http://localhost');
         const timeRange = urlObj.searchParams.get('timeRange') || '24h';
         
@@ -199,7 +199,7 @@ const apiMocks = {
         };
     },
     
-    'GET /api/v1/analytics/export': (url) => {
+    'GET /api/analytics/export': (url) => {
         const urlObj = new URL(url, 'http://localhost');
         const format = urlObj.searchParams.get('format') || 'json';
         
@@ -211,18 +211,18 @@ const apiMocks = {
     },
     
     // Admin
-    'GET /api/v1/admin/overview': () => mockData.admin.overview,
+    'GET /api/admin/overview': () => mockData.admin.overview,
     
-    'GET /api/v1/admin/workers': () => mockData.admin.workers,
+    'GET /api/admin/workers': () => mockData.admin.workers,
     
-    'POST /api/v1/admin/workers/:id/restart': () => ({
+    'POST /api/admin/workers/:id/restart': () => ({
         message: 'Worker restarted successfully'
     }),
     
     // Import/Export
-    'POST /api/v1/export': () => new Blob(['mock export data'], { type: 'application/json' }),
+    'POST /api/export': () => new Blob(['mock export data'], { type: 'application/json' }),
     
-    'POST /api/v1/import': () => ({
+    'POST /api/import': () => ({
         message: 'Import started successfully',
         job_id: 'import-job-123'
     })

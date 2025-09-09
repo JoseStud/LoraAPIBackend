@@ -12,8 +12,6 @@ function systemAdmin() {
         showToast: false,
         toastMessage: '',
         toastType: 'success',
-        // Safe default referenced in templates
-        success: true,
         
         // System Status
         systemStatus: {
@@ -128,7 +126,7 @@ function systemAdmin() {
          */
         async loadSystemStatus() {
             try {
-                const response = await fetch('/api/v1/admin/system/status');
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/system/status');
                 if (!response.ok) throw new Error('Failed to load system status');
                 
                 const data = await response.json();
@@ -145,7 +143,7 @@ function systemAdmin() {
          */
         async loadSystemStats() {
             try {
-                const response = await fetch('/api/v1/admin/system/stats');
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/system/stats');
                 if (!response.ok) throw new Error('Failed to load system stats');
                 
                 const data = await response.json();
@@ -162,7 +160,7 @@ function systemAdmin() {
          */
         async loadSystemMetrics() {
             try {
-                const response = await fetch('/api/v1/admin/system/metrics');
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/system/metrics');
                 if (!response.ok) throw new Error('Failed to load system metrics');
                 
                 const data = await response.json();
@@ -216,7 +214,7 @@ function systemAdmin() {
          */
         async loadWorkers() {
             try {
-                const response = await fetch('/api/v1/admin/workers');
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/workers');
                 if (!response.ok) throw new Error('Failed to load workers');
                 
                 const data = await response.json();
@@ -233,7 +231,7 @@ function systemAdmin() {
          */
         async loadDatabaseStats() {
             try {
-                const response = await fetch('/api/v1/admin/database/stats');
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/database/stats');
                 if (!response.ok) throw new Error('Failed to load database stats');
                 
                 const data = await response.json();
@@ -250,7 +248,7 @@ function systemAdmin() {
          */
         async loadConfiguration() {
             try {
-                const response = await fetch('/api/v1/admin/config');
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/config');
                 if (!response.ok) throw new Error('Failed to load configuration');
                 
                 const data = await response.json();
@@ -267,7 +265,7 @@ function systemAdmin() {
          */
         async loadLogs() {
             try {
-                const response = await fetch('/api/v1/admin/logs?limit=500');
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/logs?limit=500');
                 if (!response.ok) throw new Error('Failed to load logs');
                 
                 const data = await response.json();
@@ -285,7 +283,7 @@ function systemAdmin() {
          */
         async loadRecentBackups() {
             try {
-                const response = await fetch('/api/v1/admin/backups');
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/backups');
                 if (!response.ok) throw new Error('Failed to load backups');
                 
                 const data = await response.json();
@@ -318,7 +316,7 @@ function systemAdmin() {
         async scaleWorkers(direction) {
             try {
                 const endpoint = direction === 'up' ? 'add' : 'remove';
-                const response = await fetch(`/api/v1/admin/workers/${endpoint}`, {
+                const response = await fetch((window?.BACKEND_URL || '') + `/admin/workers/${endpoint}`, {
                     method: 'POST'
                 });
                 
@@ -342,7 +340,7 @@ function systemAdmin() {
             }
             
             try {
-                const response = await fetch('/api/v1/admin/workers/restart-all', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/workers/restart-all', {
                     method: 'POST'
                 });
                 
@@ -362,7 +360,7 @@ function systemAdmin() {
          */
         async restartWorker(workerId) {
             try {
-                const response = await fetch(`/api/v1/admin/workers/${workerId}/restart`, {
+                const response = await fetch((window?.BACKEND_URL || '') + `/admin/workers/${workerId}/restart`, {
                     method: 'POST'
                 });
                 
@@ -386,7 +384,7 @@ function systemAdmin() {
             }
             
             try {
-                const response = await fetch(`/api/v1/admin/workers/${workerId}/stop`, {
+                const response = await fetch((window?.BACKEND_URL || '') + `/admin/workers/${workerId}/stop`, {
                     method: 'POST'
                 });
                 
@@ -407,7 +405,7 @@ function systemAdmin() {
         async createBackup() {
             this.isBackingUp = true;
             try {
-                const response = await fetch('/api/v1/admin/database/backup', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/database/backup', {
                     method: 'POST'
                 });
                 
@@ -441,7 +439,7 @@ function systemAdmin() {
                 const formData = new FormData();
                 formData.append('backup_file', file);
                 
-                const response = await fetch('/api/v1/admin/database/restore', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/database/restore', {
                     method: 'POST',
                     body: formData
                 });
@@ -463,7 +461,7 @@ function systemAdmin() {
          */
         async downloadBackup(backupId) {
             try {
-                const response = await fetch(`/api/v1/admin/backups/${backupId}/download`);
+                const response = await fetch((window?.BACKEND_URL || '') + `/admin/backups/${backupId}/download`);
                 if (!response.ok) throw new Error('Failed to download backup');
                 
                 const blob = await response.blob();
@@ -493,7 +491,7 @@ function systemAdmin() {
             }
             
             try {
-                const response = await fetch(`/api/v1/admin/backups/${backupId}`, {
+                const response = await fetch((window?.BACKEND_URL || '') + `/admin/backups/${backupId}`, {
                     method: 'DELETE'
                 });
                 
@@ -514,7 +512,7 @@ function systemAdmin() {
         async optimizeDatabase() {
             this.isOptimizing = true;
             try {
-                const response = await fetch('/api/v1/admin/database/optimize', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/database/optimize', {
                     method: 'POST'
                 });
                 
@@ -536,7 +534,7 @@ function systemAdmin() {
          */
         async rebuildIndexes() {
             try {
-                const response = await fetch('/api/v1/admin/database/rebuild-indexes', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/database/rebuild-indexes', {
                     method: 'POST'
                 });
                 
@@ -559,7 +557,7 @@ function systemAdmin() {
             }
             
             try {
-                const response = await fetch('/api/v1/admin/database/cleanup-orphaned', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/database/cleanup-orphaned', {
                     method: 'POST'
                 });
                 
@@ -579,7 +577,7 @@ function systemAdmin() {
          */
         async validateData() {
             try {
-                const response = await fetch('/api/v1/admin/database/validate', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/database/validate', {
                     method: 'POST'
                 });
                 
@@ -603,7 +601,7 @@ function systemAdmin() {
          */
         async saveConfiguration() {
             try {
-                const response = await fetch('/api/v1/admin/config', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/config', {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -630,7 +628,7 @@ function systemAdmin() {
             }
             
             try {
-                const response = await fetch('/api/v1/admin/config/reset', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/config/reset', {
                     method: 'POST'
                 });
                 
@@ -699,7 +697,7 @@ function systemAdmin() {
             }
             
             try {
-                const response = await fetch('/api/v1/admin/logs', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/logs', {
                     method: 'DELETE'
                 });
                 
@@ -725,7 +723,7 @@ function systemAdmin() {
                     source: this.logSource
                 });
                 
-                const response = await fetch(`/api/v1/admin/logs/download?${params}`);
+                const response = await fetch((window?.BACKEND_URL || '') + `/admin/logs/download?${params}`);
                 if (!response.ok) throw new Error('Failed to download logs');
                 
                 const blob = await response.blob();
@@ -751,7 +749,7 @@ function systemAdmin() {
          */
         async enableMaintenanceMode() {
             try {
-                const response = await fetch('/api/v1/admin/maintenance', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/admin/maintenance', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

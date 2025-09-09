@@ -24,7 +24,7 @@ export function createSystemStatusComponent() {
         // Load initial system status
         async loadSystemStatus() {
             try {
-                const response = await fetch('/api/v1/system/status');
+                const response = await fetch((window?.BACKEND_URL || '') + '/system/status');
                 if (response.ok) {
                     const status = await response.json();
                     this.$store.app.updateSystemStatus(status);

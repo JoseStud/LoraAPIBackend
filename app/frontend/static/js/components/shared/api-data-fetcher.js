@@ -208,9 +208,16 @@ export default function apiDataFetcher(endpoint, options = {}) {
             // Update timestamp
             this.lastFetchTime = Date.now();
 
-            // Call custom success handler
+            // Call custom success handler and ensure it's executed with the
+            // component's `this` context so handlers can safely reference
+            // component methods/properties.
             if (successHandler && typeof successHandler === 'function') {
-                successHandler(processedData, response);
+                try {
+                    successHandler.call(this, processedData, response);
+                } catch (e) {
+                    // Don't break the fetch flow if a handler throws
+                    window.DevLogger?.error?.('Success handler error:', e);
+                }
             }
 
             return processedData;

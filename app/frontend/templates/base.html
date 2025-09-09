@@ -310,6 +310,50 @@
     </footer>
 
     <!-- Vite JavaScript Bundle -->
+    <!-- Expose backend URL to client-side JS (populated from server config) -->
+    <script>
+        // Expose backend base URL provided by server
+        window.BACKEND_URL = '{{ BACKEND_URL | default("http://localhost:8000/api") }}';
+
+        // Runtime shim: rewrite legacy /api/v1/* requests to the configured BACKEND_URL
+        (function () {
+            const origFetch = window.fetch.bind(window);
+            window.fetch = function(input, init) {
+                try {
+                    if (typeof input === 'string') {
+                        if (input.startsWith('/api/v1/')) {
+                            const suffix = input.substring('/api/v1'.length); // keep leading /
+                            input = (window.BACKEND_URL || '') + suffix;
+                        }
+                    } else if (input && input.url && typeof input.url === 'string') {
+                        if (input.url.startsWith('/api/v1/')) {
+                            const suffix = input.url.substring('/api/v1'.length);
+                            input = new Request((window.BACKEND_URL || '') + suffix, input);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('fetch shim failed to rewrite URL:', e);
+                }
+                return origFetch(input, init);
+            };
+
+            // Also patch htmx.ajax if present to rewrite URLs passed to it
+            if (window.htmx && typeof window.htmx.ajax === 'function') {
+                const origHtmxAjax = window.htmx.ajax;
+                window.htmx.ajax = function(method, url, options) {
+                    try {
+                        if (typeof url === 'string' && url.startsWith('/api/v1/')) {
+                            const suffix = url.substring('/api/v1'.length);
+                            url = (window.BACKEND_URL || '') + suffix;
+                        }
+                    } catch (e) {
+                        // swallow
+                    }
+                    return origHtmxAjax.call(this, method, url, options);
+                };
+            }
+        })();
+    </script>
     <script type="module" src="{{ vite_asset('js/main.js') }}"></script>
 </body>
 </html>

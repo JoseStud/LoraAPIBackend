@@ -46,17 +46,17 @@ const STATIC_ASSETS = [
 
 // API endpoints that should work offline with cached data
 const OFFLINE_API_ENDPOINTS = [
-    '/api/v1/loras',
-    '/api/v1/recommendations',
-    '/api/v1/analytics/summary',
-    '/api/v1/system/status'
+    '/api/loras',
+    '/api/recommendations',
+    '/api/analytics/summary',
+    '/api/system/status'
 ];
 
 // Network-first strategies for these patterns
 const NETWORK_FIRST_PATTERNS = [
-    /\/api\/v1\/generation\//,
-    /\/api\/v1\/workers\//,
-    /\/api\/v1\/system\/real-time/
+    /\/api\/generation\//,
+    /\/api\/workers\//,
+    /\/api\/system\/real-time/
 ];
 
 // Cache-first strategies for these patterns  
@@ -292,7 +292,7 @@ function createOfflineAPIResponse(pathname) {
     let offlineData = {};
     
     switch (pathname) {
-        case '/api/v1/loras':
+    case '/api/loras':
             offlineData = {
                 loras: [],
                 total: 0,
@@ -300,14 +300,14 @@ function createOfflineAPIResponse(pathname) {
             };
             break;
             
-        case '/api/v1/recommendations':
+    case '/api/recommendations':
             offlineData = {
                 recommendations: [],
                 message: 'Offline - recommendations require network connection'
             };
             break;
             
-        case '/api/v1/analytics/summary':
+    case '/api/analytics/summary':
             offlineData = {
                 metrics: {
                     total_loras: 0,
@@ -319,7 +319,7 @@ function createOfflineAPIResponse(pathname) {
             };
             break;
             
-        case '/api/v1/system/status':
+    case '/api/system/status':
             offlineData = {
                 status: 'offline',
                 workers: [],

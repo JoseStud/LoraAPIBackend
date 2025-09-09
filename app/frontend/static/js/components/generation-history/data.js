@@ -13,7 +13,7 @@ const generationHistoryData = {
      */
     async loadResults(page = 1, limit = 20) {
         try {
-            const response = await fetch(`/api/v1/results?page=${page}&limit=${limit}`);
+                const response = await fetch((window?.BACKEND_URL || '') + `/results?page=${page}&limit=${limit}`);
             if (!response.ok) throw new Error('Failed to load results');
             
             const data = await response.json();
@@ -33,7 +33,7 @@ const generationHistoryData = {
      */
     async loadResult(id) {
         try {
-            const response = await fetch(`/api/v1/results/${id}`);
+                const response = await fetch((window?.BACKEND_URL || '') + `/results/${id}`);
             if (!response.ok) throw new Error('Failed to load result');
             
             return await response.json();
@@ -48,7 +48,7 @@ const generationHistoryData = {
      */
     async updateRating(resultId, rating) {
         try {
-            const response = await fetch(`/api/v1/results/${resultId}/rating`, {
+                const response = await fetch((window?.BACKEND_URL || '') + `/results/${resultId}/rating`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -70,7 +70,7 @@ const generationHistoryData = {
      */
     async updateFavorite(resultId, isFavorite) {
         try {
-            const response = await fetch(`/api/v1/results/${resultId}/favorite`, {
+                const response = await fetch((window?.BACKEND_URL || '') + `/results/${resultId}/favorite`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -92,7 +92,7 @@ const generationHistoryData = {
      */
     async deleteResults(ids) {
         try {
-            const response = await fetch('/api/v1/results/bulk-delete', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/results/bulk-delete', {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
@@ -114,7 +114,7 @@ const generationHistoryData = {
      */
     async bulkUpdateFavorites(ids, isFavorite) {
         try {
-            const response = await fetch('/api/v1/results/bulk-favorite', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/results/bulk-favorite', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -139,7 +139,7 @@ const generationHistoryData = {
      */
     async exportResults(ids, format = 'zip') {
         try {
-            const response = await fetch('/api/v1/results/export', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/results/export', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -172,7 +172,7 @@ const generationHistoryData = {
      */
     async loadStatistics() {
         try {
-            const response = await fetch('/api/v1/results/statistics');
+                const response = await fetch((window?.BACKEND_URL || '') + '/results/statistics');
             if (!response.ok) throw new Error('Failed to load statistics');
             
             return await response.json();
@@ -218,7 +218,7 @@ const generationHistoryData = {
     async searchResults(searchParams) {
         try {
             const queryParams = new URLSearchParams(searchParams);
-            const response = await fetch(`/api/v1/results/search?${queryParams}`);
+                const response = await fetch((window?.BACKEND_URL || '') + `/results/search?${queryParams}`);
             
             if (!response.ok) throw new Error('Failed to search results');
             
@@ -234,7 +234,7 @@ const generationHistoryData = {
      */
     async getFilterOptions() {
         try {
-            const response = await fetch('/api/v1/results/filter-options');
+            const response = await fetch((window?.BACKEND_URL || '') + '/results/filter-options');
             if (!response.ok) throw new Error('Failed to load filter options');
             
             return await response.json();

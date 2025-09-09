@@ -11,9 +11,9 @@ describe('API Integration Tests', () => {
     });
     
     describe('LoRA Management API', () => {
-        describe('GET /api/v1/loras', () => {
+    describe('GET /api/loras', () => {
             test('should fetch list of LoRAs', async () => {
-                const response = await fetch(`${baseURL}/api/v1/loras`);
+        const response = await fetch(`${baseURL}/api/loras`);
                 
                 expect(response.status).toBe(200);
                 expect(response.ok).toBe(true);
@@ -34,7 +34,7 @@ describe('API Integration Tests', () => {
             });
             
             test('should support pagination', async () => {
-                const response = await fetch(`${baseURL}/api/v1/loras?page=1&limit=5`);
+                const response = await fetch(`${baseURL}/api/loras?page=1&limit=5`);
                 
                 expect(response.status).toBe(200);
                 
@@ -46,7 +46,7 @@ describe('API Integration Tests', () => {
             });
             
             test('should support filtering', async () => {
-                const response = await fetch(`${baseURL}/api/v1/loras?tags=anime&type=character`);
+                const response = await fetch(`${baseURL}/api/loras?tags=anime&type=character`);
                 
                 expect(response.status).toBe(200);
                 
@@ -62,10 +62,10 @@ describe('API Integration Tests', () => {
             });
         });
         
-        describe('GET /api/v1/loras/:id', () => {
+    describe('GET /api/loras/:id', () => {
             test('should fetch specific LoRA details', async () => {
                 // First get a list to find a valid ID
-                const listResponse = await fetch(`${baseURL}/api/v1/loras`);
+                const listResponse = await fetch(`${baseURL}/api/loras`);
                 const listData = await listResponse.json();
                 
                 if (listData.loras.length === 0) {
@@ -74,7 +74,7 @@ describe('API Integration Tests', () => {
                 }
                 
                 const loraId = listData.loras[0].id;
-                const response = await fetch(`${baseURL}/api/v1/loras/${loraId}`);
+                const response = await fetch(`${baseURL}/api/loras/${loraId}`);
                 
                 expect(response.status).toBe(200);
                 
@@ -87,7 +87,7 @@ describe('API Integration Tests', () => {
             });
             
             test('should return 404 for non-existent LoRA', async () => {
-                const response = await fetch(`${baseURL}/api/v1/loras/non-existent-id`);
+                const response = await fetch(`${baseURL}/api/nonexistent-endpoint`);
                 
                 expect(response.status).toBe(404);
                 
@@ -96,7 +96,7 @@ describe('API Integration Tests', () => {
             });
         });
         
-        describe('POST /api/v1/loras/upload', () => {
+    describe('POST /api/loras/upload', () => {
             test('should upload new LoRA file', async () => {
                 // Create mock file data
                 const formData = new FormData();
@@ -106,7 +106,7 @@ describe('API Integration Tests', () => {
                 formData.append('description', 'Test LoRA description');
                 formData.append('tags', JSON.stringify(['test', 'upload']));
                 
-                const response = await fetch(`${baseURL}/api/v1/loras/upload`, {
+                const response = await fetch(`${baseURL}/api/loras/upload`, {
                     method: 'POST',
                     body: formData
                 });
@@ -125,7 +125,7 @@ describe('API Integration Tests', () => {
                 const formData = new FormData();
                 // Missing required file
                 
-                const response = await fetch(`${baseURL}/api/v1/loras/upload`, {
+                const response = await fetch(`${baseURL}/api/loras/upload`, {
                     method: 'POST',
                     body: formData
                 });
@@ -137,10 +137,10 @@ describe('API Integration Tests', () => {
             });
         });
         
-        describe('DELETE /api/v1/loras/:id', () => {
+    describe('DELETE /api/loras/:id', () => {
             test('should delete LoRA', async () => {
                 // Note: This would typically require creating a test LoRA first
-                const response = await fetch(`${baseURL}/api/v1/loras/test-lora-id`, {
+                const response = await fetch(`${baseURL}/api/loras/test-lora-id`, {
                     method: 'DELETE'
                 });
                 
@@ -151,9 +151,9 @@ describe('API Integration Tests', () => {
     });
     
     describe('Recommendations API', () => {
-        describe('GET /api/v1/recommendations', () => {
+    describe('GET /api/recommendations', () => {
             test('should get personalized recommendations', async () => {
-                const response = await fetch(`${baseURL}/api/v1/recommendations`);
+                const response = await fetch(`${baseURL}/api/recommendations`);
                 
                 expect(response.status).toBe(200);
                 
@@ -176,7 +176,7 @@ describe('API Integration Tests', () => {
                     tags: 'anime,character'
                 });
                 
-                const response = await fetch(`${baseURL}/api/v1/recommendations?${params}`);
+                const response = await fetch(`${baseURL}/api/recommendations?${params}`);
                 
                 expect(response.status).toBe(200);
                 
@@ -189,7 +189,7 @@ describe('API Integration Tests', () => {
             });
         });
         
-        describe('POST /api/v1/recommendations/feedback', () => {
+    describe('POST /api/recommendations/feedback', () => {
             test('should accept user feedback', async () => {
                 const feedback = {
                     lora_id: 'test-lora-id',
@@ -198,7 +198,7 @@ describe('API Integration Tests', () => {
                     feedback_text: 'Great LoRA!'
                 };
                 
-                const response = await fetch(`${baseURL}/api/v1/recommendations/feedback`, {
+                const response = await fetch(`${baseURL}/api/recommendations/feedback`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -217,9 +217,9 @@ describe('API Integration Tests', () => {
     });
     
     describe('Analytics API', () => {
-        describe('GET /api/v1/analytics', () => {
+    describe('GET /api/analytics', () => {
             test('should fetch analytics data', async () => {
-                const response = await fetch(`${baseURL}/api/v1/analytics`);
+                const response = await fetch(`${baseURL}/api/analytics`);
                 
                 expect(response.status).toBe(200);
                 
@@ -230,7 +230,7 @@ describe('API Integration Tests', () => {
             });
             
             test('should support time range filtering', async () => {
-                const response = await fetch(`${baseURL}/api/v1/analytics?timeRange=7d`);
+                const response = await fetch(`${baseURL}/api/analytics?timeRange=7d`);
                 
                 expect(response.status).toBe(200);
                 
@@ -239,9 +239,9 @@ describe('API Integration Tests', () => {
             });
         });
         
-        describe('GET /api/v1/analytics/export', () => {
+    describe('GET /api/analytics/export', () => {
             test('should export analytics data', async () => {
-                const response = await fetch(`${baseURL}/api/v1/analytics/export?format=json`);
+                const response = await fetch(`${baseURL}/api/analytics/export?format=json`);
                 
                 expect(response.status).toBe(200);
                 expect(response.headers.get('content-type')).toContain('application/json');
@@ -252,7 +252,7 @@ describe('API Integration Tests', () => {
             });
             
             test('should export as CSV', async () => {
-                const response = await fetch(`${baseURL}/api/v1/analytics/export?format=csv`);
+                const response = await fetch(`${baseURL}/api/analytics/export?format=csv`);
                 
                 expect(response.status).toBe(200);
                 expect(response.headers.get('content-type')).toContain('text/csv');
@@ -264,9 +264,9 @@ describe('API Integration Tests', () => {
     });
     
     describe('Admin API', () => {
-        describe('GET /api/v1/admin/overview', () => {
+    describe('GET /api/admin/overview', () => {
             test('should fetch system overview', async () => {
-                const response = await fetch(`${baseURL}/api/v1/admin/overview`);
+                const response = await fetch(`${baseURL}/api/admin/overview`);
                 
                 expect(response.status).toBe(200);
                 
@@ -278,9 +278,9 @@ describe('API Integration Tests', () => {
             });
         });
         
-        describe('GET /api/v1/admin/workers', () => {
+    describe('GET /api/admin/workers', () => {
             test('should fetch worker status', async () => {
-                const response = await fetch(`${baseURL}/api/v1/admin/workers`);
+                const response = await fetch(`${baseURL}/api/admin/workers`);
                 
                 expect(response.status).toBe(200);
                 
@@ -292,9 +292,9 @@ describe('API Integration Tests', () => {
             });
         });
         
-        describe('POST /api/v1/admin/workers/:id/restart', () => {
+    describe('POST /api/admin/workers/:id/restart', () => {
             test('should restart worker', async () => {
-                const response = await fetch(`${baseURL}/api/v1/admin/workers/test-worker/restart`, {
+                const response = await fetch(`${baseURL}/api/admin/workers/test-worker/restart`, {
                     method: 'POST'
                 });
                 
@@ -305,7 +305,7 @@ describe('API Integration Tests', () => {
     });
     
     describe('Import/Export API', () => {
-        describe('POST /api/v1/export', () => {
+    describe('POST /api/export', () => {
             test('should export data', async () => {
                 const exportConfig = {
                     format: 'json',
@@ -313,7 +313,7 @@ describe('API Integration Tests', () => {
                     compression: false
                 };
                 
-                const response = await fetch(`${baseURL}/api/v1/export`, {
+                const response = await fetch(`${baseURL}/api/export`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -328,7 +328,7 @@ describe('API Integration Tests', () => {
             });
         });
         
-        describe('POST /api/v1/import', () => {
+    describe('POST /api/import', () => {
             test('should import data', async () => {
                 const formData = new FormData();
                 const mockData = JSON.stringify({
@@ -343,7 +343,7 @@ describe('API Integration Tests', () => {
                     validateData: true
                 }));
                 
-                const response = await fetch(`${baseURL}/api/v1/import`, {
+                const response = await fetch(`${baseURL}/api/import`, {
                     method: 'POST',
                     body: formData
                 });
@@ -400,7 +400,7 @@ describe('API Integration Tests', () => {
     
     describe('Error Handling', () => {
         test('should handle 404 errors gracefully', async () => {
-            const response = await fetch(`${baseURL}/api/v1/nonexistent-endpoint`);
+            const response = await fetch(`${baseURL}/api/nonexistent-endpoint`);
             
             expect(response.status).toBe(404);
             
@@ -409,7 +409,7 @@ describe('API Integration Tests', () => {
         });
         
         test('should handle malformed requests', async () => {
-            const response = await fetch(`${baseURL}/api/v1/loras`, {
+            const response = await fetch(`${baseURL}/api/loras`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -423,7 +423,7 @@ describe('API Integration Tests', () => {
         test('should handle rate limiting', async () => {
             // Make multiple rapid requests to test rate limiting
             const promises = Array.from({ length: 20 }, () =>
-                fetch(`${baseURL}/api/v1/loras`)
+                fetch(`${baseURL}/api/loras`)
             );
             
             const responses = await Promise.all(promises);
@@ -440,7 +440,7 @@ describe('API Integration Tests', () => {
     
     describe('Authentication & Authorization', () => {
         test('should handle unauthorized requests', async () => {
-            const response = await fetch(`${baseURL}/api/v1/admin/settings`, {
+            const response = await fetch(`${baseURL}/api/admin/settings`, {
                 headers: {
                     'Authorization': 'Bearer invalid-token'
                 }
@@ -451,7 +451,7 @@ describe('API Integration Tests', () => {
         });
         
         test('should validate API keys if required', async () => {
-            const response = await fetch(`${baseURL}/api/v1/admin/overview`, {
+            const response = await fetch(`${baseURL}/api/admin/overview`, {
                 headers: {
                     'X-API-Key': 'invalid-key'
                 }
@@ -465,7 +465,7 @@ describe('API Integration Tests', () => {
     describe('Performance', () => {
         test('should respond within reasonable time', async () => {
             const start = Date.now();
-            const response = await fetch(`${baseURL}/api/v1/loras`);
+            const response = await fetch(`${baseURL}/api/loras`);
             const duration = Date.now() - start;
             
             expect(response.status).toBe(200);
@@ -475,7 +475,7 @@ describe('API Integration Tests', () => {
         test('should handle concurrent requests', async () => {
             const concurrentRequests = 10;
             const promises = Array.from({ length: concurrentRequests }, () =>
-                fetch(`${baseURL}/api/v1/loras`)
+                fetch(`${baseURL}/api/loras`)
             );
             
             const start = Date.now();

@@ -54,7 +54,7 @@ async function setupTestDatabase() {
   
   // Check if database is already running
   try {
-    const response = await fetch('http://localhost:8000/api/v1/health');
+  const response = await fetch('http://localhost:8000/api/health');
     if (response.ok) {
       console.log('Database already running');
       return;
@@ -83,7 +83,7 @@ async function setupTestDatabase() {
 async function setupTestServer() {
   // Check if server is already running
   try {
-    const response = await fetch('http://localhost:8000/api/v1/health');
+  const response = await fetch('http://localhost:8000/api/health');
     if (response.ok) {
       console.log('Test server already running');
       return;
@@ -110,7 +110,7 @@ async function setupTestServer() {
     server.unref();
     
     // Wait for server to be ready
-    await waitForService('http://localhost:8000/api/v1/health', 30000);
+  await waitForService('http://localhost:8000/api/health', 30000);
   }
 }
 
@@ -118,7 +118,7 @@ async function setupTestServer() {
  * Setup test data
  */
 async function setupTestData() {
-  const baseURL = 'http://localhost:8000/api/v1';
+  const baseURL = 'http://localhost:8000/api';
   
   // Create test users
   try {
@@ -197,7 +197,7 @@ async function verifyApplication() {
     await page.goto('http://localhost:8000', { waitUntil: 'networkidle' });
     
     // Check API is responding
-    const response = await page.request.get('http://localhost:8000/api/v1/health');
+    const response = await page.request.get('http://localhost:8000/api/health');
     if (!response.ok()) {
       throw new Error(`API health check failed: ${response.status()}`);
     }

@@ -44,7 +44,7 @@ function promptComposer() {
         async loadAvailableLoras() {
             this.isLoading = true;
             try {
-                const response = await fetch('/api/v1/adapters');
+                const response = await fetch((window?.BACKEND_URL || '') + '/adapters');
                 if (response.ok) {
                     this.availableLoras = await response.json();
                     this.filterLoras();
@@ -310,7 +310,7 @@ function promptComposer() {
                     batch_size: 1
                 };
                 
-                const response = await fetch('/api/v1/generation/generate', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/generation/generate', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

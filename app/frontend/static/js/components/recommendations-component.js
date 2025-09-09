@@ -8,7 +8,7 @@ import apiDataFetcher from './shared/api-data-fetcher.js';
 function createRecommendationsComponent() {
     return {
         // Use API data fetcher for loading available LoRAs
-        ...apiDataFetcher('/api/v1/adapters', {
+    ...apiDataFetcher((window?.BACKEND_URL || '') + '/adapters', {
             paginated: false,
             autoFetch: false,
             cacheKey: 'available_loras_cache',
@@ -156,7 +156,7 @@ function createRecommendationsComponent() {
                 
                 await this.makeHttpRequest('POST', 
                     { lora_ids: loraIds, force: false },
-                    { customEndpoint: '/api/v1/recommendations/compute-embeddings' }
+                    { customEndpoint: (window?.BACKEND_URL || '') + '/recommendations/compute-embeddings' }
                 );
                 
                 this.embeddingStatus = 'Embeddings computed successfully!';
@@ -180,7 +180,7 @@ function createRecommendationsComponent() {
             try {
                 await this.makeHttpRequest('POST', 
                     null,
-                    { customEndpoint: '/api/v1/recommendations/rebuild-index' }
+                    { customEndpoint: (window?.BACKEND_URL || '') + '/recommendations/rebuild-index' }
                 );
                 
                 this.embeddingStatus = 'Index rebuilt successfully!';

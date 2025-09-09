@@ -38,7 +38,7 @@ function loraCard(initialConfig) {
             
             try {
                 const endpoint = this.active ? 'activate' : 'deactivate';
-                const response = await fetch(`/api/v1/adapters/${this.id}/${endpoint}`, {
+                const response = await fetch((window?.BACKEND_URL || '') + `/adapters/${this.id}/${endpoint}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -78,7 +78,7 @@ function loraCard(initialConfig) {
          */
         async updateWeight() {
             try {
-                const response = await fetch(`/api/v1/adapters/${this.id}/weight`, {
+                const response = await fetch((window?.BACKEND_URL || '') + `/adapters/${this.id}/weight`, {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json'
@@ -138,7 +138,7 @@ function loraCard(initialConfig) {
          */
         async generatePreview() {
             try {
-                const response = await fetch(`/api/v1/generation/preview/${this.id}`, {
+                const response = await fetch((window?.BACKEND_URL || '') + `/generation/preview/${this.id}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -184,7 +184,7 @@ function loraCard(initialConfig) {
             }
             
             try {
-                const response = await fetch(`/api/v1/adapters/${this.id}`, {
+                const response = await fetch((window?.BACKEND_URL || '') + `/adapters/${this.id}`, {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json'

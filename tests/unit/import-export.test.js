@@ -180,7 +180,7 @@ describe('Import/Export Component', () => {
                 component.isProcessing = true;
                 component.progress = 0;
                 
-                const response = await fetch('/api/v1/export', {
+                const response = await fetch('/api/export', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(component.exportConfig)
@@ -197,7 +197,7 @@ describe('Import/Export Component', () => {
             
             await component.startExport();
             
-            expect(mockFetch).toHaveBeenCalledWith('/api/v1/export', {
+            expect(mockFetch).toHaveBeenCalledWith('/api/export', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(component.exportConfig)
@@ -309,7 +309,7 @@ describe('Import/Export Component', () => {
                 formData.append('file', file);
                 formData.append('config', JSON.stringify(component.importConfig));
                 
-                const response = await fetch('/api/v1/import', {
+                const response = await fetch('/api/import', {
                     method: 'POST',
                     body: formData
                 });
@@ -319,7 +319,7 @@ describe('Import/Export Component', () => {
             
             const result = await component.processImportData(mockFile);
             
-            expect(mockFetch).toHaveBeenCalledWith('/api/v1/import', {
+            expect(mockFetch).toHaveBeenCalledWith('/api/import', {
                 method: 'POST',
                 body: expect.any(FormData)
             });
@@ -356,7 +356,7 @@ describe('Import/Export Component', () => {
             });
             
             component.createBackup = jest.fn(async () => {
-                const response = await fetch('/api/v1/backup', {
+                const response = await fetch('/api/backup', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(component.backupConfig)
@@ -367,7 +367,7 @@ describe('Import/Export Component', () => {
             
             const result = await component.createBackup();
             
-            expect(mockFetch).toHaveBeenCalledWith('/api/v1/backup', {
+            expect(mockFetch).toHaveBeenCalledWith('/api/backup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(component.backupConfig)
@@ -383,7 +383,7 @@ describe('Import/Export Component', () => {
             });
             
             component.restoreBackup = jest.fn(async (id) => {
-                const response = await fetch(`/api/v1/backup/${id}/restore`, {
+                const response = await fetch(`/api/backup/${id}/restore`, {
                     method: 'POST'
                 });
                 
@@ -392,7 +392,7 @@ describe('Import/Export Component', () => {
             
             const result = await component.restoreBackup(backupId);
             
-            expect(mockFetch).toHaveBeenCalledWith('/api/v1/backup/backup-123/restore', {
+            expect(mockFetch).toHaveBeenCalledWith('/api/backup/backup-123/restore', {
                 method: 'POST'
             });
         });
@@ -461,7 +461,7 @@ describe('Import/Export Component', () => {
             });
             
             component.executeMigration = jest.fn(async () => {
-                const response = await fetch('/api/v1/migrate', {
+                const response = await fetch('/api/migrate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(component.migrationConfig)
@@ -472,7 +472,7 @@ describe('Import/Export Component', () => {
             
             const result = await component.executeMigration();
             
-            expect(mockFetch).toHaveBeenCalledWith('/api/v1/migrate', {
+            expect(mockFetch).toHaveBeenCalledWith('/api/migrate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(component.migrationConfig)
@@ -549,8 +549,8 @@ describe('Import/Export Component', () => {
             });
             
             component.startExport = jest.fn(async () => {
-                try {
-                    await fetch('/api/v1/export');
+                    try {
+                    await fetch('/api/export');
                 } catch (error) {
                     component.handleError(error);
                 }

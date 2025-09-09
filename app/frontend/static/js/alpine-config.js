@@ -188,7 +188,7 @@ ensureAlpine(() => {
     
     async loadAvailableTags() {
         try {
-            const response = await fetch('/api/adapters/tags');
+                const response = await fetch((window?.BACKEND_URL || '') + '/adapters/tags');
             if (response.ok) {
                 this.availableTags = await response.json();
             }
@@ -486,7 +486,7 @@ ensureAlpine(() => {
         async exportSelected() {
             if (this.selectedItems.length === 0) return;
             try {
-                const response = await fetch('/api/v1/results/export', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ids: this.selectedItems }) });
+                const response = await fetch((window?.BACKEND_URL || '') + '/results/export', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ids: this.selectedItems }) });
                 if (!response.ok) throw new Error('Failed to export results'); const blob = await response.blob(); const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `generation-export-${Date.now()}.zip`; document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); document.body.removeChild(a); this.showToastMessage('Export started');
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error exporting results:', error);

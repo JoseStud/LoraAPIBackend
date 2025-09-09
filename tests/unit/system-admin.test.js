@@ -150,27 +150,27 @@ describe('System Administration Component', () => {
         
         test('should load overview data', async () => {
             component.loadOverview = jest.fn(async () => {
-                const response = await fetch('/api/v1/admin/overview');
+                const response = await fetch('/api/admin/overview');
                 const data = await response.json();
                 component.overview = data;
             });
             
             await component.loadOverview();
             
-            expect(mockFetch).toHaveBeenCalledWith('/api/v1/admin/overview');
+            expect(mockFetch).toHaveBeenCalledWith('/api/admin/overview');
             expect(component.loadOverview).toHaveBeenCalled();
         });
         
         test('should load workers data', async () => {
             component.loadWorkers = jest.fn(async () => {
-                const response = await fetch('/api/v1/admin/workers');
+                const response = await fetch('/api/admin/workers');
                 const data = await response.json();
                 component.workers = data;
             });
             
             await component.loadWorkers();
             
-            expect(mockFetch).toHaveBeenCalledWith('/api/v1/admin/workers');
+            expect(mockFetch).toHaveBeenCalledWith('/api/admin/workers');
             expect(component.loadWorkers).toHaveBeenCalled();
         });
         
@@ -179,7 +179,7 @@ describe('System Administration Component', () => {
             
             component.loadOverview = jest.fn(async () => {
                 try {
-                    await fetch('/api/v1/admin/overview');
+                    await fetch('/api/admin/overview');
                 } catch (error) {
                     component.error = error.message;
                 }
@@ -196,7 +196,7 @@ describe('System Administration Component', () => {
             mockFetch.mockResolvedValue({ ok: true });
             
             component.startWorker = jest.fn(async (workerId) => {
-                await fetch(`/api/v1/admin/workers/${workerId}/start`, {
+                await fetch(`/api/admin/workers/${workerId}/start`, {
                     method: 'POST'
                 });
             });
@@ -204,7 +204,7 @@ describe('System Administration Component', () => {
             await component.startWorker('test-worker');
             
             expect(mockFetch).toHaveBeenCalledWith(
-                '/api/v1/admin/workers/test-worker/start',
+                '/api/admin/workers/test-worker/start',
                 { method: 'POST' }
             );
         });
@@ -213,7 +213,7 @@ describe('System Administration Component', () => {
             mockFetch.mockResolvedValue({ ok: true });
             
             component.stopWorker = jest.fn(async (workerId) => {
-                await fetch(`/api/v1/admin/workers/${workerId}/stop`, {
+                await fetch(`/api/admin/workers/${workerId}/stop`, {
                     method: 'POST'
                 });
             });
@@ -221,7 +221,7 @@ describe('System Administration Component', () => {
             await component.stopWorker('test-worker');
             
             expect(mockFetch).toHaveBeenCalledWith(
-                '/api/v1/admin/workers/test-worker/stop',
+                '/api/admin/workers/test-worker/stop',
                 { method: 'POST' }
             );
         });
@@ -230,7 +230,7 @@ describe('System Administration Component', () => {
             mockFetch.mockResolvedValue({ ok: true });
             
             component.restartWorker = jest.fn(async (workerId) => {
-                await fetch(`/api/v1/admin/workers/${workerId}/restart`, {
+                await fetch(`/api/admin/workers/${workerId}/restart`, {
                     method: 'POST'
                 });
             });
@@ -238,7 +238,7 @@ describe('System Administration Component', () => {
             await component.restartWorker('test-worker');
             
             expect(mockFetch).toHaveBeenCalledWith(
-                '/api/v1/admin/workers/test-worker/restart',
+                '/api/admin/workers/test-worker/restart',
                 { method: 'POST' }
             );
         });
@@ -252,7 +252,7 @@ describe('System Administration Component', () => {
             });
             
             component.createBackup = jest.fn(async () => {
-                const response = await fetch('/api/v1/admin/database/backup', {
+                const response = await fetch('/api/admin/database/backup', {
                     method: 'POST'
                 });
                 return response.json();
@@ -261,7 +261,7 @@ describe('System Administration Component', () => {
             const result = await component.createBackup();
             
             expect(mockFetch).toHaveBeenCalledWith(
-                '/api/v1/admin/database/backup',
+                '/api/admin/database/backup',
                 { method: 'POST' }
             );
             expect(result.backupId).toBe('backup-123');
@@ -271,7 +271,7 @@ describe('System Administration Component', () => {
             mockFetch.mockResolvedValue({ ok: true });
             
             component.restoreBackup = jest.fn(async (backupId) => {
-                await fetch(`/api/v1/admin/database/restore/${backupId}`, {
+                await fetch(`/api/admin/database/restore/${backupId}`, {
                     method: 'POST'
                 });
             });
@@ -279,7 +279,7 @@ describe('System Administration Component', () => {
             await component.restoreBackup('backup-123');
             
             expect(mockFetch).toHaveBeenCalledWith(
-                '/api/v1/admin/database/restore/backup-123',
+                '/api/admin/database/restore/backup-123',
                 { method: 'POST' }
             );
         });
@@ -291,7 +291,7 @@ describe('System Administration Component', () => {
             mockFetch.mockResolvedValue({ ok: true });
             
             component.updateSettings = jest.fn(async (section, settings) => {
-                await fetch(`/api/v1/admin/settings/${section}`, {
+                await fetch(`/api/admin/settings/${section}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(settings)
@@ -301,7 +301,7 @@ describe('System Administration Component', () => {
             await component.updateSettings('workers', newSettings);
             
             expect(mockFetch).toHaveBeenCalledWith(
-                '/api/v1/admin/settings/workers',
+                '/api/admin/settings/workers',
                 {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -314,7 +314,7 @@ describe('System Administration Component', () => {
             mockFetch.mockResolvedValue({ ok: true });
             
             component.resetSettings = jest.fn(async (section) => {
-                await fetch(`/api/v1/admin/settings/${section}/reset`, {
+                await fetch(`/api/admin/settings/${section}/reset`, {
                     method: 'POST'
                 });
             });
@@ -322,7 +322,7 @@ describe('System Administration Component', () => {
             await component.resetSettings('system');
             
             expect(mockFetch).toHaveBeenCalledWith(
-                '/api/v1/admin/settings/system/reset',
+                '/api/admin/settings/system/reset',
                 { method: 'POST' }
             );
         });

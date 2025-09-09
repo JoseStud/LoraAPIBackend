@@ -96,7 +96,7 @@ async function stopTestServer() {
   
   // Try to gracefully stop the server
   try {
-    await fetch('http://localhost:8000/api/v1/admin/shutdown', {
+  await fetch('http://localhost:8000/api/admin/shutdown', {
       method: 'POST'
     });
     console.log('Server shutdown signal sent');

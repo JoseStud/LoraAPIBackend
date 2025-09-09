@@ -28,8 +28,6 @@ function performanceAnalytics() {
             active_loras: 0,
             total_loras: 0
         },
-    // Safe default referenced in templates
-    success: true,
         
         // Top performing LoRAs
         topLoras: [],
@@ -85,7 +83,7 @@ function performanceAnalytics() {
          */
         async loadKPIs() {
             try {
-                const response = await fetch(`/api/v1/analytics/kpis?timeRange=${this.timeRange}`);
+                const response = await fetch((window?.BACKEND_URL || '') + `/analytics/kpis?timeRange=${this.timeRange}`);
                 if (!response.ok) throw new Error('Failed to load KPIs');
                 
                 const data = await response.json();
@@ -112,7 +110,7 @@ function performanceAnalytics() {
          */
         async loadTopLoras() {
             try {
-                const response = await fetch(`/api/v1/analytics/top-loras?timeRange=${this.timeRange}`);
+                const response = await fetch((window?.BACKEND_URL || '') + `/analytics/top-loras?timeRange=${this.timeRange}`);
                 if (!response.ok) throw new Error('Failed to load top LoRAs');
                 
                 const data = await response.json();
@@ -171,7 +169,7 @@ function performanceAnalytics() {
          */
         async loadErrorAnalysis() {
             try {
-                const response = await fetch(`/api/v1/analytics/errors?timeRange=${this.timeRange}`);
+                const response = await fetch((window?.BACKEND_URL || '') + `/analytics/errors?timeRange=${this.timeRange}`);
                 if (!response.ok) throw new Error('Failed to load error analysis');
                 
                 const data = await response.json();
@@ -220,7 +218,7 @@ function performanceAnalytics() {
          */
         async loadPerformanceInsights() {
             try {
-                const response = await fetch(`/api/v1/analytics/insights?timeRange=${this.timeRange}`);
+                const response = await fetch((window?.BACKEND_URL || '') + `/analytics/insights?timeRange=${this.timeRange}`);
                 if (!response.ok) throw new Error('Failed to load performance insights');
                 
                 const data = await response.json();
@@ -260,7 +258,7 @@ function performanceAnalytics() {
          */
         async loadChartData() {
             try {
-                const response = await fetch(`/api/v1/analytics/charts?timeRange=${this.timeRange}`);
+                const response = await fetch((window?.BACKEND_URL || '') + `/analytics/charts?timeRange=${this.timeRange}`);
                 if (!response.ok) throw new Error('Failed to load chart data');
                 
                 const data = await response.json();
@@ -560,7 +558,7 @@ function performanceAnalytics() {
          */
         async applyRecommendation(insight) {
             try {
-                const response = await fetch('/api/v1/analytics/apply-recommendation', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/analytics/apply-recommendation', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -587,7 +585,7 @@ function performanceAnalytics() {
          */
         async exportData(format) {
             try {
-                const response = await fetch(`/api/v1/analytics/export?format=${format}&timeRange=${this.timeRange}`);
+                const response = await fetch((window?.BACKEND_URL || '') + `/analytics/export?format=${format}&timeRange=${this.timeRange}`);
                 if (!response.ok) throw new Error('Failed to export data');
                 
                 const blob = await response.blob();

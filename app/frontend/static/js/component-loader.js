@@ -569,7 +569,7 @@ window.ComponentLoader = {
             
             async loadAvailableTags() {
                 try {
-                    const response = await fetch('/api/v1/adapters/tags');
+                    const response = await fetch((window?.BACKEND_URL || '') + '/adapters/tags');
                     if (response.ok) {
                         const data = await response.json();
                         this.availableTags = data.tags || [];
@@ -616,7 +616,7 @@ window.ComponentLoader = {
             
             async refreshData() {
                 try {
-                    const response = await fetch('/api/v1/dashboard/stats');
+                    const response = await fetch((window?.BACKEND_URL || '') + '/dashboard/stats');
                     if (response.ok) {
                         const data = await response.json();
                         this.stats = data.stats || this.stats;
@@ -649,7 +649,7 @@ window.ComponentLoader = {
             
             async loadActiveJobs() {
                 try {
-                    const response = await fetch('/api/v1/jobs/active');
+                    const response = await fetch((window?.BACKEND_URL || '') + '/jobs/active');
                     if (response.ok) {
                         const jobs = await response.json();
                         this.activeJobs = jobs.jobs || [];

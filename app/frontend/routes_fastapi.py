@@ -7,7 +7,7 @@ from app.frontend.utils import vite_asset, vite_asset_css, is_development
 # Logger for frontend routes
 logger = logging.getLogger(__name__)
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 import httpx
 import asyncio
 from typing import Optional
@@ -26,6 +26,9 @@ templates.env.globals['is_development'] = is_development
 
 # Backend URL configuration - use environment variable or default to internal Docker port
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000/api")
+
+# Expose backend URL to client-side templates so frontend JS can call backend directly
+templates.env.globals['BACKEND_URL'] = BACKEND_URL
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
@@ -211,7 +214,7 @@ async def htmx_similarity_recommendations(request: Request):
         # Make request to backend API
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{BACKEND_URL}/api/v1/recommendations/similar/{form.lora_id}",
+                f"{BACKEND_URL}/recommendations/similar/{form.lora_id}",
                 params=params,
                 timeout=30.0
             )
@@ -279,7 +282,7 @@ async def htmx_prompt_recommendations(request: Request):
         # Make request to backend API
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{BACKEND_URL}/api/v1/recommendations/for-prompt",
+                f"{BACKEND_URL}/recommendations/for-prompt",
                 json=payload,
                 timeout=30.0
             )
@@ -322,7 +325,7 @@ async def htmx_embedding_status(request: Request):
         # Make request to backend API
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{BACKEND_URL}/api/v1/recommendations/stats",
+                f"{BACKEND_URL}/recommendations/stats",
                 timeout=10.0
             )
         
@@ -413,7 +416,7 @@ async def htmx_embeddings_status(request: Request):
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{BACKEND_URL}/api/v1/recommendations/stats",
+                f"{BACKEND_URL}/recommendations/stats",
                 timeout=10.0
             )
         
@@ -465,7 +468,7 @@ async def htmx_performance_status(request: Request):
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{BACKEND_URL}/api/v1/recommendations/stats",
+                f"{BACKEND_URL}/recommendations/stats",
                 timeout=10.0
             )
         
@@ -518,7 +521,7 @@ async def htmx_available_loras():
         # Make request to backend API
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{BACKEND_URL}/api/v1/adapters",
+                f"{BACKEND_URL}/adapters",
                 timeout=10.0
             )
         
@@ -672,5 +675,9 @@ async def lora_grid(request: Request):
         "search_term": search,
         "has_filters": bool(search or tags)
     })
+
+
+# NOTE: Removed compatibility proxy for /api/v1/loras to harmonize frontend and backend paths.
+# Frontend JS should call the backend directly using the exposed `window.BACKEND_URL`.
 
 

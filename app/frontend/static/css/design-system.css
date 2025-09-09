@@ -285,6 +285,12 @@ typography, spacing, and component patterns.
   /* Enhanced Typography */
   .page-title { font-size: 1.875rem; font-weight: 800; color: #0f172a; margin-bottom: 0.5rem; }
 
+  /* Navigation title (header) — ensure explicit sizing/margins so h1 elements are uniform */
+  .nav-title { font-size: 1.125rem; font-weight: 700; color: #0f172a; margin: 0; }
+
+  /* Generic h1 fallback for any sectioned h1s without classes */
+  h1 { font-size: 1.875rem; line-height: 2.25rem; font-weight: 700; margin: 0 0 0.5rem 0; }
+
   .page-subtitle { font-size: 1.0625rem; color: #475569; margin-bottom: 1.25rem; }
 
   .section-title { font-size: 1.125rem; font-weight:600; color:#0f172a; margin-bottom: 1rem; }

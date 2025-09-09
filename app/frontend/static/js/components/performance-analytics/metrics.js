@@ -13,7 +13,7 @@ const performanceMetrics = {
      */
     async loadKPIs(timeRange) {
         try {
-            const response = await fetch(`/api/v1/analytics/kpis?timeRange=${timeRange}`);
+            const response = await fetch((window?.BACKEND_URL || '') + `/analytics/kpis?timeRange=${timeRange}`);
             if (!response.ok) throw new Error('Failed to load KPIs');
             
             const data = await response.json();
@@ -47,7 +47,7 @@ const performanceMetrics = {
      */
     async loadTopLoras(timeRange) {
         try {
-            const response = await fetch(`/api/v1/analytics/top-loras?timeRange=${timeRange}`);
+            const response = await fetch((window?.BACKEND_URL || '') + `/analytics/top-loras?timeRange=${timeRange}`);
             if (!response.ok) throw new Error('Failed to load top LoRAs');
             
             const data = await response.json();
@@ -112,7 +112,7 @@ const performanceMetrics = {
      */
     async loadErrorAnalysis(timeRange) {
         try {
-            const response = await fetch(`/api/v1/analytics/errors?timeRange=${timeRange}`);
+            const response = await fetch((window?.BACKEND_URL || '') + `/analytics/errors?timeRange=${timeRange}`);
             if (!response.ok) throw new Error('Failed to load error analysis');
             
             const data = await response.json();
@@ -167,7 +167,7 @@ const performanceMetrics = {
      */
     async loadPerformanceInsights(timeRange) {
         try {
-            const response = await fetch(`/api/v1/analytics/insights?timeRange=${timeRange}`);
+            const response = await fetch((window?.BACKEND_URL || '') + `/analytics/insights?timeRange=${timeRange}`);
             if (!response.ok) throw new Error('Failed to load performance insights');
             
             const data = await response.json();
@@ -213,7 +213,7 @@ const performanceMetrics = {
      */
     async loadChartData(timeRange) {
         try {
-            const response = await fetch(`/api/v1/analytics/charts?timeRange=${timeRange}`);
+            const response = await fetch((window?.BACKEND_URL || '') + `/analytics/charts?timeRange=${timeRange}`);
             if (!response.ok) throw new Error('Failed to load chart data');
             
             const data = await response.json();

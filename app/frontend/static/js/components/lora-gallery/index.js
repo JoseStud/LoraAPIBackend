@@ -48,7 +48,7 @@ function loraCard(initialData) {
             
             try {
                 // Make API call to update the active state using new utility
-                const response = await postData(`/api/v1/loras/${this.id}/toggle-active`, { 
+                const response = await postData((window?.BACKEND_URL || '') + `/adapters/${this.id}/activate`, { 
                     active: this.active 
                 });
                 
@@ -76,7 +76,7 @@ function loraCard(initialData) {
             
             try {
                 // Load additional details for the LoRA card using new utility
-                const details = await fetchData(`/api/v1/loras/${this.id}/details`);
+                const details = await fetchData((window?.BACKEND_URL || '') + `/adapters/${this.id}`);
                 // Update the card with additional details
                 Object.assign(this, details);
             } catch (error) {
@@ -111,18 +111,35 @@ window.initLoraCards = initLoraCards;
 export function createLoraGalleryComponent() {
     return {
         // Use the API data fetcher for loading LoRAs
-        ...apiDataFetcher('/api/v1/loras', {
+    // Use the backend adapters endpoint directly to harmonize API paths
+    ...apiDataFetcher((window?.BACKEND_URL || '') + '/adapters', {
             paginated: true,
             pageSize: 24,
             autoFetch: false,
             cacheKey: 'lora_gallery_cache',
             cacheDuration: 300000, // 5 minutes
-            successHandler: (_data) => {
-                this.totalLoras = this.dataCount;
-                this.calculateStats();
+            // successHandler will be called with the component bound as `this`
+            successHandler: function (_data, _response) {
+                try {
+                    this.totalLoras = this.dataCount;
+                    if (typeof this.calculateStats === 'function') this.calculateStats();
+                } catch (e) {
+                    window.DevLogger?.error?.('Error in successHandler for lora gallery:', e);
+                }
             },
-            errorHandler: (_error) => {
-                this.showNotification('Failed to load LoRAs', 'error');
+            // Error handler receives (error, ctx) from the data fetcher; use ctx
+            errorHandler: (error, ctx) => {
+                // Use the passed component context when available
+                const target = ctx || this;
+                try {
+                    if (target && typeof target.showNotification === 'function') {
+                        target.showNotification('Failed to load LoRAs', 'error');
+                    } else if (typeof window !== 'undefined' && window.DevLogger) {
+                        window.DevLogger.error('Failed to load LoRAs', error);
+                    }
+                } catch (e) {
+                    window.DevLogger?.error?.('Error while handling fetch error for lora gallery:', e);
+                }
                 return true;
             }
         }),
@@ -377,7 +394,7 @@ export function createLoraGalleryComponent() {
         
         async fetchAvailableTags() {
             try {
-                const data = await fetchData('/api/v1/tags');
+                const data = await fetchData((window?.BACKEND_URL || '') + '/adapters/tags');
                 this.availableTags = data.tags;
             } catch (error) {
                 if (window.DevLogger && window.DevLogger.error) {
@@ -443,7 +460,7 @@ export function createLoraGalleryComponent() {
             }
 
             if (typeof htmx !== 'undefined') {
-                htmx.ajax('POST', `/api/v1/loras/bulk-action`, {
+                htmx.ajax('POST', (window?.BACKEND_URL || '') + `/adapters/bulk-action`, {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: action,

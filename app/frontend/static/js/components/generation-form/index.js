@@ -102,7 +102,7 @@ export function createGenerationFormComponent() {
                 this.$store.app.addJob(job);
                 
                 // Make API call
-                const response = await fetch('/api/v1/generate', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/generation/generate', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

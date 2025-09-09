@@ -62,7 +62,7 @@ export function createJobQueueComponent() {
         // Update job statuses from API
         async updateJobStatuses() {
             try {
-                const response = await fetch('/api/v1/jobs/status');
+                const response = await fetch((window?.BACKEND_URL || '') + '/jobs/status');
                 if (response.ok) {
                     const jobs = await response.json();
                     
@@ -103,7 +103,7 @@ export function createJobQueueComponent() {
             try {
                 const job = this.$store.app.activeJobs.find(j => j.id === jobId);
                 if (job && job.jobId) {
-                    const response = await fetch(`/api/v1/jobs/${job.jobId}/cancel`, {
+                    const response = await fetch((window?.BACKEND_URL || '') + `/jobs/${job.jobId}/cancel`, {
                         method: 'POST'
                     });
                     

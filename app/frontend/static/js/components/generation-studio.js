@@ -122,7 +122,7 @@ function generationStudio() {
         // API Methods
         async loadSystemStatus() {
             try {
-                const response = await fetch('/api/v1/system/status');
+                const response = await fetch((window?.BACKEND_URL || '') + '/system/status');
                 if (response.ok) {
                     this.systemStatus = await response.json();
                 }
@@ -133,7 +133,7 @@ function generationStudio() {
         
         async loadActiveJobs() {
             try {
-                const response = await fetch('/api/v1/generation/jobs/active');
+                const response = await fetch((window?.BACKEND_URL || '') + '/generation/jobs/active');
                 if (response.ok) {
                     this.activeJobs = await response.json();
                 }
@@ -145,7 +145,7 @@ function generationStudio() {
         async loadRecentResults() {
             try {
                 const limit = this.showHistory ? 50 : 10;
-                const response = await fetch(`/api/v1/generation/results?limit=${limit}`);
+                const response = await fetch((window?.BACKEND_URL || '') + `/generation/results?limit=${limit}`);
                 if (response.ok) {
                     this.recentResults = await response.json();
                 }
@@ -164,7 +164,7 @@ function generationStudio() {
             this.isGenerating = true;
             
             try {
-                const response = await fetch('/api/v1/generation/generate', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/generation/generate', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -208,7 +208,7 @@ function generationStudio() {
         
         async cancelJob(jobId) {
             try {
-                const response = await fetch(`/api/v1/generation/jobs/${jobId}/cancel`, {
+                const response = await fetch((window?.BACKEND_URL || '') + `/generation/jobs/${jobId}/cancel`, {
                     method: 'POST'
                 });
                 
@@ -307,7 +307,7 @@ function generationStudio() {
             if (!confirm('Are you sure you want to delete this result?')) return;
             
             try {
-                const response = await fetch(`/api/v1/generation/results/${resultId}`, {
+                const response = await fetch((window?.BACKEND_URL || '') + `/generation/results/${resultId}`, {
                     method: 'DELETE'
                 });
                 

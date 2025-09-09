@@ -9,7 +9,7 @@ import apiDataFetcher from './shared/api-data-fetcher.js';
 function generationHistory() {
     return {
         // Use the API data fetcher for paginated results
-        ...apiDataFetcher('/api/v1/results', {
+    ...apiDataFetcher((window?.BACKEND_URL || '') + '/results', {
             paginated: true,
             pageSize: 50,
             autoFetch: false, // We'll fetch manually after initialization
@@ -210,7 +210,7 @@ function generationHistory() {
          */
         async setRating(result, rating) {
             try {
-                const response = await fetch(`/api/v1/results/${result.id}/rating`, {
+                const response = await fetch((window?.BACKEND_URL || '') + `/results/${result.id}/rating`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -239,7 +239,7 @@ function generationHistory() {
          */
         async toggleFavorite(result) {
             try {
-                const response = await fetch(`/api/v1/results/${result.id}/favorite`, {
+                const response = await fetch((window?.BACKEND_URL || '') + `/results/${result.id}/favorite`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -320,7 +320,7 @@ function generationHistory() {
             }
             
             try {
-                const response = await fetch(`/api/v1/results/${resultId}`, {
+                const response = await fetch((window?.BACKEND_URL || '') + `/results/${resultId}`, {
                     method: 'DELETE'
                 });
                 
@@ -352,7 +352,7 @@ function generationHistory() {
             }
             
             try {
-                const response = await fetch('/api/v1/results/bulk-delete', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/results/bulk-delete', {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
@@ -384,7 +384,7 @@ function generationHistory() {
             if (this.selectedItems.length === 0) return;
             
             try {
-                const response = await fetch('/api/v1/results/bulk-favorite', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/results/bulk-favorite', {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -422,7 +422,7 @@ function generationHistory() {
             if (this.selectedItems.length === 0) return;
             
             try {
-                const response = await fetch('/api/v1/results/export', {
+                const response = await fetch((window?.BACKEND_URL || '') + '/results/export', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

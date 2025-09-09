@@ -308,7 +308,7 @@ describe('Generation Studio - Modular Components', () => {
             const result = await global.window.generationAPI.loadSystemStatus();
             
             expect(global.fetch).toHaveBeenCalledWith(
-                '/api/v1/system/status',
+                '/api/system/status',
                 expect.objectContaining({
                     method: 'GET',
                     headers: expect.objectContaining({

@@ -283,7 +283,7 @@ describe('Database Integration Tests', () => {
                     timestamp: new Date().toISOString(),
                     metric_type: 'response_time',
                     value: 250,
-                    endpoint: '/api/v1/loras'
+                    endpoint: '/api/loras'
                 }
             ];
             

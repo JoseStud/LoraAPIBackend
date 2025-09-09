@@ -146,14 +146,14 @@ describe('Performance Analytics Component', () => {
         
         test('should load analytics data', async () => {
             component.loadData = jest.fn(async () => {
-                const response = await fetch(`/api/v1/analytics?timeRange=${component.selectedTimeRange}`);
+                const response = await fetch(`/api/analytics?timeRange=${component.selectedTimeRange}`);
                 const data = await response.json();
                 component.metrics = { ...component.metrics, ...data };
             });
             
             await component.loadData();
             
-            expect(mockFetch).toHaveBeenCalledWith('/api/v1/analytics?timeRange=24h');
+            expect(mockFetch).toHaveBeenCalledWith('/api/analytics?timeRange=24h');
             expect(component.loadData).toHaveBeenCalled();
         });
         
@@ -162,7 +162,7 @@ describe('Performance Analytics Component', () => {
             
             component.loadData = jest.fn(async () => {
                 try {
-                    await fetch(`/api/v1/analytics?timeRange=${component.selectedTimeRange}`);
+                    await fetch(`/api/analytics?timeRange=${component.selectedTimeRange}`);
                 } catch (error) {
                     component.error = error.message;
                 }
