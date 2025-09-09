@@ -2,14 +2,7 @@
 <!-- Can be used in both grid and list views -->
 
 {% macro lora_card(lora, view_mode='grid', bulk_mode=false) %}
-<div x-data="loraCard({ 
-        id: {{ lora.id }}, 
-        active: {{ lora.active|lower }}, 
-        name: '{{ lora.name }}',
-        version: '{{ lora.version }}',
-        viewMode: '{{ view_mode }}',
-        bulkMode: {{ bulk_mode|lower }}
-    })"
+<div x-data='loraCard({{ lora.json | safe }})'
      class="lora-card-wrapper {{ 'lora-card-grid' if view_mode == 'grid' else 'lora-card-list' }}">
     
     {% if view_mode == 'grid' %}
@@ -278,13 +271,13 @@
 function loraCard(config) {
     return {
         id: config.id,
-        active: config.active,
+        active: config.active || false,
         name: config.name,
         version: config.version,
-        viewMode: config.viewMode,
-        bulkMode: config.bulkMode,
+        viewMode: config.viewMode || 'grid',
+        bulkMode: config.bulkMode || false,
         weight: 1.0,
-        isSelected: false,
+        isSelected: false, // Initialize isSelected
         
         toggleActive() {
             this.active = !this.active;

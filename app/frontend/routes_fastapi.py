@@ -24,8 +24,8 @@ templates.env.globals['vite_asset'] = vite_asset
 templates.env.globals['vite_asset_css'] = vite_asset_css
 templates.env.globals['is_development'] = is_development
 
-# Backend URL - should be configurable via environment
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+# Backend URL configuration - use environment variable or default to internal Docker port
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000/api")
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
@@ -117,22 +117,34 @@ async def offline_page(request: Request):
 @router.get("/api/htmx/dashboard/featured-loras", response_class=HTMLResponse)
 async def htmx_featured_loras(request: Request):
     """HTMX endpoint for loading featured LoRAs on dashboard."""
+    import json
+    
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{BACKEND_URL}/api/dashboard/featured-loras", timeout=5.0)
             if response.status_code == 200:
                 featured_loras = response.json()
+                
+                # Add JSON representation for each lora for potential Alpine.js usage
+                for lora in featured_loras:
+                    lora_data = {
+                        "id": str(lora.get("id", "")),
+                        "active": bool(lora.get("active", False)),
+                        "name": str(lora.get("name", "")),
+                        "version": str(lora.get("version", "")),
+                        "viewMode": "featured",
+                        "bulkMode": False
+                    }
+                    lora["json"] = json.dumps(lora_data)
             else:
                 featured_loras = []
     except Exception:
         featured_loras = []
-    
+
     return templates.TemplateResponse("partials/featured-loras.html", {
         "request": request,
         "featured_loras": featured_loras
     })
-
-
 @router.get("/api/htmx/dashboard/activity-feed", response_class=HTMLResponse)
 async def htmx_activity_feed(request: Request):
     """HTMX endpoint for loading activity feed on dashboard."""
@@ -575,46 +587,90 @@ async def service_worker():
 
 @router.get("/api/htmx/loras/grid", response_class=HTMLResponse, name="lora_grid")
 async def lora_grid(request: Request):
-    """HTMX endpoint for LoRA grid display - placeholder to fix template routing error."""
-    # Attempt to fetch LoRAs from backend and render the grid partial.
+    """HTMX endpoint for LoRA grid display - communicates with backend API properly."""
+    import json
+    
     try:
-        # Mirror parameters used by the HTMX gallery implementation
+        # Extract parameters for backend API call
         page = int(request.query_params.get('page', 1))
-        limit = int(request.query_params.get('limit', 24))
+        per_page = int(request.query_params.get('limit', 24))
         search = request.query_params.get('search', '')
         tags = request.query_params.get('tags', '')
 
-        params = {"page": page, "limit": limit, "search": search, "tags": tags}
+        # Prepare parameters for backend API (matching the backend's expected format)
+        params = {
+            "page": page,
+            "per_page": per_page,
+            "search": search,
+            "tags": tags
+        }
 
+        # Make HTTP request to backend API
         async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{BACKEND_URL}/api/v1/adapters", params=params, timeout=10.0)
+            response = await client.get(
+                f"{BACKEND_URL}/adapters",
+                params=params,
+                headers={"X-API-Key": "dev-api-key-123"},
+                timeout=30.0
+            )
 
-        if resp.status_code == 200:
-            data = resp.json()
-            loras = data.get("loras", [])
+        if response.status_code == 200:
+            data = response.json()
+            # Backend returns "items" array, transform to "loras" for template compatibility
+            loras = data.get("items", [])
             total = data.get("total", 0)
-            page = data.get("page", page)
+            current_page = data.get("page", page)
+            total_pages = data.get("pages", 1)
+            
+            # Add JSON representation for each lora for safe Alpine.js usage
+            for lora in loras:
+                # Create a safe JSON representation for x-data
+                lora_data = {
+                    "id": str(lora.get("id", "")),
+                    "active": bool(lora.get("active", False)),
+                    "name": str(lora.get("name", "")),
+                    "version": str(lora.get("version", "")),
+                    "viewMode": "grid",
+                    "bulkMode": False
+                }
+                lora["json"] = json.dumps(lora_data)
+            
+            logger.info(f"Fetched {len(loras)} LoRAs from backend API (page {current_page}/{total_pages}, total: {total})")
         else:
+            logger.error(f"Backend API returned status {response.status_code}: {response.text}")
             loras = []
             total = 0
+            current_page = page
+            total_pages = 1
 
-    except Exception:
+    except httpx.RequestError as e:
+        logger.error(f"Failed to connect to backend API at {BACKEND_URL}: {e}")
         loras = []
         total = 0
+        current_page = page
+        total_pages = 1
+    except Exception as e:
+        logger.error(f"Unexpected error fetching LoRAs from backend API: {e}")
+        loras = []
+        total = 0
+        current_page = page
+        total_pages = 1
 
-    # Render the existing partial template used by the HTMX gallery code
+    # Render template with backend API data
     return templates.TemplateResponse("partials/lora-grid.html", {
         "request": request,
         "loras": loras,
         "pagination": {
-            "start": (page - 1) * limit + 1 if total > 0 else 0,
-            "end": min(page * limit, total),
+            "start": (current_page - 1) * per_page + 1 if total > 0 else 0,
+            "end": min(current_page * per_page, total),
             "total": total,
-            "has_more": (page * limit) < total,
-            "next_url": f"{request.url.path}?page={page + 1}&limit={limit}"
+            "has_more": (current_page * per_page) < total,
+            "next_url": f"{request.url.path}?page={current_page + 1}&limit={per_page}"
         },
         "view_mode": request.query_params.get('view', 'grid'),
         "bulk_mode": False,
-        "search_term": request.query_params.get('search', ''),
+        "search_term": search,
         "has_filters": bool(search or tags)
     })
+
+

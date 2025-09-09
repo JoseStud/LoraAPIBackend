@@ -49,12 +49,6 @@
     
     <!-- Accessibility Enhancements -->
     <link href="{{ url_for('static', path='/css/accessibility.css') }}?v=20250904" rel="stylesheet">
-    
-    <!-- HTMX -->
-    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
-    
-    <!-- Chart.js for performance analytics -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- Vite CSS (only in production) -->
     {% if not is_development() %}
@@ -331,6 +325,13 @@
             </p>
         </div>
     </footer>
+
+    <!-- Scripts loaded at end of body to prevent layout forcing -->
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.6" defer></script>
+    
+    <!-- Chart.js for performance analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 
     <!-- Vite Main Entry Point -->
     <script type="module" src="{{ vite_asset('js/main.js') }}"></script>

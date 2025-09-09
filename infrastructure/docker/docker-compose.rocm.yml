@@ -62,7 +62,7 @@ services:
       - /dev/kfd:/dev/kfd             # KFD device for compute
     environment:
       # ROCm-optimized SDNext configuration for your setup (mapping style prevents YAML folding issues)
-      COMMANDLINE_ARGS: "--listen --port 7860 --api  --cors-origins '*'  --data-dir /host/models --models-dir /host/models/Stable-diffusion --vae-dir /host/models/VAE --lora-dir /host/models/Lora"
+      COMMANDLINE_ARGS: "--listen --port 7860 --api  --cors-origins '*'  --data-dir /host/models --models-dir /host/models/Stable-diffusion "
       # ROCm performance tuning environment variables
       HSA_OVERRIDE_GFX_VERSION: "10.3.0"  # Set to your GPU version (e.g., 10.3.0 for RDNA2, 11.0.0 for RDNA3)
       ROC_ENABLE_PRE_VEGA: "1"             # Enable for older AMD GPUs
@@ -105,6 +105,8 @@ services:
     environment:
       REDIS_URL: "redis://redis:6379/0"
       DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
+      # Backend URL for frontend-to-backend communication
+      BACKEND_URL: "http://localhost:8000/api"
       # SDNext integration
       SDNEXT_BASE_URL: "http://sdnext:7860"
       SDNEXT_TIMEOUT: "240"             # Longer timeout for ROCm

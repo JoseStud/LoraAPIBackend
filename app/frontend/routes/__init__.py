@@ -6,6 +6,9 @@ for the LoRA Manager frontend application.
 """
 
 from fastapi import APIRouter
+
+# Import the modular route subpackages (pages, htmx, sw)
+# This uses the package modules under app.frontend.routes package
 from app.frontend.routes import pages, htmx, sw
 
 # Create main router

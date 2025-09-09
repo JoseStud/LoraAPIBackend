@@ -3,6 +3,120 @@
  * Complete implementation with bulk operations and filtering
  */
 
+/**
+ * Individual LoRA Card Component
+ * Self-contained component for each LoRA card
+ */
+function loraCard(initialData) {
+    return {
+        // Spread the initial data from the server
+        ...initialData,
+
+        // Ensure these properties always have a default value
+        isSelected: false,
+        active: initialData.active || false,
+        weight: initialData.weight || 1.0,
+        isExpanded: false,
+        isLoading: false,
+
+        // Card interaction methods
+        toggleSelection() {
+            this.isSelected = !this.isSelected;
+            
+            // Emit selection events for the gallery to listen to
+            if (this.isSelected) {
+                document.dispatchEvent(new CustomEvent('lora-selected', {
+                    detail: { id: this.id, loraId: this.id }
+                }));
+            } else {
+                document.dispatchEvent(new CustomEvent('lora-deselected', {
+                    detail: { id: this.id, loraId: this.id }
+                }));
+            }
+        },
+
+        toggleActive() {
+            const previousState = this.active;
+            this.active = !this.active;
+            
+            // Make API call to update the active state
+            fetch(`/api/v1/loras/${this.id}/toggle-active`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ active: this.active })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // Revert on error
+                    this.active = previousState;
+                    throw new Error('Failed to update LoRA status');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Update with server response
+                this.active = data.active;
+                
+                // Trigger a refresh of the gallery
+                document.body.dispatchEvent(new CustomEvent('lora-data-updated'));
+            })
+            .catch(error => {
+                if (import.meta.env.DEV) {
+                    // eslint-disable-next-line no-console
+                    console.error('Error toggling LoRA active state:', error);
+                }
+                this.active = previousState; // Revert to previous state
+            });
+        },
+
+        toggleExpanded() {
+            this.isExpanded = !this.isExpanded;
+        },
+
+        async loadDetails() {
+            if (this.isLoading) return;
+            this.isLoading = true;
+            
+            try {
+                // Load additional details for the LoRA card
+                const response = await fetch(`/api/v1/loras/${this.id}/details`);
+                if (response.ok) {
+                    const details = await response.json();
+                    // Update the card with additional details
+                    Object.assign(this, details);
+                }
+            } catch (error) {
+                if (import.meta.env.DEV) {
+                    // eslint-disable-next-line no-console
+                    console.error('Error loading LoRA details:', error);
+                }
+            } finally {
+                this.isLoading = false;
+            }
+        }
+    };
+}
+
+/**
+ * Initialize LoRA cards in a container
+ * This function will be called after HTMX swaps new content
+ */
+function initLoraCards(container) {
+    const cards = container.querySelectorAll('[x-data]');
+    cards.forEach(card => {
+        // Only initialize if not already initialized
+        if (!card._x_dataStack) {
+            Alpine.initTree(card);
+        }
+    });
+}
+
+// Make these functions available globally
+window.loraCard = loraCard;
+window.initLoraCards = initLoraCards;
+
 export function createLoraGalleryComponent() {
     return {
         // Initialization state (required for x-show guards)
@@ -89,8 +203,55 @@ export function createLoraGalleryComponent() {
                     this.selectedLoras = this.selectedLoras.filter(id => id !== loraId);
                 }
             });
+
+            // Listen for the htmx:afterSwap event on the container
+            const container = this.$el.querySelector('#lora-container');
+            if (container) {
+                container.addEventListener('htmx:afterSwap', (event) => {
+                    this.initCards(event.detail.elt);
+                });
+            }
+
+            // Expose global methods for fallback scenarios
+            this.exposeGlobalMethods();
             
             this.isInitialized = true;
+            
+            // Trigger initial data load
+            setTimeout(() => {
+                htmx.trigger(document.body, 'lora-data-updated');
+            }, 100);
+        },
+
+        initCards(container) {
+            // Safety check for Alpine.js availability
+            if (typeof Alpine === 'undefined') {
+                if (import.meta.env.DEV) {
+                    // eslint-disable-next-line no-console
+                    console.warn('Alpine.js not available for card initialization');
+                }
+                return;
+            }
+
+            const cards = container.querySelectorAll('[x-data]');
+            cards.forEach(card => {
+                try {
+                    // Only initialize if not already initialized
+                    if (!card._x_dataStack) {
+                        Alpine.initTree(card);
+                    }
+                } catch (error) {
+                    if (import.meta.env.DEV) {
+                        // eslint-disable-next-line no-console
+                        console.error('Error initializing Alpine.js component:', error);
+                    }
+                }
+            });
+        },
+
+        // Expose this method globally as a fallback
+        exposeGlobalMethods() {
+            window.initLoraCards = this.initCards.bind(this);
         },
         
         fetchAvailableTags() {
@@ -99,7 +260,12 @@ export function createLoraGalleryComponent() {
                 .then(data => {
                     this.availableTags = data.tags;
                 })
-                .catch(error => console.error('Error fetching tags:', error));
+                .catch(error => {
+                    if (import.meta.env.DEV) {
+                        // eslint-disable-next-line no-console
+                        console.error('Error fetching tags:', error);
+                    }
+                });
         },
 
         applyFilters() {
@@ -207,3 +373,6 @@ export function createLoraGalleryComponent() {
         }
     };
 }
+
+// Also export the individual functions for potential direct use
+export { loraCard, initLoraCards };

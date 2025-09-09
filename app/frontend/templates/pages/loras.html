@@ -174,14 +174,17 @@
     </div>
 
     <!-- LoRA Gallery Container -->
-    <div id="lora-container" 
-         class="lora-gallery-container"
-         hx-get="{{ url_for('lora_grid') }}"
-         hx-trigger="lora-data-updated from:body"
-         hx-swap="innerHTML"
-         hx-indicator="#lora-gallery-spinner">
-        
-        <div id="lora-gallery-spinner" class="htmx-indicator">
+    <div class="relative">
+        <div id="lora-container" 
+             class="lora-gallery-container"
+             hx-get="{{ url_for('lora_grid') }}"
+             hx-trigger="load, lora-data-updated from:body"
+             hx-swap="innerHTML"
+             hx-indicator="#lora-gallery-spinner"
+             @htmx:after-swap="initCards($el)">
+        </div>
+
+        <div id="lora-gallery-spinner" class="htmx-indicator absolute inset-0 flex items-center justify-center">
             <div class="spinner"></div>
         </div>
     </div>

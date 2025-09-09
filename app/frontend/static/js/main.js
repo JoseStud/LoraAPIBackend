@@ -194,34 +194,8 @@ Alpine.data('searchFilter', () => ({
     }
 }));
 
-Alpine.data('loraCard', () => ({
-    isExpanded: false,
-    isLoading: false,
-    
-    toggleExpanded() {
-        this.isExpanded = !this.isExpanded;
-    },
-    
-    async loadDetails() {
-        if (this.isLoading) return;
-        this.isLoading = true;
-        
-        try {
-            // Load additional details for the LoRA card
-            if (import.meta.env.DEV) {
-                // eslint-disable-next-line no-console
-                console.log('Loading LoRA details...');
-            }
-        } catch (error) {
-            if (import.meta.env.DEV) {
-                // eslint-disable-next-line no-console
-                console.error('Error loading LoRA details:', error);
-            }
-        } finally {
-            this.isLoading = false;
-        }
-    }
-}));
+// loraCard is now defined in the lora-gallery component module
+// and attached to the window object for global access
 
 Alpine.data('imageViewer', () => ({
     isOpen: false,
