@@ -170,7 +170,7 @@ function ensureAlpine(cb) {
 
 // Register common page components lazily so x-data="name()" won't throw.
 ensureAlpine(() => {
-    ['generationStudio','generationHistory','performanceAnalytics','importExport','loraGallery','promptComposer','systemAdmin','offlinePage','promptRecommendations','recommendationsData','loraCard','dashboard','searchFilter'].forEach(registerLazyComponent);
+    ['generationStudio','generationHistory','performanceAnalytics','importExport','loraGallery','promptComposer','systemAdmin','offlinePage','promptRecommendations','loraCard','dashboard','searchFilter'].forEach(registerLazyComponent);
 
     Alpine.data('searchFilter', () => ({
     searchTerm: '',
@@ -188,7 +188,7 @@ ensureAlpine(() => {
     
     async loadAvailableTags() {
         try {
-            const response = await fetch('/api/v1/adapters/tags');
+            const response = await fetch('/api/adapters/tags');
             if (response.ok) {
                 this.availableTags = await response.json();
             }
@@ -240,7 +240,7 @@ ensureAlpine(() => {
             if (this.loading) return;
             this.loading = true;
             try {
-                const resp = await fetch('/api/v1/stats/dashboard');
+                const resp = await fetch('/api/dashboard/stats');
                 if (resp.ok) {
                     const data = await resp.json();
                     this.stats = data.stats || this.stats;
@@ -276,7 +276,7 @@ ensureAlpine(() => {
         
         async loadActiveJobs() {
             try {
-                const response = await fetch('/api/v1/deliveries/jobs?status=processing');
+                const response = await fetch('/api/deliveries/jobs?status=processing');
                 if (response.ok) {
                     this.activeJobs = await response.json();
                 }
@@ -299,152 +299,6 @@ ensureAlpine(() => {
                 const notifications = Alpine.store && Alpine.store('notifications');
                 if (notifications && typeof notifications.add === 'function') notifications.add(`Job ${data.job_id} completed`, 'success');
             } catch (e) { /* ignore */ }
-        }
-    }));
-
-    // Recommendations page component
-    Alpine.data('recommendationsData', () => ({
-        // Tab state
-        activeTab: 'similarity',
-        
-        // Available LoRAs
-        availableLoras: [],
-        
-        // Similarity explorer
-        selectedLoraId: '',
-        selectedLora: null,
-        weights: {
-            semantic: 0.6,
-            artistic: 0.3,
-            technical: 0.1
-        },
-        similarityLimit: 10,
-        similarityThreshold: 0.1,
-        
-        // Prompt-based recommendations
-        promptText: '',
-        promptLimit: 10,
-        promptIncludeInactive: false,
-        promptSuggestions: [
-            'anime girl with pink hair',
-            'realistic portrait photography',
-            'fantasy landscape with magic',
-            'cyberpunk character design',
-            'traditional art style',
-            'watercolor painting effect',
-            'detailed facial features',
-            'medieval fantasy armor',
-            'modern city background',
-            'artistic lighting effects'
-        ],
-        
-        // Embedding status
-        computingEmbeddings: false,
-        rebuildingIndex: false,
-        embeddingProgress: 0,
-        embeddingStatus: '',
-
-        async init() {
-            await this.loadAvailableLoras();
-        },
-
-        async loadAvailableLoras() {
-            try {
-                const response = await fetch('/api/v1/adapters?limit=1000');
-                if (response.ok) {
-                    const data = await response.json();
-                    this.availableLoras = data.items || [];
-                }
-            } catch (error) {
-                window.DevLogger && window.DevLogger.error && window.DevLogger.error('Failed to load available LoRAs:', error);
-            }
-        },
-
-        loadSelectedLora() {
-            if (this.selectedLoraId) {
-                this.selectedLora = this.availableLoras.find(lora => lora.id === this.selectedLoraId);
-                this.updateRecommendations();
-            }
-        },
-
-        updateRecommendations() {
-            if (this.selectedLoraId) {
-                document.body.dispatchEvent(new CustomEvent('similarity-search'));
-            }
-        },
-
-        searchByPrompt() {
-            if (this.promptText.trim()) {
-                document.body.dispatchEvent(new CustomEvent('prompt-search'));
-            }
-        },
-
-        resetWeights() {
-            this.weights.semantic = 0.6;
-            this.weights.artistic = 0.3;
-            this.weights.technical = 0.1;
-            this.updateRecommendations();
-        },
-
-        async computeAllEmbeddings() {
-            this.computingEmbeddings = true;
-            this.embeddingProgress = 0;
-            this.embeddingStatus = 'Starting embedding computation...';
-            
-            try {
-                const response = await fetch('/api/v1/recommendations/embeddings/compute', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        lora_ids: this.availableLoras.map(lora => lora.id),
-                        force_recompute: false
-                    })
-                });
-                
-                if (response.ok) {
-                    this.embeddingStatus = 'Embeddings computed successfully!';
-                    this.embeddingProgress = 100;
-                } else {
-                    this.embeddingStatus = 'Failed to compute embeddings';
-                }
-            } catch (error) {
-                this.embeddingStatus = 'Error: ' + error.message;
-            } finally {
-                setTimeout(() => {
-                    this.computingEmbeddings = false;
-                }, 2000);
-            }
-        },
-
-        async rebuildIndex() {
-            this.rebuildingIndex = true;
-            this.embeddingProgress = 0;
-            this.embeddingStatus = 'Rebuilding similarity index...';
-            
-            try {
-                const response = await fetch('/api/v1/recommendations/index/rebuild', {
-                    method: 'POST'
-                });
-                
-                if (response.ok) {
-                    this.embeddingStatus = 'Index rebuilt successfully!';
-                    this.embeddingProgress = 100;
-                } else {
-                    this.embeddingStatus = 'Failed to rebuild index';
-                }
-            } catch (error) {
-                this.embeddingStatus = 'Error: ' + error.message;
-            } finally {
-                setTimeout(() => {
-                    this.rebuildingIndex = false;
-                }, 2000);
-            }
-        },
-
-        viewHealthReport() {
-            window.open('/api/v1/recommendations/health', '_blank');
         }
     }));
 
@@ -491,7 +345,7 @@ ensureAlpine(() => {
             try {
                 this.isLoading = true;
                 const params = new URLSearchParams({ page: this.currentPage, page_size: 50 });
-                const response = await fetch(`/api/v1/results?${params}`);
+                const response = await fetch(`/api/results?${params}`);
                 if (!response.ok) throw new Error('Failed to load results');
                 const data = await response.json();
                 if (this.currentPage === 1) this.results = data.results;
@@ -561,7 +415,7 @@ ensureAlpine(() => {
 
         async setRating(result, rating) {
             try {
-                const response = await fetch(`/api/v1/results/${result.id}/rating`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rating }) });
+                const response = await fetch(`/api/results/${result.id}/rating`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rating }) });
                 if (!response.ok) throw new Error('Failed to update rating');
                 result.rating = rating; this.calculateStats(); this.showToastMessage('Rating updated successfully');
             } catch (error) {
@@ -572,7 +426,7 @@ ensureAlpine(() => {
 
         async toggleFavorite(result) {
             try {
-                const response = await fetch(`/api/v1/results/${result.id}/favorite`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ is_favorite: !result.is_favorite }) });
+                const response = await fetch(`/api/results/${result.id}/favorite`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ is_favorite: !result.is_favorite }) });
                 if (!response.ok) throw new Error('Failed to update favorite status');
                 result.is_favorite = !result.is_favorite; this.calculateStats(); const message = result.is_favorite ? 'Added to favorites' : 'Removed from favorites'; this.showToastMessage(message);
             } catch (error) {
@@ -599,7 +453,7 @@ ensureAlpine(() => {
         async deleteResult(resultId) {
             if (!confirm('Are you sure you want to delete this image?')) return;
             try {
-                const response = await fetch(`/api/v1/results/${resultId}`, { method: 'DELETE' });
+                const response = await fetch(`/api/results/${resultId}`, { method: 'DELETE' });
                 if (!response.ok) throw new Error('Failed to delete result'); this.results = this.results.filter(r => r.id !== resultId); this.applyFilters(); this.showToastMessage('Image deleted successfully');
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error deleting result:', error);
@@ -610,7 +464,7 @@ ensureAlpine(() => {
         async deleteSelected() {
             if (this.selectedItems.length === 0) return; const count = this.selectedItems.length; if (!confirm(`Are you sure you want to delete ${count} selected images?`)) return;
             try {
-                const response = await fetch('/api/v1/results/bulk-delete', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ids: this.selectedItems }) });
+                const response = await fetch('/api/results/bulk-delete', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ids: this.selectedItems }) });
                 if (!response.ok) throw new Error('Failed to delete results'); this.results = this.results.filter(r => !this.selectedItems.includes(r.id)); this.selectedItems = []; this.applyFilters(); this.showToastMessage(`${count} images deleted successfully`);
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error deleting results:', error);
@@ -621,7 +475,7 @@ ensureAlpine(() => {
         async favoriteSelected() {
             if (this.selectedItems.length === 0) return;
             try {
-                const response = await fetch('/api/v1/results/bulk-favorite', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ids: this.selectedItems, is_favorite: true }) });
+                const response = await fetch('/api/results/bulk-favorite', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ids: this.selectedItems, is_favorite: true }) });
                 if (!response.ok) throw new Error('Failed to update favorites'); this.results.forEach(result => { if (this.selectedItems.includes(result.id)) result.is_favorite = true; }); this.calculateStats(); this.showToastMessage(`${this.selectedItems.length} images added to favorites`);
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error updating favorites:', error);

@@ -13,6 +13,9 @@ const generationState = {
      */
     createInitialState() {
         return {
+            // Initialization state (required for x-show guards)
+            isInitialized: false,
+            
             // Generation Parameters
             params: {
                 prompt: '',

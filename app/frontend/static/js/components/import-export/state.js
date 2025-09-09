@@ -10,6 +10,9 @@
  */
 function createImportExportState() {
     return {
+        // Initialization state (required for x-show guards)
+        isInitialized: false,
+        
         // Tab State
         activeTab: 'export',
         

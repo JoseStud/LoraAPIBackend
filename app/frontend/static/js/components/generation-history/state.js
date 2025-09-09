@@ -10,6 +10,9 @@
  */
 function createGenerationHistoryState() {
     return {
+        // Initialization state (required for x-show guards)
+        isInitialized: false,
+        
         // Core Data
         results: [],
         filteredResults: [],

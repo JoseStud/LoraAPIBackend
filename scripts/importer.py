@@ -176,6 +176,17 @@ def register_adapter_from_metadata(parsed: ParsedMetadata, json_path: Optional[s
     """
     # Build comprehensive payload from parsed metadata
     extra_data = parsed.extra or {}
+    # Ensure numeric file size is an int. Civitai JSON sometimes uses floats
+    # (e.g. 223109.61328125) which Pydantic rejects for int fields. Round
+    # to nearest integer to preserve expected semantics and avoid validation
+    # errors (see pydantic int_from_float).
+    pfs = extra_data.get("primary_file_size_kb")
+    if pfs is not None:
+        try:
+            extra_data["primary_file_size_kb"] = int(round(float(pfs)))
+        except Exception:
+            # If conversion fails, leave the value and let validation catch it
+            pass
     
     # Get file metadata for tracking
     json_file_mtime = None

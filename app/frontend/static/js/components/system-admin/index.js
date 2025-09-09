@@ -29,14 +29,6 @@ function systemAdmin() {
         window.createMetricsManager(api, stateUpdater) : 
         null;
 
-    const backupManager = window.createBackupManager ? 
-        window.createBackupManager(api, showToast) : 
-        null;
-
-    const logsManager = window.createLogsManager ? 
-        window.createLogsManager(api, showToast) : 
-        null;
-
     // Toast notification helper
     function showToast(message, type = 'success') {
         state.ui.showToast = true;
@@ -71,6 +63,8 @@ function systemAdmin() {
                 if (window.DevLogger && window.DevLogger.debug) {
                     window.DevLogger.debug('System Admin component initialized successfully');
                 }
+                // Mark component ready for template bindings
+                this.isInitialized = true;
             } catch (error) {
                 this.handleError('Failed to initialize system admin', error);
             }
@@ -86,9 +80,7 @@ function systemAdmin() {
                 this.loadSystemMetrics(),
                 this.loadWorkers(),
                 this.loadDatabaseStats(),
-                this.loadConfiguration(),
-                this.loadLogs(),
-                this.loadRecentBackups()
+                this.loadConfiguration()
             ];
 
             try {
@@ -114,9 +106,23 @@ function systemAdmin() {
          * Stop real-time updates
          */
         stopRealTimeUpdates() {
+            console.log('[SystemAdmin] Stopping real-time updates');
+            
+            // Stop metrics manager polling
             if (metricsManager) {
                 metricsManager.stopPolling();
+                console.log('[SystemAdmin] Metrics manager polling stopped');
             }
+            
+            // Also stop fallback polling if active
+            if (this.fallbackInterval) {
+                clearInterval(this.fallbackInterval);
+                this.fallbackInterval = null;
+                console.log('[SystemAdmin] Fallback polling stopped');
+            }
+            
+            // Reset polling state
+            this.isPolling = false;
         },
 
         // System Status Methods
@@ -250,159 +256,6 @@ function systemAdmin() {
             }
         },
 
-        // Backup and Database Operations
-        /**
-         * Load recent backups
-         */
-        async loadRecentBackups() {
-            if (backupManager) {
-                try {
-                    await backupManager.loadBackupHistory(this);
-                } catch (error) {
-                    this.handleError('Failed to load backup history', error);
-                }
-            }
-        },
-
-        /**
-         * Create database backup
-         */
-        async createBackup() {
-            if (backupManager) {
-                try {
-                    await backupManager.createBackup(this);
-                } catch (error) {
-                    this.handleError('Failed to create backup', error);
-                }
-            } else {
-                showToast('Backup manager not available', 'error');
-            }
-        },
-
-        /**
-         * Restore from backup
-         */
-        async restoreBackup(backupId) {
-            if (backupManager) {
-                try {
-                    await backupManager.restoreBackup(this, backupId);
-                } catch (error) {
-                    this.handleError('Failed to restore backup', error);
-                }
-            } else {
-                showToast('Backup manager not available', 'error');
-            }
-        },
-
-        /**
-         * Download backup file
-         */
-        async downloadBackup(backupId) {
-            if (backupManager) {
-                try {
-                    await backupManager.downloadBackup(this, backupId);
-                } catch (error) {
-                    this.handleError('Failed to download backup', error);
-                }
-            } else {
-                showToast('Backup manager not available', 'error');
-            }
-        },
-
-        /**
-         * Delete backup
-         */
-        async deleteBackup(backupId) {
-            if (backupManager) {
-                try {
-                    await backupManager.deleteBackup(this, backupId);
-                } catch (error) {
-                    this.handleError('Failed to delete backup', error);
-                }
-            } else {
-                showToast('Backup manager not available', 'error');
-            }
-        },
-
-        /**
-         * Optimize database
-         */
-        async optimizeDatabase() {
-            if (backupManager) {
-                try {
-                    await backupManager.optimizeDatabase(this);
-                } catch (error) {
-                    this.handleError('Failed to optimize database', error);
-                }
-            } else {
-                showToast('Backup manager not available', 'error');
-            }
-        },
-
-        // Logs Management
-        /**
-         * Load system logs
-         */
-        async loadLogs() {
-            if (logsManager) {
-                try {
-                    await logsManager.loadLogs(this);
-                } catch (error) {
-                    this.handleError('Failed to load logs', error);
-                }
-            }
-        },
-
-        /**
-         * Toggle log auto-refresh
-         */
-        toggleLogAutoRefresh() {
-            if (logsManager) {
-                if (this.logs.autoRefreshLogs) {
-                    logsManager.stopAutoRefresh();
-                    this.logs.autoRefreshLogs = false;
-                    showToast('Log auto-refresh disabled', 'info');
-                } else {
-                    logsManager.startAutoRefresh(this);
-                    this.logs.autoRefreshLogs = true;
-                    showToast('Log auto-refresh enabled', 'info');
-                }
-            }
-        },
-
-        /**
-         * Filter logs
-         */
-        async filterLogs() {
-            if (logsManager) {
-                await logsManager.applyFilters(this, {
-                    logLevel: this.logs.logLevel,
-                    logSource: this.logs.logSource,
-                    searchTerm: this.logs.searchTerm
-                });
-            }
-        },
-
-        /**
-         * Clear log filters
-         */
-        clearLogFilters() {
-            if (logsManager) {
-                logsManager.clearFilters(this);
-            }
-        },
-
-        /**
-         * Export logs
-         */
-        exportLogs(format = 'json') {
-            if (logsManager) {
-                logsManager.exportLogs(this, { format, filtered: true });
-            } else {
-                showToast('Logs manager not available', 'error');
-            }
-        },
-
         // Configuration Management
         /**
          * Update system configuration
@@ -465,15 +318,18 @@ function systemAdmin() {
          * Format file size for display
          */
         formatFileSize(bytes) {
-            if (backupManager && backupManager.formatFileSize) {
-                return backupManager.formatFileSize(bytes);
-            }
-            
             if (bytes === 0) return '0 B';
             const k = 1024;
             const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        },
+
+        /**
+         * Format size for display (alias for formatFileSize for template compatibility)
+         */
+        formatSize(bytes) {
+            return this.formatFileSize(bytes);
         },
 
         /**
@@ -490,15 +346,69 @@ function systemAdmin() {
          * Fallback polling for when metrics manager is not available
          */
         startFallbackPolling() {
-            // Simple polling every 30 seconds
-            setInterval(async () => {
+            // Prevent creating multiple intervals
+            if (this.fallbackInterval) {
+                console.log('[SystemAdmin] Fallback polling already active, skipping setup');
+                return;
+            }
+
+            console.log('[SystemAdmin] Starting fallback polling every 30 seconds');
+            
+            this.fallbackInterval = setInterval(async () => {
+                // ✅ Check the guard before running
+                if (this.isPolling) {
+                    console.log('[SystemAdmin] Polling in progress, skipping new request');
+                    return;
+                }
+
                 try {
+                    this.isPolling = true; // ✅ Set the guard
+                    console.log('[SystemAdmin] Starting background data refresh');
+                    
                     await this.loadSystemMetrics();
                     await this.loadWorkers();
+                    
+                    console.log('[SystemAdmin] Background data refresh completed');
                 } catch (error) {
-                    // Silently handle errors in background polling
+                    // Log the error for debugging purposes instead of silently handling
+                    console.error('[SystemAdmin] Fallback poll failed:', error);
+                } finally {
+                    this.isPolling = false; // ✅ Always release the guard
                 }
             }, 30000);
+        },
+
+        /**
+         * ✅ Cleanup intervals and resources on component destruction
+         * This is crucial for preventing memory leaks
+         */
+        destroy() {
+            console.log('[SystemAdmin] Component destroying, cleaning up resources');
+            
+            // ✅ Stop fallback polling interval
+            if (this.fallbackInterval) {
+                clearInterval(this.fallbackInterval);
+                this.fallbackInterval = null;
+                console.log('[SystemAdmin] Fallback polling interval cleared');
+            }
+            
+            // ✅ Reset polling state
+            this.isPolling = false;
+            
+            // Stop metrics manager if available
+            if (metricsManager && metricsManager.stop) {
+                metricsManager.stop();
+                console.log('[SystemAdmin] Metrics manager stopped');
+            }
+            
+            // Stop logs auto-refresh if active
+            if (this.logs.logRefreshInterval) {
+                clearInterval(this.logs.logRefreshInterval);
+                this.logs.logRefreshInterval = null;
+                console.log('[SystemAdmin] Logs auto-refresh stopped');
+            }
+            
+            console.log('[SystemAdmin] Component cleanup completed');
         }
     };
 }
@@ -509,12 +419,40 @@ function systemAdmin() {
 function createFallbackState() {
     return window.getCommonStub ? window.getCommonStub('systemAdmin') : {
         init() {},
+        isInitialized: false,
+        isPolling: false, // ✅ Guard to prevent overlapping requests
+        fallbackInterval: null, // ✅ Track the interval ID
         ui: { activeTab: 'monitoring', isRefreshing: false },
         systemStatus: { overall: 'unknown' },
-        systemStats: {},
-        systemMetrics: {},
+        systemStats: {
+            uptime: '0d 0h 0m',
+            active_workers: 0,
+            total_workers: 0,
+            database_size: 0,
+            total_records: 0,
+            gpu_memory_used: '0GB',
+            gpu_memory_total: '0GB',
+            storage_used: 0,
+            storage_total: 0,
+            active_connections: 0,
+            total_requests: 0,
+            last_updated: new Date().toISOString()
+        },
+        systemMetrics: {
+            cpu_percent: 0,
+            memory_percent: 0,
+            memory_used: 0,
+            memory_total: 0,
+            disk_percent: 0,
+            disk_used: 0,
+            disk_total: 0
+        },
         workers: { workers: [] },
-        dbStats: {},
+        dbStats: {
+            total_loras: 0,
+            total_generations: 0,
+            database_size: 0
+        },
         config: {},
         logs: { logs: [], autoRefreshLogs: false },
         backup: { recentBackups: [] }
@@ -565,6 +503,14 @@ function createFallbackStateUpdater() {
 if (typeof window !== 'undefined') {
     window.systemAdmin = systemAdmin;
 }
+
+// ES Module export for Vite
+export function createSystemAdminComponent() {
+    return systemAdmin();
+}
+
+// Backward compatibility export
+export { systemAdmin };
 
 // Module export
 if (typeof module !== 'undefined' && module.exports) {

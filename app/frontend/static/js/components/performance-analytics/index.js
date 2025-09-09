@@ -9,29 +9,35 @@
  * Main Performance Analytics Alpine.js component factory
  */
 function performanceAnalytics() {
-    // Initialize state using state module
-    const state = window.createPerformanceAnalyticsState ? window.createPerformanceAnalyticsState() : {};
+    // Initialize state using state module with comprehensive fallback
+    const state = window.createPerformanceAnalyticsState ? window.createPerformanceAnalyticsState() : createFallbackState();
     
     return {
         // Spread state properties
         ...state,
         
-        // Component initialization
-        init() {
-            this.loadInitialData();
-            this.setupCharts();
-            this.setupRealTimeMonitoring();
-            this.setupVisibilityHandling();
-            
-            // Set up watchers
-            this.$watch('timeRange', (newRange) => {
-                this.handleTimeRangeChange(newRange);
-            });
-            
-            this.$watch('autoRefresh', (enabled) => {
-                this.handleAutoRefreshToggle(enabled);
-            });
-        },
+            // Component initialization
+            async init() {
+                // Load data first to ensure template bindings have the required properties
+                await this.loadInitialData();
+
+                // Mark component as initialized so templates can be safely rendered
+                this.isInitialized = true;
+
+                // Now set up charts and realtime monitoring
+                this.setupCharts();
+                this.setupRealTimeMonitoring();
+                this.setupVisibilityHandling();
+
+                // Set up watchers
+                this.$watch('timeRange', (newRange) => {
+                    this.handleTimeRangeChange(newRange);
+                });
+
+                this.$watch('autoRefresh', (enabled) => {
+                    this.handleAutoRefreshToggle(enabled);
+                });
+            },
         
         // Data Loading Methods
         async loadInitialData() {
@@ -291,12 +297,81 @@ function performanceAnalytics() {
     };
 }
 
+/**
+ * Create fallback state when modules are not available
+ */
+function createFallbackState() {
+    return {
+        // Initialization state
+        isInitialized: false,
+        isLoading: false,
+        
+        // UI State
+        timeRange: '24h',
+        autoRefresh: false,
+        showToast: false,
+        toastMessage: '',
+        toastType: 'info',
+        
+        // KPIs
+        kpis: {
+            total_generations: 0,
+            avg_generation_time: 0,
+            success_rate: 0,
+            active_loras: 0,
+            change_total_generations: 0,
+            change_avg_generation_time: 0,
+            change_success_rate: 0,
+            change_active_loras: 0
+        },
+        
+        // Charts
+        charts: {},
+        chartData: {
+            generationVolume: [],
+            performanceTrends: [],
+            loraUsage: [],
+            resourceUsage: []
+        },
+        
+        // Analytics data
+        topLoras: [],
+        errorAnalysis: [],
+        performanceInsights: [],
+        
+        // Methods
+        async loadInitialData() { this.isInitialized = true; },
+        setupCharts() {},
+        setupRealTimeMonitoring() {},
+        setupVisibilityHandling() {},
+        handleTimeRangeChange() {},
+        handleAutoRefreshToggle() {},
+        refreshData() {},
+        exportData() {},
+        formatDuration: (ms) => window.formatDuration ? window.formatDuration(ms) : `${ms}ms`,
+        showToastMessage(message, type) {
+            this.toastMessage = message;
+            this.toastType = type;
+            this.showToast = true;
+            setTimeout(() => { this.showToast = false; }, 3000);
+        }
+    };
+}
+
 // Register with Alpine.js or make globally available
 if (typeof Alpine !== 'undefined') {
     Alpine.data('performanceAnalytics', performanceAnalytics);
 } else if (typeof window !== 'undefined') {
     window.performanceAnalytics = performanceAnalytics;
 }
+
+// ES Module export for Vite
+export function createPerformanceAnalyticsComponent() {
+    return performanceAnalytics();
+}
+
+// Backward compatibility export
+export { performanceAnalytics };
 
 // Module export for testing
 if (typeof module !== 'undefined' && module.exports) {

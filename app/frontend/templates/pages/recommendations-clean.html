@@ -3,7 +3,13 @@
 {% block title %}AI Recommendations - LoRA Manager{% endblock %}
 
 {% block content %}
-<div x-data="recommendationsData()" x-init="init()" class="recommendations-page-container">
+<div x-data="recommendationsData()" x-init="init()" class="recommendations-page-container" x-cloak>
+    <div x-show="!isInitialized" class="py-12 text-center text-gray-500">
+        <svg class="animate-spin w-8 h-8 mx-auto mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"></circle><path d="M4 12a8 8 0 018-8" stroke-width="4" class="opacity-75"></path></svg>
+        <div>Loading recommendations...</div>
+    </div>
+
+    <div x-show="isInitialized">
     <!-- Page Header -->
     <div class="page-header">
         <h1 class="page-title">AI-Powered Recommendations</h1>
@@ -293,7 +299,7 @@
         <input type="hidden" name="limit" :value="promptLimit" data-prompt />
         <input type="hidden" name="include_inactive" :value="promptIncludeInactive" data-prompt />
     </div>
-</div>
+    </div>
 
 <script>
     // recommendationsData is registered globally in app/frontend/static/js/alpine-config.js

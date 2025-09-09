@@ -53,36 +53,25 @@
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
     
-    <!-- Ensure core config/shims load before component loader and Alpine -->
-    <script src="{{ url_for('static', path='/js/alpine-config.js') }}?v=20250904"></script>
+    <!-- Chart.js for performance analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Defer Alpine auto-start so ComponentLoader can register components first -->
-    <script>window.deferLoadingAlpine = true;</script>
+    <!-- Vite CSS (only in production) -->
+    {% if not is_development() %}
+        {% set main_css = vite_asset_css('js/main.js') %}
+        {% if main_css %}
+            <link rel="stylesheet" href="{{ main_css }}">
+        {% endif %}
+    {% endif %}
 
-    <!-- New Modular Core System -->
-    <script src="{{ url_for('static', path='/js/core/index.js') }}?v=20250904"></script>
-    <script src="{{ url_for('static', path='/js/utils/index.js') }}?v=20250904"></script>
-    
-    <!-- Legacy: Unified Component Loading System (must load after config) -->
-    <script src="{{ url_for('static', path='/js/component-loader.js') }}?v=20250904"></script>
+    <!-- Ensure x-cloak is supported early to hide uninitialized components -->
+    <style>[x-cloak] { display: none !important; }</style>
 
-    <!-- Core Services and Utilities -->
-    <script src="{{ url_for('static', path='/js/services/api-service.js') }}?v=20250904"></script>
-    <script src="{{ url_for('static', path='/js/mixins/component-mixins.js') }}?v=20250904"></script>
-    <script src="{{ url_for('static', path='/js/common.js') }}?v=20250904"></script>
-
-    <!-- Component Implementations (loaded synchronously to ensure they're available before Alpine) -->
-    <script src="{{ url_for('static', path='/js/mobile-nav.js') }}?v=20250904"></script>
-    <script src="{{ url_for('static', path='/js/components/recommendations-component.js') }}?v=20250904"></script>
-    <script src="{{ url_for('static', path='/js/components/generation-history-component.js') }}?v=20250904"></script>
-    
-    <!-- Alpine.js (loaded AFTER all components and config are registered) -->
-    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    
-    <!-- Additional Scripts -->
-    <script src="{{ url_for('static', path='/js/htmx-config.js') }}?v=20250904" defer></script>
-    <script src="{{ url_for('static', path='/js/pwa-manager.js') }}?v=20250904" defer></script>
-    <script src="{{ url_for('static', path='/js/theme-toggle.js') }}?v=20250904" defer></script>
+    <!-- In development, let Vite handle the module loading -->
+    {% if is_development() %}
+        <!-- Vite client for HMR in development -->
+        <script type="module" src="{{ vite_asset('@vite/client') }}"></script>
+    {% endif %}
 </head>
 <body class="page-body" x-data="mobileNav()">
     <!-- Skip Links for Accessibility -->
@@ -342,5 +331,8 @@
             </p>
         </div>
     </footer>
+
+    <!-- Vite Main Entry Point -->
+    <script type="module" src="{{ vite_asset('js/main.js') }}"></script>
 </body>
 </html>

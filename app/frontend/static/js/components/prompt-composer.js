@@ -36,6 +36,8 @@ function promptComposer() {
             // Watch for changes
             this.$watch('basePrompt', () => this.updatePrompt());
             this.$watch('activeLoras', () => this.updatePrompt());
+            // Component ready for template bindings
+            this.isInitialized = true;
         },
         
         // API Methods

@@ -1,11 +1,7 @@
 {% from "components/lora-card.html" import lora_card %}
 
 <!-- LoRA Grid/List Partial Template -->
-<div class="lora-results" 
-     x-data="{ 
-         viewMode: '{{ view_mode or 'grid' }}',
-         bulkMode: {{ bulk_mode|lower if bulk_mode is defined else 'false' }}
-     }">
+<div class="lora-results">
     
     {% if loras %}
         {% if view_mode == 'list' %}

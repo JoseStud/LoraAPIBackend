@@ -1,7 +1,15 @@
-version: '3.8'
-
+ 
 # ROCm-enabled setup for SDNext + LoRA Backend (AMD GPUs)
+# 
+# Features:
+# - AMD GPU acceleration with ROCm
+# - Backend API server with dual architecture (app/ + backend/)
+# - Frontend served by backend (Vite-built assets)
+# - Redis job queue and PostgreSQL database
+# - SDNext integration for AI image generation
+#
 # Usage: docker-compose -f docker-compose.rocm.yml up
+# Access: http://localhost:8782 (LoRA Manager), http://localhost:7860 (SDNext)
 
 services:
   redis:
@@ -54,7 +62,7 @@ services:
       - /dev/kfd:/dev/kfd             # KFD device for compute
     environment:
       # ROCm-optimized SDNext configuration for your setup (mapping style prevents YAML folding issues)
-      COMMANDLINE_ARGS: "--listen --port 7860 --api --cors-allow-origins=* --enable-insecure-extension-access --use-rocm --precision fp16 --opt-sub-quad-attention --opt-split-attention --data-dir /host/models --models-dir /host/models/Stable-diffusion --vae-dir /host/models/VAE --lora-dir /host/models/Lora"
+      COMMANDLINE_ARGS: "--listen --port 7860 --api  --cors-origins '*'  --data-dir /host/models --models-dir /host/models/Stable-diffusion --vae-dir /host/models/VAE --lora-dir /host/models/Lora"
       # ROCm performance tuning environment variables
       HSA_OVERRIDE_GFX_VERSION: "10.3.0"  # Set to your GPU version (e.g., 10.3.0 for RDNA2, 11.0.0 for RDNA3)
       ROC_ENABLE_PRE_VEGA: "1"             # Enable for older AMD GPUs
@@ -62,8 +70,8 @@ services:
       MIOPEN_FIND_MODE: "FAST"              # Faster startup, slightly worse performance
       # Alternative: MIOPEN_FIND_ENFORCE=SEARCH for best performance but slower startup
       MIOPEN_USER_DB_PATH: "/tmp/.miopen"  # MIOpen database path
-      # Hugging Face token from your config
-      HF_TOKEN: "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"
+      # Hugging Face token (set your own or use HF_TOKEN environment variable)
+      # HF_TOKEN: "your_huggingface_token_here"
     networks:
       - default
     # Run a tiny entrypoint to mark /app as a safe git directory (prevents "dubious ownership")
@@ -84,20 +92,13 @@ services:
 
   api:
     build:
-      context: ../..
+      context: ../../
       dockerfile: infrastructure/docker/Dockerfile
-    command:
-      - uvicorn
-      - app.main:app
-      - --host
-      - 0.0.0.0
-      - --port
-      - "8000"
-      - --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
-      # mount repo root into container so `package.json` at project root is available
-      - ../..:/app
-      - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
+      - ../../backend:/app/backend
+      - ../../app:/app/app
+      - /home/anxilinux/DeepVault/models/Lora/collections:/app/loras  # Your actual LoRA directory (mount parent dir for full access)
       - sdnext_outputs:/app/outputs   # Access to generated images
     ports:
       - '8782:8000'
@@ -123,14 +124,21 @@ services:
         condition: service_started
       postgres:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   worker:
     build:
-      context: ../..
+      context: ../../
       dockerfile: infrastructure/docker/Dockerfile
     command: sh -c "rq worker --url $$REDIS_URL default"
     volumes:
-      - ../..:/app
+      - ../../backend:/app/backend
+      - ../../app:/app/app
       - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
       - sdnext_outputs:/app/outputs
     environment:
@@ -154,46 +162,12 @@ services:
       postgres:
         condition: service_started
 
-  frontend:
-    image: node:20
-    restart: unless-stopped
-    working_dir: /app
-    # Use `npm install` because `npm ci` requires a package-lock.json. For reproducible builds consider adding a package-lock.json or switching to a Dockerfile build step.
-    command:
-      - sh
-      - -c
-      - npm install && npm run dev
-    volumes:
-      - /home/anxilinux/DeepVault/models/Lora/lora-manager:/app
-    ports:
-      - '3000:3000' # optional: if frontend serves a dev server later
-    environment:
-      NODE_ENV: development
-    networks:
-      - default
-
-  # Production-style frontend: Node builds assets in a build stage, final image is Python-only
-  frontend-python:
-    build:
-      context: ../..
-      dockerfile: infrastructure/docker/frontend-python.Dockerfile
-    restart: unless-stopped
-    ports:
-      - '8000:8000'
-    environment:
-      # runtime env for python app
-      REDIS_URL: "redis://redis:6379/0"
-      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
-      LORA_DIRECTORY: "/app/loras"
-    volumes:
-      - /home/anxilinux/DeepVault/models/Lora:/app/loras
-      # Mount the static files to serve our updated CSS
-      - ../..:/app
-    depends_on:
-      redis:
-        condition: service_started
-      postgres:
-        condition: service_started
+# Frontend Development Note:
+# The LoRA Manager now uses Vite for frontend development. To run the frontend:
+# 1. On host: npm install && npm run dev (runs on localhost:5173)
+# 2. Frontend serves from app/frontend/static/ with hot reload
+# 3. Backend serves built frontend assets in production
+# 4. Access the application at http://localhost:8782 (backend serves frontend)
 
 networks:
   default:

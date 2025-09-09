@@ -26,7 +26,7 @@ window.LoRAManager = {
     async toggleLoraActive(loraId, isActive) {
         try {
             const endpoint = isActive ? 'deactivate' : 'activate';
-            const response = await fetch(`/api/v1/adapters/${loraId}/${endpoint}`, {
+            const response = await fetch(`/api/adapters/${loraId}/${endpoint}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

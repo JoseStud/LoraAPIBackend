@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, Form, HTTPException
 import logging
 from pydantic import ValidationError
 from app.frontend.schemas import SimilarityForm, PromptForm
+from app.frontend.utils import vite_asset, vite_asset_css, is_development
 
 # Logger for frontend routes
 logger = logging.getLogger(__name__)
@@ -17,6 +18,11 @@ router = APIRouter()
 
 # Initialize templates
 templates = Jinja2Templates(directory="app/frontend/templates")
+
+# Register Vite asset helpers with Jinja2
+templates.env.globals['vite_asset'] = vite_asset
+templates.env.globals['vite_asset_css'] = vite_asset_css
+templates.env.globals['is_development'] = is_development
 
 # Backend URL - should be configurable via environment
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
@@ -570,9 +576,45 @@ async def service_worker():
 @router.get("/api/htmx/loras/grid", response_class=HTMLResponse, name="lora_grid")
 async def lora_grid(request: Request):
     """HTMX endpoint for LoRA grid display - placeholder to fix template routing error."""
-    # Return empty grid placeholder until backend is properly connected
+    # Attempt to fetch LoRAs from backend and render the grid partial.
+    try:
+        # Mirror parameters used by the HTMX gallery implementation
+        page = int(request.query_params.get('page', 1))
+        limit = int(request.query_params.get('limit', 24))
+        search = request.query_params.get('search', '')
+        tags = request.query_params.get('tags', '')
+
+        params = {"page": page, "limit": limit, "search": search, "tags": tags}
+
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{BACKEND_URL}/api/v1/adapters", params=params, timeout=10.0)
+
+        if resp.status_code == 200:
+            data = resp.json()
+            loras = data.get("loras", [])
+            total = data.get("total", 0)
+            page = data.get("page", page)
+        else:
+            loras = []
+            total = 0
+
+    except Exception:
+        loras = []
+        total = 0
+
+    # Render the existing partial template used by the HTMX gallery code
     return templates.TemplateResponse("partials/lora-grid.html", {
         "request": request,
-        "loras": [],
-        "message": "LoRA grid loading..."
+        "loras": loras,
+        "pagination": {
+            "start": (page - 1) * limit + 1 if total > 0 else 0,
+            "end": min(page * limit, total),
+            "total": total,
+            "has_more": (page * limit) < total,
+            "next_url": f"{request.url.path}?page={page + 1}&limit={limit}"
+        },
+        "view_mode": request.query_params.get('view', 'grid'),
+        "bulk_mode": False,
+        "search_term": request.query_params.get('search', ''),
+        "has_filters": bool(search or tags)
     })

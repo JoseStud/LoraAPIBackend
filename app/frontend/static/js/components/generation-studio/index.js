@@ -124,6 +124,9 @@ function generationStudio() {
                 // Start polling as fallback
                 this.startPolling();
                 
+                // Component ready for bindings
+                this.isInitialized = true;
+                
             } catch (error) {
                 window.generationUI.toast.error('Failed to initialize Generation Studio');
             }
@@ -442,3 +445,11 @@ function generationStudio() {
 if (typeof window !== 'undefined') {
     window.generationStudio = generationStudio;
 }
+
+// ES Module export for Vite
+export function createGenerationStudioComponent() {
+    return generationStudio();
+}
+
+// Backward compatibility export
+export { generationStudio };

@@ -390,7 +390,28 @@ if (typeof window !== 'undefined') {
     window.downloadFile = downloadFile;
 }
 
-// Module export
+// ES Module exports
+export {
+    formatFileSize,
+    simulateProgress,
+    formatDuration,
+    formatRelativeTime,
+    debounce,
+    throttle,
+    generateUUID,
+    safeJSONParse,
+    copyToClipboard,
+    downloadFile,
+    validateFile,
+    escapeHtml,
+    truncateText,
+    delay
+};
+
+// Default export
+export default Utils;
+
+// Module export for Node.js
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = Utils;
 }

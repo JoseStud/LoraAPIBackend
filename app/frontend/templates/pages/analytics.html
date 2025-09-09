@@ -3,7 +3,16 @@
 {% block title %}Performance Analytics{% endblock %}
 
 {% block content %}
-<div class="analytics-container" x-data="performanceAnalytics()" x-init="init()">
+<!-- Apply performanceAnalytics component to the entire content block -->
+<div x-data="performanceAnalytics()" x-init="init()" x-cloak>
+    <!-- Loading state -->
+    <div x-show="!isInitialized" class="py-12 text-center text-gray-500">
+        <svg class="animate-spin w-8 h-8 mx-auto mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"></circle><path d="M4 12a8 8 0 018-8" stroke-width="4" class="opacity-75"></path></svg>
+        <div>Loading analytics...</div>
+    </div>
+
+    <!-- Main analytics content -->
+    <div x-show="isInitialized" class="analytics-container">
     
     <!-- Page Header -->
     <div class="page-header">
@@ -345,6 +354,8 @@
         </div>
     </div>
 
+    </div>
+
     <!-- Loading Overlay -->
     <div x-show="isLoading" 
          x-transition:enter="transition ease-out duration-300"
@@ -380,18 +391,4 @@
         <span x-text="toastMessage"></span>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<!-- New Modular Performance Analytics Components -->
-<script src="{{ url_for('static', path='/js/components/performance-analytics/state.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/performance-analytics/metrics.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/performance-analytics/charts.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/performance-analytics/export.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/performance-analytics/filters.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/performance-analytics/realtime.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/performance-analytics/index.js') }}"></script>
-<!-- Legacy fallback -->
-<script src="{{ url_for('static', path='/js/components/performance-analytics.js') }}"></script>
 {% endblock %}

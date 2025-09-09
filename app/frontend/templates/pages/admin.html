@@ -3,7 +3,16 @@
 {% block title %}System Administration{% endblock %}
 
 {% block content %}
-<div class="admin-container" x-data="systemAdmin()" x-init="init()">
+<!-- Apply systemAdmin component to the entire content block -->
+<div x-data="systemAdmin()" x-init="init()" x-cloak>
+    <!-- Loading state -->
+    <div x-show="!ui.isInitialized" class="py-12 text-center text-gray-500">
+        <svg class="animate-spin w-8 h-8 mx-auto mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"></circle><path d="M4 12a8 8 0 018-8" stroke-width="4" class="opacity-75"></path></svg>
+        <div>Loading admin panel...</div>
+    </div>
+
+    <!-- Main admin content -->
+    <div x-show="ui.isInitialized" class="admin-container">
     
     <!-- Page Header -->
     <div class="page-header">
@@ -25,14 +34,14 @@
                     <!-- Quick Actions -->
                     <button @click="refreshAllData()" 
                             class="btn btn-secondary btn-sm"
-                            :disabled="isRefreshing">
-                        <svg class="w-4 h-4 mr-2" :class="{ 'animate-spin': isRefreshing }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            :disabled="ui.isRefreshing">
+                        <svg class="w-4 h-4 mr-2" :class="{ 'animate-spin': ui.isRefreshing }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                         </svg>
                         Refresh
                     </button>
                     
-                    <button @click="showMaintenance = true" class="btn btn-warning btn-sm">
+                    <button @click="ui.showMaintenance = true" class="btn btn-warning btn-sm">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -100,40 +109,40 @@
         <div class="card-header">
             <div class="border-b border-gray-200">
                 <nav class="-mb-px flex space-x-8">
-                    <button @click="activeTab = 'monitoring'" 
-                            :class="activeTab === 'monitoring' ? 'tab-button active' : 'tab-button'">
+                    <button @click="ui.activeTab = 'monitoring'" 
+                            :class="ui.activeTab === 'monitoring' ? 'tab-button active' : 'tab-button'">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                         </svg>
                         System Monitoring
                     </button>
                     
-                    <button @click="activeTab = 'workers'" 
-                            :class="activeTab === 'workers' ? 'tab-button active' : 'tab-button'">
+                    <button @click="ui.activeTab = 'workers'" 
+                            :class="ui.activeTab === 'workers' ? 'tab-button active' : 'tab-button'">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
                         </svg>
                         Worker Management
                     </button>
                     
-                    <button @click="activeTab = 'database'" 
-                            :class="activeTab === 'database' ? 'tab-button active' : 'tab-button'">
+                    <button @click="ui.activeTab = 'database'" 
+                            :class="ui.activeTab === 'database' ? 'tab-button active' : 'tab-button'">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path>
                         </svg>
                         Database Management
                     </button>
                     
-                    <button @click="activeTab = 'config'" 
-                            :class="activeTab === 'config' ? 'tab-button active' : 'tab-button'">
+                    <button @click="ui.activeTab = 'config'" 
+                            :class="ui.activeTab === 'config' ? 'tab-button active' : 'tab-button'">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"></path>
                         </svg>
                         Configuration
                     </button>
                     
-                    <button @click="activeTab = 'logs'" 
-                            :class="activeTab === 'logs' ? 'tab-button active' : 'tab-button'">
+                    <button @click="ui.activeTab = 'logs'" 
+                            :class="ui.activeTab === 'logs' ? 'tab-button active' : 'tab-button'">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
@@ -146,7 +155,7 @@
         <div class="card-body">
             
             <!-- System Monitoring Tab -->
-            <div x-show="activeTab === 'monitoring'" class="space-y-6">
+            <div x-show="ui.activeTab === 'monitoring'" class="space-y-6">
                 
                 <!-- Real-time Metrics -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -262,7 +271,7 @@
             </div>
             
             <!-- Worker Management Tab -->
-            <div x-show="activeTab === 'workers'" class="space-y-6">
+            <div x-show="ui.activeTab === 'workers'" class="space-y-6">
                 
                 <!-- Worker Controls -->
                 <div class="flex justify-between items-center">
@@ -289,13 +298,13 @@
                         <div class="card">
                             <div class="card-body">
                                 <div class="flex items-center justify-between mb-3">
-                                    <div class="flex items-center space-x-2">
+                                        <div class="flex items-center space-x-2">
                                         <div :class="worker.status === 'active' ? 'w-3 h-3 bg-green-400 rounded-full' : 
                                                      worker.status === 'busy' ? 'w-3 h-3 bg-yellow-400 rounded-full' : 
                                                      'w-3 h-3 bg-red-400 rounded-full'"></div>
                                         <span class="font-medium" x-text="`Worker ${worker.id}`"></span>
                                     </div>
-                                    <span class="text-xs text-gray-500" x-text="worker.status.toUpperCase()"></span>
+                                    <span class="text-xs text-gray-500" x-text="worker.status?.toUpperCase() || 'UNKNOWN'"></span>
                                 </div>
                                 
                                 <div class="space-y-2 text-sm">
@@ -342,7 +351,7 @@
             </div>
             
             <!-- Database Management Tab -->
-            <div x-show="activeTab === 'database'" class="space-y-6">
+            <div x-show="ui.activeTab === 'database'" x-data="databaseManager" class="space-y-6">
                 
                 <!-- Database Stats -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -471,7 +480,7 @@
             </div>
             
             <!-- Configuration Tab -->
-            <div x-show="activeTab === 'config'" class="space-y-6">
+            <div x-show="ui.activeTab === 'config'" class="space-y-6">
                 
                 <!-- System Configuration -->
                 <div class="card">
@@ -595,7 +604,7 @@
             </div>
             
             <!-- System Logs Tab -->
-            <div x-show="activeTab === 'logs'" class="space-y-6">
+            <div x-show="ui.activeTab === 'logs'" x-data="logViewer" class="space-y-6">
                 
                 <!-- Log Controls -->
                 <div class="flex justify-between items-center">
@@ -677,7 +686,7 @@
     </div>
 
     <!-- Maintenance Mode Modal -->
-    <div x-show="showMaintenance" 
+    <div x-show="ui.showMaintenance" 
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
@@ -687,7 +696,7 @@
          class="fixed inset-0 z-50 overflow-y-auto"
          style="display: none;">
         <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="showMaintenance = false"></div>
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="ui.showMaintenance = false"></div>
             
             <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
                 <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
@@ -707,7 +716,7 @@
                                     Users will see a maintenance message and be unable to start new generations.
                                 </p>
                                 <div class="mt-4">
-                                    <textarea x-model="maintenanceMessage" 
+                                    <textarea x-model="ui.maintenanceMessage" 
                                               placeholder="Optional maintenance message for users..."
                                               class="form-input w-full h-20 text-sm"></textarea>
                                 </div>
@@ -721,7 +730,7 @@
                             class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-yellow-600 text-base font-medium text-white hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 sm:ml-3 sm:w-auto sm:text-sm">
                         Enable Maintenance Mode
                     </button>
-                    <button @click="showMaintenance = false" 
+                    <button @click="ui.showMaintenance = false" 
                             type="button" 
                             class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
                         Cancel
@@ -732,7 +741,7 @@
     </div>
     
     <!-- Toast Notifications -->
-    <div x-show="showToast" 
+    <div x-show="ui.showToast" 
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0 transform translate-y-2"
          x-transition:enter-end="opacity-100 transform translate-y-0"
@@ -740,18 +749,12 @@
          x-transition:leave-start="opacity-100 transform translate-y-0"
          x-transition:leave-end="opacity-0 transform translate-y-2"
          class="fixed top-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg"
-         :class="toastType === 'success' ? 'bg-green-500 text-white' : 
-                 toastType === 'error' ? 'bg-red-500 text-white' : 
+         :class="ui.toastType === 'success' ? 'bg-green-500 text-white' : 
+                 ui.toastType === 'error' ? 'bg-red-500 text-white' : 
                  'bg-blue-500 text-white'"
          style="display: none;">
-        <span x-text="toastMessage"></span>
+        <span x-text="ui.toastMessage"></span>
+    </div>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<!-- New Modular System Admin Components -->
-<script src="{{ url_for('static', path='/js/components/system-admin/index.js') }}"></script>
-<!-- Legacy fallback -->
-<script src="{{ url_for('static', path='/js/components/system-admin.js') }}"></script>
 {% endblock %}

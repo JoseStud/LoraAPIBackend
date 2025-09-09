@@ -29,6 +29,8 @@ function importExport() {
                     }, 3000);
                 }
             });
+            // Component ready for bindings
+            this.isInitialized = true;
         },
         
         // Set up reactive watchers
@@ -302,6 +304,14 @@ if (typeof Alpine !== 'undefined') {
 } else if (typeof window !== 'undefined') {
     window.importExport = importExport;
 }
+
+// ES Module export for Vite
+export function createImportExportComponent() {
+    return importExport();
+}
+
+// Backward compatibility export
+export { importExport };
 
 // Module export for testing
 if (typeof module !== 'undefined' && module.exports) {

@@ -3,7 +3,16 @@
 {% block title %}AI Recommendations - LoRA Manager{% endblock %}
 
 {% block content %}
-<div x-data="recommendationsData()" x-init="init()" class="recommendations-page-container">
+<!-- Apply recommendationsData component to the entire content block -->
+<div x-data="recommendationsData()" x-init="init()" x-cloak>
+    <!-- Loading state -->
+    <div x-show="!isInitialized" class="py-12 text-center text-gray-500">
+        <svg class="animate-spin w-8 h-8 mx-auto mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"></circle><path d="M4 12a8 8 0 018-8" stroke-width="4" class="opacity-75"></path></svg>
+        <div>Loading recommendations...</div>
+    </div>
+
+    <!-- Main recommendations content -->
+    <div x-show="isInitialized" class="recommendations-page-container">
     <!-- Page Header -->
     <div class="page-header">
         <h1 class="page-title">AI-Powered Recommendations</h1>
@@ -428,23 +437,21 @@
     </div>
 
     <!-- Hidden form inputs for HTMX -->
-    <div class="hidden">
-        <input type="hidden" name="lora_id" :value="selectedLoraId" data-similarity />
-        <input type="hidden" name="semantic_weight" :value="weights.semantic" data-similarity />
-        <input type="hidden" name="artistic_weight" :value="weights.artistic" data-similarity />
-        <input type="hidden" name="technical_weight" :value="weights.technical" data-similarity />
-        <input type="hidden" name="limit" :value="similarityLimit" data-similarity />
-        <input type="hidden" name="threshold" :value="similarityThreshold" data-similarity />
-        
-        <input type="hidden" name="prompt" :value="promptText" data-prompt />
-        <input type="hidden" name="limit" :value="promptLimit" data-prompt />
-        <input type="hidden" name="include_inactive" :value="promptIncludeInactive" data-prompt />
-    </div>
+    <template x-if="isInitialized">
+        <div class="hidden">
+            <input type="hidden" name="lora_id" :value="selectedLoraId" data-similarity />
+            <input type="hidden" name="semantic_weight" :value="weights.semantic" data-similarity />
+            <input type="hidden" name="artistic_weight" :value="weights.artistic" data-similarity />
+            <input type="hidden" name="technical_weight" :value="weights.technical" data-similarity />
+            <input type="hidden" name="limit" :value="similarityLimit" data-similarity />
+            <input type="hidden" name="threshold" :value="similarityThreshold" data-similarity />
+            
+            <input type="hidden" name="prompt" :value="promptText" data-prompt />
+            <input type="hidden" name="limit" :value="promptLimit" data-prompt />
+            <input type="hidden" name="include_inactive" :value="promptIncludeInactive" data-prompt />
+        </div>
+    </template>
 </div>
-
-<script>
-    // recommendationsData is registered globally in app/frontend/static/js/alpine-config.js
-</script>
 
 <style>
     /* Custom slider styles */

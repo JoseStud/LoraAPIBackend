@@ -90,6 +90,8 @@ function createRecommendationsComponent() {
 
         async customInit() {
             await this.loadAvailableLoras();
+        // Mark component ready for template bindings
+        this.isInitialized = true;
         },
 
         async loadAvailableLoras() {

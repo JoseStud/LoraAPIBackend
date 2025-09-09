@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class AdapterCreate(BaseModel):
@@ -39,6 +39,25 @@ class AdapterCreate(BaseModel):
     json_file_mtime: Optional[datetime] = None
     json_file_size: Optional[int] = None
     last_ingested_at: Optional[datetime] = None
+
+    # Defensive validators -----------------------------------------------
+    @field_validator("primary_file_size_kb", mode="before")
+    def _coerce_primary_file_size_kb(cls, v):
+        """Coerce float-ish numeric sizes into integers.
+
+        Some Civitai JSON uses float values for sizeKB (e.g. 223109.61328125).
+        Pydantic's int fields reject floats with fractional parts. Convert
+        to int by rounding to nearest integer when possible.
+        """
+        if v is None:
+            return v
+        try:
+            # Accept numeric strings too
+            f = float(v)
+        except Exception:
+            return v
+        # Round to nearest integer and return as int
+        return int(round(f))
 
 
 class AdapterRead(BaseModel):

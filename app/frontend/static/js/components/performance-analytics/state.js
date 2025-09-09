@@ -10,6 +10,9 @@
  */
 function createPerformanceAnalyticsState() {
     return {
+        // Initialization state (required for x-show guards)
+        isInitialized: false,
+        
         // UI State
         isLoading: false,
         timeRange: '24h',

@@ -5,7 +5,14 @@
   "scripts": {
     "build:css": "tailwindcss -i ./app/frontend/static/css/input.css -o ./app/frontend/static/css/styles.css --minify",
     "watch:css": "tailwindcss -i ./app/frontend/static/css/input.css -o ./app/frontend/static/css/styles.css --watch",
-    "dev": "npm run watch:css",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "dev:css": "npm run watch:css",
+    "dev:backend": "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:full": "concurrently \"npm run dev:backend\" \"npm run dev\"",
+    "prod:build": "npm run build && ENVIRONMENT=production",
+    "prod:serve": "ENVIRONMENT=production uvicorn app.main:app --host 0.0.0.0 --port 8000",
     "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
     "test:unit": "jest tests/unit --coverage",
     "test:integration": "jest tests/integration",
@@ -26,6 +33,8 @@
     "@testing-library/dom": "^9.3.4",
     "@testing-library/jest-dom": "^6.1.5",
     "@testing-library/user-event": "^14.5.1",
+    "alpinejs": "^3.15.0",
+    "concurrently": "^9.2.1",
     "coveralls": "^3.1.1",
     "eslint": "^8.55.0",
     "eslint-plugin-alpinejs": "^1.1.0",
@@ -33,10 +42,10 @@
     "jest-environment-jsdom": "^29.7.0",
     "puppeteer": "^21.6.1",
     "supertest": "^6.3.3",
-    "tailwindcss": "^3.3.6"
+    "tailwindcss": "^3.3.6",
+    "vite": "^7.1.5"
   },
   "dependencies": {
-    "alpinejs": "^3.13.3",
     "chart.js": "^4.4.0",
     "htmx.org": "^1.9.6"
   },

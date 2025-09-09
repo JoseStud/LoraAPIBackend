@@ -22,6 +22,8 @@ function generationHistory() {
             this.loadPreferences();
             this.setupUIHandlers();
             this.startPeriodicRefresh();
+            // Mark component as ready for template bindings
+            this.isInitialized = true;
         },
         
         // Data Loading Methods
@@ -429,7 +431,15 @@ if (typeof Alpine !== 'undefined') {
     window.generationHistory = generationHistory;
 }
 
-// Module export for testing
+// ES Module export for Vite
+export function createGenerationHistoryComponent() {
+    return generationHistory();
+}
+
+// Backward compatibility export
+export { generationHistory };
+
+// Legacy module export for testing
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { generationHistory };
 }

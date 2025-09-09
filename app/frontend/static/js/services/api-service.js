@@ -78,11 +78,11 @@ class APIService {
 
     // Specific API endpoints
     async getAdapters(params = {}) {
-        return this.get('/api/v1/adapters', params);
+        return this.get('/api/adapters', params);
     }
 
     async getAdapterTags() {
-        return this.get('/api/v1/adapters/tags');
+        return this.get('/api/adapters/tags');
     }
 
     async getDashboardStats() {
@@ -90,55 +90,55 @@ class APIService {
     }
 
     async getResults(params = {}) {
-        return this.get('/api/v1/results', params);
+        return this.get('/api/results', params);
     }
 
     async updateResultRating(resultId, rating) {
-        return this.put(`/api/v1/results/${resultId}/rating`, { rating });
+        return this.put(`/api/results/${resultId}/rating`, { rating });
     }
 
     async toggleResultFavorite(resultId, isFavorite) {
-        return this.put(`/api/v1/results/${resultId}/favorite`, { is_favorite: isFavorite });
+        return this.put(`/api/results/${resultId}/favorite`, { is_favorite: isFavorite });
     }
 
     async deleteResult(resultId) {
-        return this.delete(`/api/v1/results/${resultId}`);
+        return this.delete(`/api/results/${resultId}`);
     }
 
     async bulkDeleteResults(ids) {
-        return this.request('/api/v1/results/bulk-delete', {
+        return this.request('/api/results/bulk-delete', {
             method: 'DELETE',
             body: JSON.stringify({ ids })
         });
     }
 
     async bulkFavoriteResults(ids, isFavorite = true) {
-        return this.put('/api/v1/results/bulk-favorite', { 
+        return this.put('/api/results/bulk-favorite', { 
             ids, 
             is_favorite: isFavorite 
         });
     }
 
     async exportResults(ids) {
-        return this.request('/api/v1/results/export', {
+        return this.request('/api/results/export', {
             method: 'POST',
             body: JSON.stringify({ ids })
         });
     }
 
     async computeEmbeddings(loraIds, forceRecompute = false) {
-        return this.post('/api/v1/recommendations/embeddings/compute', {
+        return this.post('/api/recommendations/embeddings/compute', {
             lora_ids: loraIds,
             force_recompute: forceRecompute
         });
     }
 
     async rebuildIndex() {
-        return this.post('/api/v1/recommendations/index/rebuild');
+        return this.post('/api/recommendations/index/rebuild');
     }
 
     async getActiveJobs(status = 'processing') {
-        return this.get('/api/v1/deliveries/jobs', { status });
+        return this.get('/api/deliveries/jobs', { status });
     }
 }
 

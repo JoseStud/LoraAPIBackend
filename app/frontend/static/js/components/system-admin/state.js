@@ -115,49 +115,6 @@ function createConfigurationState() {
 }
 
 /**
- * Create initial logs state
- * @returns {Object} Logs state object
- */
-function createLogsState() {
-    return {
-        logs: [],
-        filteredLogs: [],
-        logLevel: 'all',
-        logSource: 'all',
-        autoRefreshLogs: false,
-        logRefreshInterval: null,
-        maxLogEntries: 1000,
-        searchTerm: '',
-        dateFilter: {
-            enabled: false,
-            from: null,
-            to: null
-        }
-    };
-}
-
-/**
- * Create initial backup state
- * @returns {Object} Backup state object
- */
-function createBackupState() {
-    return {
-        recentBackups: [],
-        isBackingUp: false,
-        isOptimizing: false,
-        backupProgress: 0,
-        restoreProgress: 0,
-        selectedBackup: null,
-        backupConfig: {
-            include_media: true,
-            compress: true,
-            encrypt: false,
-            retention_count: 10
-        }
-    };
-}
-
-/**
  * Create initial UI state
  * @returns {Object} UI state object
  */
@@ -214,6 +171,9 @@ function createWorkersState() {
  */
 function createSystemAdminState() {
     return {
+        // Initialization state (required for x-show guards)
+        isInitialized: false,
+        
         // Core data states
         systemStatus: createSystemStatusState(),
         systemStats: createSystemStatsState(),
@@ -222,9 +182,7 @@ function createSystemAdminState() {
         config: createConfigurationState(),
         workers: createWorkersState(),
         
-        // Feature states
-        logs: createLogsState(),
-        backup: createBackupState(),
+        // Feature states (moved to child components)
         
         // UI states
         ui: createUIState(),
@@ -363,8 +321,6 @@ if (typeof module !== 'undefined' && module.exports) {
         createSystemMetricsState,
         createDatabaseStatsState,
         createConfigurationState,
-        createLogsState,
-        createBackupState,
         createUIState,
         createWorkersState,
         StateUpdaters
@@ -377,8 +333,6 @@ if (typeof module !== 'undefined' && module.exports) {
         createSystemMetricsState,
         createDatabaseStatsState,
         createConfigurationState,
-        createLogsState,
-        createBackupState,
         createUIState,
         createWorkersState,
         StateUpdaters

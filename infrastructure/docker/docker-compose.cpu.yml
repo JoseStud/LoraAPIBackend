@@ -59,10 +59,13 @@ services:
       start_period: 240s  # CPU startup is slower
 
   api:
-    build: .
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    build: 
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
-      - ./:/app
+      - ../../backend:/app/backend
+      - ../../app:/app/app
       - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
       - sdnext_outputs:/app/outputs
     ports:
@@ -87,12 +90,21 @@ services:
         condition: service_started
       postgres:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   worker:
-    build: .
+    build: 
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile
     command: sh -c "rq worker --url $$REDIS_URL default"
     volumes:
-      - ./:/app
+      - ../../backend:/app/backend
+      - ../../app:/app/app
       - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
       - sdnext_outputs:/app/outputs
     environment:

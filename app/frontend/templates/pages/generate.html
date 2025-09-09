@@ -3,8 +3,30 @@
 {% block title %}Generation Studio{% endblock %}
 
 {% block content %}
-<div class="generation-page-container" x-data="generationStudio()" x-init="init()">
-    
+<!-- Global Notifications (Fixed positioned) -->
+<div class="fixed top-4 right-4 z-50 max-w-sm" x-data="notifications">
+    <template x-for="notification in notifications" :key="notification.id">
+        <div :class="getNotificationClasses(notification.type)"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 transform translate-x-full"
+             x-transition:enter-end="opacity-100 transform translate-x-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 transform translate-x-0"
+             x-transition:leave-end="opacity-0 transform translate-x-full">
+            
+            <div class="flex items-center">
+                <span x-text="getNotificationIcon(notification.type)" class="mr-2"></span>
+                <span x-text="notification.message" class="flex-1"></span>
+                <button @click="dismissNotification(notification.id)" 
+                        class="ml-2 text-lg leading-none hover:opacity-70">
+                    ×
+                </button>
+            </div>
+        </div>
+    </template>
+</div>
+
+<div class="generation-page-container">
     <!-- Page Header -->
     <div class="page-header">
         <div class="flex justify-between items-center">
@@ -12,7 +34,7 @@
                 <h1 class="page-title">Generation Studio</h1>
                 <p class="page-subtitle">Generate images with AI-powered LoRA integration</p>
             </div>
-            <div class="header-actions">
+            <div class="header-actions" x-data="{ showHistory: false }">
                 <button @click="showHistory = !showHistory" 
                         class="btn btn-secondary btn-sm"
                         :class="{ 'btn-primary': showHistory }">
@@ -21,9 +43,9 @@
                     </svg>
                     History
                 </button>
-                <button @click="clearQueue()" 
+                <button @click="$store.app.activeJobs = []" 
                         class="btn btn-secondary btn-sm"
-                        :disabled="activeJobs.length === 0">
+                        :disabled="$store.app.activeJobs.length === 0">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                     </svg>
@@ -37,7 +59,7 @@
         
         <!-- Left Panel: Generation Parameters -->
         <div class="lg:col-span-1">
-            <div class="card">
+            <div class="card" x-data="generationForm" x-show="isInitialized">
                 <div class="card-header">
                     <h3 class="card-title">Generation Parameters</h3>
                 </div>
@@ -197,27 +219,28 @@
             <div class="space-y-6">
                 
                 <!-- Real-time Generation Queue -->
-                <div class="card">
+                <div class="card" x-data="jobQueue" x-show="isInitialized">
                     <div class="card-header">
                         <div class="flex items-center justify-between">
                             <h3 class="card-title">Generation Queue</h3>
-                            <span class="text-sm text-gray-500" x-text="`${activeJobs.length} active`"></span>
+                            <span class="text-sm text-gray-500" x-text="`${jobs.length} active`"></span>
                         </div>
                     </div>
                     <div class="card-body">
                         
                         <!-- Active Jobs -->
                         <div class="space-y-3 max-h-96 overflow-y-auto">
-                            <template x-for="job in activeJobs" :key="job.id">
+                            <template x-for="job in jobs" :key="job.id">
                                 <div class="border border-gray-200 rounded-lg p-3">
                                     <div class="flex items-start justify-between mb-2">
                                         <div class="flex-1 min-w-0">
                                             <div class="text-sm font-medium text-gray-900 truncate" 
-                                                 x-text="job.prompt"></div>
+                                                 x-text="job.name || job.prompt"></div>
                                             <div class="text-xs text-gray-500" 
-                                                 x-text="`${job.width}x${job.height} • ${job.steps} steps`"></div>
+                                                 x-text="job.params ? `${job.params.width}x${job.params.height} • ${job.params.steps} steps` : 'Processing...'"></div>
                                         </div>
                                         <button @click="cancelJob(job.id)" 
+                                                x-show="job.status === 'running' || job.status === 'starting'"
                                                 class="text-gray-400 hover:text-red-500 ml-2">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -228,23 +251,23 @@
                                     <!-- Progress Bar -->
                                     <div class="space-y-1">
                                         <div class="flex justify-between text-xs">
-                                            <span x-text="job.status" class="text-gray-600"></span>
-                                            <span x-text="`${job.progress}%`" class="text-gray-600"></span>
+                                            <span x-text="job.status" :class="getStatusColor(job.status)"></span>
+                                            <span x-text="`${job.progress || 0}%`" class="text-gray-600"></span>
                                         </div>
                                         <div class="progress-bar-bg">
                                             <div class="progress-bar-fg bg-blue-500" 
-                                                 :style="`width: ${job.progress}%`"></div>
+                                                 :style="`width: ${job.progress || 0}%`"></div>
                                         </div>
                                         <div class="flex justify-between text-xs text-gray-500">
-                                            <span x-text="job.eta ? `ETA: ${job.eta}` : ''"></span>
-                                            <span x-text="job.current_step ? `Step ${job.current_step}/${job.total_steps}` : ''"></span>
+                                            <span x-text="formatDuration(job.startTime)"></span>
+                                            <span x-text="job.message || ''"></span>
                                         </div>
                                     </div>
                                 </div>
                             </template>
                             
                             <!-- Empty State -->
-                            <template x-if="activeJobs.length === 0">
+                            <template x-if="!hasJobs">
                                 <div class="empty-state-container">
                                     <svg class="empty-state-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"></path>
@@ -258,7 +281,7 @@
                 </div>
                 
                 <!-- System Status -->
-                <div class="card">
+                <div class="card" x-data="systemStatus" x-show="isInitialized">
                     <div class="card-header">
                         <h3 class="card-title">System Status</h3>
                     </div>
@@ -267,20 +290,23 @@
                             <div>
                                 <div class="text-gray-600">GPU Status</div>
                                 <div class="font-semibold" 
-                                     :class="systemStatus.gpu_available ? 'text-green-600' : 'text-red-600'"
-                                     x-text="systemStatus.gpu_available ? 'Available' : 'Unavailable'"></div>
+                                     :class="getGpuStatusColor(systemStatus.gpu_status)"
+                                     x-text="systemStatus.gpu_status || 'Unknown'"></div>
                             </div>
                             <div>
                                 <div class="text-gray-600">Queue Length</div>
-                                <div class="font-semibold" x-text="systemStatus.queue_length || 0"></div>
+                                <div class="font-semibold" x-text="queueLength"></div>
                             </div>
                             <div>
                                 <div class="text-gray-600">Memory Usage</div>
-                                <div class="font-semibold" x-text="systemStatus.memory_usage || 'N/A'"></div>
+                                <div class="font-semibold" x-text="formatMemory(systemStatus.memory_used, systemStatus.memory_total)"></div>
                             </div>
                             <div>
-                                <div class="text-gray-600">Active LoRAs</div>
-                                <div class="font-semibold" x-text="systemStatus.active_loras || 0"></div>
+                                <div class="text-gray-600">Status</div>
+                                <div class="font-semibold flex items-center">
+                                    <span x-text="getStatusIcon(systemStatus.status)" class="mr-1"></span>
+                                    <span x-text="systemStatus.status || 'Unknown'"></span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -289,12 +315,12 @@
         </div>
 
         <!-- Right Panel: Recent Results / History -->
-        <div class="lg:col-span-1">
+        <div class="lg:col-span-1" x-data="{ showHistory: false, showModal: false, selectedResult: null }">
             <div class="card h-full">
                 <div class="card-header">
                     <div class="flex items-center justify-between">
                         <h3 class="card-title" x-text="showHistory ? 'Generation History' : 'Recent Results'"></h3>
-                        <button @click="refreshResults()" 
+                        <button @click="() => {}" 
                                 class="text-gray-400 hover:text-gray-600">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
@@ -306,14 +332,14 @@
                     
                     <!-- Results Gallery -->
                     <div class="space-y-4 max-h-96 overflow-y-auto">
-                        <template x-for="result in recentResults" :key="result.id">
+                        <template x-for="result in $store.app.recentResults" :key="result.id">
                             <div class="border border-gray-200 rounded-lg overflow-hidden">
                                 <!-- Image Thumbnail -->
                                 <template x-if="result.image_url">
                                     <img :src="result.image_url" 
                                          :alt="result.prompt"
                                          class="w-full h-32 object-cover cursor-pointer"
-                                         @click="showImageModal(result)">
+                                         @click="selectedResult = result; showModal = true">
                                 </template>
                                 
                                 <!-- Result Info -->
@@ -338,7 +364,7 @@
                         </template>
                         
                         <!-- Empty State -->
-                        <template x-if="recentResults.length === 0">
+                        <template x-if="$store.app.recentResults.length === 0">
                             <div class="empty-state-container">
                                 <svg class="empty-state-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
@@ -349,67 +375,45 @@
                         </template>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Image Modal -->
-    <div x-show="showModal" 
-         x-transition:enter="transition ease-out duration-300"
-         x-transition:enter-start="opacity-0"
-         x-transition:enter-end="opacity-100"
-         x-transition:leave="transition ease-in duration-200"
-         x-transition:leave-start="opacity-100"
-         x-transition:leave-end="opacity-0"
-         class="fixed inset-0 z-50 overflow-y-auto"
-         style="display: none;">
-        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="showModal = false"></div>
-            
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <template x-if="selectedResult">
-                    <div>
-                        <img :src="selectedResult.image_url" 
-                             :alt="selectedResult.prompt"
-                             class="w-full">
-                        <div class="p-4">
-                            <h3 class="text-lg font-medium text-gray-900 mb-2">Generation Details</h3>
-                            <div class="space-y-1 text-sm text-gray-600">
-                                <div><strong>Prompt:</strong> <span x-text="selectedResult.prompt"></span></div>
-                                <div><strong>Size:</strong> <span x-text="`${selectedResult.width}x${selectedResult.height}`"></span></div>
-                                <div><strong>Steps:</strong> <span x-text="selectedResult.steps"></span></div>
-                                <div><strong>CFG Scale:</strong> <span x-text="selectedResult.cfg_scale"></span></div>
-                                <div><strong>Seed:</strong> <span x-text="selectedResult.seed"></span></div>
-                            </div>
+                
+                <!-- Image Modal (scoped to this results component) -->
+                <div x-show="showModal" 
+                     x-transition:enter="transition ease-out duration-300"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     x-transition:leave="transition ease-in duration-200"
+                     x-transition:leave-start="opacity-100"
+                     x-transition:leave-end="opacity-0"
+                     class="fixed inset-0 z-50 overflow-y-auto"
+                     style="display: none;">
+                    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                        <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="showModal = false"></div>
+                        
+                        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                            <template x-if="selectedResult">
+                                <div>
+                                    <img :src="selectedResult.image_url" 
+                                         :alt="selectedResult.prompt"
+                                         class="w-full">
+                                    <div class="p-4">
+                                        <h3 class="text-lg font-medium text-gray-900 mb-2">Generation Details</h3>
+                                        <div class="space-y-1 text-sm text-gray-600">
+                                            <div><strong>Prompt:</strong> <span x-text="selectedResult.prompt"></span></div>
+                                            <div><strong>Size:</strong> <span x-text="`${selectedResult.width}x${selectedResult.height}`"></span></div>
+                                            <div><strong>Steps:</strong> <span x-text="selectedResult.steps"></span></div>
+                                            <div><strong>CFG Scale:</strong> <span x-text="selectedResult.cfg_scale"></span></div>
+                                            <div><strong>Seed:</strong> <span x-text="selectedResult.seed"></span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                     </div>
-                </template>
+                </div>
             </div>
         </div>
-    </div>
     
-    <!-- Toast Notifications -->
-    <div x-show="showToast" 
-         x-transition:enter="transition ease-out duration-300"
-         x-transition:enter-start="opacity-0 transform translate-y-2"
-         x-transition:enter-end="opacity-100 transform translate-y-0"
-         x-transition:leave="transition ease-in duration-200"
-         x-transition:leave-start="opacity-100 transform translate-y-0"
-         x-transition:leave-end="opacity-0 transform translate-y-2"
-         class="fixed top-4 right-4 z-50 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg"
-         style="display: none;">
-        <span x-text="toastMessage"></span>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<!-- Generation Studio Modular Components -->
-<script src="{{ url_for('static', path='/js/components/generation-studio/state.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/generation-studio/websocket.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/generation-studio/api.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/generation-studio/progress.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/generation-studio/results.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/generation-studio/ui.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/generation-studio/index.js') }}"></script>
+    </div> <!-- End page-layout div -->
+    
+</div> <!-- End generation-page-container div -->
 {% endblock %}

@@ -3,7 +3,13 @@
 {% block title %}Import/Export{% endblock %}
 
 {% block content %}
-<div class="import-export-container" x-data="importExport()" x-init="init()">
+<div class="import-export-container" x-data="importExport()" x-init="init()" x-cloak>
+    <div x-show="!isInitialized" class="py-12 text-center text-gray-500">
+        <svg class="animate-spin w-8 h-8 mx-auto mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"></circle><path d="M4 12a8 8 0 018-8" stroke-width="4" class="opacity-75"></path></svg>
+        <div>Preparing import/export...</div>
+    </div>
+
+    <div x-show="isInitialized">
     
     <!-- Page Header -->
     <div class="page-header">
@@ -777,17 +783,6 @@
          style="display: none;">
         <span x-text="toastMessage"></span>
     </div>
+    </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<!-- New Modular Import/Export Components -->
-<script src="{{ url_for('static', path='/js/components/import-export/state.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/import-export/export.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/import-export/import.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/import-export/migration.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/import-export/ui.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/import-export/index.js') }}"></script>
-<!-- Legacy fallback -->
-<script src="{{ url_for('static', path='/js/components/import-export.js') }}"></script>
 {% endblock %}

@@ -3,7 +3,13 @@
 {% block title %}Generation History{% endblock %}
 
 {% block content %}
-<div class="history-page-container" x-data="generationHistory()" x-init="init()">
+<div class="history-page-container" x-data="generationHistory()" x-init="init()" x-cloak>
+    <div x-show="!isInitialized" class="py-12 text-center text-gray-500">
+        <svg class="animate-spin w-8 h-8 mx-auto mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"></circle><path d="M4 12a8 8 0 018-8" stroke-width="4" class="opacity-75"></path></svg>
+        <div>Loading history...</div>
+    </div>
+
+    <div x-show="isInitialized">
     
     <!-- Page Header -->
     <div class="page-header">
@@ -130,6 +136,8 @@
                 <div class="text-sm text-gray-600">Storage Used</div>
             </div>
         </div>
+    </div>
+
     </div>
 
     <!-- Results Grid/List -->
@@ -434,15 +442,4 @@
         <span x-text="toastMessage"></span>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<!-- New Modular Generation History Components -->
-<script src="{{ url_for('static', path='/js/components/generation-history/state.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/generation-history/data.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/generation-history/filters.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/generation-history/ui.js') }}"></script>
-<script src="{{ url_for('static', path='/js/components/generation-history/index.js') }}"></script>
-<!-- Legacy fallback -->
-<script src="{{ url_for('static', path='/js/components/generation-history.js') }}"></script>
 {% endblock %}

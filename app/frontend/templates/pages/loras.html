@@ -3,7 +3,13 @@
 {% block title %}LoRA Gallery - LoRA Manager{% endblock %}
 
 {% block content %}
-<div x-data="loraGallery()" x-init="init()" class="loras-page-container">
+<div x-data="loraGallery()" x-init="init()" class="loras-page-container" x-cloak>
+    <div x-show="!isInitialized" class="py-12 text-center text-gray-500">
+        <svg class="animate-spin w-8 h-8 mx-auto mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"></circle><path d="M4 12a8 8 0 018-8" stroke-width="4" class="opacity-75"></path></svg>
+        <div>Loading LoRAs...</div>
+    </div>
+
+    <div x-show="isInitialized">
     <!-- Header Section -->
     <div class="loras-page-header">
         <div>
@@ -179,171 +185,6 @@
             <div class="spinner"></div>
         </div>
     </div>
+    </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-function loraGallery() {
-    return {
-        viewMode: 'grid',
-        searchTerm: '',
-        filters: {
-            activeOnly: false,
-            tags: []
-        },
-        sortBy: 'name_asc',
-        availableTags: [],
-        showAllTags: false,
-        bulkMode: false,
-        selectedLoras: [],
-        allSelected: false,
-        totalLoras: 0,
-
-        init() {
-            // Do not auto-load LoRAs or tags on initial startup. This page will
-            // be populated when the app is ready or when an explicit reload is
-            // triggered (offline-first / first-load safety).
-
-            // Restore persisted view mode if present
-            const savedViewMode = localStorage.getItem('loraViewMode');
-            if (savedViewMode) this.viewMode = savedViewMode;
-            this.$watch('viewMode', (value) => localStorage.setItem('loraViewMode', value));
-
-            // Listen for selection updates from lora-card components.
-            // loraCard currently dispatches `lora-selected` / `lora-deselected` (detail: { id })
-            // while older code used `lora-selection-changed` (detail: { loraId, selected }).
-            // Support both so selection works regardless of which component version loaded.
-            document.addEventListener('lora-selected', (e) => {
-                const id = e.detail && (e.detail.id || e.detail.loraId);
-                if (!id) return;
-                if (!this.selectedLoras.includes(id)) this.selectedLoras.push(id);
-            });
-
-            document.addEventListener('lora-deselected', (e) => {
-                const id = e.detail && (e.detail.id || e.detail.loraId);
-                if (!id) return;
-                this.selectedLoras = this.selectedLoras.filter(i => i !== id);
-            });
-
-            // Legacy listener for backward compatibility
-            document.addEventListener('lora-selection-changed', (e) => {
-                const { loraId, selected } = e.detail || {};
-                if (!loraId) return;
-                if (selected) {
-                    if (!this.selectedLoras.includes(loraId)) this.selectedLoras.push(loraId);
-                } else {
-                    this.selectedLoras = this.selectedLoras.filter(id => id !== loraId);
-                }
-            });
-        },
-
-        fetchAvailableTags() {
-            fetch('/api/v1/tags')
-                .then(response => response.json())
-                .then(data => {
-                    this.availableTags = data.tags;
-                })
-                .catch(error => console.error('Error fetching tags:', error));
-        },
-
-        applyFilters() {
-            const params = new URLSearchParams();
-            params.append('view_mode', this.viewMode);
-            if (this.searchTerm) {
-                params.append('search', this.searchTerm);
-            }
-            if (this.filters.activeOnly) {
-                params.append('is_active', 'true');
-            }
-            this.filters.tags.forEach(tag => {
-                params.append('tags', tag);
-            });
-            params.append('sort_by', this.sortBy);
-            
-            if (this.bulkMode) {
-                params.append('bulk_mode', 'true');
-            }
-
-            const url = `{{ url_for('lora_grid') }}?${params.toString()}`;
-            htmx.ajax('GET', url, { target: '#lora-container', swap: 'innerHTML' });
-        },
-
-        search() {
-            this.applyFilters();
-        },
-
-        clearSearch() {
-            this.searchTerm = '';
-            this.search();
-        },
-
-        clearFilters() {
-            this.searchTerm = '';
-            this.filters.activeOnly = false;
-            this.filters.tags = [];
-            this.sortBy = 'name_asc';
-            this.applyFilters();
-        },
-
-        toggleSelectAll() {
-            this.allSelected = !this.allSelected;
-            this.selectedLoras = [];
-            
-            const checkboxes = document.querySelectorAll('.lora-card-checkbox');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = this.allSelected;
-                const loraId = checkbox.dataset.loraId;
-                if (this.allSelected) {
-                    this.selectedLoras.push(loraId);
-                }
-            });
-        },
-
-        performBulkAction(action) {
-            if (this.selectedLoras.length === 0) {
-                htmx.trigger(document.body, 'show-notification', {
-                    detail: { message: 'No LoRAs selected.', type: 'warning' }
-                });
-                return;
-            }
-
-            const confirmation = {
-                'activate': 'Are you sure you want to activate the selected LoRAs?',
-                'deactivate': 'Are you sure you want to deactivate the selected LoRAs?',
-                'delete': 'Are you sure you want to permanently delete the selected LoRAs? This cannot be undone.'
-            };
-
-            if (!confirm(confirmation[action])) {
-                return;
-            }
-
-            htmx.ajax('POST', `/api/v1/loras/bulk-action`, {
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: action,
-                    lora_ids: this.selectedLoras
-                }),
-                swap: 'none'
-            }).then(response => {
-                if (response.ok) {
-                    htmx.trigger(document.body, 'show-notification', {
-                        detail: { message: `Successfully performed ${action} on ${this.selectedLoras.length} LoRAs.`, type: 'success' }
-                    });
-                    this.selectedLoras = [];
-                    this.allSelected = false;
-                    htmx.trigger(document.body, 'lora-data-updated');
-                } else {
-                    response.text().then(text => {
-                        const error = JSON.parse(text);
-                        htmx.trigger(document.body, 'show-notification', {
-                            detail: { message: `Error: ${error.detail}`, type: 'error' }
-                        });
-                    });
-                }
-            });
-        }
-    }
-}
-</script>
 {% endblock %}

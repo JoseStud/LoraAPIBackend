@@ -169,6 +169,8 @@ window.ComponentLoader = {
             if (name === 'loraGallery') {
                 this.stubs[name] = function() {
                     return {
+                        // Readiness
+                        isInitialized: false,
                         // UI state
                         viewMode: 'grid',
                         searchTerm: '',
@@ -189,6 +191,7 @@ window.ComponentLoader = {
             if (name === 'generationStudio') {
                 this.stubs[name] = function() {
                     return {
+                        isInitialized: false,
                         params: { prompt: '', negative_prompt: '', width: 512, height: 512, steps: 20, cfg_scale: 7.0, seed: -1, batch_count: 1, batch_size: 1 },
                         activeJobs: [],
                         recentResults: [],
@@ -209,6 +212,7 @@ window.ComponentLoader = {
             if (name === 'generationHistory') {
                 this.stubs[name] = function() {
                     return {
+                        isInitialized: false,
                         results: [],
                         filteredResults: [],
                         viewMode: 'grid',
@@ -226,6 +230,7 @@ window.ComponentLoader = {
             if (name === 'performanceAnalytics') {
                 this.stubs[name] = function() {
                     return {
+                        isInitialized: false,
                         isLoading: false,
                         timeRange: '24h',
                         autoRefresh: false,
@@ -243,6 +248,7 @@ window.ComponentLoader = {
             if (name === 'promptComposer') {
                 this.stubs[name] = function() {
                     return {
+                        isInitialized: false,
                         availableLoras: [],
                         filteredLoras: [],
                         activeLoras: [],
@@ -264,6 +270,7 @@ window.ComponentLoader = {
             if (name === 'systemAdmin') {
                 this.stubs[name] = function() {
                     return {
+                        isInitialized: false,
                         activeTab: 'monitoring',
                         isRefreshing: false,
                         showMaintenance: false,
@@ -287,6 +294,7 @@ window.ComponentLoader = {
             if (name === 'offlinePage') {
                 this.stubs[name] = function() {
                     return {
+                        isInitialized: false,
                         cacheInfo: {},
                         isOnline: true,
                         init() { console.log('[ComponentLoader] offlinePage stub initialized'); }
@@ -298,6 +306,7 @@ window.ComponentLoader = {
             if (name === 'promptRecommendations') {
                 this.stubs[name] = function() {
                     return {
+                        isInitialized: false,
                         suggestions: [],
                         init() { console.log('[ComponentLoader] promptRecommendations stub initialized'); }
                     };
@@ -582,6 +591,8 @@ window.ComponentLoader = {
 
         // Dashboard component
         Alpine.data('dashboard', () => ({
+            // Readiness flag to guard template rendering
+            isInitialized: false,
             // Loading flag used by dashboard template for refresh UI
             loading: false,
             stats: {
@@ -597,6 +608,7 @@ window.ComponentLoader = {
             
             async init() {
                 await this.refreshData();
+                this.isInitialized = true;
             },
             
             async refreshData() {
