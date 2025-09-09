@@ -104,131 +104,147 @@ This document defines the core HTTP endpoints and operational responsibilities o
 
 ## ✅ API Endpoints (IMPLEMENTED)
 
-### Adapter Management (app/api/v1/adapters.py)
+All endpoints are prefixed with `/api`.
 
-**POST /adapters** ✅ IMPLEMENTED
+### Adapter Management (`/v1/adapters`)
+
+**POST /v1/adapters** ✅ IMPLEMENTED
 - Purpose: register a LoRA adapter with comprehensive metadata validation
 - Body: `{ "name": str, "version": str?, "tags"?: [str], "file_path": str, "weight"?: float, "active"?: bool, ... }`
 - Response: 201 `{ "adapter": { ... } }`
 - Features: File path validation, unique name+version constraints, storage abstraction
 
-**GET /adapters** ✅ IMPLEMENTED  
+**GET /v1/adapters** ✅ IMPLEMENTED  
 - Purpose: list adapters with filtering and pagination
 - Query params: `active`, `tag`, `limit`, `offset`
 - Response: 200 `{ "items": [adapter], "total": int, "limit": int, "offset": int }`
 - Features: Active/inactive filtering, tag-based filtering, performance indexes
 
-**GET /adapters/{id}** ✅ IMPLEMENTED
+**GET /v1/adapters/{id}** ✅ IMPLEMENTED
 - Purpose: fetch adapter by ID
 - Response: 200 `{ "adapter": { ... } }` or 404
 
-**PATCH /adapters/{id}** ✅ IMPLEMENTED
+**PATCH /v1/adapters/{id}** ✅ IMPLEMENTED
 - Purpose: modify adapter metadata (tags, weight, version, etc.)
 - Body: partial adapter fields as JSON object
 - Response: 200 `{ "adapter": { ... } }`
 - Features: Dynamic field updates, validation, timestamp tracking
 
-**DELETE /adapters/{id}** ✅ IMPLEMENTED
+**DELETE /v1/adapters/{id}** ✅ IMPLEMENTED
 - Purpose: remove adapter metadata entry
 - Response: 204 (hard delete implementation)
 
-**POST /adapters/{id}/activate** ✅ IMPLEMENTED
+**POST /v1/adapters/{id}/activate** ✅ IMPLEMENTED
 - Purpose: mark adapter active with optional ordinal positioning
 - Body: `{ "ordinal"?: int }`
 - Response: 200 `{ "adapter": { ... } }`
 - Features: Idempotent operation, ordinal-based ordering
 
-**POST /adapters/{id}/deactivate** ✅ IMPLEMENTED
+**POST /v1/adapters/{id}/deactivate** ✅ IMPLEMENTED
 - Purpose: mark adapter inactive  
 - Response: 200 `{ "adapter": { ... } }`
 
-### Prompt Composition (app/api/v1/compose.py)
+### Prompt Composition (`/v1/compose`)
 
-**POST /compose** ✅ IMPLEMENTED & ENHANCED
+**POST /v1/compose** ✅ IMPLEMENTED & ENHANCED
 - Purpose: compose prompts from active adapters with optional delivery
 - Body: `{ "prefix"?: str, "suffix"?: str, "delivery"?: { "mode": "http"|"cli"|"sdnext", ... } }`
 - Response: 200 `{ "prompt": str, "tokens": [str], "delivery"?: { "id": str, "status": str } }`
 - Features: Active adapter composition, token formatting, background delivery scheduling
 
-### Delivery Management (app/api/v1/deliveries.py)
+### Delivery Management (`/v1/deliveries`)
 
-**POST /deliveries** ✅ IMPLEMENTED
+**POST /v1/deliveries** ✅ IMPLEMENTED
 - Purpose: enqueue asynchronous delivery jobs
 - Body: `{ "prompt": str, "mode": str, "params": object }`
 - Response: 201 `{ "delivery_id": str, "status": str }`
 - Features: Background task scheduling, Redis/RQ integration
 
-**GET /deliveries/{id}** ✅ IMPLEMENTED
+**GET /v1/deliveries/{id}** ✅ IMPLEMENTED
 - Purpose: query job status and results
 - Response: 200 `{ "id": str, "status": str, "result": object | null, ... }`
 
-### ✅ SDNext Integration (app/api/v1/generation.py) - BONUS FEATURE
+### SDNext Integration (`/v1/generation`)
 
-**POST /generation/backends** ✅ IMPLEMENTED
+**POST /v1/generation/backends** ✅ IMPLEMENTED
 - Purpose: list available generation backends
 - Response: 200 `{ "backends": [str] }`
 
-**POST /generation/generate** ✅ IMPLEMENTED  
+**POST /v1/generation/generate** ✅ IMPLEMENTED  
 - Purpose: direct image generation with LoRA integration
 - Body: comprehensive SDNext parameters with LoRA adapter support
 - Response: 200 with generation results
 
-**GET /generation/progress/{job_id}** ✅ IMPLEMENTED
+**GET /v1/generation/progress/{job_id}** ✅ IMPLEMENTED
 - Purpose: monitor generation progress
 - Response: 200 `{ "progress": float, "status": str, ... }`
 
-**POST /generation/compose-and-generate** ✅ IMPLEMENTED
+**POST /v1/generation/compose-and-generate** ✅ IMPLEMENTED
 - Purpose: compose LoRA prompt and generate image in one request
 - Features: Automatic LoRA composition + SDNext generation
 
-**POST /generation/queue-generation** ✅ IMPLEMENTED
+**POST /v1/generation/queue-generation** ✅ IMPLEMENTED
 - Purpose: background generation with job tracking
 - Features: Redis/RQ background processing
 
-**GET /generation/jobs/{job_id}** ✅ IMPLEMENTED
+**GET /v1/generation/jobs/{job_id}** ✅ IMPLEMENTED
 - Purpose: retrieve generation job status and results
 
-### ✅ Real-time Monitoring (app/api/v1/websocket.py) - BONUS FEATURE
+### Real-time Monitoring (`/ws/progress`)
 
 **WebSocket /ws/progress** ✅ IMPLEMENTED
 - Purpose: real-time progress updates for generation jobs
 - Features: Live progress streaming, status updates, completion notifications
 
-### ✅ AI Recommendation System (app/api/v1/recommendations.py) - NEW FEATURE
+### AI Recommendation System (`/v1/recommendations`)
 
-**POST /recommendations/embeddings/compute** ✅ IMPLEMENTED
+**POST /v1/recommendations/embeddings/compute** ✅ IMPLEMENTED
 - Purpose: compute semantic embeddings for a specific LoRA adapter
 - Body: `{ "lora_id": str }`
 - Response: 200 `{ "lora_id": str, "status": "completed"|"failed", "embedding_stats": {...} }`
 - Features: ML-powered semantic analysis, GPU acceleration support, quality scoring
 
-**POST /recommendations/embeddings/batch** ✅ IMPLEMENTED  
+**POST /v1/recommendations/embeddings/batch** ✅ IMPLEMENTED  
 - Purpose: batch compute embeddings for multiple adapters (async processing)
 - Body: `{ "lora_ids": [str], "force_recompute"?: bool }`
 - Response: 202 `{ "processed_count": int, "skipped_count": int, "failed_count": int, "processing_time": float }`
 - Features: Efficient batch processing, background computation, progress tracking
 
-**GET /recommendations/embeddings/{lora_id}/status** ✅ IMPLEMENTED
+**GET /v1/recommendations/embeddings/{lora_id}/status** ✅ IMPLEMENTED
 - Purpose: check embedding computation status for a LoRA
 - Response: 200 `{ "lora_id": str, "has_embeddings": bool, "embedding_count": int, "last_computed": str?, "quality_score": float? }`
 - Features: Real-time status monitoring, quality metrics
 
-**GET /recommendations/similar/{lora_id}** ✅ IMPLEMENTED
+**GET /v1/recommendations/similar/{lora_id}** ✅ IMPLEMENTED
 - Purpose: get LoRAs similar to the specified target LoRA
 - Query params: `limit?=10`, `similarity_threshold?=0.1`, `weights?={semantic,artistic,technical}`
 - Response: 200 `{ "recommendations": [...], "total_candidates": int, "processing_time": float }`
 - Features: Multi-dimensional similarity (semantic, artistic, technical), customizable weighting, quality-based ranking
 
-**POST /recommendations/prompt** ✅ IMPLEMENTED
+**POST /v1/recommendations/prompt** ✅ IMPLEMENTED
 - Purpose: get LoRA recommendations based on text prompt
 - Body: `{ "prompt": str, "limit"?: int, "similarity_threshold"?: float, "weights"?: {...} }`
 - Response: 200 `{ "recommendations": [...], "prompt_analysis": {...}, "processing_time": float }`
 - Features: Natural language processing, semantic matching, prompt enhancement suggestions
 
-**GET /recommendations/stats** ✅ IMPLEMENTED
+**GET /v1/recommendations/stats** ✅ IMPLEMENTED
 - Purpose: get recommendation system statistics and health metrics
 - Response: 200 `{ "total_loras": int, "loras_with_embeddings": int, "embedding_coverage": float, "gpu_available": bool, "gpu_details": {...} }`
 - Features: System health monitoring, GPU status, coverage metrics
+
+### Dashboard (`/dashboard`)
+
+**GET /dashboard/stats** ✅ IMPLEMENTED
+- Purpose: Get dashboard statistics and system health information.
+- Response: 200 with stats and health info.
+
+**GET /dashboard/featured-loras** ✅ IMPLEMENTED
+- Purpose: Get featured LoRAs for the dashboard.
+- Response: 200 with a list of featured LoRAs.
+
+**GET /dashboard/activity-feed** ✅ IMPLEMENTED
+- Purpose: Get recent activity feed for the dashboard.
+- Response: 200 with a list of recent activities.
 
 #### Recommendation Response Schema
 ```json

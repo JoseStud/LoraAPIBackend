@@ -33,13 +33,13 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Include API routers with consistent /api/v1 prefix
-    app.include_router(adapters.router, prefix="/api/v1", dependencies=[Depends(get_api_key)])
-    app.include_router(compose.router, prefix="/api/v1", dependencies=[Depends(get_api_key)])
-    app.include_router(deliveries.router, prefix="/api/v1", dependencies=[Depends(get_api_key)])
-    app.include_router(generation.router, prefix="/api/v1", dependencies=[Depends(get_api_key)])
-    app.include_router(recommendations.router, prefix="/api/v1", dependencies=[Depends(get_api_key)])
-    app.include_router(dashboard.router, prefix="/api")  # Dashboard uses /api prefix for frontend compatibility
+    # Include API routers with consistent /v1 prefix
+    app.include_router(adapters.router, prefix="/v1", dependencies=[Depends(get_api_key)])
+    app.include_router(compose.router, prefix="/v1", dependencies=[Depends(get_api_key)])
+    app.include_router(deliveries.router, prefix="/v1", dependencies=[Depends(get_api_key)])
+    app.include_router(generation.router, prefix="/v1", dependencies=[Depends(get_api_key)])
+    app.include_router(recommendations.router, prefix="/v1", dependencies=[Depends(get_api_key)])
+    app.include_router(dashboard.router)  # Dashboard uses root prefix for frontend compatibility
     app.include_router(websocket.router)  # WebSocket doesn't use API key auth or versioning
 
     @app.get("/health")

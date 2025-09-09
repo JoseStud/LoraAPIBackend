@@ -71,12 +71,32 @@ ENVIRONMENT=production uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ## 🏗️ Architecture
 
-The project uses a dual-architecture approach with clear separation between frontend and backend:
+The project uses a modular architecture with a clear separation between the backend API and the frontend application.
 
-### Backend API (FastAPI)
+### Project Root
+```
+.
+├── app/              # Main application: FastAPI wrapper and frontend
+│   ├── frontend/     # Frontend assets (templates, static files)
+│   └── main.py       # Main FastAPI app entry point
+├── backend/          # Backend API (self-contained FastAPI app)
+│   ├── api/          # API endpoint routers
+│   ├── core/         # Core services (DB, config, security)
+│   ├── models/       # SQLModel database models
+│   ├── schemas/      # Pydantic schemas
+│   ├── services/     # Business logic
+│   └── main.py       # Backend FastAPI app entry point
+├── tests/            # Unit, integration, and E2E tests
+└── package.json      # Frontend dependencies and scripts
+```
+
+### Backend API (`backend/`)
+
+The backend is a self-contained FastAPI application mounted at `/api`.
+
 ```
 backend/
-├── api/v1/        # FastAPI endpoints (adapters, compose, generation, etc.)
+├── api/v1/        # API endpoints (adapters, compose, generation, etc.)
 ├── core/          # Configuration, database, dependencies, security
 ├── models/        # SQLModel database models
 ├── schemas/       # Pydantic request/response schemas
@@ -85,24 +105,22 @@ backend/
 └── workers/       # Background task processing
 ```
 
-### Frontend Application (Vite + Alpine.js)
+### Frontend Application (`app/frontend/`)
+
+The frontend is built with Vite, Alpine.js, and Tailwind CSS. FastAPI serves the HTML templates, and the frontend assets are managed by Vite.
+
 ```
 app/frontend/
 ├── static/
 │   ├── js/
-│   │   ├── components/    # Modular Alpine.js components
-│   │   │   ├── system-admin/     # Admin interface components
-│   │   │   ├── generation-studio/ # Generation workflow
-│   │   │   ├── performance-analytics/ # Analytics dashboard
-│   │   │   ├── import-export/    # Data management
-│   │   │   └── [other modules]/  # Feature-specific components
-│   │   ├── core/         # Component loading and registration
-│   │   ├── services/     # API communication layer
-│   │   └── utils/        # Shared utilities
-│   ├── css/              # Tailwind CSS and custom styles
-│   └── images/           # Static assets
-├── templates/            # Jinja2 templates
-└── routes/              # Frontend routing logic
+│   │   ├── components/    # Modular Alpine.js components (e.g., lora-gallery, generation-studio)
+│   │   ├── services/      # API communication layer (api-service.js)
+│   │   └── utils/         # Shared utility functions
+│   ├── css/           # Compiled CSS
+│   └── images/        # Static images
+└── templates/
+    ├── pages/         # Main HTML pages for each route
+    └── partials/      # Reusable HTML fragments (e.g., for HTMX)
 ```
 
 ### Frontend Technology Stack

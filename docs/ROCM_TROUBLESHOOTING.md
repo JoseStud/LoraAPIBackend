@@ -1,103 +1,134 @@
-# ROCm Troubleshooting Guide for SDNext Integration
+# ROCm Troubleshooting Guide
 
-## Prerequisites Check
+This guide provides solutions for common issues encountered when running the LoRA Manager with an AMD GPU using ROCm and Docker.
 
-### 1. Verify ROCm Installation
+## 1. Prerequisites Check
+
+Before troubleshooting, ensure your system is correctly set up.
+
+### 1.1. Verify ROCm Installation on Host
+
+Run these commands on your host machine (not in Docker) to confirm that ROCm is installed and can detect your GPU.
+
 ```bash
-# Check if ROCm is installed
+# 1. Check ROCm version
 rocm-smi --version
 
-# Check GPU detection
+# 2. Check if your GPU is detected
 rocm-smi --showproductname
 
-# Check device access
+# 3. Verify device file permissions
 ls -la /dev/dri /dev/kfd
 ```
 
-### 2. Check Docker Device Access
+You should see your GPU name (e.g., `card0: Navi 21`) and have read/write permissions for the `render` and `video` groups on the device files. If not, add your user to the correct groups:
+
 ```bash
-# Test Docker can access GPU devices
+sudo usermod -a -G render,video $USER
+# Log out and log back in for the changes to take effect.
+```
+
+### 1.2. Verify Docker Access to GPU
+
+Confirm that Docker can access the GPU devices.
+
+```bash
 docker run --rm --device /dev/dri --device /dev/kfd rocm/rocm-runtime rocm-smi
 ```
 
-## Common Issues and Solutions
+This command should successfully execute `rocm-smi` from within a container, indicating that Docker has the necessary permissions.
 
-### Issue 1: GPU Not Detected
-**Symptoms:** SDNext starts but uses CPU, no GPU acceleration
+---
 
-**Solutions:**
-1. Verify GPU architecture in `.env.rocm`:
-```bash
-# Check your GPU architecture
-rocm-smi --showproductname
+## 2. Common Issues and Solutions
 
-# Update HSA_OVERRIDE_GFX_VERSION in .env.rocm:
-# RDNA1 (RX 5000): HSA_OVERRIDE_GFX_VERSION=10.1.0  
-# RDNA2 (RX 6000): HSA_OVERRIDE_GFX_VERSION=10.3.0
-# RDNA3 (RX 7000): HSA_OVERRIDE_GFX_VERSION=11.0.0
-```
+### Issue: GPU Not Detected in Container
 
-2. Check device permissions:
-```bash
-sudo usermod -a -G render,video $USER
-# Logout and login again
-```
+-   **Symptom**: The application starts but runs on the CPU. Logs may show messages like "No GPU found."
+-   **Solution**: The most common cause is an incorrect `HSA_OVERRIDE_GFX_VERSION` for your GPU architecture.
 
-### Issue 2: Slow Startup or High VRAM Usage
-**Symptoms:** SDNext takes very long to start or uses excessive VRAM
+    1.  **Identify your GPU Architecture**:
+        Use `rocm-smi --showproductname` to identify your GPU. Match it to the correct architecture version.
 
-**Solutions:**
-1. For faster startup (trade-off: slightly worse performance):
-```bash
-# In .env.rocm, use:
-MIOPEN_FIND_MODE=FAST
-```
+| GPU Series | Architecture | `HSA_OVERRIDE_GFX_VERSION` |
+| :--- | :--- | :--- |
+| RX 7000 Series | RDNA3 | `11.0.0` |
+| RX 6000 Series | RDNA2 | `10.3.0` |
+| RX 5000 Series | RDNA1 | `10.1.0` |
 
-2. For best performance (trade-off: slower first-time startup):
-```bash
-# In .env.rocm, use:
-MIOPEN_FIND_ENFORCE=SEARCH
-```
+    2.  **Set the Environment Variable**:
+        In your `.env` file (or `docker-compose.override.yml`), set the correct `HSA_OVERRIDE_GFX_VERSION`.
 
-3. To reduce VRAM usage, in SDNext WebUI settings:
-   - Set Device precision type to `fp16`
-   - Disable VAE upcasting
+        ```env
+        # .env - Example for an RX 6800 XT (RDNA2)
+        HSA_OVERRIDE_GFX_VERSION=10.3.0
+        ```
 
-### Issue 3: Docker Container Fails to Start
-**Symptoms:** SDNext container exits with errors
+### Issue: Slow Startup or High VRAM Usage at Idle
 
-**Check logs:**
-```bash
-docker-compose -f docker-compose.rocm.yml logs sdnext
-```
+-   **Symptom**: The container takes a very long time to start, or you notice high VRAM usage even when not generating images.
+-   **Solution**: Adjust the MIOpen find mode.
 
-**Common fixes:**
-1. Ensure devices are accessible:
-```bash
-# Check device ownership
-ls -la /dev/dri /dev/kfd
+    -   **For Faster Startup**: Use `MIOPEN_FIND_MODE=FAST`. This reduces startup time at the cost of slightly lower performance during generation.
+    -   **For Best Performance**: Use `MIOPEN_FIND_ENFORCE=SEARCH`. This will take longer to start the first time as it tunes for your specific models, but will yield better performance.
 
-# Fix permissions if needed
-sudo chmod a+rw /dev/dri/render* /dev/kfd
-```
+    Set this in your `.env` file:
+    ```env
+    # .env
+    MIOPEN_FIND_MODE=FAST
+    ```
 
-2. Update Docker image:
-```bash
-docker pull disty0/sdnext-rocm:latest
-docker-compose -f docker-compose.rocm.yml up --force-recreate
-```
+### Issue: Docker Container Fails to Start or Exits Immediately
 
-### Issue 4: Performance Issues
-**Symptoms:** Generation is slower than expected
+-   **Symptom**: `docker-compose up` fails, and the `sdnext` or `backend` container exits with an error.
+-   **Solution**: Check the container logs and device permissions.
 
-**Optimizations:**
-1. Enable CK Flash Attention (RDNA3 only):
-   - In SDNext WebUI: Settings > Compute Settings > Cross Attention
-   - Toggle "CK Flash attention" and restart
+    1.  **Check Logs**:
+        ```bash
+        docker-compose -f docker-compose.rocm.yml logs sdnext
+        ```
+        Look for errors related to device access or missing libraries.
 
-2. Check temperature throttling:
-```bash
-rocm-smi --showtemp
+    2.  **Fix Device Permissions**:
+        Sometimes host permissions for the Docker devices are incorrect.
+        ```bash
+        sudo chmod 666 /dev/dri/render* /dev/kfd
+        ```
+
+    3.  **Recreate Container**:
+        If you've made changes, force Docker to recreate the container.
+        ```bash
+        docker-compose -f docker-compose.rocm.yml up -d --force-recreate
+        ```
+
+### Issue: Poor Performance During Generation
+
+-   **Symptom**: Image generation is much slower than expected.
+-   **Solution**: Ensure you are using optimized settings.
+
+    1.  **Check `docker-compose.rocm.yml`**: Ensure you are using the `rocm`-specific compose file, as it contains important device mappings and environment variables.
+    2.  **Monitor GPU Usage**: While generating an image, run `rocm-smi` on the host to see if the GPU is being utilized. If GPU usage is low, it may indicate a bottleneck elsewhere.
+    3.  **Check Temperatures**: High temperatures can cause thermal throttling.
+        ```bash
+        rocm-smi --showtemp
+        ```
+
+---
+
+## 3. Useful Commands
+
+-   **Monitor GPU in real-time**:
+    ```bash
+    watch -n 1 rocm-smi
+    ```
+-   **Clear MIOpen cache** (if you suspect corrupted cache files):
+    ```bash
+    rm -rf ~/.miopen/
+    ```
+-   **View live container logs**:
+    ```bash
+    docker-compose logs -f --tail=100 backend
+    ```
 ```
 
 3. Use optimal settings in SDNext:

@@ -1,153 +1,135 @@
-# LoRA Manager Backend - Developer Notes
-
-## Goal
-
-Provide context for maintainers and contributors on the implementation, modules, and recommended next steps for production-hardening.
+# LoRA Manager - Developer Notes
 
 ## Architecture Overview
 
-- **FastAPI** app with modular routers for adapters, compose, deliveries, and generation
-- **SQLModel + SQLite** for comprehensive Adapter metadata (25+ Civitai fields) and DeliveryJob records
-- **Modular service architecture** with dependency injection for maintainability and testing
-- **Plugin-based delivery system** supporting HTTP, CLI, and SDNext backends
-- **Redis + RQ** for background job processing
-- **WebSocket support** for real-time progress monitoring
+This project follows a modern, decoupled architecture with a distinct backend API and a separate frontend application.
 
-## Key Modules
+-   **Backend**: A self-contained FastAPI application located in the `backend/` directory. It handles all business logic, database interactions, and serves the API.
+-   **Frontend**: A Vite-powered single-page application located in `app/frontend/`. It's built with Alpine.js and Tailwind CSS.
+-   **Main Entrypoint**: The `app/main.py` file acts as a wrapper that serves the frontend and mounts the backend API at the `/api` path.
 
-### Core Application (`app/`)
-- `app/main.py` - FastAPI application setup and router inclusion
-- `app/core/` - Core application infrastructure:
-  - `config.py` - Application configuration management
-  - `database.py` - Database engine and session management  
-  - `dependencies.py` - Dependency injection container
-  - `security.py` - Optional API key authentication
-  - `logging.py` - Structured logging configuration
+---
 
-### Data Layer
-- `app/models/` - SQLModel database models:
-  - `adapters.py` - LoRA metadata models (25+ Civitai fields)
-  - `deliveries.py` - DeliveryJob and related models
-  - `base.py` - Shared model configurations
-- `app/schemas/` - Pydantic request/response models:
-  - `adapters.py` - LoRA management schemas
-  - `deliveries.py` - Job management schemas
-  - `generation.py` - Image generation schemas
-  - `common.py` - Shared schema components
+## Project Structure
 
-### API Layer
-- `app/api/v1/` - Versioned API endpoints:
-  - `adapters.py` - LoRA management endpoints
-  - `compose.py` - Prompt composition
-  - `deliveries.py` - Job management
-  - `generation.py` - Image generation (6 endpoints)
-  - `websocket.py` - Real-time progress updates
+```
+.
+├── app/              # Main application wrapper and frontend
+│   ├── frontend/     # All frontend assets (served by Vite/FastAPI)
+│   │   ├── static/
+│   │   │   ├── js/
+│   │   │   │   ├── components/ # Modular Alpine.js components
+│   │   │   │   ├── services/   # API communication
+│   │   │   │   └── utils/      # Shared utilities
+│   │   │   └── css/
+│   │   └── templates/      # Jinja2 HTML templates
+│   └── main.py       # Main FastAPI entrypoint to serve frontend & mount backend
+│
+├── backend/          # Self-contained backend FastAPI application
+│   ├── api/          # API endpoint routers (v1, etc.)
+│   ├── core/         # Core services (DB, config, security)
+│   ├── models/       # SQLModel database models
+│   ├── schemas/      # Pydantic schemas
+│   ├── services/     # Business logic layer
+│   └── main.py       # Backend FastAPI app factory
+│
+├── tests/            # Automated tests
+│   ├── e2e/          # End-to-end tests (Playwright)
+│   ├── integration/  # Integration tests (Pytest)
+│   └── unit/         # Unit tests (Pytest for backend, Jest for frontend)
+│
+├── infrastructure/   # Docker, Alembic, and deployment scripts
+└── scripts/          # Helper scripts (e.g., importer.py)
+```
 
-### Business Logic
-- `app/services/` - Service layer with dependency injection:
-  - `adapters.py` - LoRA metadata management
-  - `deliveries.py` - Job orchestration
-  - `composition.py` - LoRA token formatting
-  - `generation.py` - SDNext API integration
-  - `storage.py` - File storage abstraction
-  - `websocket.py` - Real-time progress monitoring
+---
 
-### Delivery Backends
-- `app/delivery/` - Plugin-based delivery system:
-  - `base.py` - Abstract interfaces
-  - `http.py`, `cli.py`, `sdnext.py` - Implementation backends
+## Key Modules & Technologies
 
-### Background Processing
-- `app/workers/` - Background job processing:
-  - `tasks.py` - Background worker processing
-  - `worker.py` - Worker configuration and setup
+### Backend (`backend/`)
 
-### Infrastructure
-- `infrastructure/alembic/` - Database migrations with Alembic
-- `scripts/importer.py` - Automated Civitai metadata ingestion with smart resync
+-   **Framework**: FastAPI with SQLModel for ORM.
+-   **API Routers (`backend/api/v1/`)**: Endpoints are organized by resource (e.g., `adapters.py`, `generation.py`). All v1 routes are prefixed with `/api/v1`.
+-   **Services (`backend/services/`)**: The business logic is encapsulated in services (e.g., `AdapterService`, `GenerationService`) and injected into the API layer using FastAPI's dependency injection.
+-   **Database (`backend/core/database.py`)**: Manages database sessions and initialization. Supports both SQLite and PostgreSQL.
+-   **Background Jobs (`backend/workers/`)**: Uses Redis and RQ for handling long-running tasks like image generation or batch processing.
 
+### Frontend (`app/frontend/`)
 
-## Development Standards
+-   **Build Tool**: Vite for fast development and optimized builds.
+-   **Framework**: Alpine.js for reactive, component-based UI.
+-   **Styling**: Tailwind CSS for utility-first styling.
+-   **Entrypoint (`static/js/main.js`)**: The single entry point for all JavaScript, which imports all necessary components and utilities.
+-   **Components (`static/js/components/`)**: The UI is broken down into reusable Alpine.js components (e.g., `lora-gallery`, `generation-studio`).
+-   **API Service (`static/js/services/api-service.js`)**: A centralized service for making all HTTP requests to the backend.
 
-### Linting
-- **ruff** as primary linter (line length: 88 chars, Python 3.10+)
-- Docstring checks enabled with exceptions for D203/D213 conflicts
-- Run `ruff --fix` before committing
+---
 
-### Key Design Decisions
-- **Comprehensive metadata**: 25+ Civitai fields for rich querying
-- **Smart resync**: File modification tracking for efficient updates
-- **JSON storage**: SQLite JSON columns (migrate to JSONB for PostgreSQL)
-- **Timezone handling**: Currently naive DateTime (needs migration)
-- **Background processing**: Redis/RQ for long-running tasks
+## Development Workflow
 
+### Prerequisites
 
-## Implemented Features
+-   Python 3.10+
+-   Node.js 18+
+-   Docker and Docker Compose
 
-### ✅ Core Infrastructure
-- **Modular service architecture** with dependency injection
-- **Plugin-based delivery system** (HTTP, CLI, SDNext backends)
-- **Comprehensive test coverage** (28/28 tests passing across all modules)
-- **Database migrations** with Alembic
-- **API contract hardening** with explicit response models
-- **Structured logging** with optional API key authentication
-- **Performance indexes** for critical query paths (active adapters, job status filtering)
+### Running the Application
 
-### ✅ LoRA Management
-- **Automated importer** with smart resync capabilities
-- **25+ Civitai metadata fields** for comprehensive LoRA information
-- **File storage abstraction** for local filesystem access
-- **Rich querying and filtering** capabilities
+A two-terminal setup is recommended for development:
 
-### ✅ AI Recommendation System (NEW)
-- **Semantic similarity search** with FAISS indexing
-- **Multi-dimensional embeddings** (semantic, artistic, technical)
-- **GPU acceleration** with AMD ROCm and NVIDIA CUDA support
-- **Prompt-based recommendations** using natural language processing
-- **Quality scoring and ranking** for intelligent LoRA discovery
-- **6 recommendation endpoints** with comprehensive functionality
+**Terminal 1: Backend Server**
 
-### ✅ SDNext Integration
-- **6 generation endpoints**:
-  - `/generation/backends` - List available backends
-  - `/generation/generate` - Direct image generation
-  - `/generation/progress/{job_id}` - Progress monitoring
-  - `/generation/compose-and-generate` - LoRA + generation workflow
-  - `/generation/queue-generation` - Background processing
-  - `/generation/jobs/{job_id}` - Job management
-- **WebSocket progress monitoring** (`/ws/progress`) with real-time updates
-- **Background job processing** with Redis/RQ integration
-- **Complete parameter support** for text-to-image generation
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
 
+# Run the backend with auto-reload
+uvicorn app.main:app --reload --port 8000
+```
+
+**Terminal 2: Frontend Development Server**
+
+```bash
+# Install Node.js dependencies
+npm install
+
+# Run the Vite dev server with Hot Module Replacement (HMR)
+npm run dev
+```
+
+Access the application at `http://localhost:5173` (Vite dev server) or `http://localhost:8000` (FastAPI-served).
+
+---
 
 ## Testing
 
-The project maintains comprehensive test coverage with 28/28 tests passing:
+The project has a comprehensive testing suite.
 
-- **Importer tests**: Civitai JSON parsing and metadata extraction
-- **Service tests**: Unit tests for all service layer components
-- **Integration tests**: Complete workflow testing
-- **Worker tests**: Background job processing with fakeredis
-- **API tests**: Endpoint functionality and error handling
-- **Recommendation tests**: AI-powered similarity and embedding computation (13/13 tests)
+### Backend Testing (Pytest)
 
-Tests use isolated in-memory SQLite databases and comprehensive mocking for filesystem interactions.
+-   **Run all backend tests:**
+    ```bash
+    pytest
+    ```
+-   Tests are located in `tests/integration` and `tests/unit`. They use an in-memory SQLite database and mock external services.
 
-## Next Steps
+### Frontend Testing (Jest & Playwright)
 
-### High Priority
-1. ✅ **Database optimization**: Added indexes for frequently queried columns (`adapter.active`, `adapter.ordinal`, `deliveryjob.status`, etc.) - Migration `952b85546fed`
-2. ✅ **AI recommendation system**: Complete ML pipeline with GPU acceleration and 13/13 tests passing
-3. **Timezone migration**: Add `timezone=True` to datetime columns before PostgreSQL deployment
-4. **Prometheus metrics**: Add observability for API operations and importer
+-   **Run all frontend tests:**
+    ```bash
+    npm test
+    ```
+-   **Unit Tests (`tests/unit/js/`)**: Use Jest to test individual Alpine.js components.
+-   **End-to-End Tests (`tests/e2e/`)**: Use Playwright to simulate user interactions in a real browser.
 
-### Medium Priority
-4. **Enhanced security**: Role-based access control beyond simple API key auth
-5. **Advanced querying**: Search by trained words, filter by SD version, sort by community stats
-6. **S3/MinIO storage**: Extend storage abstraction for cloud backends
+---
 
-### Future Features
-7. **ControlNet integration**: Advanced image composition and control
+## Code Quality & Standards
+
+-   **Linting**: `ruff` for Python and `eslint` for JavaScript. Run `ruff --fix .` and `npm run lint:fix` before committing.
+-   **Type Hinting**: The Python codebase is fully type-hinted.
+-   **Configuration**: All configuration is managed via environment variables (`.env` file) and loaded by Pydantic's `BaseSettings`. See `.env.example` for all available options.
+-   **Database Migrations**: Alembic is used for schema migrations. To create a new migration, run `alembic revision --autogenerate -m "Your migration message"`.
 8. **Batch workflows**: A/B testing and bulk generation capabilities
 9. **Image management**: Thumbnails, metadata extraction, automatic cleanup
 10. **Analytics dashboard**: Usage metrics and performance monitoring
