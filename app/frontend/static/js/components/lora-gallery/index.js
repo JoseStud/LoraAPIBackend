@@ -1,7 +1,14 @@
 /**
  * LoRA Gallery Component Module
  * Complete implementation with bulk operations and filtering
+ * Refactored to use the generic API data fetcher and modern ES modules
  */
+
+import apiDataFetcher from '../shared/api-data-fetcher.js';
+import { fetchData, postData } from '../../utils/api.js';
+import { formatFileSize, formatRelativeTime } from '../../utils/formatters.js';
+import { copyToClipboard } from '../../utils/browser.js';
+import { showElement, hideElement } from '../../utils/dom.js';
 
 /**
  * Individual LoRA Card Component
@@ -35,40 +42,28 @@ function loraCard(initialData) {
             }
         },
 
-        toggleActive() {
+        async toggleActive() {
             const previousState = this.active;
             this.active = !this.active;
             
-            // Make API call to update the active state
-            fetch(`/api/v1/loras/${this.id}/toggle-active`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ active: this.active })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    // Revert on error
-                    this.active = previousState;
-                    throw new Error('Failed to update LoRA status');
-                }
-                return response.json();
-            })
-            .then(data => {
+            try {
+                // Make API call to update the active state using new utility
+                const response = await postData(`/api/v1/loras/${this.id}/toggle-active`, { 
+                    active: this.active 
+                });
+                
                 // Update with server response
-                this.active = data.active;
+                this.active = response.active;
                 
                 // Trigger a refresh of the gallery
                 document.body.dispatchEvent(new CustomEvent('lora-data-updated'));
-            })
-            .catch(error => {
-                if (import.meta.env.DEV) {
-                    // eslint-disable-next-line no-console
-                    console.error('Error toggling LoRA active state:', error);
+            } catch (error) {
+                // Revert on error
+                this.active = previousState;
+                if (window.DevLogger && window.DevLogger.error) {
+                    window.DevLogger.error('Failed to update LoRA status:', error);
                 }
-                this.active = previousState; // Revert to previous state
-            });
+            }
         },
 
         toggleExpanded() {
@@ -80,17 +75,13 @@ function loraCard(initialData) {
             this.isLoading = true;
             
             try {
-                // Load additional details for the LoRA card
-                const response = await fetch(`/api/v1/loras/${this.id}/details`);
-                if (response.ok) {
-                    const details = await response.json();
-                    // Update the card with additional details
-                    Object.assign(this, details);
-                }
+                // Load additional details for the LoRA card using new utility
+                const details = await fetchData(`/api/v1/loras/${this.id}/details`);
+                // Update the card with additional details
+                Object.assign(this, details);
             } catch (error) {
-                if (import.meta.env.DEV) {
-                    // eslint-disable-next-line no-console
-                    console.error('Error loading LoRA details:', error);
+                if (window.DevLogger && window.DevLogger.error) {
+                    window.DevLogger.error('Error loading LoRA details:', error);
                 }
             } finally {
                 this.isLoading = false;
@@ -119,6 +110,23 @@ window.initLoraCards = initLoraCards;
 
 export function createLoraGalleryComponent() {
     return {
+        // Use the API data fetcher for loading LoRAs
+        ...apiDataFetcher('/api/v1/loras', {
+            paginated: true,
+            pageSize: 24,
+            autoFetch: false,
+            cacheKey: 'lora_gallery_cache',
+            cacheDuration: 300000, // 5 minutes
+            successHandler: (_data) => {
+                this.totalLoras = this.dataCount;
+                this.calculateStats();
+            },
+            errorHandler: (_error) => {
+                this.showNotification('Failed to load LoRAs', 'error');
+                return true;
+            }
+        }),
+
         // Initialization state (required for x-show guards)
         isInitialized: false,
         
@@ -139,13 +147,9 @@ export function createLoraGalleryComponent() {
         allSelected: false,
         totalLoras: 0,
         
-        // Data
-        loras: [],
-        isLoading: false,
-        
         // Computed property for filtered LoRAs
         get filteredLoras() {
-            let filtered = this.loras;
+            let filtered = this.data || [];
             
             // Filter by search term
             if (this.searchTerm) {
@@ -180,7 +184,11 @@ export function createLoraGalleryComponent() {
             if (savedViewMode) this.viewMode = savedViewMode;
             this.$watch('viewMode', (value) => localStorage.setItem('loraViewMode', value));
 
-            // Listen for selection updates from lora-card components
+            // Note: With the new $dispatch pattern, selection events will be handled
+            // through @selection-changed attributes in the template rather than
+            // global event listeners. This makes the data flow more explicit.
+
+            // Legacy listeners for backward compatibility with any remaining global events
             document.addEventListener('lora-selected', (e) => {
                 const id = e.detail && (e.detail.id || e.detail.loraId);
                 if (!id) return;
@@ -193,7 +201,6 @@ export function createLoraGalleryComponent() {
                 this.selectedLoras = this.selectedLoras.filter(i => i !== id);
             });
 
-            // Legacy listener for backward compatibility
             document.addEventListener('lora-selection-changed', (e) => {
                 const { loraId, selected } = e.detail || {};
                 if (!loraId) return;
@@ -212,24 +219,141 @@ export function createLoraGalleryComponent() {
                 });
             }
 
+            
             // Expose global methods for fallback scenarios
             this.exposeGlobalMethods();
             
             this.isInitialized = true;
             
-            // Trigger initial data load
-            setTimeout(() => {
-                htmx.trigger(document.body, 'lora-data-updated');
-            }, 100);
+            // Load LoRA data using the API data fetcher
+            this.loadLoraData();
         },
 
-        initCards(container) {
+        /**
+         * Handle selection changes from lora-card components
+         * This method is called via @selection-changed in the template
+         */
+        handleSelectionChange(detail) {
+            const { id, selected } = detail;
+            if (selected) {
+                if (!this.selectedLoras.includes(id)) {
+                    this.selectedLoras.push(id);
+                }
+            } else {
+                this.selectedLoras = this.selectedLoras.filter(i => i !== id);
+            }
+        },
+
+        /**
+         * Handle lora updates from lora-card components
+         * This method is called via @lora-updated in the template
+         */
+        handleLoraUpdate(detail) {
+            const { id, type, active, weight } = detail;
+            
+            // Find and update the lora in our data
+            const loraIndex = this.data.findIndex(lora => lora.id === id);
+            if (loraIndex !== -1) {
+                if (type === 'activation' && typeof active !== 'undefined') {
+                    this.data[loraIndex].active = active;
+                }
+                if (type === 'weight' && typeof weight !== 'undefined') {
+                    this.data[loraIndex].weight = weight;
+                }
+            }
+            
+            // Show notification based on update type
+            if (type === 'activation') {
+                this.showNotification(
+                    `LoRA ${active ? 'activated' : 'deactivated'} successfully`,
+                    'success'
+                );
+            } else if (type === 'weight') {
+                this.showNotification(
+                    `Weight updated to ${weight}`,
+                    'info'
+                );
+            } else if (type === 'preview-generated') {
+                this.showNotification(
+                    'Preview generation started',
+                    'info'
+                );
+            }
+        },
+
+        /**
+         * Handle lora deletion from lora-card components
+         * This method is called via @lora-deleted in the template
+         */
+        handleLoraDelete(detail) {
+            const { id, name } = detail;
+            
+            // Remove from our data
+            this.data = this.data.filter(lora => lora.id !== id);
+            
+            // Remove from selected loras if present
+            this.selectedLoras = this.selectedLoras.filter(i => i !== id);
+            
+            // Update count
+            this.totalLoras = this.data.length;
+            
+            this.showNotification(
+                `"${name}" was deleted successfully`,
+                'success'
+            );
+        },
+
+        /**
+         * Handle lora errors from lora-card components
+         * This method is called via @lora-error in the template
+         */
+        handleLoraError(detail) {
+            const { error } = detail;
+            this.showNotification(error, 'error');
+            
+            // Log error details for debugging
+            if (window.DevLogger && window.DevLogger.error) {
+                window.DevLogger.error('LoRA card error:', detail);
+            }
+        },
+
+        /**
+         * Load LoRA data using the integrated API data fetcher
+         */
+        async loadLoraData() {
+            return this.fetchData(true, {
+                view_mode: this.viewMode,
+                search: this.searchTerm || undefined,
+                is_active: this.filters.activeOnly || undefined,
+                tags: this.filters.tags.length > 0 ? this.filters.tags : undefined,
+                sort_by: this.sortBy
+            });
+        },
+
+        /**
+         * Calculate stats for the current data
+         */
+        calculateStats() {
+            // Override this method to calculate stats if needed
+            // For now, just update the total count
+            this.totalLoras = this.dataCount;
+        },
+
+        /**
+         * Show notification helper
+         */
+        showNotification(message, type = 'info') {
+            if (typeof htmx !== 'undefined') {
+                htmx.trigger(document.body, 'show-notification', {
+                    detail: { message, type }
+                });
+            } else {
+                window.DevLogger?.info?.(message);
+            }
+        },        initCards(container) {
             // Safety check for Alpine.js availability
             if (typeof Alpine === 'undefined') {
-                if (import.meta.env.DEV) {
-                    // eslint-disable-next-line no-console
-                    console.warn('Alpine.js not available for card initialization');
-                }
+                window.DevLogger?.warn?.('Alpine.js not available for card initialization');
                 return;
             }
 
@@ -241,10 +365,7 @@ export function createLoraGalleryComponent() {
                         Alpine.initTree(card);
                     }
                 } catch (error) {
-                    if (import.meta.env.DEV) {
-                        // eslint-disable-next-line no-console
-                        console.error('Error initializing Alpine.js component:', error);
-                    }
+                    window.DevLogger?.error?.('Error initializing Alpine.js component:', error);
                 }
             });
         },
@@ -254,43 +375,20 @@ export function createLoraGalleryComponent() {
             window.initLoraCards = this.initCards.bind(this);
         },
         
-        fetchAvailableTags() {
-            fetch('/api/v1/tags')
-                .then(response => response.json())
-                .then(data => {
-                    this.availableTags = data.tags;
-                })
-                .catch(error => {
-                    if (import.meta.env.DEV) {
-                        // eslint-disable-next-line no-console
-                        console.error('Error fetching tags:', error);
-                    }
-                });
+        async fetchAvailableTags() {
+            try {
+                const data = await fetchData('/api/v1/tags');
+                this.availableTags = data.tags;
+            } catch (error) {
+                if (window.DevLogger && window.DevLogger.error) {
+                    window.DevLogger.error('Error fetching tags:', error);
+                }
+            }
         },
 
         applyFilters() {
-            const params = new URLSearchParams();
-            params.append('view_mode', this.viewMode);
-            if (this.searchTerm) {
-                params.append('search', this.searchTerm);
-            }
-            if (this.filters.activeOnly) {
-                params.append('is_active', 'true');
-            }
-            this.filters.tags.forEach(tag => {
-                params.append('tags', tag);
-            });
-            params.append('sort_by', this.sortBy);
-            
-            if (this.bulkMode) {
-                params.append('bulk_mode', 'true');
-            }
-
-            // Use HTMX if available, otherwise fall back to standard navigation
-            if (typeof htmx !== 'undefined') {
-                const url = `/loras?${params.toString()}`;
-                htmx.ajax('GET', url, { target: '#lora-container', swap: 'innerHTML' });
-            }
+            // Use the API data fetcher to reload data with new filters
+            this.loadLoraData();
         },
 
         search() {
@@ -359,7 +457,8 @@ export function createLoraGalleryComponent() {
                         });
                         this.selectedLoras = [];
                         this.allSelected = false;
-                        htmx.trigger(document.body, 'lora-data-updated');
+                        // Refresh the data after bulk action
+                        this.loadLoraData();
                     } else {
                         response.text().then(text => {
                             const error = JSON.parse(text);

@@ -3,7 +3,14 @@
 {% block title %}LoRA Gallery - LoRA Manager{% endblock %}
 
 {% block content %}
-<div x-data="loraGallery()" x-init="init()" class="loras-page-container" x-cloak>
+<div x-data="loraGallery()" 
+     x-init="init()" 
+     @selection-changed="handleSelectionChange($event.detail)"
+     @lora-updated="handleLoraUpdate($event.detail)"
+     @lora-deleted="handleLoraDelete($event.detail)"
+     @lora-error="handleLoraError($event.detail)"
+     class="loras-page-container" 
+     x-cloak>
     <div x-show="!isInitialized" class="py-12 text-center text-gray-500">
         <svg class="animate-spin w-8 h-8 mx-auto mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"></circle><path d="M4 12a8 8 0 018-8" stroke-width="4" class="opacity-75"></path></svg>
         <div>Loading LoRAs...</div>

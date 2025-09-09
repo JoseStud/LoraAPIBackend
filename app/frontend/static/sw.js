@@ -28,7 +28,7 @@ const STATIC_ASSETS = [
     '/static/js/common.js',
     '/static/js/alpine-config.js',
     '/static/js/htmx-config.js',
-    '/static/js/mobile-nav.js',
+    '/static/js/main.js',
     '/static/js/components/system-admin.js',
     '/static/js/components/performance-analytics.js',
     '/static/js/components/import-export.js',

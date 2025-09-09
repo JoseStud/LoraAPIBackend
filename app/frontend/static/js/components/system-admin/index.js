@@ -71,23 +71,105 @@ function systemAdmin() {
         },
 
         /**
-         * Load all system data
+         * Load all system data with improved error handling
          */
         async loadSystemData() {
-            const loadingPromises = [
-                this.loadSystemStatus(),
-                this.loadSystemStats(),
-                this.loadSystemMetrics(),
-                this.loadWorkers(),
-                this.loadDatabaseStats(),
-                this.loadConfiguration()
+            const loadingOperations = [
+                { name: 'systemStatus', promise: this.loadSystemStatus() },
+                { name: 'systemStats', promise: this.loadSystemStats() },
+                { name: 'systemMetrics', promise: this.loadSystemMetrics() },
+                { name: 'workers', promise: this.loadWorkers() },
+                { name: 'databaseStats', promise: this.loadDatabaseStats() },
+                { name: 'configuration', promise: this.loadConfiguration() }
             ];
 
             try {
-                await Promise.allSettled(loadingPromises);
+                const results = await Promise.allSettled(loadingOperations.map(op => op.promise));
+                
+                // Handle individual results
+                results.forEach((result, index) => {
+                    const operationName = loadingOperations[index].name;
+                    
+                    if (result.status === 'fulfilled') {
+                        if (window.DevLogger && window.DevLogger.debug) {
+                            window.DevLogger.debug(`Successfully loaded ${operationName}`);
+                        }
+                    } else {
+                        // Handle individual failures gracefully
+                        if (window.DevLogger && window.DevLogger.error) {
+                            window.DevLogger.error(`Failed to load ${operationName}:`, result.reason);
+                        }
+                        this.handlePartialFailure(operationName, result.reason);
+                    }
+                });
+                
+                // Check if any critical operations failed
+                const criticalOperations = ['systemStatus', 'systemStats'];
+                const criticalFailures = results
+                    .map((result, index) => ({ result, name: loadingOperations[index].name }))
+                    .filter(({ result, name }) => result.status === 'rejected' && criticalOperations.includes(name));
+                
+                if (criticalFailures.length > 0) {
+                    this.handleCriticalFailures(criticalFailures);
+                } else {
+                    // All critical operations succeeded
+                    this.isInitialized = true;
+                }
+                
             } catch (error) {
-                this.handleError('Error loading system data', error);
+                // This should rarely happen with Promise.allSettled, but handle it just in case
+                this.handleError('Unexpected error loading system data', error);
             }
+        },
+
+        /**
+         * Handle partial failure of a single operation
+         * @param {string} operationName - Name of the failed operation
+         * @param {Error} error - The error that occurred
+         */
+        handlePartialFailure(operationName, error) {
+            // Set fallback data for failed operations
+            switch (operationName) {
+                case 'systemStatus':
+                    this.systemStatus.overall = 'unknown';
+                    this.systemStatus.message = 'Status unavailable';
+                    break;
+                case 'systemStats':
+                    this.systemStats = {
+                        uptime: 'Unknown',
+                        memory_usage: 'Unknown',
+                        cpu_usage: 'Unknown'
+                    };
+                    break;
+                case 'systemMetrics':
+                    this.metrics = { current: {}, historical: [] };
+                    break;
+                case 'workers':
+                    this.workers = [];
+                    break;
+                case 'databaseStats':
+                    this.databaseStats = { connections: 'Unknown', size: 'Unknown' };
+                    break;
+                case 'configuration':
+                    this.configuration = {};
+                    break;
+            }
+            
+            // Show a user-friendly message
+            showToast(`Some ${operationName} data is temporarily unavailable`, 'warning');
+        },
+
+        /**
+         * Handle critical failures that prevent proper initialization
+         * @param {Array} failures - Array of critical failures
+         */
+        handleCriticalFailures(failures) {
+            const failedOperations = failures.map(f => f.name).join(', ');
+            this.handleError(`Critical system operations failed: ${failedOperations}`, failures[0].result.reason);
+            
+            // Set component to error state but don't completely break
+            this.systemStatus.overall = 'error';
+            this.systemStatus.message = 'System monitoring partially unavailable';
         },
 
         /**

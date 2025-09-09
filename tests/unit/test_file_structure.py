@@ -15,8 +15,6 @@ class TestFileStructure:
         # Test core modules
         assert os.path.exists(f"{base_path}/core/index.js")
         assert os.path.exists(f"{base_path}/utils/index.js")
-        assert os.path.exists(f"{base_path}/lib/common-stub.js")
-        assert os.path.exists(f"{base_path}/lib/lazy-registration.js")
         
         # Test system-admin modules
         assert os.path.exists(f"{base_path}/components/system-admin/index.js")
@@ -54,8 +52,6 @@ class TestFileStructure:
         base_path = "app/frontend/static/js"
         
         files_to_check = [
-            f"{base_path}/lib/common-stub.js",
-            f"{base_path}/lib/lazy-registration.js",
             f"{base_path}/components/system-admin/index.js",
             f"{base_path}/components/import-export/index.js",
             f"{base_path}/components/import-export/state.js",
@@ -72,22 +68,6 @@ class TestFileStructure:
 
 class TestModuleStructure:
     """Test the internal structure of modules."""
-    
-    def test_common_stub_exports(self):
-        """Test that common-stub exports expected functions."""
-        file_path = "app/frontend/static/js/lib/common-stub.js"
-        with open(file_path, 'r') as f:
-            content = f.read()
-            assert "getCommonStub" in content
-            assert "module.exports" in content or "window.getCommonStub" in content
-    
-    def test_lazy_registration_exports(self):
-        """Test that lazy-registration exports expected functions."""  
-        file_path = "app/frontend/static/js/lib/lazy-registration.js"
-        with open(file_path, 'r') as f:
-            content = f.read()
-            assert "registerLazyComponent" in content
-            assert "module.exports" in content or "window.registerLazyComponent" in content
     
     def test_system_admin_modules_have_expected_structure(self):
         """Test that system-admin modules have expected structure."""

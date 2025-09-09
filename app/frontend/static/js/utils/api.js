@@ -1,0 +1,124 @@
+/**
+ * API Utilities
+ * 
+ * Functions for handling HTTP requests, API communication,
+ * and data fetching operations.
+ */
+
+/**
+ * Fetch data from an API endpoint with error handling
+ * @param {string} url - The API endpoint URL
+ * @param {object} options - Fetch options (method, headers, body, etc.)
+ * @returns {Promise<any>} The response data
+ */
+export async function fetchData(url, options = {}) {
+    try {
+        const defaultOptions = {
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        };
+
+        const response = await fetch(url, { ...defaultOptions, ...options });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return await response.json();
+        } else {
+            return await response.text();
+        }
+    } catch (error) {
+        console.error('API request failed:', error);
+        throw error;
+    }
+}
+
+/**
+ * POST data to an API endpoint
+ * @param {string} url - The API endpoint URL
+ * @param {any} data - The data to send
+ * @param {object} options - Additional fetch options
+ * @returns {Promise<any>} The response data
+ */
+export async function postData(url, data, options = {}) {
+    return fetchData(url, {
+        method: 'POST',
+        body: JSON.stringify(data),
+        ...options
+    });
+}
+
+/**
+ * PUT data to an API endpoint
+ * @param {string} url - The API endpoint URL
+ * @param {any} data - The data to send
+ * @param {object} options - Additional fetch options
+ * @returns {Promise<any>} The response data
+ */
+export async function putData(url, data, options = {}) {
+    return fetchData(url, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+        ...options
+    });
+}
+
+/**
+ * DELETE from an API endpoint
+ * @param {string} url - The API endpoint URL
+ * @param {object} options - Additional fetch options
+ * @returns {Promise<any>} The response data
+ */
+export async function deleteData(url, options = {}) {
+    return fetchData(url, {
+        method: 'DELETE',
+        ...options
+    });
+}
+
+/**
+ * Upload a file to an API endpoint
+ * @param {string} url - The API endpoint URL
+ * @param {FormData} formData - The form data containing the file
+ * @param {function} onProgress - Progress callback function
+ * @returns {Promise<any>} The response data
+ */
+export async function uploadFile(url, formData, onProgress = null) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        if (onProgress) {
+            xhr.upload.addEventListener('progress', (event) => {
+                if (event.lengthComputable) {
+                    const percentComplete = (event.loaded / event.total) * 100;
+                    onProgress(percentComplete);
+                }
+            });
+        }
+        
+        xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    resolve(response);
+                } catch {
+                    resolve(xhr.responseText);
+                }
+            } else {
+                reject(new Error(`Upload failed with status: ${xhr.status}`));
+            }
+        });
+        
+        xhr.addEventListener('error', () => {
+            reject(new Error('Upload failed'));
+        });
+        
+        xhr.open('POST', url);
+        xhr.send(formData);
+    });
+}

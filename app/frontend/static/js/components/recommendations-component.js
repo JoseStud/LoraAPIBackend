@@ -1,53 +1,71 @@
 /**
  * Refactored Recommendations Component
- * Uses mixins and API service for cleaner, more maintainable code
+ * Uses the generic API data fetcher for cleaner, more maintainable code
  */
 
-function createRecommendationsComponent() {
-    const baseComponent = window.AlpineMixins.createBaseComponent({
-    // Explicitly declare local state to avoid relying on global fallbacks
-    isLoading: false,
-    loading: false,
-    // Toast / notification state (explicit so templates don't reference globals)
-    showToast: false,
-    toastMessage: '',
-    toastType: 'success',
+import apiDataFetcher from './shared/api-data-fetcher.js';
 
-    // Import/Export related (some pages reference these identifiers)
-    exportConfig: {
-        loras: false,
-        lora_files: false,
-        lora_metadata: false,
-        lora_embeddings: false,
-        generations: false,
-        generation_range: 'all',
-        date_from: '',
-        date_to: '',
-        user_data: false,
-        system_config: false,
-        analytics: false,
-        format: 'zip',
-        compression: 'balanced',
-        split_archives: false,
-        max_size_mb: 1024,
-        encrypt: false,
-        password: ''
-    },
-    importConfig: { mode: 'merge', conflict_resolution: 'ask', validate: true, backup_before: true, password: '' },
-    isExporting: false,
-    isImporting: false,
-    estimatedSize: '0 MB',
-    estimatedTime: '0 minutes',
-    importFiles: [],
-    importPreview: [],
-    backupHistory: [],
-    hasEncryptedFiles: false,
-    showProgress: false,
-    progressTitle: '',
-    progressStep: '',
-    progressPercent: 0,
-    progressMessages: [],
-    migrationProgress: { active: false, current_step: '', completed: 0, total: 100, status: 'idle', logs: [] },
+function createRecommendationsComponent() {
+    return {
+        // Use API data fetcher for loading available LoRAs
+        ...apiDataFetcher('/api/v1/adapters', {
+            paginated: false,
+            autoFetch: false,
+            cacheKey: 'available_loras_cache',
+            cacheDuration: 600000, // 10 minutes
+            transform: (response) => response.items || response,
+            successHandler: (data) => {
+                this.availableLoras = data;
+            },
+            errorHandler: (_error) => {
+                this.showToastMessage('Failed to load available LoRAs', 'error');
+                return true;
+            }
+        }),
+
+        // Explicitly declare local state to avoid relying on global fallbacks
+        isLoading: false,
+        loading: false,
+        // Toast / notification state (explicit so templates don't reference globals)
+        showToast: false,
+        toastMessage: '',
+        toastType: 'success',
+
+        // Import/Export related (some pages reference these identifiers)
+        exportConfig: {
+            loras: false,
+            lora_files: false,
+            lora_metadata: false,
+            lora_embeddings: false,
+            generations: false,
+            generation_range: 'all',
+            date_from: '',
+            date_to: '',
+            user_data: false,
+            system_config: false,
+            analytics: false,
+            format: 'zip',
+            compression: 'balanced',
+            split_archives: false,
+            max_size_mb: 1024,
+            encrypt: false,
+            password: ''
+        },
+        importConfig: { mode: 'merge', conflict_resolution: 'ask', validate: true, backup_before: true, password: '' },
+        isExporting: false,
+        isImporting: false,
+        estimatedSize: '0 MB',
+        estimatedTime: '0 minutes',
+        importFiles: [],
+        importPreview: [],
+        backupHistory: [],
+        hasEncryptedFiles: false,
+        showProgress: false,
+        progressTitle: '',
+        progressStep: '',
+        progressPercent: 0,
+        progressMessages: [],
+        migrationProgress: { active: false, current_step: '', completed: 0, total: 100, status: 'idle', logs: [] },
         // Tab state
         activeTab: 'similarity',
         
@@ -89,16 +107,15 @@ function createRecommendationsComponent() {
         embeddingStatus: '',
 
         async customInit() {
-            await this.loadAvailableLoras();
-        // Mark component ready for template bindings
-        this.isInitialized = true;
+            // Load available LoRAs using the API data fetcher
+            await this.fetchData();
+            // Mark component ready for template bindings
+            this.isInitialized = true;
         },
 
         async loadAvailableLoras() {
-            await this.withLoading(async () => {
-                const data = await window.APIService.getAdapters({ limit: 1000 });
-                this.availableLoras = data.items || [];
-            }, 'loadAvailableLoras');
+            // This method now uses the integrated API data fetcher
+            return this.fetchData();
         },
 
         loadSelectedLora() {
@@ -136,7 +153,11 @@ function createRecommendationsComponent() {
             
             try {
                 const loraIds = this.availableLoras.map(lora => lora.id);
-                await window.APIService.computeEmbeddings(loraIds, false);
+                
+                await this.makeHttpRequest('POST', 
+                    { lora_ids: loraIds, force: false },
+                    { customEndpoint: '/api/v1/recommendations/compute-embeddings' }
+                );
                 
                 this.embeddingStatus = 'Embeddings computed successfully!';
                 this.embeddingProgress = 100;
@@ -157,7 +178,10 @@ function createRecommendationsComponent() {
             this.embeddingStatus = 'Rebuilding similarity index...';
             
             try {
-                await window.APIService.rebuildIndex();
+                await this.makeHttpRequest('POST', 
+                    null,
+                    { customEndpoint: '/api/v1/recommendations/rebuild-index' }
+                );
                 
                 this.embeddingStatus = 'Index rebuilt successfully!';
                 this.embeddingProgress = 100;
@@ -172,12 +196,29 @@ function createRecommendationsComponent() {
             }
         },
 
-        viewHealthReport() {
-            window.open('/api/v1/recommendations/health', '_blank');
-        }
-    });
+        // Helper methods (previously provided by AlpineMixins)
+        showSuccess(message) {
+            // Implementation for success notifications
+            if (window.showToast) {
+                window.showToast(message, 'success');
+            } else {
+                window.DevLogger?.info?.(message);
+            }
+        },
 
-    return baseComponent;
+        handleError(error, context = '') {
+            const message = error?.message || 'An error occurred';
+            window.DevLogger?.error?.(`[${context}] ${message}`, error);
+            
+            if (window.showToast) {
+                window.showToast(`Error: ${message}`, 'error');
+            }
+        },
+
+        viewHealthReport() {
+            window.open('/reports/health', '_blank');
+        }
+    };
 }
 
 // Export the component factory and register once with ComponentLoader

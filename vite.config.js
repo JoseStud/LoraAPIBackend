@@ -35,7 +35,22 @@ export default defineConfig({
             input: {
                 // This is your main JS entry point
                 main: './app/frontend/static/js/main.js'
+            },
+            // Suppress eval warnings for HTMX - this is safe as HTMX uses eval for template processing
+            onwarn(warning, warn) {
+                // Suppress eval warnings from HTMX
+                if (warning.code === 'EVAL' && warning.id && warning.id.includes('htmx')) {
+                    return;
+                }
+                warn(warning);
             }
+        }
+    },
+
+    // Configure module resolution to use the standard HTMX build
+    resolve: {
+        alias: {
+            'htmx.org': 'htmx.org/dist/htmx.min.js'
         }
     },
 
@@ -46,6 +61,6 @@ export default defineConfig({
 
     // Optimize dependencies for development
     optimizeDeps: {
-        include: ['alpinejs']
+        include: ['alpinejs', 'htmx.org', 'chart.js/auto']
     }
 });

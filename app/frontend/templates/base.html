@@ -35,27 +35,10 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     
-    <!-- Tailwind compiled CSS (includes components & mobile via build) -->
-    <link href="{{ url_for('static', path='/css/styles.css') }}?v=20250904" rel="stylesheet">
-    
-    <!-- Enhanced Design System -->
-    <link href="{{ url_for('static', path='/css/design-system.css') }}?v=20250904" rel="stylesheet">
-    
-    <!-- Enhanced Mobile Experience -->
-    <link href="{{ url_for('static', path='/css/mobile-enhanced.css') }}?v=20250904" rel="stylesheet">
-    
-    <!-- Loading States and Micro-interactions -->
-    <link href="{{ url_for('static', path='/css/loading-animations.css') }}?v=20250904" rel="stylesheet">
-    
-    <!-- Accessibility Enhancements -->
-    <link href="{{ url_for('static', path='/css/accessibility.css') }}?v=20250904" rel="stylesheet">
-
-    <!-- Vite CSS (only in production) -->
-    {% if not is_development() %}
-        {% set main_css = vite_asset_css('js/main.js') %}
-        {% if main_css %}
-            <link rel="stylesheet" href="{{ main_css }}">
-        {% endif %}
+    <!-- Vite CSS Bundle -->
+    {% set main_css = vite_asset_css('js/main.js') %}
+    {% if main_css %}
+        <link rel="stylesheet" href="{{ main_css }}">
     {% endif %}
 
     <!-- Ensure x-cloak is supported early to hide uninitialized components -->
@@ -326,14 +309,7 @@
         </div>
     </footer>
 
-    <!-- Scripts loaded at end of body to prevent layout forcing -->
-    <!-- HTMX -->
-    <script src="https://unpkg.com/htmx.org@1.9.6" defer></script>
-    
-    <!-- Chart.js for performance analytics -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-
-    <!-- Vite Main Entry Point -->
+    <!-- Vite JavaScript Bundle -->
     <script type="module" src="{{ vite_asset('js/main.js') }}"></script>
 </body>
 </html>

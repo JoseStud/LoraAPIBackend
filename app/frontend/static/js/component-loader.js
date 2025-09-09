@@ -23,7 +23,7 @@ window.ComponentLoader = {
         // Set up logging
         this.setupLogging();
         
-        // Create comprehensive stubs first
+        // Create comprehensive stubs
         this.createStubs();
         
         // Wait for dependencies before Alpine.js
@@ -569,10 +569,13 @@ window.ComponentLoader = {
             
             async loadAvailableTags() {
                 try {
-                    const tags = await window.APIService?.getAdapterTags?.() || [];
-                    this.availableTags = tags;
+                    const response = await fetch('/api/v1/adapters/tags');
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.availableTags = data.tags || [];
+                    }
                 } catch (error) {
-                    console.error('[ComponentLoader] Failed to load tags:', error);
+                    window.DevLogger?.error?.('[ComponentLoader] Failed to load tags:', error);
                 }
             },
             
@@ -613,11 +616,14 @@ window.ComponentLoader = {
             
             async refreshData() {
                 try {
-                    const data = await window.APIService?.getDashboardStats?.() || {};
-                    this.stats = data.stats || this.stats;
-                    this.systemHealth = data.system_health || this.systemHealth;
+                    const response = await fetch('/api/v1/dashboard/stats');
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.stats = data.stats || this.stats;
+                        this.systemHealth = data.system_health || this.systemHealth;
+                    }
                 } catch (e) {
-                    console.debug('[ComponentLoader] Dashboard data not available');
+                    window.DevLogger?.debug?.('[ComponentLoader] Dashboard data not available');
                 }
             }
         }));
@@ -643,10 +649,13 @@ window.ComponentLoader = {
             
             async loadActiveJobs() {
                 try {
-                    const jobs = await window.APIService?.getActiveJobs?.() || [];
-                    this.activeJobs = jobs;
+                    const response = await fetch('/api/v1/jobs/active');
+                    if (response.ok) {
+                        const jobs = await response.json();
+                        this.activeJobs = jobs.jobs || [];
+                    }
                 } catch (error) {
-                    console.error('[ComponentLoader] Failed to load active jobs:', error);
+                    window.DevLogger?.error?.('[ComponentLoader] Failed to load active jobs:', error);
                 }
             },
             

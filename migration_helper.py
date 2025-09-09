@@ -34,10 +34,9 @@ FILE_MIGRATION_MAP = {
         "app/frontend/static/js/core/component-loader/logger.js"
     ],
     
-    # Alpine Config
+    # Alpine Config - dependencies removed after refactoring to apiDataFetcher
     "app/frontend/static/js/alpine-config.js": [
-        "app/frontend/static/js/lib/common-stub.js",
-        "app/frontend/static/js/lib/lazy-registration.js"
+        # No longer dependent on lib files after cleanup
     ],
     
     # Backend Routes
@@ -131,10 +130,7 @@ def update_template_imports(dry_run: bool = True) -> None:
     import_updates = {
         'static/js/system-admin.js': 'static/js/components/system-admin/index.js',
         'static/js/component-loader.js': 'static/js/core/index.js',
-        'static/js/alpine-config.js': [
-            'static/js/lib/common-stub.js',
-            'static/js/lib/lazy-registration.js'
-        ]
+        # alpine-config.js no longer needs lib dependencies after cleanup
     }
     
     print(f"\n{'DRY RUN: ' if dry_run else ''}Updating template imports...")
@@ -193,7 +189,6 @@ describe('Migration Integration Tests', () => {
 
     test('common utilities are available', () => {
         expect(() => {
-            require('../app/frontend/static/js/lib/common-stub.js');
             require('../app/frontend/static/js/utils/index.js');
         }).not.toThrow();
     });

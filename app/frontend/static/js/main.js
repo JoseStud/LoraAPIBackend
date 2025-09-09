@@ -6,8 +6,18 @@
 
 // STEP 1: ALL IMPORTS AT THE TOP
 // =================================================================
+
+// Import CSS bundle (Vite will handle bundling all CSS files)
 import '../css/styles.css';
+import '../css/design-system.css';
+import '../css/mobile-enhanced.css';
+import '../css/loading-animations.css';
+import '../css/accessibility.css';
+
+// External libraries
 import Alpine from 'alpinejs';
+import htmx from 'htmx.org';
+import Chart from 'chart.js/auto';
 
 // Utilities
 import Utils, {
@@ -38,13 +48,24 @@ import { createImportExportComponent } from './components/import-export/index.js
 import { createSystemAdminComponent } from './components/system-admin/index.js';
 import { createDatabaseManagerComponent } from './components/system-admin/databaseManager.js';
 import { createLogViewerComponent } from './components/system-admin/logViewer.js';
+
+// Import the lora-card component module to register it with Alpine
+import './components/lora-card/index.js';
 import { createGenerationFormComponent } from './components/generation-form/index.js';
 import { createJobQueueComponent } from './components/job-queue/index.js';
 import { createSystemStatusComponent } from './components/system-status/index.js';
 import { createNotificationsComponent } from './components/notifications/index.js';
 
 
-// STEP 2: ALL CONFIGURATION AND REGISTRATION
+// STEP 2: CONFIGURE EXTERNAL LIBRARIES
+// =================================================================
+
+// Make HTMX available globally
+window.htmx = htmx;
+
+// Make Chart.js available globally  
+window.Chart = Chart;
+// STEP 3: ALL CONFIGURATION AND REGISTRATION
 // =================================================================
 
 // Make utilities globally available (if needed by templates)
@@ -251,7 +272,7 @@ window.Alpine = Alpine;
 console.log('🚀 LoRA Manager Initializing...');
 
 
-// STEP 3: A SINGLE START CALL AT THE VERY END
+// STEP 4: A SINGLE START CALL AT THE VERY END
 // =================================================================
 Alpine.start();
 

@@ -1,4 +1,6 @@
-<!-- LoRA Card Component Template -->
+<!-{% macro lora_card(lora, view_mode='grid', bulk_mode=false) %}
+<div x-data="loraCard({{ lora.json | safe }})"
+     class="lora-card-wrapper {{ 'lora-card-grid' if view_mode == 'grid' else 'lora-card-list' }}">oRA Card Component Template -->
 <!-- Can be used in both grid and list views -->
 
 {% macro lora_card(lora, view_mode='grid', bulk_mode=false) %}
@@ -266,94 +268,4 @@
     </div>
     {% endif %}
 </div>
-
-<script>
-function loraCard(config) {
-    return {
-        id: config.id,
-        active: config.active || false,
-        name: config.name,
-        version: config.version,
-        viewMode: config.viewMode || 'grid',
-        bulkMode: config.bulkMode || false,
-        weight: 1.0,
-        isSelected: false, // Initialize isSelected
-        
-        toggleActive() {
-            this.active = !this.active;
-            const endpoint = this.active ? 'activate' : 'deactivate';
-            fetch(`/api/v1/adapters/${this.id}/${endpoint}`, {
-                method: 'POST'
-            }).then(response => {
-                if (!response.ok) {
-                    this.active = !this.active; // Revert on error
-                    console.error('Failed to toggle LoRA status');
-                }
-            });
-        },
-        
-        updateWeight() {
-            // Update weight via API
-            fetch(`/api/v1/adapters/${this.id}/weight`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ weight: parseFloat(this.weight) })
-            });
-        },
-        
-        toggleSelection() {
-            this.isSelected = !this.isSelected;
-            // Notify parent component
-            if (this.isSelected) {
-                // Primary event (current implementation)
-                window.dispatchEvent(new CustomEvent('lora-selected', { detail: { id: this.id } }));
-                // Legacy compatibility: also emit the older combined event shape
-                window.dispatchEvent(new CustomEvent('lora-selection-changed', { detail: { loraId: this.id, selected: true } }));
-            } else {
-                window.dispatchEvent(new CustomEvent('lora-deselected', { detail: { id: this.id } }));
-                window.dispatchEvent(new CustomEvent('lora-selection-changed', { detail: { loraId: this.id, selected: false } }));
-            }
-        },
-        
-        async getRecommendations() {
-            // Navigate to recommendations page with this LoRA
-            window.location.href = `/recommendations?similar=${this.id}`;
-        },
-        
-        async generatePreview() {
-            // Trigger preview generation
-            try {
-                const response = await fetch(`/api/v1/generation/preview/${this.id}`, {
-                    method: 'POST'
-                });
-                if (response.ok) {
-                    alert('Preview generation started');
-                } else {
-                    alert('Failed to start preview generation');
-                }
-            } catch (error) {
-                alert('Error generating preview');
-            }
-        },
-        
-        async deleteLora() {
-            if (confirm(`Delete ${this.name}? This cannot be undone.`)) {
-                try {
-                    const response = await fetch(`/api/v1/adapters/${this.id}`, {
-                        method: 'DELETE'
-                    });
-                    if (response.ok) {
-                        // Remove the card from view
-                        this.$el.remove();
-                    } else {
-                        alert('Failed to delete LoRA');
-                    }
-                } catch (error) {
-                    alert('Error deleting LoRA');
-                }
-            }
-        }
-    }
-}
-</script>
 {% endmacro %}

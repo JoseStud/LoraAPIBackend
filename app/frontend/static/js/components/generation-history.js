@@ -1,16 +1,32 @@
 /**
  * Generation History Alpine.js Component
  * Manages viewing, filtering, and organizing generation history
+ * Refactored to use the generic API data fetcher
  */
+
+import apiDataFetcher from './shared/api-data-fetcher.js';
 
 function generationHistory() {
     return {
-        // State
-        results: [],
+        // Use the API data fetcher for paginated results
+        ...apiDataFetcher('/api/v1/results', {
+            paginated: true,
+            pageSize: 50,
+            autoFetch: false, // We'll fetch manually after initialization
+            cacheKey: 'generation_history_cache',
+            cacheDuration: 300000, // 5 minutes
+            successHandler: (_data, _response) => {
+                // Custom handling after successful data fetch
+                this.applyFilters();
+            },
+            errorHandler: (_error) => {
+                this.showToastMessage('Failed to load results', 'error');
+                return true; // Indicate we handled the error
+            }
+        }),
+
+        // Additional state specific to generation history (results will be accessed via this.data)
         filteredResults: [],
-    // Safe defaults for template-referenced keys
-    cfg_scale: 1.0,
-    created_at: null,
         selectedItems: [],
         selectedResult: null,
         
@@ -19,9 +35,6 @@ function generationHistory() {
         showModal: false,
         showToast: false,
         toastMessage: '',
-        isLoading: false,
-        hasMore: true,
-        currentPage: 1,
         
         // Filters
         searchTerm: '',
@@ -29,8 +42,6 @@ function generationHistory() {
         dateFilter: 'all',
         ratingFilter: 0,
         dimensionFilter: 'all',
-    // template expects steps sometimes
-    steps: 0,
         
         // Statistics
         stats: {
@@ -41,70 +52,34 @@ function generationHistory() {
         },
         
         /**
-         * Initialize the component
+         * Custom initialization after base init
          */
-        async init() {
-            await this.loadResults();
-            this.calculateStats();
-            
+        customInit() {
             // Load view mode preference
             const savedViewMode = localStorage.getItem('history-view-mode');
             if (savedViewMode) {
                 this.viewMode = savedViewMode;
             }
+            
+            // Start fetching data
+            this.loadResults();
         },
         
         /**
-         * Load generation results from the API
+         * Load generation results using the API data fetcher
          */
         async loadResults() {
-            try {
-                this.isLoading = true;
-                
-                const params = new URLSearchParams({
-                    page: this.currentPage,
-                    page_size: 50
-                });
-                
-                const response = await fetch(`/api/v1/results?${params}`);
-                if (!response.ok) {
-                    throw new Error('Failed to load results');
-                }
-                
-                const data = await response.json();
-                
-                if (this.currentPage === 1) {
-                    this.results = data.results;
-                } else {
-                    this.results.push(...data.results);
-                }
-                
-                this.hasMore = data.has_more;
-                this.applyFilters();
-                
-            } catch (error) {
-                console.error('Error loading results:', error);
-                this.showToastMessage('Failed to load results', 'error');
-            } finally {
-                this.isLoading = false;
-            }
-        },
-        
-        /**
-         * Load more results (pagination)
-         */
-        async loadMore() {
-            if (!this.hasMore || this.isLoading) return;
-            
-            this.currentPage++;
-            await this.loadResults();
+            return this.fetchData(true, {
+                page: this.currentPage,
+                page_size: this.pageSize
+            });
         },
         
         /**
          * Apply current filters to results
          */
         applyFilters() {
-            let filtered = [...this.results];
+            let filtered = [...(this.data || [])];
             
             // Search filter
             if (this.searchTerm.trim()) {
@@ -254,7 +229,7 @@ function generationHistory() {
                 this.showToastMessage('Rating updated successfully');
                 
             } catch (error) {
-                console.error('Error updating rating:', error);
+                window.DevLogger?.error?.('Error updating rating:', error);
                 this.showToastMessage('Failed to update rating', 'error');
             }
         },
@@ -284,7 +259,7 @@ function generationHistory() {
                 this.showToastMessage(message);
                 
             } catch (error) {
-                console.error('Error updating favorite:', error);
+                window.DevLogger?.error?.('Error updating favorite:', error);
                 this.showToastMessage('Failed to update favorite status', 'error');
             }
         },
@@ -331,7 +306,7 @@ function generationHistory() {
                 this.showToastMessage('Download started');
                 
             } catch (error) {
-                console.error('Error downloading image:', error);
+                window.DevLogger?.error?.('Error downloading image:', error);
                 this.showToastMessage('Failed to download image', 'error');
             }
         },
@@ -354,13 +329,13 @@ function generationHistory() {
                 }
                 
                 // Remove from local data
-                this.results = this.results.filter(r => r.id !== resultId);
+                this.data = this.data.filter(r => r.id !== resultId);
                 this.applyFilters();
                 
                 this.showToastMessage('Image deleted successfully');
                 
             } catch (error) {
-                console.error('Error deleting result:', error);
+                window.DevLogger?.error?.('Error deleting result:', error);
                 this.showToastMessage('Failed to delete image', 'error');
             }
         },
@@ -390,14 +365,14 @@ function generationHistory() {
                 }
                 
                 // Remove from local data
-                this.results = this.results.filter(r => !this.selectedItems.includes(r.id));
+                this.data = this.data.filter(r => !this.selectedItems.includes(r.id));
                 this.selectedItems = [];
                 this.applyFilters();
                 
                 this.showToastMessage(`${count} images deleted successfully`);
                 
             } catch (error) {
-                console.error('Error deleting results:', error);
+                window.DevLogger?.error?.('Error deleting results:', error);
                 this.showToastMessage('Failed to delete images', 'error');
             }
         },
@@ -425,7 +400,7 @@ function generationHistory() {
                 }
                 
                 // Update local data
-                this.results.forEach(result => {
+                this.data.forEach(result => {
                     if (this.selectedItems.includes(result.id)) {
                         result.is_favorite = true;
                     }
@@ -435,7 +410,7 @@ function generationHistory() {
                 this.showToastMessage(`${this.selectedItems.length} images added to favorites`);
                 
             } catch (error) {
-                console.error('Error updating favorites:', error);
+                window.DevLogger?.error?.('Error updating favorites:', error);
                 this.showToastMessage('Failed to update favorites', 'error');
             }
         },
@@ -472,7 +447,7 @@ function generationHistory() {
                 this.showToastMessage('Export started');
                 
             } catch (error) {
-                console.error('Error exporting results:', error);
+                window.DevLogger?.error?.('Error exporting results:', error);
                 this.showToastMessage('Failed to export images', 'error');
             }
         },
@@ -520,7 +495,7 @@ function generationHistory() {
         /**
          * Show toast notification
          */
-        showToastMessage(message, type = 'success') {
+        showToastMessage(message, _type = 'success') {
             this.toastMessage = message;
             this.showToast = true;
             
@@ -548,6 +523,9 @@ function generationHistory() {
         }
     };
 }
+
+// Export the function for use in templates or other modules
+export default generationHistory;
 
 // Add keyboard event listener
 document.addEventListener('keydown', function(event) {

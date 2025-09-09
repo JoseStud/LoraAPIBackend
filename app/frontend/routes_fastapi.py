@@ -185,14 +185,14 @@ async def htmx_similarity_recommendations(request: Request):
         except Exception:
             logger.warning("SimilarityForm validation failed: %s", ve)
         errors = {e['loc'][0]: e['msg'] for e in ve.errors()}
-        return templates.TemplateResponse("partials/similarity-results-refactored.html", {
+        return templates.TemplateResponse("partials/similarity-results.html", {
             "request": request,
             "recommendations": [],
             "error": "Validation failed",
             "validation_errors": errors
         })
     except Exception as e:
-        return templates.TemplateResponse("partials/similarity-results-refactored.html", {
+        return templates.TemplateResponse("partials/similarity-results.html", {
             "request": request,
             "recommendations": [],
             "error": f"Invalid input: {e}"
@@ -218,7 +218,7 @@ async def htmx_similarity_recommendations(request: Request):
         
             if response.status_code == 200:
                 recommendations = response.json()
-                return templates.TemplateResponse("partials/similarity-results-refactored.html", {
+                return templates.TemplateResponse("partials/similarity-results.html", {
                     "request": request,
                     "recommendations": recommendations,
                     "original_lora_id": form.lora_id,
@@ -226,13 +226,13 @@ async def htmx_similarity_recommendations(request: Request):
                 })
             else:
                 error_msg = f"Backend API error: {response.status_code}"
-                return templates.TemplateResponse("partials/similarity-results-refactored.html", {
+                return templates.TemplateResponse("partials/similarity-results.html", {
                     "request": request,
                     "recommendations": [],
                     "error": error_msg
                 })
     except Exception as e:
-        return templates.TemplateResponse("partials/similarity-results-refactored.html", {
+        return templates.TemplateResponse("partials/similarity-results.html", {
             "request": request,
             "recommendations": [], 
             "error": f"Error: {str(e)}"
@@ -258,7 +258,7 @@ async def htmx_prompt_recommendations(request: Request):
             except Exception:
                 logger.warning("PromptForm validation failed: %s", ve)
             errors = {e['loc'][0]: e['msg'] for e in ve.errors()}
-            return templates.TemplateResponse("partials/prompt-results-refactored.html", {
+            return templates.TemplateResponse("partials/prompt-results.html", {
                 "request": request,
                 "recommendations": [],
                 "error": "Validation failed",
@@ -372,7 +372,7 @@ async def htmx_embedding_status(request: Request):
                 })
             }
             
-            return templates.TemplateResponse("partials/embedding-status-refactored.html", context)
+            return templates.TemplateResponse("partials/embedding-status.html", context)
         else:
             # Return safe fallback for non-200 responses
             return HTMLResponse(
