@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     DATABASE_URL: Optional[str] = None
     API_KEY: Optional[str] = None
     
+    # Backend API configuration
+    BACKEND_HOST: str = "0.0.0.0"
+    BACKEND_PORT: int = 8000
+    BACKEND_URL: Optional[str] = None  # Full URL override if needed
+    
     # Redis URL for worker queue (optional)
     REDIS_URL: Optional[str] = None
     
@@ -30,6 +35,13 @@ class Settings(BaseSettings):
     SDNEXT_DEFAULT_SAMPLER: str = "DPM++ 2M"
     SDNEXT_DEFAULT_CFG_SCALE: float = 7.0
     SDNEXT_OUTPUT_DIR: Optional[str] = None  # local storage for generated images
+    
+    @property
+    def get_backend_url(self) -> str:
+        """Get the backend URL, with automatic construction if not explicitly set."""
+        if self.BACKEND_URL:
+            return self.BACKEND_URL.rstrip('/')
+        return f"http://{self.BACKEND_HOST}:{self.BACKEND_PORT}"
 
 
 settings = Settings()

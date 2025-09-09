@@ -1,23 +1,27 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
 // https://vitejs.dev/config/
-export default defineConfig({
-    // Where Vite will look for your source files
-    root: './app/frontend/static/',
+export default defineConfig(({ mode }) => {
+    // Load environment variables from .env files
+    const env = loadEnv(mode, '.', '');
+    
+    return {
+        // Where Vite will look for your source files
+        root: './app/frontend/static/',
 
-    // Configuration for the development server
-    server: {
-        port: 5173,
-        host: 'localhost',
-        // Proxy API requests to the FastAPI backend
-        proxy: {
-            '/api': 'http://localhost:8000',
-            '/ws': {
-                target: 'ws://localhost:8000',
-                ws: true,
+        // Configuration for the development server
+        server: {
+            port: 5173,
+            host: 'localhost',
+            // Proxy API requests to the FastAPI backend
+            proxy: {
+                '/api': env.BACKEND_URL || 'http://localhost:8000',
+                '/ws': {
+                    target: env.WEBSOCKET_URL || 'ws://localhost:8000',
+                    ws: true,
+                },
             },
         },
-    },
 
     // Configuration for the build process
     build: {
@@ -54,13 +58,14 @@ export default defineConfig({
         }
     },
 
-    // CSS processing configuration
-    css: {
-        devSourcemap: true,
-    },
+        // CSS processing configuration
+        css: {
+            devSourcemap: true,
+        },
 
-    // Optimize dependencies for development
-    optimizeDeps: {
-        include: ['alpinejs', 'htmx.org', 'chart.js/auto']
-    }
+        // Optimize dependencies for development
+        optimizeDeps: {
+            include: ['alpinejs', 'htmx.org', 'chart.js/auto']
+        }
+    };
 });

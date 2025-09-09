@@ -17,6 +17,11 @@ import os
 router = APIRouter()
 
 # Initialize templates
+from app.frontend.config import FrontendSettings
+
+# Initialize frontend configuration
+frontend_settings = FrontendSettings()
+
 templates = Jinja2Templates(directory="app/frontend/templates")
 
 # Register Vite asset helpers with Jinja2
@@ -24,11 +29,8 @@ templates.env.globals['vite_asset'] = vite_asset
 templates.env.globals['vite_asset_css'] = vite_asset_css
 templates.env.globals['is_development'] = is_development
 
-# Backend URL configuration - use environment variable or default to internal Docker port
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000/api")
-
 # Expose backend URL to client-side templates so frontend JS can call backend directly
-templates.env.globals['BACKEND_URL'] = BACKEND_URL
+templates.env.globals['BACKEND_URL'] = frontend_settings.backend_url
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
@@ -124,7 +126,7 @@ async def htmx_featured_loras(request: Request):
     
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(f"{BACKEND_URL}/api/dashboard/featured-loras", timeout=5.0)
+            response = await client.get(f"{frontend_settings.backend_url}/dashboard/featured-loras", timeout=5.0)
             if response.status_code == 200:
                 featured_loras = response.json()
                 
@@ -153,7 +155,7 @@ async def htmx_activity_feed(request: Request):
     """HTMX endpoint for loading activity feed on dashboard."""
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(f"{BACKEND_URL}/api/dashboard/activity-feed", timeout=5.0)
+            response = await client.get(f"{frontend_settings.backend_url}/dashboard/activity-feed", timeout=5.0)
             if response.status_code == 200:
                 activities = response.json()
             else:
@@ -214,7 +216,7 @@ async def htmx_similarity_recommendations(request: Request):
         # Make request to backend API
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{BACKEND_URL}/recommendations/similar/{form.lora_id}",
+                f"{frontend_settings.backend_url}/v1/recommendations/similar/{form.lora_id}",
                 params=params,
                 timeout=30.0
             )
@@ -282,7 +284,7 @@ async def htmx_prompt_recommendations(request: Request):
         # Make request to backend API
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{BACKEND_URL}/recommendations/for-prompt",
+                f"{frontend_settings.backend_url}/v1/recommendations/for-prompt",
                 json=payload,
                 timeout=30.0
             )
@@ -325,7 +327,7 @@ async def htmx_embedding_status(request: Request):
         # Make request to backend API
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{BACKEND_URL}/recommendations/stats",
+                f"{frontend_settings.backend_url}/v1/recommendations/stats",
                 timeout=10.0
             )
         
@@ -416,7 +418,7 @@ async def htmx_embeddings_status(request: Request):
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{BACKEND_URL}/recommendations/stats",
+                f"{frontend_settings.backend_url}/v1/recommendations/stats",
                 timeout=10.0
             )
         
@@ -468,7 +470,7 @@ async def htmx_performance_status(request: Request):
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{BACKEND_URL}/recommendations/stats",
+                f"{frontend_settings.backend_url}/v1/recommendations/stats",
                 timeout=10.0
             )
         
@@ -521,7 +523,7 @@ async def htmx_available_loras():
         # Make request to backend API
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{BACKEND_URL}/adapters",
+                f"{frontend_settings.backend_url}/v1/adapters",
                 timeout=10.0
             )
         
@@ -611,7 +613,7 @@ async def lora_grid(request: Request):
         # Make HTTP request to backend API
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{BACKEND_URL}/adapters",
+                f"{frontend_settings.backend_url}/v1/adapters",
                 params=params,
                 headers={"X-API-Key": "dev-api-key-123"},
                 timeout=30.0
@@ -647,7 +649,7 @@ async def lora_grid(request: Request):
             total_pages = 1
 
     except httpx.RequestError as e:
-        logger.error(f"Failed to connect to backend API at {BACKEND_URL}: {e}")
+        logger.error(f"Failed to connect to backend API at {frontend_settings.backend_url}: {e}")
         loras = []
         total = 0
         current_page = page

@@ -7,7 +7,8 @@ Handles environment variables, timeouts, feature flags, and other application se
 
 import os
 from typing import Optional, Dict, Any, List
-from pydantic import BaseSettings, Field, validator
+from pydantic_settings import BaseSettings
+from pydantic import Field, field_validator
 from pathlib import Path
 
 
@@ -16,10 +17,32 @@ class FrontendSettings(BaseSettings):
     
     # Backend connection
     backend_url: str = Field(
-        default="http://localhost:8000",
+        default="http://localhost:8000/api",
         env="BACKEND_URL",
-        description="Backend API base URL"
+        description="Backend API base URL with /api prefix"
     )
+    
+    backend_host: str = Field(
+        default="localhost",
+        env="BACKEND_HOST", 
+        description="Backend host/IP address"
+    )
+    
+    backend_port: int = Field(
+        default=8000,
+        env="BACKEND_PORT",
+        description="Backend port number"
+    )
+    
+    @field_validator('backend_url', mode='before')
+    @classmethod
+    def construct_backend_url(cls, v, info):
+        """Construct backend URL if not explicitly provided."""
+        if v == "http://localhost:8000/api" and ('backend_host' in info.data or 'backend_port' in info.data):
+            host = info.data.get('backend_host', 'localhost')
+            port = info.data.get('backend_port', 8000)
+            return f"http://{host}:{port}/api"
+        return v.rstrip('/') if v.endswith('/') else v
     
     # HTTP client configuration
     request_timeout: float = Field(
@@ -170,23 +193,26 @@ class FrontendSettings(BaseSettings):
         description="WebSocket ping interval in seconds"
     )
     
-    @validator('backend_url')
+    @field_validator('backend_url')
+    @classmethod
     def validate_backend_url(cls, v):
         """Ensure backend URL doesn't end with slash."""
         return v.rstrip('/')
     
-    @validator('websocket_url', pre=True, always=True)
-    def set_websocket_url(cls, v, values):
+    @field_validator('websocket_url', mode='before')
+    @classmethod
+    def set_websocket_url(cls, v, info):
         """Set WebSocket URL based on backend URL if not provided."""
-        if v is None and 'backend_url' in values:
-            backend_url = values['backend_url']
+        if v is None and 'backend_url' in info.data:
+            backend_url = info.data['backend_url']
             if backend_url.startswith('https://'):
                 return backend_url.replace('https://', 'wss://')
             elif backend_url.startswith('http://'):
                 return backend_url.replace('http://', 'ws://')
         return v
     
-    @validator('allowed_file_extensions')
+    @field_validator('allowed_file_extensions')
+    @classmethod
     def validate_extensions(cls, v):
         """Ensure extensions start with dot."""
         return [ext if ext.startswith('.') else f'.{ext}' for ext in v]

@@ -33,23 +33,14 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Include API routers under /api/v1 so frontend can target a stable prefix
-    api_prefix = "/api/v1"
-    # Register both root and /api/v1 paths for backward compatibility
-    app.include_router(adapters.router, dependencies=[Depends(get_api_key)])
-    app.include_router(adapters.router, prefix=api_prefix, dependencies=[Depends(get_api_key)])
-    app.include_router(compose.router, dependencies=[Depends(get_api_key)])
-    app.include_router(compose.router, prefix=api_prefix, dependencies=[Depends(get_api_key)])
-    app.include_router(deliveries.router, dependencies=[Depends(get_api_key)])
-    app.include_router(deliveries.router, prefix=api_prefix, dependencies=[Depends(get_api_key)])
-    app.include_router(generation.router, dependencies=[Depends(get_api_key)])
-    app.include_router(generation.router, prefix=api_prefix, dependencies=[Depends(get_api_key)])
-    app.include_router(recommendations.router, dependencies=[Depends(get_api_key)])
-    app.include_router(recommendations.router, prefix=api_prefix, dependencies=[Depends(get_api_key)])
-    app.include_router(dashboard.router)  # Keep root dashboard
-    app.include_router(dashboard.router, prefix=api_prefix)  # Also expose under /api/v1
-    app.include_router(websocket.router)  # Keep root websocket
-    app.include_router(websocket.router, prefix=api_prefix)  # Also expose under /api/v1
+    # Include API routers with consistent /api/v1 prefix
+    app.include_router(adapters.router, prefix="/api/v1", dependencies=[Depends(get_api_key)])
+    app.include_router(compose.router, prefix="/api/v1", dependencies=[Depends(get_api_key)])
+    app.include_router(deliveries.router, prefix="/api/v1", dependencies=[Depends(get_api_key)])
+    app.include_router(generation.router, prefix="/api/v1", dependencies=[Depends(get_api_key)])
+    app.include_router(recommendations.router, prefix="/api/v1", dependencies=[Depends(get_api_key)])
+    app.include_router(dashboard.router, prefix="/api")  # Dashboard uses /api prefix for frontend compatibility
+    app.include_router(websocket.router)  # WebSocket doesn't use API key auth or versioning
 
     @app.get("/health")
     def health():
