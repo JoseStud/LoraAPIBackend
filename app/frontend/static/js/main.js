@@ -18,6 +18,10 @@ import '../css/accessibility.css';
 import Alpine from 'alpinejs';
 import htmx from 'htmx.org';
 import Chart from 'chart.js/auto';
+import { createApp } from 'vue';
+import HelloWorld from '../vue/HelloWorld.vue';
+import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
+import MobileNav from '../vue/MobileNav.vue';
 
 // Utilities
 import Utils, {
@@ -39,7 +43,6 @@ import Utils, {
 import { createDashboardComponent } from './components/dashboard/index.js';
 import { createRecommendationsComponent } from './components/recommendations/index.js';
 import { createGenerationHistoryComponent } from './components/generation-history/index.js';
-import { createMobileNavComponent } from './components/mobile-nav/index.js';
 import { createLoraGalleryComponent } from './components/lora-gallery/index.js';
 import { createGenerationStudioComponent } from './components/generation-studio/index.js';
 import { createPromptComposerComponent } from './components/prompt-composer/index.js';
@@ -177,7 +180,6 @@ Alpine.store('app', {
 Alpine.data('dashboard', createDashboardComponent);
 Alpine.data('recommendationsData', createRecommendationsComponent);
 Alpine.data('generationHistory', createGenerationHistoryComponent);
-Alpine.data('mobileNav', createMobileNavComponent);
 Alpine.data('loraGallery', createLoraGalleryComponent);
 Alpine.data('generationStudio', createGenerationStudioComponent);
 Alpine.data('promptComposer', createPromptComposerComponent);
@@ -270,6 +272,37 @@ window.Alpine = Alpine;
 
 // eslint-disable-next-line no-console
 console.log('🚀 LoRA Manager Initializing...');
+
+
+// STEP 3.5: Mount Vue Islands (progressive enhancement)
+// =================================================================
+const mountVueApp = (selector, component) => {
+    const el = document.querySelector(selector);
+    if (el) {
+        const app = createApp(component);
+        app.mount(el);
+        return app;
+    }
+    return null;
+};
+
+// Attempt immediate mount, then fallback after DOM is ready
+mountVueApp('[data-vue-root="hello-world"]', HelloWorld) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="hello-world"]', HelloWorld);
+    });
+
+// Mount Recommendations panel if present on page
+mountVueApp('[data-vue-root="recommendations-panel"]', RecommendationsPanel) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="recommendations-panel"]', RecommendationsPanel);
+    });
+
+// Mount Mobile Navigation if present on page
+mountVueApp('[data-vue-root="mobile-nav"]', MobileNav) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="mobile-nav"]', MobileNav);
+    });
 
 
 // STEP 4: A SINGLE START CALL AT THE VERY END

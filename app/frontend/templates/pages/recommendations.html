@@ -3,6 +3,9 @@
 {% block title %}AI Recommendations - LoRA Manager{% endblock %}
 
 {% block content %}
+<!-- Vue islands: demo + feature panel -->
+<div data-vue-root="hello-world" class="mb-4"></div>
+<div data-vue-root="recommendations-panel" class="mb-6"></div>
 <!-- Apply recommendationsData component to the entire content block -->
 <div x-data="recommendationsData()" x-init="init()" x-cloak>
     <!-- Loading state -->
