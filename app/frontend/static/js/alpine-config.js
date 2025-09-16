@@ -455,8 +455,7 @@ ensureAlpine(() => {
             if (this.selectedItems.length === 0) return; const count = this.selectedItems.length; if (!confirm(`Are you sure you want to delete ${count} selected images?`)) return;
             try {
                 await deleteData('/api/results/bulk-delete', { 
-                    headers: {'Content-Type':'application/json'}, 
-                    body: JSON.stringify({ ids: this.selectedItems }) 
+                    body: JSON.stringify({ ids: this.selectedItems })
                 });
                 this.results = this.results.filter(r => !this.selectedItems.includes(r.id)); this.selectedItems = []; this.applyFilters(); this.showToastMessage(`${count} images deleted successfully`);
             } catch (error) {
