@@ -23,10 +23,15 @@ import HelloWorld from '../vue/HelloWorld.vue';
 import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
+<<<<<<< HEAD
 import JobQueue from '../vue/JobQueue.vue';
 import SystemStatusPanel from '../vue/SystemStatusPanel.vue';
 import PerformanceAnalytics from '../vue/PerformanceAnalytics.vue';
 import Notifications from '../vue/Notifications.vue';
+import GenerationHistory from '../vue/GenerationHistory.vue';
+=======
+import GenerationHistory from '../vue/GenerationHistory.vue';
+>>>>>>> c967c06 (Implement GenerationHistory Vue component with Vue island pattern)
 
 // Utilities
 import Utils, {
@@ -334,6 +339,12 @@ mountVueApp('[data-vue-root="system-status-panel"]', SystemStatusPanel) ||
 mountVueApp('[data-vue-root="notifications"]', Notifications) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="notifications"]', Notifications);
+    });
+
+// Mount Generation History if present on page
+mountVueApp('[data-vue-root="generation-history"]', GenerationHistory) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="generation-history"]', GenerationHistory);
     });
 
 // STEP 4: A SINGLE START CALL AT THE VERY END
