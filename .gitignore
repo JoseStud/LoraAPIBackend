@@ -52,3 +52,7 @@ __pycache__
 *.db
 
 node_modules
+
+# Test coverage and cache
+coverage/
+.cache/

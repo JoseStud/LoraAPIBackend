@@ -442,7 +442,8 @@ class PWAManager {
         
         for (const action of actionsToSync) {
             try {
-                await fetch(action.url, action.options);
+                // Use fetchData from window.Utils for better error handling
+                await window.Utils.fetchData(action.url, action.options);
                 window.DevLogger && window.DevLogger.debug && window.DevLogger.debug('[PWA] Synced action:', action.url);
             } catch (error) {
                 window.DevLogger && window.DevLogger.debug && window.DevLogger.debug('[PWA] Failed to sync action:', error);

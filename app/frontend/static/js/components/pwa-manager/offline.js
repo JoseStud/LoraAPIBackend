@@ -242,8 +242,10 @@ const pwaOffline = {
         
         if (type === 'fetch') {
             try {
-                const response = await fetch(url, options);
-                return response.ok;
+                // Use fetchData from window.Utils for better error handling
+                await window.Utils.fetchData(url, options);
+                // fetchData throws on error, so if we get here it was successful
+                return true;
             } catch (error) {
                 return false;
             }
