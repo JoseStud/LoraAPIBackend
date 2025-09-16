@@ -1,17 +1,18 @@
-from fastapi import APIRouter, Request, Form, HTTPException
 import logging
+
+from fastapi import APIRouter, Request
 from pydantic import ValidationError
-from app.frontend.schemas import SimilarityForm, PromptForm
-from app.frontend.utils import vite_asset, vite_asset_css, is_development
+
+from app.frontend.schemas import PromptForm, SimilarityForm
+from app.frontend.utils import is_development, vite_asset, vite_asset_css
 
 # Logger for frontend routes
 logger = logging.getLogger(__name__)
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, JSONResponse
-import httpx
-import asyncio
-from typing import Optional
 import os
+
+import httpx
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 
 # Create router for frontend routes
 router = APIRouter()
@@ -37,7 +38,7 @@ async def dashboard(request: Request):
     """Main dashboard page"""
     return templates.TemplateResponse("pages/dashboard.html", {
         "request": request,
-        "title": "LoRA Manager Dashboard"
+        "title": "LoRA Manager Dashboard",
     })
 
 @router.get("/loras", response_class=HTMLResponse)
@@ -45,7 +46,7 @@ async def loras(request: Request):
     """LoRA management page"""
     return templates.TemplateResponse("pages/loras.html", {
         "request": request,
-        "title": "LoRA Collection"
+        "title": "LoRA Collection",
     })
 
 @router.get("/recommendations", response_class=HTMLResponse)
@@ -53,7 +54,7 @@ async def recommendations(request: Request):
     """AI Recommendations page"""
     return templates.TemplateResponse("pages/recommendations.html", {
         "request": request,
-        "title": "AI Recommendations"
+        "title": "AI Recommendations",
     })
 
 @router.get("/compose", response_class=HTMLResponse)
@@ -61,7 +62,7 @@ async def compose(request: Request):
     """Prompt Composer page"""
     return templates.TemplateResponse("pages/compose.html", {
         "request": request,
-        "title": "Prompt Composer"
+        "title": "Prompt Composer",
     })
 
 @router.get("/generate", response_class=HTMLResponse)
@@ -69,7 +70,7 @@ async def generate(request: Request):
     """Generation Studio page"""
     return templates.TemplateResponse("pages/generate.html", {
         "request": request,
-        "title": "Generation Studio"
+        "title": "Generation Studio",
     })
 
 @router.get("/history", response_class=HTMLResponse)
@@ -77,7 +78,7 @@ async def history(request: Request):
     """Generation History page"""
     return templates.TemplateResponse("pages/history.html", {
         "request": request,
-        "title": "Generation History"
+        "title": "Generation History",
     })
 
 @router.get("/admin", response_class=HTMLResponse)
@@ -85,7 +86,7 @@ async def admin(request: Request):
     """System Administration page"""
     return templates.TemplateResponse("pages/admin.html", {
         "request": request,
-        "title": "System Administration"
+        "title": "System Administration",
     })
 
 @router.get("/analytics")
@@ -94,7 +95,7 @@ async def analytics_page(request: Request):
     context = {
         "request": request,
         "title": "Performance Analytics",
-        "page": "analytics"
+        "page": "analytics",
     }
     return templates.TemplateResponse("pages/analytics.html", context)
 
@@ -104,7 +105,7 @@ async def import_export_page(request: Request):
     context = {
         "request": request,
         "title": "Import/Export",
-        "page": "import-export"
+        "page": "import-export",
     }
     return templates.TemplateResponse("pages/import-export.html", context)
 
@@ -114,7 +115,7 @@ async def offline_page(request: Request):
     context = {
         "request": request,
         "title": "Offline",
-        "page": "offline"
+        "page": "offline",
     }
     return templates.TemplateResponse("pages/offline.html", context)
 
@@ -138,7 +139,7 @@ async def htmx_featured_loras(request: Request):
                         "name": str(lora.get("name", "")),
                         "version": str(lora.get("version", "")),
                         "viewMode": "featured",
-                        "bulkMode": False
+                        "bulkMode": False,
                     }
                     lora["json"] = json.dumps(lora_data)
             else:
@@ -148,7 +149,7 @@ async def htmx_featured_loras(request: Request):
 
     return templates.TemplateResponse("partials/featured-loras.html", {
         "request": request,
-        "featured_loras": featured_loras
+        "featured_loras": featured_loras,
     })
 @router.get("/api/htmx/dashboard/activity-feed", response_class=HTMLResponse)
 async def htmx_activity_feed(request: Request):
@@ -165,7 +166,7 @@ async def htmx_activity_feed(request: Request):
     
     return templates.TemplateResponse("partials/activity-feed.html", {
         "request": request,
-        "activities": activities
+        "activities": activities,
     })
 
 # HTMX API Endpoints for Recommendations
@@ -194,13 +195,13 @@ async def htmx_similarity_recommendations(request: Request):
             "request": request,
             "recommendations": [],
             "error": "Validation failed",
-            "validation_errors": errors
+            "validation_errors": errors,
         })
     except Exception as e:
         return templates.TemplateResponse("partials/similarity-results.html", {
             "request": request,
             "recommendations": [],
-            "error": f"Invalid input: {e}"
+            "error": f"Invalid input: {e}",
         })
     """HTMX endpoint for similarity-based recommendations"""
     try:
@@ -210,7 +211,7 @@ async def htmx_similarity_recommendations(request: Request):
             'artistic_weight': form.artistic_weight,
             'technical_weight': form.technical_weight,
             'limit': form.limit,
-            'threshold': form.threshold
+            'threshold': form.threshold,
         }
         
         # Make request to backend API
@@ -218,7 +219,7 @@ async def htmx_similarity_recommendations(request: Request):
             response = await client.get(
                 f"{frontend_settings.backend_url}/v1/recommendations/similar/{form.lora_id}",
                 params=params,
-                timeout=30.0
+                timeout=30.0,
             )
         
             if response.status_code == 200:
@@ -227,20 +228,20 @@ async def htmx_similarity_recommendations(request: Request):
                     "request": request,
                     "recommendations": recommendations,
                     "original_lora_id": form.lora_id,
-                    "weights": {"semantic": form.semantic_weight, "artistic": form.artistic_weight, "technical": form.technical_weight}
+                    "weights": {"semantic": form.semantic_weight, "artistic": form.artistic_weight, "technical": form.technical_weight},
                 })
             else:
                 error_msg = f"Backend API error: {response.status_code}"
                 return templates.TemplateResponse("partials/similarity-results.html", {
                     "request": request,
                     "recommendations": [],
-                    "error": error_msg
+                    "error": error_msg,
                 })
     except Exception as e:
         return templates.TemplateResponse("partials/similarity-results.html", {
             "request": request,
             "recommendations": [], 
-            "error": f"Error: {str(e)}"
+            "error": f"Error: {str(e)}",
         })
 
 @router.post("/api/htmx/recommendations/prompt", response_class=HTMLResponse)
@@ -267,7 +268,7 @@ async def htmx_prompt_recommendations(request: Request):
                 "request": request,
                 "recommendations": [],
                 "error": "Validation failed",
-                "validation_errors": errors
+                "validation_errors": errors,
             })
 
         # Prepare payload for backend API
@@ -276,9 +277,9 @@ async def htmx_prompt_recommendations(request: Request):
             'weights': {
                 'semantic': form.semantic_weight,
                 'style': form.style_weight,
-                'context': form.context_weight
+                'context': form.context_weight,
             },
-            'limit': form.limit
+            'limit': form.limit,
         }
         
         # Make request to backend API
@@ -286,7 +287,7 @@ async def htmx_prompt_recommendations(request: Request):
             response = await client.post(
                 f"{frontend_settings.backend_url}/v1/recommendations/for-prompt",
                 json=payload,
-                timeout=30.0
+                timeout=30.0,
             )
         
         if response.status_code == 200:
@@ -296,7 +297,7 @@ async def htmx_prompt_recommendations(request: Request):
                 "recommendations": data.get('recommendations', []),
                 "original_prompt": form.prompt,
                 "processing_time_ms": data.get('processing_time_ms', 0),
-                "analysis_summary": data.get('analysis_summary', {})
+                "analysis_summary": data.get('analysis_summary', {}),
             })
         else:
             error_msg = f"Backend error: {response.status_code}"
@@ -304,7 +305,7 @@ async def htmx_prompt_recommendations(request: Request):
                 "request": request,
                 "recommendations": [], 
                 "original_prompt": form.prompt,
-                "error": error_msg
+                "error": error_msg,
             })
             
     except Exception as e:
@@ -317,7 +318,7 @@ async def htmx_prompt_recommendations(request: Request):
             "request": request,
             "recommendations": [], 
             "original_prompt": original_prompt,
-            "error": f"Error: {str(e)}"
+            "error": f"Error: {str(e)}",
         })
 
 @router.get("/api/htmx/recommendations/embedding-status", response_class=HTMLResponse)
@@ -328,7 +329,7 @@ async def htmx_embedding_status(request: Request):
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{frontend_settings.backend_url}/v1/recommendations/stats",
-                timeout=10.0
+                timeout=10.0,
             )
         
         if response.status_code == 200:
@@ -343,17 +344,17 @@ async def htmx_embedding_status(request: Request):
                     'memory_used_gb': 0,
                     'memory_total_gb': 0,
                     'memory_usage_percent': 0,
-                    'utilization_percent': 0
+                    'utilization_percent': 0,
                 }),
                 'embedding_stats': data.get('embedding_stats', {
                     'total_count': 0,
                     'processed_count': 0,
-                    'coverage_percent': 0
+                    'coverage_percent': 0,
                 }),
                 'performance': data.get('performance', {
                     'avg_search_time_ms': 0,
                     'searches_today': 0,
-                    'cache_hit_rate': 0
+                    'cache_hit_rate': 0,
                 }),
                 'is_computing': data.get('is_computing', False),
                 'computation_progress': data.get('computation_progress'),
@@ -362,19 +363,19 @@ async def htmx_embedding_status(request: Request):
                     'embedding_model': 'Unknown',
                     'embedding_dimensions': 'Unknown',
                     'batch_size': 'Unknown',
-                    'index_type': 'Unknown'
+                    'index_type': 'Unknown',
                 }),
                 'embedding_breakdown': data.get('embedding_breakdown', {
                     'semantic': {'processed': 0, 'total': 0},
                     'artistic': {'processed': 0, 'total': 0},
-                    'technical': {'processed': 0, 'total': 0}
+                    'technical': {'processed': 0, 'total': 0},
                 }),
                 'search_stats': data.get('search_stats', {
                     'total_searches': 0,
                     'avg_results': 0,
                     'most_popular_type': 'unknown',
-                    'success_rate': 0
-                })
+                    'success_rate': 0,
+                }),
             }
             
             return templates.TemplateResponse("partials/embedding-status.html", context)
@@ -392,13 +393,13 @@ async def htmx_embedding_status(request: Request):
                     </div>
                 </div>
                 ''',
-                status_code=200
+                status_code=200,
             )
             
-    except Exception as e:
+    except Exception:
         # Return safe fallback for any errors
         return HTMLResponse(
-            content=f'''
+            content='''
             <div class="card">
                 <div class="card-header">
                     <h3 class="text-lg font-semibold text-gray-900">Embedding Status</h3>
@@ -409,7 +410,7 @@ async def htmx_embedding_status(request: Request):
                 </div>
             </div>
             ''',
-            status_code=200
+            status_code=200,
         )
 
 @router.get("/api/htmx/recommendations/status/embeddings", response_class=HTMLResponse)
@@ -419,7 +420,7 @@ async def htmx_embeddings_status(request: Request):
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{frontend_settings.backend_url}/v1/recommendations/stats",
-                timeout=10.0
+                timeout=10.0,
             )
         
         if response.status_code == 200:
@@ -427,7 +428,7 @@ async def htmx_embeddings_status(request: Request):
             embedding_stats = data.get('embedding_stats', {
                 'total_count': 0,
                 'processed_count': 0,
-                'coverage_percent': 0
+                'coverage_percent': 0,
             })
             
             return HTMLResponse(
@@ -441,7 +442,7 @@ async def htmx_embeddings_status(request: Request):
                     <span class="text-sm font-medium">{embedding_stats.get('processed_count', 0)}/{embedding_stats.get('total_count', 0)}</span>
                 </div>
                 ''',
-                status_code=200
+                status_code=200,
             )
         else:
             return HTMLResponse(
@@ -451,9 +452,9 @@ async def htmx_embeddings_status(request: Request):
                     <span class="text-sm font-medium text-red-600">Unavailable</span>
                 </div>
                 ''',
-                status_code=200
+                status_code=200,
             )
-    except Exception as e:
+    except Exception:
         return HTMLResponse(
             content='''
             <div class="flex items-center justify-between">
@@ -461,7 +462,7 @@ async def htmx_embeddings_status(request: Request):
                 <span class="text-sm font-medium text-red-600">Error</span>
             </div>
             ''',
-            status_code=200
+            status_code=200,
         )
 
 @router.get("/api/htmx/recommendations/status/performance", response_class=HTMLResponse)
@@ -471,7 +472,7 @@ async def htmx_performance_status(request: Request):
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{frontend_settings.backend_url}/v1/recommendations/stats",
-                timeout=10.0
+                timeout=10.0,
             )
         
         if response.status_code == 200:
@@ -479,7 +480,7 @@ async def htmx_performance_status(request: Request):
             performance = data.get('performance', {
                 'avg_search_time_ms': 0,
                 'searches_today': 0,
-                'cache_hit_rate': 0
+                'cache_hit_rate': 0,
             })
             
             return HTMLResponse(
@@ -493,7 +494,7 @@ async def htmx_performance_status(request: Request):
                     <span class="text-sm font-medium">{performance.get('cache_hit_rate', 0):.1f}%</span>
                 </div>
                 ''',
-                status_code=200
+                status_code=200,
             )
         else:
             return HTMLResponse(
@@ -503,9 +504,9 @@ async def htmx_performance_status(request: Request):
                     <span class="text-sm font-medium text-red-600">Unavailable</span>
                 </div>
                 ''',
-                status_code=200
+                status_code=200,
             )
-    except Exception as e:
+    except Exception:
         return HTMLResponse(
             content='''
             <div class="flex items-center justify-between">
@@ -513,7 +514,7 @@ async def htmx_performance_status(request: Request):
                 <span class="text-sm font-medium text-red-600">Error</span>
             </div>
             ''',
-            status_code=200
+            status_code=200,
         )
 
 @router.get("/api/htmx/loras/available")
@@ -524,7 +525,7 @@ async def htmx_available_loras():
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{frontend_settings.backend_url}/v1/adapters",
-                timeout=10.0
+                timeout=10.0,
             )
         
         if response.status_code == 200:
@@ -533,7 +534,7 @@ async def htmx_available_loras():
         else:
             return {
                 'adapters': [], 
-                'error': f'Backend error: {response.status_code}'
+                'error': f'Backend error: {response.status_code}',
             }
             
     except Exception as e:
@@ -561,7 +562,7 @@ async def embedding_status_legacy(request: Request):
                 </div>
             </div>
             ''',
-            status_code=200
+            status_code=200,
         )
 
 
@@ -578,6 +579,7 @@ async def activity_feed_legacy(request: Request):
 
 
 from fastapi.responses import FileResponse
+
 
 @router.get("/sw.js")
 async def service_worker():
@@ -607,7 +609,7 @@ async def lora_grid(request: Request):
             "page": page,
             "per_page": per_page,
             "search": search,
-            "tags": tags
+            "tags": tags,
         }
 
         # Make HTTP request to backend API
@@ -616,7 +618,7 @@ async def lora_grid(request: Request):
                 f"{frontend_settings.backend_url}/v1/adapters",
                 params=params,
                 headers={"X-API-Key": "dev-api-key-123"},
-                timeout=30.0
+                timeout=30.0,
             )
 
         if response.status_code == 200:
@@ -636,7 +638,7 @@ async def lora_grid(request: Request):
                     "name": str(lora.get("name", "")),
                     "version": str(lora.get("version", "")),
                     "viewMode": "grid",
-                    "bulkMode": False
+                    "bulkMode": False,
                 }
                 lora["json"] = json.dumps(lora_data)
             
@@ -670,12 +672,12 @@ async def lora_grid(request: Request):
             "end": min(current_page * per_page, total),
             "total": total,
             "has_more": (current_page * per_page) < total,
-            "next_url": f"{request.url.path}?page={current_page + 1}&limit={per_page}"
+            "next_url": f"{request.url.path}?page={current_page + 1}&limit={per_page}",
         },
         "view_mode": request.query_params.get('view', 'grid'),
         "bulk_mode": False,
         "search_term": search,
-        "has_filters": bool(search or tags)
+        "has_filters": bool(search or tags),
     })
 
 
