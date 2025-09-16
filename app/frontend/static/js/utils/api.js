@@ -171,3 +171,61 @@ export async function uploadFile(url, formData, onProgress = null) {
         xhr.send(formData);
     });
 }
+
+/**
+ * Download a file as blob
+ * @param {string} url - The file URL
+ * @param {object} options - Additional fetch options
+ * @returns {Promise<Blob>} The file blob
+ */
+export async function downloadBlob(url, options = {}) {
+    try {
+        const defaultOptions = {
+            headers: {
+                ...options.headers
+            }
+        };
+
+        const response = await fetch(url, { ...defaultOptions, ...options });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        return await response.blob();
+    } catch (error) {
+        console.error('Blob download failed:', error);
+        throw error;
+    }
+}
+
+/**
+ * Post data and download response as blob
+ * @param {string} url - The API endpoint URL
+ * @param {any} data - The data to send
+ * @param {object} options - Additional fetch options
+ * @returns {Promise<Blob>} The response blob
+ */
+export async function postForBlob(url, data, options = {}) {
+    try {
+        const defaultOptions = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            },
+            body: JSON.stringify(data)
+        };
+
+        const response = await fetch(url, { ...defaultOptions, ...options });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        return await response.blob();
+    } catch (error) {
+        console.error('Blob POST failed:', error);
+        throw error;
+    }
+}

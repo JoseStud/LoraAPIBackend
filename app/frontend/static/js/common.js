@@ -5,6 +5,8 @@
  * across multiple components and templates.
  */
 
+import { postData } from './utils/api.js';
+
 /**
  * LoRA Management Functions
  */
@@ -26,25 +28,15 @@ window.LoRAManager = {
     async toggleLoraActive(loraId, isActive) {
         try {
             const endpoint = isActive ? 'deactivate' : 'activate';
-                const response = await fetch((window?.BACKEND_URL || '') + `/adapters/${loraId}/${endpoint}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+            const baseUrl = window?.BACKEND_URL || '';
+            await postData(`${baseUrl}/adapters/${loraId}/${endpoint}`, {});
             
-            if (response.ok) {
-                // Dispatch event for other components to update
-                const event = new CustomEvent('lora-status-changed', { 
-                    detail: { loraId, isActive: !isActive }
-                });
-                document.body.dispatchEvent(event);
-                return true;
-            } else {
-                window.DevLogger && window.DevLogger.error && window.DevLogger.error('Failed to update LoRA status:', response.status);
-                this.showError('Failed to update LoRA status');
-                return false;
-            }
+            // Dispatch event for other components to update
+            const event = new CustomEvent('lora-status-changed', { 
+                detail: { loraId, isActive: !isActive }
+            });
+            document.body.dispatchEvent(event);
+            return true;
         } catch (error) {
             window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error updating LoRA status:', error);
             this.showError('Error: ' + error.message);
