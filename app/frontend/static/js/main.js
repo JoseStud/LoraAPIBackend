@@ -23,6 +23,7 @@ import HelloWorld from '../vue/HelloWorld.vue';
 import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
+import PromptComposer from '../vue/PromptComposer.vue';
 
 // Utilities
 import Utils, {
@@ -308,6 +309,12 @@ mountVueApp('[data-vue-root="mobile-nav"]', MobileNav) ||
 mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard);
+    });
+
+// Mount Prompt Composer if present on page
+mountVueApp('[data-vue-root="prompt-composer"]', PromptComposer) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="prompt-composer"]', PromptComposer);
     });
 
 
