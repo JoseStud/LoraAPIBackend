@@ -47,7 +47,7 @@ import { createRecommendationsComponent } from './components/recommendations/ind
 import { createGenerationHistoryComponent } from './components/generation-history/index.js';
 import { createLoraGalleryComponent } from './components/lora-gallery/index.js';
 import { createGenerationStudioComponent } from './components/generation-studio/index.js';
-import { createPromptComposerComponent } from './components/prompt-composer/index.js';
+// createPromptComposerComponent removed - migrated to Vue (PromptComposer.vue)
 import { createPerformanceAnalyticsComponent } from './components/performance-analytics/index.js';
 import { createImportExportComponent } from './components/import-export/index.js';
 import { createSystemAdminComponent } from './components/system-admin/index.js';
@@ -183,7 +183,7 @@ Alpine.data('recommendationsData', createRecommendationsComponent);
 Alpine.data('generationHistory', createGenerationHistoryComponent);
 Alpine.data('loraGallery', createLoraGalleryComponent);
 Alpine.data('generationStudio', createGenerationStudioComponent);
-Alpine.data('promptComposer', createPromptComposerComponent);
+// promptComposer removed - migrated to Vue (PromptComposer.vue)
 Alpine.data('performanceAnalytics', createPerformanceAnalyticsComponent);
 Alpine.data('importExport', createImportExportComponent);
 Alpine.data('systemAdmin', createSystemAdminComponent);
