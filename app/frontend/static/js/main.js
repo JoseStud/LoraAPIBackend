@@ -23,6 +23,7 @@ import HelloWorld from '../vue/HelloWorld.vue';
 import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
+import Notifications from '../vue/Notifications.vue';
 
 import GenerationHistory from '../vue/GenerationHistory.vue';
 
@@ -314,11 +315,18 @@ mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard) ||
         mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard);
     });
 
+// Mount Notifications if present on page
+mountVueApp('[data-vue-root="notifications"]', Notifications) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="notifications"]', Notifications);
+    });
+
 
 // Mount Generation History if present on page
 mountVueApp('[data-vue-root="generation-history"]', GenerationHistory) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="generation-history"]', GenerationHistory);
+    });
 
 
 
