@@ -5,6 +5,8 @@
  * in a format compatible with the new Vite-based system.
  */
 
+import { fetchData } from '../../utils/api.js';
+
 // For now, we'll create a simple wrapper that maintains backward compatibility
 // Later, this can be refactored to use proper ES modules
 
@@ -126,11 +128,8 @@ export function createRecommendationsComponent() {
         async loadAvailableLoras() {
             this.isLoading = true;
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/adapters');
-                if (response.ok) {
-                    const data = await response.json();
-                    this.availableLoras = data.items || data || [];
-                }
+                const data = await fetchData((window?.BACKEND_URL || '') + '/adapters');
+                this.availableLoras = data.items || data || [];
             } catch (error) {
                 // Handle error silently or use proper error reporting
                 this.showToastMessage('Failed to load LoRAs', 'error');

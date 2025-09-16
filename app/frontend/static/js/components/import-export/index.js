@@ -298,6 +298,8 @@ function importExport() {
     };
 }
 
+export { importExport, importExport as createImportExportComponent };
+
 // Register with Alpine.js or make globally available
 if (typeof Alpine !== 'undefined') {
     Alpine.data('importExport', importExport);
@@ -305,15 +307,7 @@ if (typeof Alpine !== 'undefined') {
     window.importExport = importExport;
 }
 
-// ES Module export for Vite
-export function createImportExportComponent() {
-    return importExport();
-}
-
-// Backward compatibility export
-export { importExport };
-
-// Module export for testing
+// CommonJS export for Node/Jest and back-compat
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { importExport };
+    module.exports = { importExport, createImportExportComponent: importExport };
 }

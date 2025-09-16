@@ -23,7 +23,9 @@ import HelloWorld from '../vue/HelloWorld.vue';
 import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
+
 import GenerationHistory from '../vue/GenerationHistory.vue';
+
 
 // Utilities
 import Utils, {
@@ -66,6 +68,7 @@ import { createNotificationsComponent } from './components/notifications/index.j
 
 // Make HTMX available globally (htmx auto-registers itself when imported)
 // window.htmx is already available globally from the htmx.org import
+
 
 // Make Chart.js available globally  
 window.Chart = Chart;
@@ -311,11 +314,12 @@ mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard) ||
         mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard);
     });
 
+
 // Mount Generation History if present on page
 mountVueApp('[data-vue-root="generation-history"]', GenerationHistory) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="generation-history"]', GenerationHistory);
-    });
+
 
 
 // STEP 4: A SINGLE START CALL AT THE VERY END
