@@ -20,5 +20,5 @@ __all__ = [
     "RecommendationSession",
     "UserPreference",
     "LoRAEmbedding", 
-    "RecommendationFeedback"
+    "RecommendationFeedback",
 ]

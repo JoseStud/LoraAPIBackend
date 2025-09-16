@@ -3,6 +3,8 @@
  * Handles image generation, progress monitoring, queue management, and results display
  */
 
+import { fetchData, postData, deleteData } from '../utils/api.js';
+
 function generationStudio() {
     return {
         // Generation Parameters
@@ -122,10 +124,7 @@ function generationStudio() {
         // API Methods
         async loadSystemStatus() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/system/status');
-                if (response.ok) {
-                    this.systemStatus = await response.json();
-                }
+                this.systemStatus = await fetchData((window?.BACKEND_URL || '') + '/system/status');
             } catch (error) {
                 console.error('Failed to load system status:', error);
             }
@@ -133,10 +132,7 @@ function generationStudio() {
         
         async loadActiveJobs() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/generation/jobs/active');
-                if (response.ok) {
-                    this.activeJobs = await response.json();
-                }
+                this.activeJobs = await fetchData((window?.BACKEND_URL || '') + '/generation/jobs/active');
             } catch (error) {
                 console.error('Failed to load active jobs:', error);
             }
@@ -145,10 +141,7 @@ function generationStudio() {
         async loadRecentResults() {
             try {
                 const limit = this.showHistory ? 50 : 10;
-                const response = await fetch((window?.BACKEND_URL || '') + `/generation/results?limit=${limit}`);
-                if (response.ok) {
-                    this.recentResults = await response.json();
-                }
+                this.recentResults = await fetchData((window?.BACKEND_URL || '') + `/generation/results?limit=${limit}`);
             } catch (error) {
                 console.error('Failed to load recent results:', error);
             }
@@ -164,39 +157,25 @@ function generationStudio() {
             this.isGenerating = true;
             
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/generation/generate', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(this.params)
-                });
+                const result = await postData((window?.BACKEND_URL || '') + '/generation/generate', this.params);
                 
-                if (response.ok) {
-                    const result = await response.json();
+                if (result.job_id) {
+                    // Add job to active jobs list
+                    const newJob = {
+                        id: result.job_id,
+                        prompt: this.params.prompt,
+                        width: this.params.width,
+                        height: this.params.height,
+                        steps: this.params.steps,
+                        status: 'queued',
+                        progress: 0,
+                        current_step: 0,
+                        total_steps: this.params.steps,
+                        created_at: new Date().toISOString()
+                    };
                     
-                    if (result.job_id) {
-                        // Add job to active jobs list
-                        const newJob = {
-                            id: result.job_id,
-                            prompt: this.params.prompt,
-                            width: this.params.width,
-                            height: this.params.height,
-                            steps: this.params.steps,
-                            status: 'queued',
-                            progress: 0,
-                            current_step: 0,
-                            total_steps: this.params.steps,
-                            created_at: new Date().toISOString()
-                        };
-                        
-                        this.activeJobs.unshift(newJob);
-                        this.showToastMessage('Generation started successfully', 'success');
-                    }
-                } else {
-                    const error = await response.text();
-                    console.error('Generation failed:', error);
-                    this.showToastMessage('Generation failed', 'error');
+                    this.activeJobs.unshift(newJob);
+                    this.showToastMessage('Generation started successfully', 'success');
                 }
             } catch (error) {
                 console.error('Error starting generation:', error);
@@ -208,16 +187,9 @@ function generationStudio() {
         
         async cancelJob(jobId) {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + `/generation/jobs/${jobId}/cancel`, {
-                    method: 'POST'
-                });
-                
-                if (response.ok) {
-                    this.activeJobs = this.activeJobs.filter(job => job.id !== jobId);
-                    this.showToastMessage('Generation cancelled', 'success');
-                } else {
-                    this.showToastMessage('Failed to cancel generation', 'error');
-                }
+                await postData((window?.BACKEND_URL || '') + `/generation/jobs/${jobId}/cancel`, {});
+                this.activeJobs = this.activeJobs.filter(job => job.id !== jobId);
+                this.showToastMessage('Generation cancelled', 'success');
             } catch (error) {
                 console.error('Error cancelling job:', error);
                 this.showToastMessage('Error cancelling generation', 'error');
@@ -307,16 +279,9 @@ function generationStudio() {
             if (!confirm('Are you sure you want to delete this result?')) return;
             
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + `/generation/results/${resultId}`, {
-                    method: 'DELETE'
-                });
-                
-                if (response.ok) {
-                    this.recentResults = this.recentResults.filter(r => r.id !== resultId);
-                    this.showToastMessage('Result deleted', 'success');
-                } else {
-                    this.showToastMessage('Failed to delete result', 'error');
-                }
+                await deleteData((window?.BACKEND_URL || '') + `/generation/results/${resultId}`);
+                this.recentResults = this.recentResults.filter(r => r.id !== resultId);
+                this.showToastMessage('Result deleted', 'success');
             } catch (error) {
                 console.error('Error deleting result:', error);
                 this.showToastMessage('Error deleting result', 'error');
@@ -426,3 +391,5 @@ function generationStudio() {
         }
     };
 }
+
+export { generationStudio };

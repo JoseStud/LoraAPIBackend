@@ -1,14 +1,14 @@
-"""
-In-Process TTL Cache Module
+"""In-Process TTL Cache Module
 
 Provides simple time-to-live caching for expensive operations
 to avoid repeated backend requests and improve performance.
 """
 
-import time
 import threading
-from typing import Any, Optional, Dict, Callable
+import time
 from dataclasses import dataclass
+from typing import Any, Callable, Dict, Optional
+
 from app.frontend.config import get_settings
 
 settings = get_settings()
@@ -17,6 +17,7 @@ settings = get_settings()
 @dataclass
 class CacheEntry:
     """Cache entry with value and expiration"""
+
     value: Any
     expires_at: float
 
@@ -25,25 +26,25 @@ class TTLCache:
     """Thread-safe TTL cache implementation"""
     
     def __init__(self, default_ttl: int = 300):
-        """
-        Initialize TTL cache
+        """Initialize TTL cache
         
         Args:
             default_ttl: Default time-to-live in seconds (5 minutes default)
+
         """
         self.default_ttl = default_ttl
         self._cache: Dict[str, CacheEntry] = {}
         self._lock = threading.RLock()
     
     def get(self, key: str) -> Optional[Any]:
-        """
-        Get value from cache if not expired
+        """Get value from cache if not expired
         
         Args:
             key: Cache key
             
         Returns:
             Cached value or None if not found/expired
+
         """
         with self._lock:
             if key not in self._cache:
@@ -59,13 +60,13 @@ class TTLCache:
             return entry.value
     
     def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
-        """
-        Set value in cache with TTL
+        """Set value in cache with TTL
         
         Args:
             key: Cache key
             value: Value to cache
             ttl: Time-to-live in seconds (uses default if None)
+
         """
         if ttl is None:
             ttl = self.default_ttl
@@ -76,14 +77,14 @@ class TTLCache:
             self._cache[key] = CacheEntry(value=value, expires_at=expires_at)
     
     def delete(self, key: str) -> bool:
-        """
-        Delete entry from cache
+        """Delete entry from cache
         
         Args:
             key: Cache key
             
         Returns:
             True if key was found and deleted, False otherwise
+
         """
         with self._lock:
             if key in self._cache:
@@ -97,11 +98,11 @@ class TTLCache:
             self._cache.clear()
     
     def cleanup_expired(self) -> int:
-        """
-        Remove all expired entries
+        """Remove all expired entries
         
         Returns:
             Number of entries removed
+
         """
         current_time = time.time()
         expired_keys = []
@@ -117,11 +118,11 @@ class TTLCache:
         return len(expired_keys)
     
     def get_stats(self) -> Dict[str, Any]:
-        """
-        Get cache statistics
+        """Get cache statistics
         
         Returns:
             Dictionary with cache stats
+
         """
         with self._lock:
             current_time = time.time()
@@ -135,12 +136,11 @@ class TTLCache:
                 "total_entries": total_entries,
                 "active_entries": total_entries - expired_entries,
                 "expired_entries": expired_entries,
-                "default_ttl": self.default_ttl
+                "default_ttl": self.default_ttl,
             }
     
     def get_or_set(self, key: str, factory: Callable[[], Any], ttl: Optional[int] = None) -> Any:
-        """
-        Get value from cache or set it using factory function
+        """Get value from cache or set it using factory function
         
         Args:
             key: Cache key
@@ -149,6 +149,7 @@ class TTLCache:
             
         Returns:
             Cached or computed value
+
         """
         # Try to get from cache first
         value = self.get(key)
@@ -187,8 +188,7 @@ def get_lora_metadata_cache() -> TTLCache:
 
 # Convenience functions for common caching patterns
 async def cache_embedding_stats(lora_id: str, stats_factory: Callable) -> Any:
-    """
-    Cache embedding statistics for a LoRA
+    """Cache embedding statistics for a LoRA
     
     Args:
         lora_id: LoRA identifier
@@ -196,6 +196,7 @@ async def cache_embedding_stats(lora_id: str, stats_factory: Callable) -> Any:
         
     Returns:
         Cached or computed embedding stats
+
     """
     cache_key = f"embedding_stats:{lora_id}"
     
@@ -214,14 +215,14 @@ async def cache_embedding_stats(lora_id: str, stats_factory: Callable) -> Any:
 
 
 async def cache_system_metrics(metrics_factory: Callable) -> Any:
-    """
-    Cache system metrics
+    """Cache system metrics
     
     Args:
         metrics_factory: Async function to compute metrics
         
     Returns:
         Cached or computed system metrics
+
     """
     cache_key = "system_metrics"
     
@@ -240,8 +241,7 @@ async def cache_system_metrics(metrics_factory: Callable) -> Any:
 
 
 async def cache_lora_metadata(lora_id: str, metadata_factory: Callable) -> Any:
-    """
-    Cache LoRA metadata
+    """Cache LoRA metadata
     
     Args:
         lora_id: LoRA identifier
@@ -249,6 +249,7 @@ async def cache_lora_metadata(lora_id: str, metadata_factory: Callable) -> Any:
         
     Returns:
         Cached or fetched LoRA metadata
+
     """
     cache_key = f"lora_metadata:{lora_id}"
     
@@ -267,11 +268,11 @@ async def cache_lora_metadata(lora_id: str, metadata_factory: Callable) -> Any:
 
 
 def invalidate_lora_cache(lora_id: str) -> None:
-    """
-    Invalidate all cache entries related to a specific LoRA
+    """Invalidate all cache entries related to a specific LoRA
     
     Args:
         lora_id: LoRA identifier
+
     """
     _embedding_cache.delete(f"embedding_stats:{lora_id}")
     _lora_metadata_cache.delete(f"lora_metadata:{lora_id}")
@@ -283,30 +284,30 @@ def invalidate_system_cache() -> None:
 
 
 def cleanup_all_caches() -> Dict[str, int]:
-    """
-    Clean up expired entries from all caches
+    """Clean up expired entries from all caches
     
     Returns:
         Dictionary with cleanup stats for each cache
+
     """
     return {
         "embedding_cache": _embedding_cache.cleanup_expired(),
         "system_stats_cache": _system_stats_cache.cleanup_expired(),
-        "lora_metadata_cache": _lora_metadata_cache.cleanup_expired()
+        "lora_metadata_cache": _lora_metadata_cache.cleanup_expired(),
     }
 
 
 def get_all_cache_stats() -> Dict[str, Dict[str, Any]]:
-    """
-    Get statistics for all caches
+    """Get statistics for all caches
     
     Returns:
         Dictionary with stats for each cache
+
     """
     return {
         "embedding_cache": _embedding_cache.get_stats(),
         "system_stats_cache": _system_stats_cache.get_stats(),
-        "lora_metadata_cache": _lora_metadata_cache.get_stats()
+        "lora_metadata_cache": _lora_metadata_cache.get_stats(),
     }
 
 

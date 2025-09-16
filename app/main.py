@@ -1,29 +1,25 @@
-"""
-LoRA Manager - Main Application Entry Point
+"""LoRA Manager - Main Application Entry Point
 
 This file integrates both the backend API and frontend routes.
 The backend is located in the backend/ directory.
 The frontend templates and static files are in app/frontend/.
 """
 
-from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-# Import backend application
-from backend.main import app as backend_app
-from backend.core.config import settings
+from fastapi.staticfiles import StaticFiles
 
 # Import frontend routes
 from app.frontend import routes_fastapi as frontend_routes
+
+# Import backend application
+from backend.main import app as backend_app
 
 # Create the main application
 app = FastAPI(
     title="LoRA Manager",
     description="LoRA Adapter Management System with AI-Powered Recommendations",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # Add CORS middleware
@@ -56,5 +52,5 @@ if __name__ == "__main__":
         "app.main:app",
         host="0.0.0.0",
         port=8000,
-        reload=True
+        reload=True,
     )

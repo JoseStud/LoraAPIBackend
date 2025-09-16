@@ -56,3 +56,8 @@ node_modules
 # Frontend cache directories
 .cache/
 coverage/
+=======
+# Test coverage
+coverage/
+
+

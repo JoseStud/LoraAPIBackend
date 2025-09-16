@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import JSON, Column, Text, LargeBinary
+from sqlalchemy import JSON, Column, LargeBinary, Text
 from sqlmodel import Field, SQLModel
 
 

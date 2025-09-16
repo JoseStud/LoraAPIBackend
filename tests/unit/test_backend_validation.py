@@ -1,12 +1,10 @@
-"""
-Tests for Pydantic schema validation and backend configuration.
+"""Tests for Pydantic schema validation and backend configuration.
 """
 import pytest
-from pydantic import ValidationError
-
-from backend.config import Settings
 from backend.cache import TTLCache
+from backend.config import Settings
 from backend.utils.http import HTTPClient
+from pydantic import ValidationError
 
 
 class TestSettings:
