@@ -138,50 +138,12 @@
             <div data-vue-root="system-status-card" data-variant="detailed"></div>
             
             <!-- Job Queue -->
-            <div class="card" x-data="jobQueue" x-show="isInitialized">
-                <div class="card-header">
-                    <h3 class="card-title">Active Jobs</h3>
-                    <button x-show="hasJobs" @click="clearCompleted()" class="btn btn-outline btn-sm">
-                        Clear Completed
-                    </button>
-                </div>
-                
-                <div class="card-body">
-                    <div x-show="!hasJobs" class="text-center py-4 text-gray-500">
-                        No active jobs
-                    </div>
-                    
-                    <div x-show="hasJobs" class="space-y-3">
-                        <template x-for="job in jobs" :key="job.id">
-                            <div class="border rounded-lg p-3 bg-gray-50">
-                                <div class="flex justify-between items-start mb-2">
-                                    <h4 class="font-medium text-sm" x-text="job.name"></h4>
-                                    <button @click="cancelJob(job.id)" 
-                                            x-show="job.status === 'running' || job.status === 'starting'"
-                                            class="text-red-500 hover:text-red-700 text-xs">
-                                        Cancel
-                                    </button>
-                                </div>
-                                
-                                <div class="flex justify-between items-center text-sm">
-                                    <span :class="getStatusColor(job.status)" x-text="job.status"></span>
-                                    <span class="text-gray-500" x-text="formatDuration(job.startTime)"></span>
-                                </div>
-                                
-                                <div x-show="job.progress > 0" class="mt-2">
-                                    <div class="w-full bg-gray-200 rounded-full h-1">
-                                        <div class="bg-blue-600 h-1 rounded-full transition-all duration-300" 
-                                             :style="`width: ${job.progress}%`"></div>
-                                    </div>
-                                    <div class="text-xs text-gray-500 mt-1" x-text="`${job.progress}% complete`"></div>
-                                </div>
-                                
-                                <div x-show="job.message" class="text-xs text-gray-600 mt-1" x-text="job.message"></div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </div>
+            <div data-vue-root="job-queue" 
+                 data-title="Active Jobs" 
+                 data-show-clear-completed="true"
+                 data-show-job-count="false"
+                 data-empty-state-title="No active jobs"
+                 data-empty-state-message="Jobs will appear here when started"></div>
             
         </div>
     </div>
