@@ -16,13 +16,14 @@ import '../css/accessibility.css';
 
 // External libraries
 import Alpine from 'alpinejs';
-import htmx from 'htmx.org';
+import * as htmx from 'htmx.org';
 import Chart from 'chart.js/auto';
 import { createApp } from 'vue';
 import HelloWorld from '../vue/HelloWorld.vue';
 import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
+import Notifications from '../vue/Notifications.vue';
 
 // Utilities
 import Utils, {
@@ -308,6 +309,12 @@ mountVueApp('[data-vue-root="mobile-nav"]', MobileNav) ||
 mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard);
+    });
+
+// Mount Notifications if present on page
+mountVueApp('[data-vue-root="notifications"]', Notifications) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="notifications"]', Notifications);
     });
 
 
