@@ -26,6 +26,7 @@ import SystemStatusCard from '../vue/SystemStatusCard.vue';
 import JobQueue from '../vue/JobQueue.vue';
 import SystemStatusPanel from '../vue/SystemStatusPanel.vue';
 import PerformanceAnalytics from '../vue/PerformanceAnalytics.vue';
+import Notifications from '../vue/Notifications.vue';
 
 // Utilities
 import Utils, {
@@ -327,6 +328,12 @@ mountVueApp('[data-vue-root="job-queue"]', JobQueue) ||
 mountVueApp('[data-vue-root="system-status-panel"]', SystemStatusPanel) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="system-status-panel"]', SystemStatusPanel);
+    });
+
+// Mount Notifications if present on page
+mountVueApp('[data-vue-root="notifications"]', Notifications) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="notifications"]', Notifications);
     });
 
 // STEP 4: A SINGLE START CALL AT THE VERY END
