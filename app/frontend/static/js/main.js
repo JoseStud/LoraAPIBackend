@@ -40,6 +40,9 @@ import Utils, {
     delay
 } from './utils/index.js';
 
+// API Utilities
+import { fetchData, postData, putData, deleteData } from './utils/api.js';
+
 // All Component Creators
 import { createDashboardComponent } from './components/dashboard/index.js';
 import { createRecommendationsComponent } from './components/recommendations/index.js';
@@ -86,6 +89,12 @@ window.validateFile = validateFile;
 window.escapeHtml = escapeHtml;
 window.truncateText = truncateText;
 window.delay = delay;
+
+// Make API utilities globally available
+window.fetchData = fetchData;
+window.postData = postData;
+window.putData = putData;
+window.deleteData = deleteData;
 
 // Define Global Stores FIRST
 Alpine.store('app', {

@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/101</span>
+                <span class='fraction'>0/98</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/95</span>
+                <span class='fraction'>0/92</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/97</span>
+                <span class='fraction'>0/94</span>
             </div>
         
             
@@ -341,11 +341,7 @@
 <a name='L276'></a><a href='#L276'>276</a>
 <a name='L277'></a><a href='#L277'>277</a>
 <a name='L278'></a><a href='#L278'>278</a>
-<a name='L279'></a><a href='#L279'>279</a>
-<a name='L280'></a><a href='#L280'>280</a>
-<a name='L281'></a><a href='#L281'>281</a>
-<a name='L282'></a><a href='#L282'>282</a>
-<a name='L283'></a><a href='#L283'>283</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L279'></a><a href='#L279'>279</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -376,22 +372,18 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -655,25 +647,21 @@
 <span class="fstat-no" title="function not covered" >    as</span>ync toggleLoraActive(loraId, isActive) {
 <span class="cstat-no" title="statement not covered" >        try {</span>
             const endpoint = <span class="cstat-no" title="statement not covered" >isActive ? 'deactivate' : 'activate';</span>
-            const response = <span class="cstat-no" title="statement not covered" >await fetch(`/api/v1/adapters/${loraId}/${endpoint}`, {</span>
-                method: 'POST',
+            const url = <span class="cstat-no" title="statement not covered" >(window?.BACKEND_URL || '') + `/adapters/${loraId}/${endpoint}`;</span>
+            
+            // Use postData utility from utils/api.js for centralized error handling
+<span class="cstat-no" title="statement not covered" >            await window.postData(url, {}, {</span>
                 headers: {
                     'Content-Type': 'application/json'
                 }
             });
             
-<span class="cstat-no" title="statement not covered" >            if (response.ok) {</span>
-                // Dispatch event for other components to update
-                const event = <span class="cstat-no" title="statement not covered" >new CustomEvent('lora-status-changed', { </span>
-                    detail: { loraId, isActive: !isActive }
-                });
-<span class="cstat-no" title="statement not covered" >                document.body.dispatchEvent(event);</span>
-<span class="cstat-no" title="statement not covered" >                return true;</span>
-            } else {
-<span class="cstat-no" title="statement not covered" >                window.DevLogger &amp;&amp; window.DevLogger.error &amp;&amp; window.DevLogger.error('Failed to update LoRA status:', response.status);</span>
-<span class="cstat-no" title="statement not covered" >                this.showError('Failed to update LoRA status');</span>
-<span class="cstat-no" title="statement not covered" >                return false;</span>
-            }
+            // Dispatch event for other components to update
+            const event = <span class="cstat-no" title="statement not covered" >new CustomEvent('lora-status-changed', { </span>
+                detail: { loraId, isActive: !isActive }
+            });
+<span class="cstat-no" title="statement not covered" >            document.body.dispatchEvent(event);</span>
+<span class="cstat-no" title="statement not covered" >            return true;</span>
         } catch (error) {
 <span class="cstat-no" title="statement not covered" >            window.DevLogger &amp;&amp; window.DevLogger.error &amp;&amp; window.DevLogger.error('Error updating LoRA status:', error);</span>
 <span class="cstat-no" title="statement not covered" >            this.showError('Error: ' + error.message);</span>
@@ -916,7 +904,7 @@
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-09-08T15:40:54.492Z
+                at 2025-09-16T02:33:19.611Z
             </div>
         <script src="../prettify.js"></script>
         <script>

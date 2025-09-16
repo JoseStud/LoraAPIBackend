@@ -26,25 +26,21 @@ window.LoRAManager = {
     async toggleLoraActive(loraId, isActive) {
         try {
             const endpoint = isActive ? 'deactivate' : 'activate';
-                const response = await fetch((window?.BACKEND_URL || '') + `/adapters/${loraId}/${endpoint}`, {
-                method: 'POST',
+            const url = (window?.BACKEND_URL || '') + `/adapters/${loraId}/${endpoint}`;
+            
+            // Use postData utility from utils/api.js for centralized error handling
+            await window.postData(url, {}, {
                 headers: {
                     'Content-Type': 'application/json'
                 }
             });
             
-            if (response.ok) {
-                // Dispatch event for other components to update
-                const event = new CustomEvent('lora-status-changed', { 
-                    detail: { loraId, isActive: !isActive }
-                });
-                document.body.dispatchEvent(event);
-                return true;
-            } else {
-                window.DevLogger && window.DevLogger.error && window.DevLogger.error('Failed to update LoRA status:', response.status);
-                this.showError('Failed to update LoRA status');
-                return false;
-            }
+            // Dispatch event for other components to update
+            const event = new CustomEvent('lora-status-changed', { 
+                detail: { loraId, isActive: !isActive }
+            });
+            document.body.dispatchEvent(event);
+            return true;
         } catch (error) {
             window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error updating LoRA status:', error);
             this.showError('Error: ' + error.message);
