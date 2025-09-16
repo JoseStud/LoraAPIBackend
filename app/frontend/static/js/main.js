@@ -16,13 +16,14 @@ import '../css/accessibility.css';
 
 // External libraries
 import Alpine from 'alpinejs';
-import htmx from 'htmx.org';
+import 'htmx.org';
 import Chart from 'chart.js/auto';
 import { createApp } from 'vue';
 import HelloWorld from '../vue/HelloWorld.vue';
 import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
+import GenerationStudio from '../vue/GenerationStudio.vue';
 
 // Utilities
 import Utils, {
@@ -63,8 +64,8 @@ import { createNotificationsComponent } from './components/notifications/index.j
 // STEP 2: CONFIGURE EXTERNAL LIBRARIES
 // =================================================================
 
-// Make HTMX available globally
-window.htmx = htmx;
+// Make HTMX available globally (htmx attaches itself to window automatically)
+// window.htmx will be available after import
 
 // Make Chart.js available globally  
 window.Chart = Chart;
@@ -308,6 +309,12 @@ mountVueApp('[data-vue-root="mobile-nav"]', MobileNav) ||
 mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard);
+    });
+
+// Mount Generation Studio if present on page
+mountVueApp('[data-vue-root="generation-studio"]', GenerationStudio) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="generation-studio"]', GenerationStudio);
     });
 
 
