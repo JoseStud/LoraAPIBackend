@@ -52,3 +52,7 @@ __pycache__
 *.db
 
 node_modules
+
+# Frontend cache directories
+.cache/
+coverage/
