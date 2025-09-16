@@ -309,9 +309,7 @@ function promptComposer() {
                 
                 const result = await postData((window?.BACKEND_URL || '') + '/generation/generate', generationParams);
 
-                
                 this.showToastMessage('Generation started successfully', 'success');
-                
 
                 // Redirect to generation monitoring page or show progress
                 if (result.job_id) {

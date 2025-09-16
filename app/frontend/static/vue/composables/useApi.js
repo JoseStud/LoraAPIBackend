@@ -12,6 +12,7 @@ export function useApi(url, options = {}) {
   const isLoading = ref(false);
   const lastResponse = ref(null);
 
+
   const resolveUrl = () => {
     try {
       const u = typeof url === 'function' ? url() : unref(url);
@@ -49,3 +50,6 @@ export function useApi(url, options = {}) {
   };
 
   return { data, error, isLoading, fetchData: fetchApiData };
+
+}
+

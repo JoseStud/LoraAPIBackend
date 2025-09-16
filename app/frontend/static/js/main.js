@@ -23,9 +23,13 @@ import HelloWorld from '../vue/HelloWorld.vue';
 import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
-import SystemStatusPanel from '../vue/SystemStatusPanel.vue';
 
+import JobQueue from '../vue/JobQueue.vue';
+import SystemStatusPanel from '../vue/SystemStatusPanel.vue';
 import PerformanceAnalytics from '../vue/PerformanceAnalytics.vue';
+import Notifications from '../vue/Notifications.vue';
+import GenerationHistory from '../vue/GenerationHistory.vue';
+import SystemAdminStatusCard from '../vue/SystemAdminStatusCard.vue';
 
 
 // Utilities
@@ -67,10 +71,7 @@ import { createNotificationsComponent } from './components/notifications/index.j
 // STEP 2: CONFIGURE EXTERNAL LIBRARIES
 // =================================================================
 
-
-// Make HTMX available globally (htmx auto-registers itself when imported)
-// window.htmx is already available after import 'htmx.org'
-
+// HTMX auto-registers via import above
 
 // Make Chart.js available globally  
 window.Chart = Chart;
@@ -322,11 +323,36 @@ mountVueApp('[data-vue-root="performance-analytics"]', PerformanceAnalytics) ||
         mountVueApp('[data-vue-root="performance-analytics"]', PerformanceAnalytics);
     });
 
+// Mount Job Queue if present on page
+mountVueApp('[data-vue-root="job-queue"]', JobQueue) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="job-queue"]', JobQueue);
+    });
+
 // Mount System Status Panel (admin monitoring tab) if present on page
 mountVueApp('[data-vue-root="system-status-panel"]', SystemStatusPanel) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="system-status-panel"]', SystemStatusPanel);
     });
+
+// Mount System Admin Status card if present on page
+mountVueApp('[data-vue-root="system-admin-status-card"]', SystemAdminStatusCard) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="system-admin-status-card"]', SystemAdminStatusCard);
+    });
+
+// Mount Notifications if present on page
+mountVueApp('[data-vue-root="notifications"]', Notifications) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="notifications"]', Notifications);
+    });
+
+// Mount Generation History if present on page
+mountVueApp('[data-vue-root="generation-history"]', GenerationHistory) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="generation-history"]', GenerationHistory);
+    });
+
 
 // STEP 4: A SINGLE START CALL AT THE VERY END
 // =================================================================

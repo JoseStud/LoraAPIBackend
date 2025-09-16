@@ -213,78 +213,6 @@ export default function apiDataFetcher(endpoint, options = {}) {
                 } else {
                     this.data = [...(this.data || []), ...response.results];
                 }
-                ໊໊
-@juniorkingpp
-·
-Sep 15
-I would k!ll myself in the bathroom.
-Quote
-Cjay
-@ced_jayy
-·
-Sep 15
-How much would you tip?
-Image
-Rate proposed Community Notes
-Erknaite
-@zac_gaming__
-·
-9h
-riot is buffing this champion btw
-A webpage displaying Syndra build information for League of Legends. Visible elements include Syndra\'s name, a champion icon, and stats like 51.2% win rate, 22.67 KDA, 9.7% pick rate, 10.8% ban rate, and 4,258 matches. Tabs for Arena, ARAM, Counters, Middle, and more are shown, along with filters and patch 13.17 details.
-Hannah Escobar - 🐰
-@Missmelindres
-·
-13h
-Dicen que el FOMAG “se creó con la Ley 100”. 🤡 No, señores. El Fondo de Prestaciones Sociales del Magisterio nació con la Ley 91 de 1989, cuatro años ANTES de que existiera la Ley 100. La Ley 100 lo único que hizo fue EXCLUIR al Magisterio del sistema general, porque los https://x.com/MinSaludCol/st/MinSaludCol/status/1967779640056926565
-This post is unavailable.
-Jennifer Pedraza Sandoval
-@JenniferPedraz
-·
-15h
-Presidente, ahora que tengo su atención, le regalo sus palabras rimbombantes y le pregunto:
-
-▪️¿Va a nombrar a Juliana a pesar de las graves irregularidades en su HDV?
-
-▪️ ¿Qué opina de que su Gobierno no haya reformado la ley 30 (educación superior)? 
-
-▪️¿Qué le dice a quienes
-Quote
-Gustavo Petro
-@petrogustavo
-·
-20h
-La consigna que yo atendí del movimiento juvenil, que es más que un movimiento estudiantil, es que hubiera una universidad  pública y de calidad en Colombia.
-
-No me pidieron un miserable sistema de subsidios a algunos jóvenes pobres para estudiar en universidad privada.
-
-Hemos x.com/cuestion_p/sta…
-Show more
-FOX One
-@watchfoxone
-Ad
-FOX One is the new streaming home for Football Sundays on FOX and so much more. The GOAT approves this message.
-0:03 / 0:15
-From fox.com
-Apple
-Private Talky
-@privatetalky
-·
-14h
-Have you upgraded your Apple devices to version 26 yet, or are you waiting for the early bugs to get ironed out?
-Icons for iOS, iPadOS, macOS, watchOS, and visionOS. Each row shows two versions of an icon, with the top row displaying version 18 or 11 and the bottom row showing version 26. iOS icon transitions from a design with the number 18 in blue and pink to 26 in blue. iPadOS icon changes from 18 in blue to 26 in blue. macOS icon shifts from 11 with an orange and blue design to 26 in blue. watchOS icon moves from 2 in blue to 26 in blue. visionOS icon evolves from 2 in blue to 26 in blue.
-v!
-@Vullety
-·
-23h
-dark yellow pee
-Quote
-Araaa
-@shawntifying
-·
-Nov 26, 2024
-First thing that comes to mind when you see this pic???
-Image
 
                 this.hasMore = response.has_more || false;
                 this.totalItems = response.total || this.data.length;
@@ -496,7 +424,17 @@ Image
         },
 
         clearCache() {
-            if (cacheKey) {
+            ifThis branch has conflicts that must be resolved
+
+Use the web editor or the command line to resolve conflicts before continuing.
+
+.gitignore
+app/frontend/static/js/components/prompt-composer.js
+app/frontend/static/js/components/shared/api-data-fetcher.js
+app/frontend/static/js/main.js
+app/frontend/static/vue/composables/useApi.js
+app/frontend/templates/pages/admin.html
+ (cacheKey) {
                 localStorage.removeItem(this.cacheKey);
             }
         },
