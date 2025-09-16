@@ -358,6 +358,8 @@ function createFallbackState() {
     };
 }
 
+export { performanceAnalytics, performanceAnalytics as createPerformanceAnalyticsComponent };
+
 // Register with Alpine.js or make globally available
 if (typeof Alpine !== 'undefined') {
     Alpine.data('performanceAnalytics', performanceAnalytics);

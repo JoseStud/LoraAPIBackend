@@ -298,6 +298,8 @@ function importExport() {
     };
 }
 
+export { importExport, importExport as createImportExportComponent };
+
 // Register with Alpine.js or make globally available
 if (typeof Alpine !== 'undefined') {
     Alpine.data('importExport', importExport);

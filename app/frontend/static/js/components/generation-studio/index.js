@@ -441,6 +441,8 @@ function generationStudio() {
     };
 }
 
+export { generationStudio, generationStudio as createGenerationStudioComponent };
+
 // Export for use in templates
 if (typeof window !== 'undefined') {
     window.generationStudio = generationStudio;
