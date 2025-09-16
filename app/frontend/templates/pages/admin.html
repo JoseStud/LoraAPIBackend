@@ -154,9 +154,11 @@
         
         <div class="card-body">
             
-            <!-- System Monitoring Tab - Vue Island -->
+            <!-- System Monitoring Tab -->
             <div x-show="ui.activeTab === 'monitoring'">
-                <!-- Vue island mount point for system status panel -->
+                <!-- Vue Island: System Admin Status Card -->
+                <div data-vue-root="system-admin-status-card"></div>
+                <!-- Vue Island: System Status Panel (detailed monitoring) -->
                 <div data-vue-root="system-status-panel"></div>
             </div>
             

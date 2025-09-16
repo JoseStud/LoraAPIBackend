@@ -17,7 +17,6 @@ def test_importer_integration_creates_adapter(tmp_path, db_session, mock_storage
     model.write_text("binary", encoding="utf-8")
 
     # import modules
-    import backend.services
     import scripts.importer as importer
 
     # Ensure storage check returns True

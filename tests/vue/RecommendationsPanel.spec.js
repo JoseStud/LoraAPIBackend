@@ -14,7 +14,7 @@ describe('RecommendationsPanel.vue', () => {
     // Simple fetch stub that returns different payloads per URL
     global.fetch = vi.fn(async (input) => {
       const url = typeof input === 'string' ? input : input.url || '';
-      if (url.includes('/api/v1/adapters')) {
+      if (url.includes('/api/adapters')) {
         return {
           ok: true,
           status: 200,
@@ -24,7 +24,7 @@ describe('RecommendationsPanel.vue', () => {
           ] }),
         };
       }
-      if (url.includes('/api/v1/recommendations/similar/')) {
+      if (url.includes('/api/recommendations/similar/')) {
         return {
           ok: true,
           status: 200,
