@@ -50,7 +50,7 @@ import { createGenerationHistoryComponent } from './components/generation-histor
 import { createLoraGalleryComponent } from './components/lora-gallery/index.js';
 import { createGenerationStudioComponent } from './components/generation-studio/index.js';
 import { createPromptComposerComponent } from './components/prompt-composer/index.js';
-import { createPerformanceAnalyticsComponent } from './components/performance-analytics/index.js';
+// import { createPerformanceAnalyticsComponent } from './components/performance-analytics/index.js'; // Migrated to Vue
 import { createImportExportComponent } from './components/import-export/index.js';
 import { createSystemAdminComponent } from './components/system-admin/index.js';
 import { createDatabaseManagerComponent } from './components/system-admin/databaseManager.js';
@@ -184,7 +184,7 @@ Alpine.data('generationHistory', createGenerationHistoryComponent);
 Alpine.data('loraGallery', createLoraGalleryComponent);
 Alpine.data('generationStudio', createGenerationStudioComponent);
 Alpine.data('promptComposer', createPromptComposerComponent);
-Alpine.data('performanceAnalytics', createPerformanceAnalyticsComponent);
+// Alpine.data('performanceAnalytics', createPerformanceAnalyticsComponent); // Migrated to Vue
 Alpine.data('importExport', createImportExportComponent);
 Alpine.data('systemAdmin', createSystemAdminComponent);
 Alpine.data('databaseManager', createDatabaseManagerComponent);
