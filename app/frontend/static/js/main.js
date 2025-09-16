@@ -72,7 +72,13 @@ import { createNotificationsComponent } from './components/notifications/index.j
 // STEP 2: CONFIGURE EXTERNAL LIBRARIES
 // =================================================================
 
+<<<<<<< HEAD
 // HTMX auto-registers via import above
+=======
+// Make HTMX available globally (htmx auto-registers itself when imported)
+// window.htmx is already available globally from the htmx.org import
+
+>>>>>>> 4d2bf67 (Changes before error encountered)
 // Make Chart.js available globally  
 window.Chart = Chart;
 // STEP 3: ALL CONFIGURATION AND REGISTRATION
