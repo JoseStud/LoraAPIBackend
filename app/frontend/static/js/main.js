@@ -23,12 +23,14 @@ import HelloWorld from '../vue/HelloWorld.vue';
 import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
+
 import JobQueue from '../vue/JobQueue.vue';
 import SystemStatusPanel from '../vue/SystemStatusPanel.vue';
 import PerformanceAnalytics from '../vue/PerformanceAnalytics.vue';
 import Notifications from '../vue/Notifications.vue';
 import GenerationHistory from '../vue/GenerationHistory.vue';
 import SystemAdminStatusCard from '../vue/SystemAdminStatusCard.vue';
+
 
 // Utilities
 import Utils, {
@@ -70,6 +72,7 @@ import { createNotificationsComponent } from './components/notifications/index.j
 // =================================================================
 
 // HTMX auto-registers via import above
+
 // Make Chart.js available globally  
 window.Chart = Chart;
 // STEP 3: ALL CONFIGURATION AND REGISTRATION
@@ -349,6 +352,7 @@ mountVueApp('[data-vue-root="generation-history"]', GenerationHistory) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="generation-history"]', GenerationHistory);
     });
+
 
 // STEP 4: A SINGLE START CALL AT THE VERY END
 // =================================================================

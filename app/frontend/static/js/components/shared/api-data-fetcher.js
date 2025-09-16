@@ -3,6 +3,7 @@
  * Reusable Alpine.js component for handling API data fetching with loading states, errors, and pagination
  */
 
+
 import { fetchData, postData, putData, deleteData } from '../../utils/api.js';
 
 /**
@@ -29,6 +30,14 @@ export default function apiDataFetcher(endpoint, options = {}) {
         customHeaders = {}, // Additional custom headers
     } = options;
 
+    const normalizeHeaders = (value) => {
+        if (!value) return {};
+        if (typeof Headers !== 'undefined' && value instanceof Headers) {
+            return Object.fromEntries(value.entries());
+        }
+        return { ...value };
+    };
+
     return {
         // Core data state
         data: initialData,
@@ -47,6 +56,30 @@ export default function apiDataFetcher(endpoint, options = {}) {
         lastFetchTime: null,
         retryCount: 0,
         abortController: null,
+
+        /**
+         * Build request headers with defaults and optional overrides
+         * @param {object} extraHeaders
+         */
+        buildRequestHeaders(extraHeaders = {}) {
+            const overrides = normalizeHeaders(extraHeaders);
+            const merged = {
+                'Content-Type': 'application/json',
+                ...normalizeHeaders(customHeaders),
+                ...overrides
+            };
+
+            if (requiresAuth) {
+                const authHeaders = this.getAuthHeaders();
+                Object.assign(merged, authHeaders);
+            }
+
+            if (merged['Content-Type'] === null || merged['Content-Type'] === undefined) {
+                delete merged['Content-Type'];
+            }
+
+            return merged;
+        },
 
         // Cache state
         cacheKey: cacheKey || `api_cache_${endpoint.replace(/[^a-zA-Z0-9]/g, '_')}`,
@@ -134,6 +167,7 @@ export default function apiDataFetcher(endpoint, options = {}) {
             
             for (let attempt = 0; attempt <= retryAttempts; attempt++) {
                 try {
+
                     const headers = {
                         ...customHeaders
                     };
@@ -152,11 +186,12 @@ export default function apiDataFetcher(endpoint, options = {}) {
                     
                     return await fetchData(url, options);
                     
+
                 } catch (error) {
                     if (error.name === 'AbortError' || attempt === retryAttempts) {
                         throw error;
                     }
-                    
+
                     this.retryCount = attempt + 1;
                     await this.delay(retryDelay * Math.pow(2, attempt)); // Exponential backoff
                 }
@@ -178,7 +213,7 @@ export default function apiDataFetcher(endpoint, options = {}) {
                 } else {
                     this.data = [...(this.data || []), ...response.results];
                 }
-                
+
                 this.hasMore = response.has_more || false;
                 this.totalItems = response.total || this.data.length;
                 processedData = this.data;
@@ -279,20 +314,26 @@ export default function apiDataFetcher(endpoint, options = {}) {
          * @param {object} options - Additional options
          */
         async makeHttpRequest(method = 'GET', data = null, requestOptions = {}) {
+            const methodUpper = typeof method === 'string' ? method.toUpperCase() : 'GET';
+            const optionsWithoutReturnResponse = { ...requestOptions };
+            delete optionsWithoutReturnResponse.returnResponse;
+
             const {
                 customEndpoint = null,
                 customParams = {},
-                customHeaders: requestHeaders = {}
-            } = requestOptions;
-            
-            // Use custom endpoint or default
-            const requestUrl = customEndpoint || endpoint;
-            
-            // Build URL with parameters for GET requests
+                customHeaders: requestHeaders = {},
+                parseResponse: customParseResponse,
+                headers: overrideHeaders,
+                body: overrideBody,
+                ...restOptions
+            } = optionsWithoutReturnResponse;
+
+            const baseUrl = customEndpoint || endpoint;
             const params = new URLSearchParams(customParams);
-            const url = `${requestUrl}${params.toString() ? '?' + params.toString() : ''}`;
-            
+            const url = `${baseUrl}${params.toString() ? '?' + params.toString() : ''}`;
+
             try {
+
                 const headers = {
                     ...customHeaders,
                     ...requestHeaders
@@ -317,10 +358,13 @@ export default function apiDataFetcher(endpoint, options = {}) {
                     case 'GET':
                     default:
                         return await fetchData(url, options);
+
                 }
-                
+
+                return response;
+
             } catch (error) {
-                window.DevLogger?.error?.(`HTTP Request failed (${method} ${url}):`, error);
+                window.DevLogger?.error?.(`HTTP Request failed (${methodUpper} ${url}):`, error);
                 throw error;
             }
         },
@@ -380,7 +424,17 @@ export default function apiDataFetcher(endpoint, options = {}) {
         },
 
         clearCache() {
-            if (cacheKey) {
+            ifThis branch has conflicts that must be resolved
+
+Use the web editor or the command line to resolve conflicts before continuing.
+
+.gitignore
+app/frontend/static/js/components/prompt-composer.js
+app/frontend/static/js/components/shared/api-data-fetcher.js
+app/frontend/static/js/main.js
+app/frontend/static/vue/composables/useApi.js
+app/frontend/templates/pages/admin.html
+ (cacheKey) {
                 localStorage.removeItem(this.cacheKey);
             }
         },
