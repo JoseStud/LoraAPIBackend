@@ -1,5 +1,4 @@
-"""
-Logging Configuration
+"""Logging Configuration
 
 Sets up structured logging for the LoRA Manager frontend application.
 Provides JSON output for production and human-readable format for development.
@@ -8,8 +7,8 @@ Provides JSON output for production and human-readable format for development.
 import logging
 import logging.config
 import sys
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Optional
 
 from app.frontend.config import get_settings
 
@@ -31,7 +30,7 @@ class JSONFormatter(logging.Formatter):
             "message": record.getMessage(),
             "module": record.module,
             "function": record.funcName,
-            "line": record.lineno
+            "line": record.lineno,
         }
         
         # Add exception info if present
@@ -46,7 +45,7 @@ class JSONFormatter(logging.Formatter):
                     'filename', 'module', 'lineno', 'funcName', 'created',
                     'msecs', 'relativeCreated', 'thread', 'threadName',
                     'processName', 'process', 'message', 'exc_info',
-                    'exc_text', 'stack_info', 'getMessage'
+                    'exc_text', 'stack_info', 'getMessage',
                 }:
                     log_entry[key] = value
         
@@ -63,7 +62,7 @@ class ColoredFormatter(logging.Formatter):
         'WARNING': '\033[33m',   # Yellow
         'ERROR': '\033[31m',     # Red
         'CRITICAL': '\033[35m',  # Magenta
-        'RESET': '\033[0m'       # Reset
+        'RESET': '\033[0m',       # Reset
     }
     
     def format(self, record: logging.LogRecord) -> str:
@@ -99,7 +98,7 @@ class ColoredFormatter(logging.Formatter):
                     'filename', 'module', 'lineno', 'funcName', 'created',
                     'msecs', 'relativeCreated', 'thread', 'threadName',
                     'processName', 'process', 'message', 'exc_info',
-                    'exc_text', 'stack_info', 'getMessage'
+                    'exc_text', 'stack_info', 'getMessage',
                 } and not key.startswith('_'):
                     extra_fields.append(f"{key}={value}")
         
@@ -112,15 +111,15 @@ class ColoredFormatter(logging.Formatter):
 def setup_logging(
     level: Optional[str] = None,
     format_type: Optional[str] = None,
-    log_file: Optional[str] = None
+    log_file: Optional[str] = None,
 ) -> None:
-    """
-    Setup logging configuration
+    """Setup logging configuration
     
     Args:
         level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         format_type: Format type ('json' or 'colored')
         log_file: Optional log file path
+
     """
     # Use settings defaults if not provided
     if level is None:
@@ -164,14 +163,13 @@ def setup_logging(
             "level": level,
             "format": format_type,
             "file": log_file,
-            "json_logging": format_type == 'json'
-        }
+            "json_logging": format_type == 'json',
+        },
     )
 
 
 def configure_logger_levels() -> None:
     """Configure specific logger levels"""
-    
     # Reduce noise from external libraries
     logging.getLogger("uvicorn").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
@@ -188,14 +186,14 @@ def configure_logger_levels() -> None:
 
 
 def get_logger(name: str) -> logging.Logger:
-    """
-    Get logger with consistent configuration
+    """Get logger with consistent configuration
     
     Args:
         name: Logger name
         
     Returns:
         Configured logger instance
+
     """
     return logging.getLogger(name)
 
@@ -206,10 +204,9 @@ def log_request(
     status_code: int,
     duration_ms: float,
     user_agent: Optional[str] = None,
-    ip_address: Optional[str] = None
+    ip_address: Optional[str] = None,
 ) -> None:
-    """
-    Log HTTP request in structured format
+    """Log HTTP request in structured format
     
     Args:
         method: HTTP method
@@ -218,6 +215,7 @@ def log_request(
         duration_ms: Request duration in milliseconds
         user_agent: User agent string
         ip_address: Client IP address
+
     """
     logger = get_logger("app.frontend.access")
     
@@ -228,7 +226,7 @@ def log_request(
         "status_code": status_code,
         "duration_ms": round(duration_ms, 2),
         "user_agent": user_agent,
-        "ip_address": ip_address
+        "ip_address": ip_address,
     }
     
     # Determine log level based on status code
@@ -246,10 +244,9 @@ def log_backend_request(
     status_code: int,
     duration_ms: float,
     request_id: Optional[str] = None,
-    error: Optional[str] = None
+    error: Optional[str] = None,
 ) -> None:
-    """
-    Log backend request in structured format
+    """Log backend request in structured format
     
     Args:
         method: HTTP method
@@ -258,6 +255,7 @@ def log_backend_request(
         duration_ms: Request duration in milliseconds
         request_id: Request correlation ID
         error: Error message if request failed
+
     """
     logger = get_logger("app.frontend.backend")
     
@@ -268,7 +266,7 @@ def log_backend_request(
         "status_code": status_code,
         "duration_ms": round(duration_ms, 2),
         "request_id": request_id,
-        "error": error
+        "error": error,
     }
     
     # Determine log level
@@ -285,10 +283,9 @@ def log_cache_operation(
     cache_name: str,
     key: str,
     hit: bool = False,
-    ttl: Optional[int] = None
+    ttl: Optional[int] = None,
 ) -> None:
-    """
-    Log cache operations for debugging
+    """Log cache operations for debugging
     
     Args:
         operation: Cache operation (get, set, delete, etc.)
@@ -296,6 +293,7 @@ def log_cache_operation(
         key: Cache key
         hit: Whether it was a cache hit (for get operations)
         ttl: TTL value (for set operations)
+
     """
     logger = get_logger("app.frontend.cache")
     
@@ -305,7 +303,7 @@ def log_cache_operation(
         "cache": cache_name,
         "key": key,
         "hit": hit,
-        "ttl": ttl
+        "ttl": ttl,
     }
     
     if operation == "get":

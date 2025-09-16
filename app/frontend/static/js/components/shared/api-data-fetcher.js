@@ -3,6 +3,8 @@
  * Reusable Alpine.js component for handling API data fetching with loading states, errors, and pagination
  */
 
+import { fetchData as apiFetchData } from '../../utils/api.js';
+
 /**
  * Creates a generic data fetcher component that can be mixed into other Alpine.js components
  * @param {string} endpoint - The API endpoint to fetch data from
@@ -27,6 +29,14 @@ export default function apiDataFetcher(endpoint, options = {}) {
         customHeaders = {}, // Additional custom headers
     } = options;
 
+    const normalizeHeaders = (value) => {
+        if (!value) return {};
+        if (typeof Headers !== 'undefined' && value instanceof Headers) {
+            return Object.fromEntries(value.entries());
+        }
+        return { ...value };
+    };
+
     return {
         // Core data state
         data: initialData,
@@ -45,6 +55,30 @@ export default function apiDataFetcher(endpoint, options = {}) {
         lastFetchTime: null,
         retryCount: 0,
         abortController: null,
+
+        /**
+         * Build request headers with defaults and optional overrides
+         * @param {object} extraHeaders
+         */
+        buildRequestHeaders(extraHeaders = {}) {
+            const overrides = normalizeHeaders(extraHeaders);
+            const merged = {
+                'Content-Type': 'application/json',
+                ...normalizeHeaders(customHeaders),
+                ...overrides
+            };
+
+            if (requiresAuth) {
+                const authHeaders = this.getAuthHeaders();
+                Object.assign(merged, authHeaders);
+            }
+
+            if (merged['Content-Type'] === null || merged['Content-Type'] === undefined) {
+                delete merged['Content-Type'];
+            }
+
+            return merged;
+        },
 
         // Cache state
         cacheKey: cacheKey || `api_cache_${endpoint.replace(/[^a-zA-Z0-9]/g, '_')}`,
@@ -132,33 +166,16 @@ export default function apiDataFetcher(endpoint, options = {}) {
             
             for (let attempt = 0; attempt <= retryAttempts; attempt++) {
                 try {
-                    const headers = {
-                        'Content-Type': 'application/json',
-                        ...customHeaders
-                    };
-                    
-                    // Add authentication headers if required
-                    if (requiresAuth) {
-                        const authHeaders = this.getAuthHeaders();
-                        Object.assign(headers, authHeaders);
-                    }
-                    
-                    const response = await fetch(url, {
+                    const headers = this.buildRequestHeaders();
+                    return await apiFetchData(url, {
                         signal: this.abortController?.signal,
                         headers
                     });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-
-                    return await response.json();
-                    
                 } catch (error) {
                     if (error.name === 'AbortError' || attempt === retryAttempts) {
                         throw error;
                     }
-                    
+
                     this.retryCount = attempt + 1;
                     await this.delay(retryDelay * Math.pow(2, attempt)); // Exponential backoff
                 }
@@ -281,60 +298,88 @@ export default function apiDataFetcher(endpoint, options = {}) {
          * @param {object} options - Additional options
          */
         async makeHttpRequest(method = 'GET', data = null, requestOptions = {}) {
+            const methodUpper = typeof method === 'string' ? method.toUpperCase() : 'GET';
+            const optionsWithoutReturnResponse = { ...requestOptions };
+            delete optionsWithoutReturnResponse.returnResponse;
+
             const {
                 customEndpoint = null,
                 customParams = {},
-                customHeaders: requestHeaders = {}
-            } = requestOptions;
-            
-            // Use custom endpoint or default
-            const requestUrl = customEndpoint || endpoint;
-            
-            // Build URL with parameters for GET requests
+                customHeaders: requestHeaders = {},
+                parseResponse: customParseResponse,
+                headers: overrideHeaders,
+                body: overrideBody,
+                ...restOptions
+            } = optionsWithoutReturnResponse;
+
+            const baseUrl = customEndpoint || endpoint;
             const params = new URLSearchParams(customParams);
-            const url = `${requestUrl}${params.toString() ? '?' + params.toString() : ''}`;
-            
+            const url = `${baseUrl}${params.toString() ? '?' + params.toString() : ''}`;
+
             try {
-                const headers = {
-                    'Content-Type': 'application/json',
-                    ...customHeaders,
-                    ...requestHeaders
-                };
-                
-                // Add authentication headers if required
-                if (requiresAuth) {
-                    const authHeaders = this.getAuthHeaders();
-                    Object.assign(headers, authHeaders);
+                const headers = this.buildRequestHeaders(requestHeaders);
+
+                if (overrideHeaders) {
+                    Object.assign(headers, normalizeHeaders(overrideHeaders));
                 }
-                
-                const fetchOptions = {
-                    method: method.toUpperCase(),
+
+                const fetchConfig = {
+                    ...restOptions,
+                    method: methodUpper,
                     headers
                 };
-                
-                // Add body for non-GET requests
-                if (data && method.toUpperCase() !== 'GET') {
-                    fetchOptions.body = JSON.stringify(data);
+
+                let requestBody = overrideBody;
+                if (requestBody === undefined && methodUpper !== 'GET' && data !== null && data !== undefined) {
+                    if (typeof FormData !== 'undefined' && data instanceof FormData) {
+                        requestBody = data;
+                    } else if (typeof data === 'string') {
+                        requestBody = data;
+                    } else {
+                        requestBody = JSON.stringify(data);
+                    }
                 }
-                
-                const response = await fetch(url, fetchOptions);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+                if (requestBody !== undefined) {
+                    fetchConfig.body = requestBody;
                 }
-                
-                // Handle different content types
-                const contentType = response.headers.get('content-type');
-                if (contentType?.includes('application/json')) {
-                    return await response.json();
-                } else if (contentType?.includes('text/')) {
-                    return await response.text();
-                } else {
+
+                if (typeof FormData !== 'undefined' && fetchConfig.body instanceof FormData) {
+                    delete fetchConfig.headers['Content-Type'];
+                }
+
+                const shouldParse = typeof customParseResponse === 'boolean'
+                    ? customParseResponse
+                    : methodUpper !== 'HEAD';
+
+                const { response } = await apiFetchData(url, {
+                    ...fetchConfig,
+                    returnResponse: true,
+                    parseResponse: false
+                });
+
+                if (!shouldParse) {
                     return response;
                 }
-                
+
+                const status = typeof response?.status === 'number' ? response.status : 0;
+                if ([204, 205, 304].includes(status)) {
+                    return null;
+                }
+
+                const contentType = response?.headers?.get?.('content-type') || '';
+                if (contentType.includes('application/json') && typeof response?.json === 'function') {
+                    return await response.json();
+                }
+
+                if (contentType.includes('text/') && typeof response?.text === 'function') {
+                    return await response.text();
+                }
+
+                return response;
+
             } catch (error) {
-                window.DevLogger?.error?.(`HTTP Request failed (${method} ${url}):`, error);
+                window.DevLogger?.error?.(`HTTP Request failed (${methodUpper} ${url}):`, error);
                 throw error;
             }
         },

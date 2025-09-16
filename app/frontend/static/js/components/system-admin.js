@@ -3,6 +3,8 @@
  * Manages system monitoring, configuration, and maintenance operations
  */
 
+import { fetchData, postData, putData, deleteData } from '../utils/api.js';
+
 function systemAdmin() {
     return {
         // State
@@ -126,12 +128,8 @@ function systemAdmin() {
          */
         async loadSystemStatus() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/system/status');
-                if (!response.ok) throw new Error('Failed to load system status');
-                
-                const data = await response.json();
+                const data = await fetchData((window?.BACKEND_URL || '') + '/admin/system/status');
                 this.systemStatus = data;
-                
             } catch (error) {
                 console.error('Error loading system status:', error);
                 this.systemStatus.overall = 'error';
@@ -143,12 +141,8 @@ function systemAdmin() {
          */
         async loadSystemStats() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/system/stats');
-                if (!response.ok) throw new Error('Failed to load system stats');
-                
-                const data = await response.json();
+                const data = await fetchData((window?.BACKEND_URL || '') + '/admin/system/stats');
                 this.systemStats = data;
-                
             } catch (error) {
                 console.error('Error loading system stats:', error);
                 this.showToastMessage('Failed to load system statistics', 'error');
@@ -160,15 +154,10 @@ function systemAdmin() {
          */
         async loadSystemMetrics() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/system/metrics');
-                if (!response.ok) throw new Error('Failed to load system metrics');
-                
-                const data = await response.json();
+                const data = await fetchData((window?.BACKEND_URL || '') + '/admin/system/metrics');
                 this.systemMetrics = data;
-                
                 // Update system status based on metrics
                 this.updateSystemStatus();
-                
             } catch (error) {
                 console.error('Error loading system metrics:', error);
             }
@@ -214,12 +203,8 @@ function systemAdmin() {
          */
         async loadWorkers() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/workers');
-                if (!response.ok) throw new Error('Failed to load workers');
-                
-                const data = await response.json();
+                const data = await fetchData((window?.BACKEND_URL || '') + '/admin/workers');
                 this.workers = data;
-                
             } catch (error) {
                 console.error('Error loading workers:', error);
                 this.showToastMessage('Failed to load worker information', 'error');
@@ -231,12 +216,8 @@ function systemAdmin() {
          */
         async loadDatabaseStats() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/database/stats');
-                if (!response.ok) throw new Error('Failed to load database stats');
-                
-                const data = await response.json();
+                const data = await fetchData((window?.BACKEND_URL || '') + '/admin/database/stats');
                 this.dbStats = data;
-                
             } catch (error) {
                 console.error('Error loading database stats:', error);
                 this.showToastMessage('Failed to load database statistics', 'error');
@@ -248,12 +229,8 @@ function systemAdmin() {
          */
         async loadConfiguration() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/config');
-                if (!response.ok) throw new Error('Failed to load configuration');
-                
-                const data = await response.json();
+                const data = await fetchData((window?.BACKEND_URL || '') + '/admin/config');
                 this.config = { ...this.config, ...data };
-                
             } catch (error) {
                 console.error('Error loading configuration:', error);
                 this.showToastMessage('Failed to load configuration', 'error');
@@ -265,13 +242,9 @@ function systemAdmin() {
          */
         async loadLogs() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/logs?limit=500');
-                if (!response.ok) throw new Error('Failed to load logs');
-                
-                const data = await response.json();
+                const data = await fetchData((window?.BACKEND_URL || '') + '/admin/logs?limit=500');
                 this.logs = data;
                 this.filterLogs();
-                
             } catch (error) {
                 console.error('Error loading logs:', error);
                 this.showToastMessage('Failed to load system logs', 'error');
@@ -283,12 +256,8 @@ function systemAdmin() {
          */
         async loadRecentBackups() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/backups');
-                if (!response.ok) throw new Error('Failed to load backups');
-                
-                const data = await response.json();
+                const data = await fetchData((window?.BACKEND_URL || '') + '/admin/backups');
                 this.recentBackups = data;
-                
             } catch (error) {
                 console.error('Error loading backups:', error);
                 this.showToastMessage('Failed to load backup history', 'error');
@@ -316,12 +285,7 @@ function systemAdmin() {
         async scaleWorkers(direction) {
             try {
                 const endpoint = direction === 'up' ? 'add' : 'remove';
-                const response = await fetch((window?.BACKEND_URL || '') + `/admin/workers/${endpoint}`, {
-                    method: 'POST'
-                });
-                
-                if (!response.ok) throw new Error(`Failed to ${endpoint} worker`);
-                
+                await postData((window?.BACKEND_URL || '') + `/admin/workers/${endpoint}`);
                 await this.loadWorkers();
                 this.showToastMessage(`Worker ${direction === 'up' ? 'added' : 'removed'} successfully`);
                 
@@ -340,12 +304,7 @@ function systemAdmin() {
             }
             
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/workers/restart-all', {
-                    method: 'POST'
-                });
-                
-                if (!response.ok) throw new Error('Failed to restart workers');
-                
+                await postData((window?.BACKEND_URL || '') + '/admin/workers/restart-all');
                 await this.loadWorkers();
                 this.showToastMessage('All workers restarted successfully');
                 
@@ -360,12 +319,7 @@ function systemAdmin() {
          */
         async restartWorker(workerId) {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + `/admin/workers/${workerId}/restart`, {
-                    method: 'POST'
-                });
-                
-                if (!response.ok) throw new Error('Failed to restart worker');
-                
+                await postData((window?.BACKEND_URL || '') + `/admin/workers/${workerId}/restart`);
                 await this.loadWorkers();
                 this.showToastMessage(`Worker ${workerId} restarted successfully`);
                 
@@ -384,12 +338,7 @@ function systemAdmin() {
             }
             
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + `/admin/workers/${workerId}/stop`, {
-                    method: 'POST'
-                });
-                
-                if (!response.ok) throw new Error('Failed to stop worker');
-                
+                await postData((window?.BACKEND_URL || '') + `/admin/workers/${workerId}/stop`);
                 await this.loadWorkers();
                 this.showToastMessage(`Worker ${workerId} stopped successfully`);
                 
@@ -405,13 +354,7 @@ function systemAdmin() {
         async createBackup() {
             this.isBackingUp = true;
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/database/backup', {
-                    method: 'POST'
-                });
-                
-                if (!response.ok) throw new Error('Failed to create backup');
-                
-                const data = await response.json();
+                await postData((window?.BACKEND_URL || '') + '/admin/database/backup');
                 await this.loadRecentBackups();
                 this.showToastMessage('Database backup created successfully');
                 
@@ -491,12 +434,7 @@ function systemAdmin() {
             }
             
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + `/admin/backups/${backupId}`, {
-                    method: 'DELETE'
-                });
-                
-                if (!response.ok) throw new Error('Failed to delete backup');
-                
+                await deleteData((window?.BACKEND_URL || '') + `/admin/backups/${backupId}`);
                 await this.loadRecentBackups();
                 this.showToastMessage('Backup deleted successfully');
                 
@@ -512,12 +450,7 @@ function systemAdmin() {
         async optimizeDatabase() {
             this.isOptimizing = true;
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/database/optimize', {
-                    method: 'POST'
-                });
-                
-                if (!response.ok) throw new Error('Failed to optimize database');
-                
+                await postData((window?.BACKEND_URL || '') + '/admin/database/optimize');
                 await this.loadDatabaseStats();
                 this.showToastMessage('Database optimized successfully');
                 
@@ -534,12 +467,7 @@ function systemAdmin() {
          */
         async rebuildIndexes() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/database/rebuild-indexes', {
-                    method: 'POST'
-                });
-                
-                if (!response.ok) throw new Error('Failed to rebuild indexes');
-                
+                await postData((window?.BACKEND_URL || '') + '/admin/database/rebuild-indexes');
                 this.showToastMessage('Search indexes rebuilt successfully');
                 
             } catch (error) {
@@ -557,14 +485,8 @@ function systemAdmin() {
             }
             
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/database/cleanup-orphaned', {
-                    method: 'POST'
-                });
-                
-                if (!response.ok) throw new Error('Failed to cleanup orphaned files');
-                
-                const data = await response.json();
-                this.showToastMessage(`Cleaned up ${data.files_removed} orphaned files`);
+                const data = await postData((window?.BACKEND_URL || '') + '/admin/database/cleanup-orphaned');
+                this.showToastMessage(`Cleaned up ${data.files_removed ?? 0} orphaned files`);
                 
             } catch (error) {
                 console.error('Error cleaning up orphaned files:', error);
@@ -577,13 +499,7 @@ function systemAdmin() {
          */
         async validateData() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/database/validate', {
-                    method: 'POST'
-                });
-                
-                if (!response.ok) throw new Error('Failed to validate data');
-                
-                const data = await response.json();
+                const data = await postData((window?.BACKEND_URL || '') + '/admin/database/validate');
                 if (data.issues_found > 0) {
                     this.showToastMessage(`Validation completed. ${data.issues_found} issues found.`, 'warning');
                 } else {
@@ -601,16 +517,7 @@ function systemAdmin() {
          */
         async saveConfiguration() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/config', {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(this.config)
-                });
-                
-                if (!response.ok) throw new Error('Failed to save configuration');
-                
+                await putData((window?.BACKEND_URL || '') + '/admin/config', this.config);
                 this.showToastMessage('Configuration saved successfully');
                 
             } catch (error) {
@@ -628,12 +535,7 @@ function systemAdmin() {
             }
             
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/config/reset', {
-                    method: 'POST'
-                });
-                
-                if (!response.ok) throw new Error('Failed to reset configuration');
-                
+                await postData((window?.BACKEND_URL || '') + '/admin/config/reset');
                 await this.loadConfiguration();
                 this.showToastMessage('Configuration reset to defaults');
                 
@@ -697,12 +599,7 @@ function systemAdmin() {
             }
             
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/logs', {
-                    method: 'DELETE'
-                });
-                
-                if (!response.ok) throw new Error('Failed to clear logs');
-                
+                await deleteData((window?.BACKEND_URL || '') + '/admin/logs');
                 this.logs = [];
                 this.filteredLogs = [];
                 this.showToastMessage('System logs cleared');
@@ -749,19 +646,10 @@ function systemAdmin() {
          */
         async enableMaintenanceMode() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/maintenance', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        enabled: true,
-                        message: this.maintenanceMessage
-                    })
+                await postData((window?.BACKEND_URL || '') + '/admin/maintenance', {
+                    enabled: true,
+                    message: this.maintenanceMessage
                 });
-                
-                if (!response.ok) throw new Error('Failed to enable maintenance mode');
-                
                 this.showMaintenance = false;
                 this.showToastMessage('Maintenance mode enabled');
                 
