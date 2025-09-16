@@ -28,6 +28,7 @@ import SystemStatusPanel from '../vue/SystemStatusPanel.vue';
 import PerformanceAnalytics from '../vue/PerformanceAnalytics.vue';
 import Notifications from '../vue/Notifications.vue';
 import GenerationHistory from '../vue/GenerationHistory.vue';
+import SystemAdminStatusCard from '../vue/SystemAdminStatusCard.vue';
 
 // Utilities
 import Utils, {
@@ -329,6 +330,12 @@ mountVueApp('[data-vue-root="job-queue"]', JobQueue) ||
 mountVueApp('[data-vue-root="system-status-panel"]', SystemStatusPanel) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="system-status-panel"]', SystemStatusPanel);
+    });
+
+// Mount System Admin Status card if present on page
+mountVueApp('[data-vue-root="system-admin-status-card"]', SystemAdminStatusCard) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="system-admin-status-card"]', SystemAdminStatusCard);
     });
 
 // Mount Notifications if present on page
