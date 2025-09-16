@@ -16,7 +16,7 @@ import '../css/accessibility.css';
 
 // External libraries
 import Alpine from 'alpinejs';
-import htmx from 'htmx.org';
+import 'htmx.org';
 import Chart from 'chart.js/auto';
 import { createApp } from 'vue';
 import HelloWorld from '../vue/HelloWorld.vue';
@@ -64,8 +64,8 @@ import { createNotificationsComponent } from './components/notifications/index.j
 // STEP 2: CONFIGURE EXTERNAL LIBRARIES
 // =================================================================
 
-// Make HTMX available globally
-window.htmx = htmx;
+// Make HTMX available globally (htmx auto-registers itself when imported)
+// window.htmx is already available globally from the htmx.org import
 
 // Make Chart.js available globally  
 window.Chart = Chart;
