@@ -139,8 +139,8 @@ const pwaInstallation = {
         if (!manifestLink) return false;
         
         try {
-            const response = await fetch(manifestLink.href);
-            const manifest = await response.json();
+            // Use fetchData from window.Utils for better error handling
+            const manifest = await window.Utils.fetchData(manifestLink.href);
             
             // Check required fields
             const required = ['name', 'short_name', 'start_url', 'display', 'icons'];
