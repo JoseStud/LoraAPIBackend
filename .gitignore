@@ -53,11 +53,10 @@ __pycache__
 
 node_modules
 
-# Frontend cache directories
+# Test coverage and cache
+coverage/
 .cache/
-coverage/
-=======
-# Test coverage
-coverage/
+
+
 
 
