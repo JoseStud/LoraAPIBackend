@@ -16,16 +16,17 @@ import '../css/accessibility.css';
 
 // External libraries
 import Alpine from 'alpinejs';
-import 'htmx.org';
+
+// import htmx from 'htmx.org'; // Imported differently - will use CDN or script tag
+
 import Chart from 'chart.js/auto';
 import { createApp } from 'vue';
 import HelloWorld from '../vue/HelloWorld.vue';
 import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
-import Notifications from '../vue/Notifications.vue';
 
-import GenerationHistory from '../vue/GenerationHistory.vue';
+import PerformanceAnalytics from '../vue/PerformanceAnalytics.vue';
 
 
 // Utilities
@@ -51,7 +52,7 @@ import { createGenerationHistoryComponent } from './components/generation-histor
 import { createLoraGalleryComponent } from './components/lora-gallery/index.js';
 import { createGenerationStudioComponent } from './components/generation-studio/index.js';
 import { createPromptComposerComponent } from './components/prompt-composer/index.js';
-import { createPerformanceAnalyticsComponent } from './components/performance-analytics/index.js';
+// import { createPerformanceAnalyticsComponent } from './components/performance-analytics/index.js'; // Migrated to Vue
 import { createImportExportComponent } from './components/import-export/index.js';
 import { createSystemAdminComponent } from './components/system-admin/index.js';
 import { createDatabaseManagerComponent } from './components/system-admin/databaseManager.js';
@@ -67,8 +68,9 @@ import { createNotificationsComponent } from './components/notifications/index.j
 // STEP 2: CONFIGURE EXTERNAL LIBRARIES
 // =================================================================
 
-// Make HTMX available globally (htmx auto-registers itself when imported)
-// window.htmx is already available globally from the htmx.org import
+
+// Make HTMX available globally (loaded via script tag in template)
+// window.htmx = htmx;
 
 
 // Make Chart.js available globally  
@@ -188,7 +190,7 @@ Alpine.data('generationHistory', createGenerationHistoryComponent);
 Alpine.data('loraGallery', createLoraGalleryComponent);
 Alpine.data('generationStudio', createGenerationStudioComponent);
 Alpine.data('promptComposer', createPromptComposerComponent);
-Alpine.data('performanceAnalytics', createPerformanceAnalyticsComponent);
+// Alpine.data('performanceAnalytics', createPerformanceAnalyticsComponent); // Migrated to Vue
 Alpine.data('importExport', createImportExportComponent);
 Alpine.data('systemAdmin', createSystemAdminComponent);
 Alpine.data('databaseManager', createDatabaseManagerComponent);
@@ -315,17 +317,10 @@ mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard) ||
         mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard);
     });
 
-// Mount Notifications if present on page
-mountVueApp('[data-vue-root="notifications"]', Notifications) ||
+// Mount Performance Analytics if present on page
+mountVueApp('[data-vue-root="performance-analytics"]', PerformanceAnalytics) ||
     window.addEventListener('DOMContentLoaded', () => {
-        mountVueApp('[data-vue-root="notifications"]', Notifications);
-    });
-
-
-// Mount Generation History if present on page
-mountVueApp('[data-vue-root="generation-history"]', GenerationHistory) ||
-    window.addEventListener('DOMContentLoaded', () => {
-        mountVueApp('[data-vue-root="generation-history"]', GenerationHistory);
+        mountVueApp('[data-vue-root="performance-analytics"]', PerformanceAnalytics);
     });
 
 
