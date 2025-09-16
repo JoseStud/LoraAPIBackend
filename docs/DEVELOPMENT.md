@@ -49,7 +49,7 @@ This project follows a modern, decoupled architecture with a distinct backend AP
 ### Backend (`backend/`)
 
 -   **Framework**: FastAPI with SQLModel for ORM.
--   **API Routers (`backend/api/v1/`)**: Endpoints are organized by resource (e.g., `adapters.py`, `generation.py`). All v1 routes are prefixed with `/api/v1`.
+-   **API Routers (`backend/api/v1/`)**: Endpoints are organized by resource (e.g., `adapters.py`, `generation.py`). Public API routes are exposed under `/api`.
 -   **Services (`backend/services/`)**: The business logic is encapsulated in services (e.g., `AdapterService`, `GenerationService`) and injected into the API layer using FastAPI's dependency injection.
 -   **Database (`backend/core/database.py`)**: Manages database sessions and initialization. Supports both SQLite and PostgreSQL.
 -   **Background Jobs (`backend/workers/`)**: Uses Redis and RQ for handling long-running tasks like image generation or batch processing.
@@ -156,4 +156,3 @@ PYTHONPATH=$(pwd) alembic -c infrastructure/alembic/alembic.ini upgrade head
 # For PostgreSQL
 DATABASE_URL=postgresql://user:pass@host/db alembic -c infrastructure/alembic/alembic.ini upgrade head
 ```
-

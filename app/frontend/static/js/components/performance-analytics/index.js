@@ -365,15 +365,7 @@ if (typeof Alpine !== 'undefined') {
     window.performanceAnalytics = performanceAnalytics;
 }
 
-// ES Module export for Vite
-export function createPerformanceAnalyticsComponent() {
-    return performanceAnalytics();
-}
-
-// Backward compatibility export
-export { performanceAnalytics };
-
-// Module export for testing
+// CommonJS export for Node/Jest and back-compat
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { performanceAnalytics };
+    module.exports = { performanceAnalytics, createPerformanceAnalyticsComponent: performanceAnalytics };
 }

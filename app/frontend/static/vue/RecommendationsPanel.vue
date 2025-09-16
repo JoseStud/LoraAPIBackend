@@ -114,6 +114,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
+import { useApi } from './composables/useApi.js';
 
 // State
 const loras = ref([]);
@@ -133,25 +134,31 @@ const recsError = ref('');
 
 const fmtScore = (v) => (v == null ? '-' : Number(v).toFixed(3));
 
-// Data loading
+// Data loading via composables
+const lorasUrl = '/api/adapters?per_page=100&page=1';
+const { data: lorasData, error: lorasErr, isLoading: lorasLoading, fetchData: loadLoras } = useApi(lorasUrl, { credentials: 'same-origin' });
+
 const fetchLoras = async () => {
   isLoadingLoras.value = true;
   lorasError.value = '';
   try {
-    const url = `/api/v1/adapters?per_page=100&page=1`;
-    const res = await fetch(url, { credentials: 'same-origin' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    loras.value = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
+    await loadLoras();
+    const payload = lorasData.value;
+    loras.value = Array.isArray(payload?.items) ? payload.items : (Array.isArray(payload) ? payload : []);
+    if (!Array.isArray(loras.value)) loras.value = [];
   } catch (e) {
     lorasError.value = 'Failed to load LoRAs';
   } finally {
+    // reflect composable state into existing flag for template compatibility
+    isLoadingLoras.value = !!lorasLoading.value;
+    // ensure we end loading state even if composable didn’t toggle yet
     isLoadingLoras.value = false;
   }
 };
 
 const buildSimilarUrl = () => {
-  const base = `/api/v1/recommendations/similar/${encodeURIComponent(selectedLoraId.value)}`;
+  if (!selectedLoraId.value) return '';
+  const base = `/api/recommendations/similar/${encodeURIComponent(selectedLoraId.value)}`;
   const params = new URLSearchParams();
   params.set('limit', String(limit.value));
   params.set('similarity_threshold', String(similarityThreshold.value));
@@ -163,19 +170,23 @@ const buildSimilarUrl = () => {
   return `${base}?${params.toString()}`;
 };
 
+const { data: recsData, error: recsErrObj, isLoading: recsLoading, fetchData: loadRecs } = useApi(() => buildSimilarUrl(), { credentials: 'same-origin' });
+
 const fetchRecommendations = async () => {
   if (!selectedLoraId.value) return;
   isLoadingRecs.value = true;
   recsError.value = '';
   recommendations.value = [];
   try {
-    const res = await fetch(buildSimilarUrl(), { credentials: 'same-origin' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    recommendations.value = Array.isArray(data?.recommendations) ? data.recommendations : [];
+    await loadRecs();
+    const payload = recsData.value;
+    recommendations.value = Array.isArray(payload?.recommendations) ? payload.recommendations : [];
   } catch (e) {
     recsError.value = 'Failed to fetch recommendations';
   } finally {
+    // reflect composable state into existing flag for template compatibility
+    isLoadingRecs.value = !!recsLoading.value;
+    // ensure we end loading state even if composable didn’t toggle yet
     isLoadingRecs.value = false;
   }
 };
@@ -195,4 +206,3 @@ watch([selectedLoraId, limit, similarityThreshold], () => {
 });
 
 </script>
-

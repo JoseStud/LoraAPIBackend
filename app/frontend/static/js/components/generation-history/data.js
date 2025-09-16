@@ -1,8 +1,20 @@
 /**
  * Generation History - Data Operations Module
- * 
+ *
  * Handles data loading, pagination, CRUD operations, and API interactions.
  */
+
+// Support both CommonJS (tests/Node) and browser environments
+let fetchData, postData, putData, deleteData;
+try {
+    // Node/Jest environment
+    ({ fetchData, postData, putData, deleteData } = require('../../utils/api.js'));
+} catch (e) {
+    // Browser global fallback
+    if (typeof window !== 'undefined' && window.Utils) {
+        ({ fetchData, postData, putData, deleteData } = window.Utils);
+    }
+}
 
 /**
  * Data operations for generation history
@@ -13,16 +25,12 @@ const generationHistoryData = {
      */
     async loadResults(page = 1, limit = 20) {
         try {
-                const response = await fetch((window?.BACKEND_URL || '') + `/results?page=${page}&limit=${limit}`);
-            if (!response.ok) throw new Error('Failed to load results');
-            
-            const data = await response.json();
+            const data = await fetchData(`${window?.BACKEND_URL || ''}/results?page=${page}&limit=${limit}`);
             return {
                 results: data.results || [],
                 hasMore: data.has_more || false,
                 total: data.total || 0
             };
-            
         } catch (error) {
             throw new Error(`Failed to load results: ${error.message}`);
         }
@@ -33,11 +41,7 @@ const generationHistoryData = {
      */
     async loadResult(id) {
         try {
-                const response = await fetch((window?.BACKEND_URL || '') + `/results/${id}`);
-            if (!response.ok) throw new Error('Failed to load result');
-            
-            return await response.json();
-            
+            return await fetchData(`${window?.BACKEND_URL || ''}/results/${id}`);
         } catch (error) {
             throw new Error(`Failed to load result: ${error.message}`);
         }
@@ -48,18 +52,7 @@ const generationHistoryData = {
      */
     async updateRating(resultId, rating) {
         try {
-                const response = await fetch((window?.BACKEND_URL || '') + `/results/${resultId}/rating`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ rating })
-            });
-            
-            if (!response.ok) throw new Error('Failed to update rating');
-            
-            return await response.json();
-            
+            return await putData(`${window?.BACKEND_URL || ''}/results/${resultId}/rating`, { rating });
         } catch (error) {
             throw new Error(`Failed to update rating: ${error.message}`);
         }
@@ -70,18 +63,7 @@ const generationHistoryData = {
      */
     async updateFavorite(resultId, isFavorite) {
         try {
-                const response = await fetch((window?.BACKEND_URL || '') + `/results/${resultId}/favorite`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ is_favorite: isFavorite })
-            });
-            
-            if (!response.ok) throw new Error('Failed to update favorite status');
-            
-            return await response.json();
-            
+            return await putData(`${window?.BACKEND_URL || ''}/results/${resultId}/favorite`, { is_favorite: isFavorite });
         } catch (error) {
             throw new Error(`Failed to update favorite: ${error.message}`);
         }
@@ -92,18 +74,7 @@ const generationHistoryData = {
      */
     async deleteResults(ids) {
         try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/results/bulk-delete', {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ ids })
-            });
-            
-            if (!response.ok) throw new Error('Failed to delete results');
-            
-            return await response.json();
-            
+            return await deleteData(`${window?.BACKEND_URL || ''}/results/bulk-delete`, { body: JSON.stringify({ ids }) });
         } catch (error) {
             throw new Error(`Failed to delete results: ${error.message}`);
         }
@@ -114,21 +85,7 @@ const generationHistoryData = {
      */
     async bulkUpdateFavorites(ids, isFavorite) {
         try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/results/bulk-favorite', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ 
-                    ids, 
-                    is_favorite: isFavorite 
-                })
-            });
-            
-            if (!response.ok) throw new Error('Failed to update favorites');
-            
-            return await response.json();
-            
+            return await putData(`${window?.BACKEND_URL || ''}/results/bulk-favorite`, { ids, is_favorite: isFavorite });
         } catch (error) {
             throw new Error(`Failed to update favorites: ${error.message}`);
         }
@@ -139,16 +96,14 @@ const generationHistoryData = {
      */
     async exportResults(ids, format = 'zip') {
         try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/results/export', {
+            // Keep manual fetch for blob handling
+            const response = await fetch((window?.BACKEND_URL || '') + '/results/export', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ids, format })
             });
-            
             if (!response.ok) throw new Error('Failed to export results');
-            
+
             // Handle file download
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
@@ -172,11 +127,7 @@ const generationHistoryData = {
      */
     async loadStatistics() {
         try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/results/statistics');
-            if (!response.ok) throw new Error('Failed to load statistics');
-            
-            return await response.json();
-            
+            return await fetchData(`${window?.BACKEND_URL || ''}/results/statistics`);
         } catch (error) {
             throw new Error(`Failed to load statistics: ${error.message}`);
         }
@@ -218,12 +169,7 @@ const generationHistoryData = {
     async searchResults(searchParams) {
         try {
             const queryParams = new URLSearchParams(searchParams);
-                const response = await fetch((window?.BACKEND_URL || '') + `/results/search?${queryParams}`);
-            
-            if (!response.ok) throw new Error('Failed to search results');
-            
-            return await response.json();
-            
+            return await fetchData(`${window?.BACKEND_URL || ''}/results/search?${queryParams}`);
         } catch (error) {
             throw new Error(`Failed to search results: ${error.message}`);
         }
@@ -234,11 +180,7 @@ const generationHistoryData = {
      */
     async getFilterOptions() {
         try {
-            const response = await fetch((window?.BACKEND_URL || '') + '/results/filter-options');
-            if (!response.ok) throw new Error('Failed to load filter options');
-            
-            return await response.json();
-            
+            return await fetchData(`${window?.BACKEND_URL || ''}/results/filter-options`);
         } catch (error) {
             // Return default options if API fails
             return {

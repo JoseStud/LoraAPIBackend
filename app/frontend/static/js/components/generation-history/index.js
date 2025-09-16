@@ -431,15 +431,7 @@ if (typeof Alpine !== 'undefined') {
     window.generationHistory = generationHistory;
 }
 
-// ES Module export for Vite
-export function createGenerationHistoryComponent() {
-    return generationHistory();
-}
-
-// Backward compatibility export
-export { generationHistory };
-
-// Legacy module export for testing
+// CommonJS export for Node/Jest and back-compat
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { generationHistory };
+    module.exports = { generationHistory, createGenerationHistoryComponent: generationHistory };
 }

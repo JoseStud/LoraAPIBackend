@@ -45,7 +45,7 @@ async function globalTeardown() {
  * Cleanup test data
  */
 async function cleanupTestData() {
-  const baseURL = 'http://localhost:8000/api/v1';
+  const baseURL = 'http://localhost:8000/api';
   
   try {
     // Only cleanup if we're in test environment

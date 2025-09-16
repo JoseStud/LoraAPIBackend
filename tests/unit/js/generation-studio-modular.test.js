@@ -235,6 +235,16 @@ describe('Generation Studio - Modular Components', () => {
         beforeEach(() => {
             const { generationUI } = require('../../../app/frontend/static/js/components/generation-studio/ui.js');
             global.window.generationUI = generationUI;
+            // Ensure dispatchEvent is a mock for assertions
+            global.window.dispatchEvent = jest.fn();
+            // Ensure clipboard writeText is mocked
+            if (!global.navigator) global.navigator = {};
+            if (!global.navigator.clipboard) global.navigator.clipboard = {};
+            global.navigator.clipboard.writeText = jest.fn().mockResolvedValue();
+            // Provide execCommand fallback for environments without clipboard
+            if (!global.document.execCommand) {
+                global.document.execCommand = jest.fn().mockReturnValue(true);
+            }
         });
         
         afterEach(() => {
@@ -348,10 +358,17 @@ describe('Generation Studio - Modular Components', () => {
         });
         
         test('should parse incoming messages', () => {
-            const messageData = '{"type":"progress","payload":{"jobId":"test","progress":50}}';
+            const messageData = JSON.stringify({
+                type: 'generation_progress',
+                job_id: 'test',
+                progress: 50,
+                status: 'running',
+                current_step: 5,
+                total_steps: 100,
+            });
             const parsed = global.window.generationWebSocket.parseMessage(messageData);
             
-            expect(parsed.type).toBe('progress');
+            expect(parsed.type).toBe('generation_progress');
             expect(parsed.payload.jobId).toBe('test');
             expect(parsed.payload.progress).toBe(50);
         });

@@ -14,7 +14,7 @@
     "prod:build": "npm run build && ENVIRONMENT=production",
     "prod:serve": "ENVIRONMENT=production uvicorn app.main:app --host 0.0.0.0 --port 8000",
     "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
-    "test:unit": "jest tests/unit --coverage",
+    "test:unit": "jest tests/unit",
     "test:unit:vue": "vitest run",
     "test:watch:vue": "vitest",
     "test:integration": "jest tests/integration",
@@ -25,7 +25,9 @@
     "lint": "eslint app/frontend/static/js --ext .js --cache --cache-location .cache/eslint",
     "lint:fix": "eslint app/frontend/static/js --ext .js --fix --cache --cache-location .cache/eslint",
     "audit": "npm audit",
-    "validate": "npm run lint && npm run test"
+    "validate": "npm run lint && npm run test",
+    "issues:create:sh": "bash scripts/create_github_issues.sh",
+    "issues:create:gh": "bash scripts/create_github_issues_gh.sh"
   },
   "devDependencies": {
     "@lhci/cli": "^0.13.0",

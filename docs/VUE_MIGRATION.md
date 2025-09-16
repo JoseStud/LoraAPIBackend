@@ -13,6 +13,7 @@ This document tracks the progressive migration from HTMX + Alpine.js to Vue 3 us
 - Tailwind configured to scan `.vue` files (`tailwind.config.js`).
 - Example mounts present in `app/frontend/templates/pages/recommendations.html`.
 - Vitest configured for Vue SFCs with `@vue/test-utils`; example specs added for both islands.
+- Vitest configured for Vue SFCs with `@vue/test-utils`; unit tests cover HelloWorld, RecommendationsPanel, MobileNav, and SystemStatusCard islands.
 - Dev proxy set in `vite.config.js` (uses `BACKEND_URL` / `WEBSOCKET_URL` when present).
 
 ## Files
@@ -63,8 +64,8 @@ Mount behavior:
 - Mount point: add `<div data-vue-root="recommendations-panel"></div>` in a template (already added to `app/frontend/templates/pages/recommendations.html:8`).
 - Component file: `app/frontend/static/vue/RecommendationsPanel.vue`.
 - Data fetches:
-  - LoRAs: `GET /api/v1/adapters?per_page=100`.
-  - Similar: `GET /api/v1/recommendations/similar/{lora_id}?limit=..&similarity_threshold=..`.
+  - LoRAs: `GET /api/adapters?per_page=100`.
+  - Similar: `GET /api/recommendations/similar/{lora_id}?limit=..&similarity_threshold=..`.
   - Weights are UI-only initially; backend defaults apply unless nested query dict parsing is enabled.
   - Note: The current implementation uses native `fetch` directly; the `useApi` composable is available if you prefer.
 
@@ -86,6 +87,33 @@ Mount behavior:
 
 - Use the included composable for simple fetches: `app/frontend/static/vue/composables/useApi.js`.
 - You can switch to Axios later if preferred.
+
+## Refactor Targets
+
+- Fetch Consolidation: standardize on `app/frontend/static/vue/composables/useApi.js` (for Vue SFCs) or `app/frontend/static/js/utils/api.js` (for Alpine/vanilla JS modules).
+  - Done: `app/frontend/static/vue/RecommendationsPanel.vue` → `useApi`
+  - Done: `app/frontend/static/vue/composables/useSystemStatus.js` → `useApi`
+  - Done: `app/frontend/static/js/components/generation-history/data.js` → `utils/api.js`
+  - Done (partial: blobs/form keep direct fetch): `app/frontend/static/js/components/system-admin.js` → `utils/api.js`
+  - Pending: `app/frontend/static/js/component-loader.js` (tags, dashboard stats, jobs)
+  - Pending: `app/frontend/static/js/alpine-config.js` (results list, ratings, favorites, exports)
+  - Pending: `app/frontend/static/js/components/recommendations/index.js`
+  - Pending: `app/frontend/static/js/components/dashboard/index.js`
+  - Pending: `app/frontend/static/js/components/prompt-composer.js`
+  - Pending: `app/frontend/static/js/components/generation-studio.js`
+  - Pending (consider service-worker constraints): `app/frontend/static/js/pwa-manager.js`
+  - Pending: `app/frontend/static/js/common.js` (adapter actions)
+
+- Alpine/HTMX → Vue Islands: migrate UI modules incrementally.
+  - Pending: Generation Studio panel (`app/frontend/templates/pages/generate.html` + `app/frontend/static/js/components/generation-studio.js`)
+  - Pending: Job Queue (`app/frontend/static/js/components/job-queue/*` if present in entry)
+  - Pending: Notifications/toasts (`app/frontend/static/js/components/notifications/*`)
+  - Pending: LoRA Gallery (`app/frontend/static/js/components/lora-gallery/*`)
+  - Pending: Generation History view (island wrapper around existing modules)
+  - Pending: Prompt Composer (`app/frontend/static/js/components/prompt-composer.js`)
+  - Pending: Performance Analytics (`app/frontend/static/js/components/performance-analytics/*`)
+  - Pending: Import/Export (`app/frontend/static/js/components/import-export/*`)
+  - Later: System Admin screens (gradual islandization of sections)
 
 ## Next Steps (Phased Plan)
 
@@ -113,6 +141,7 @@ Mount behavior:
 - Example specs:
   - `tests/vue/HelloWorld.spec.js`
   - `tests/vue/RecommendationsPanel.spec.js`
+  - `tests/vue/MobileNav.spec.js`
   - `tests/vue/SystemStatusCard.spec.js`
 
 Troubleshooting:
