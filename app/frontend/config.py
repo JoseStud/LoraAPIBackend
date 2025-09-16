@@ -1,15 +1,14 @@
-"""
-Frontend Configuration Module
+"""Frontend Configuration Module
 
 Centralized configuration management using Pydantic BaseSettings for the LoRA Manager frontend.
 Handles environment variables, timeouts, feature flags, and other application settings.
 """
 
-import os
-from typing import Optional, Dict, Any, List
-from pydantic_settings import BaseSettings
-from pydantic import Field, field_validator
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings
 
 
 class FrontendSettings(BaseSettings):
@@ -19,19 +18,19 @@ class FrontendSettings(BaseSettings):
     backend_url: str = Field(
         default="http://localhost:8000/api",
         env="BACKEND_URL",
-        description="Backend API base URL with /api prefix"
+        description="Backend API base URL with /api prefix",
     )
     
     backend_host: str = Field(
         default="localhost",
         env="BACKEND_HOST", 
-        description="Backend host/IP address"
+        description="Backend host/IP address",
     )
     
     backend_port: int = Field(
         default=8000,
         env="BACKEND_PORT",
-        description="Backend port number"
+        description="Backend port number",
     )
     
     @field_validator('backend_url', mode='before')
@@ -48,149 +47,149 @@ class FrontendSettings(BaseSettings):
     request_timeout: float = Field(
         default=30.0,
         env="REQUEST_TIMEOUT", 
-        description="Default request timeout in seconds"
+        description="Default request timeout in seconds",
     )
     
     max_retries: int = Field(
         default=3,
         env="MAX_RETRIES",
-        description="Maximum number of HTTP retry attempts"
+        description="Maximum number of HTTP retry attempts",
     )
     
     # Frontend-specific settings
     template_debug: bool = Field(
         default=False,
         env="TEMPLATE_DEBUG",
-        description="Enable template debugging"
+        description="Enable template debugging",
     )
     
     static_files_cache_ttl: int = Field(
         default=3600,
         env="STATIC_CACHE_TTL",
-        description="Static files cache TTL in seconds"
+        description="Static files cache TTL in seconds",
     )
     
     # Feature flags
     enable_pwa: bool = Field(
         default=True,
         env="ENABLE_PWA",
-        description="Enable Progressive Web App features"
+        description="Enable Progressive Web App features",
     )
     
     enable_websockets: bool = Field(
         default=True,
         env="ENABLE_WEBSOCKETS", 
-        description="Enable WebSocket connections"
+        description="Enable WebSocket connections",
     )
     
     enable_analytics: bool = Field(
         default=False,
         env="ENABLE_ANALYTICS",
-        description="Enable performance analytics"
+        description="Enable performance analytics",
     )
     
     # Cache configuration
     cache_ttl_default: int = Field(
         default=300,
         env="CACHE_TTL_DEFAULT",
-        description="Default cache TTL in seconds"
+        description="Default cache TTL in seconds",
     )
     
     cache_ttl_embeddings: int = Field(
         default=1800,
         env="CACHE_TTL_EMBEDDINGS", 
-        description="Embeddings cache TTL in seconds"
+        description="Embeddings cache TTL in seconds",
     )
     
     cache_ttl_system_stats: int = Field(
         default=60,
         env="CACHE_TTL_SYSTEM_STATS",
-        description="System stats cache TTL in seconds"
+        description="System stats cache TTL in seconds",
     )
     
     # Upload limits
     max_upload_size: int = Field(
         default=100 * 1024 * 1024,  # 100MB
         env="MAX_UPLOAD_SIZE",
-        description="Maximum upload file size in bytes"
+        description="Maximum upload file size in bytes",
     )
     
     allowed_file_extensions: List[str] = Field(
         default=[".json", ".safetensors", ".ckpt", ".pt", ".bin"],
         env="ALLOWED_FILE_EXTENSIONS",
-        description="Allowed file extensions for uploads"
+        description="Allowed file extensions for uploads",
     )
     
     # Template paths
     template_directory: str = Field(
         default="app/frontend/templates",
         env="TEMPLATE_DIRECTORY",
-        description="Templates directory path"
+        description="Templates directory path",
     )
     
     static_directory: str = Field(
         default="app/frontend/static",
         env="STATIC_DIRECTORY", 
-        description="Static files directory path"
+        description="Static files directory path",
     )
     
     # Logging configuration
     log_level: str = Field(
         default="INFO",
         env="LOG_LEVEL",
-        description="Logging level"
+        description="Logging level",
     )
     
     log_format: str = Field(
         default="json",
         env="LOG_FORMAT", 
-        description="Log format (json or text)"
+        description="Log format (json or text)",
     )
     
     # Security settings
     enable_cors: bool = Field(
         default=True,
         env="ENABLE_CORS",
-        description="Enable CORS headers"
+        description="Enable CORS headers",
     )
     
     cors_origins: List[str] = Field(
         default=["http://localhost:3000", "http://localhost:8080"],
         env="CORS_ORIGINS",
-        description="Allowed CORS origins"
+        description="Allowed CORS origins",
     )
     
     # Database settings (for direct frontend DB access if needed)
     database_url: Optional[str] = Field(
         default=None,
         env="DATABASE_URL",
-        description="Direct database URL for frontend queries"
+        description="Direct database URL for frontend queries",
     )
     
     # Development settings
     hot_reload: bool = Field(
         default=False,
         env="HOT_RELOAD",
-        description="Enable hot reload for development"
+        description="Enable hot reload for development",
     )
     
     debug_mode: bool = Field(
         default=False,
         env="DEBUG_MODE",
-        description="Enable debug mode"
+        description="Enable debug mode",
     )
     
     # WebSocket settings
     websocket_url: Optional[str] = Field(
         default=None,
         env="WEBSOCKET_URL", 
-        description="WebSocket server URL (defaults to backend_url with ws:// scheme)"
+        description="WebSocket server URL (defaults to backend_url with ws:// scheme)",
     )
     
     websocket_ping_interval: int = Field(
         default=30,
         env="WEBSOCKET_PING_INTERVAL",
-        description="WebSocket ping interval in seconds"
+        description="WebSocket ping interval in seconds",
     )
     
     @field_validator('backend_url')
