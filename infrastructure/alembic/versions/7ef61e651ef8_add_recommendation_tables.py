@@ -1,14 +1,12 @@
 
-"""
-Revision ID: 7ef61e651ef8
+"""Revision ID: 7ef61e651ef8
 Revises: 952b85546fed
 Create Date: 2025-08-29 10:16:15.462007
 """
 
-from alembic import op
 import sqlalchemy as sa
 import sqlmodel
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '7ef61e651ef8'
@@ -28,7 +26,7 @@ def upgrade():
     sa.Column('recommendations', sa.JSON(), nullable=True),
     sa.Column('user_feedback', sa.JSON(), nullable=True),
     sa.Column('generated_at', sa.DateTime(), nullable=False),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
     )
     op.create_table('userpreference',
     sa.Column('id', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
@@ -40,7 +38,7 @@ def upgrade():
     sa.Column('last_evidence_at', sa.DateTime(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
     )
     op.create_table('loraembedding',
     sa.Column('adapter_id', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
@@ -60,8 +58,8 @@ def upgrade():
     sa.Column('last_computed', sa.DateTime(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['adapter_id'], ['adapter.id'], ),
-    sa.PrimaryKeyConstraint('adapter_id')
+    sa.ForeignKeyConstraint(['adapter_id'], ['adapter.id'] ),
+    sa.PrimaryKeyConstraint('adapter_id'),
     )
     op.create_table('recommendationfeedback',
     sa.Column('id', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
@@ -71,9 +69,9 @@ def upgrade():
     sa.Column('feedback_reason', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('implicit_signal', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['recommended_lora_id'], ['adapter.id'], ),
-    sa.ForeignKeyConstraint(['session_id'], ['recommendationsession.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.ForeignKeyConstraint(['recommended_lora_id'], ['adapter.id'] ),
+    sa.ForeignKeyConstraint(['session_id'], ['recommendationsession.id'] ),
+    sa.PrimaryKeyConstraint('id'),
     )
     with op.batch_alter_table('adapter', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('idx_adapter_active'))

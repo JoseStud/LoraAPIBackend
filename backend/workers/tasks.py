@@ -212,7 +212,7 @@ def _is_gpu_available() -> bool:
 def process_embeddings_batch(
     adapter_ids: Optional[List[str]] = None,
     force_recompute: bool = False,
-    batch_size: int = 32
+    batch_size: int = 32,
 ) -> dict:
     """Background task to compute embeddings for LoRAs.
     
@@ -223,6 +223,7 @@ def process_embeddings_batch(
         
     Returns:
         Processing results
+
     """
     logger = logging.getLogger(__name__)
     
@@ -241,7 +242,7 @@ def process_embeddings_batch(
             # Create recommendation service
             recommendation_service = RecommendationService(
                 db_session=sess,
-                gpu_enabled=gpu_enabled
+                gpu_enabled=gpu_enabled,
             )
             
             # Process embeddings
@@ -251,13 +252,13 @@ def process_embeddings_batch(
                 recommendation_service.batch_compute_embeddings(
                     adapter_ids=adapter_ids,
                     force_recompute=force_recompute,
-                    batch_size=batch_size
-                )
+                    batch_size=batch_size,
+                ),
             )
             
             logger.info(
                 f"Embedding computation completed: {result['processed_count']} processed, "
-                f"{result['error_count']} errors in {result['processing_time_seconds']:.2f}s"
+                f"{result['error_count']} errors in {result['processing_time_seconds']:.2f}s",
             )
             
             return result
@@ -276,6 +277,7 @@ def compute_single_embedding(adapter_id: str, force_recompute: bool = False) -> 
         
     Returns:
         Success status
+
     """
     logger = logging.getLogger(__name__)
     
@@ -288,7 +290,7 @@ def compute_single_embedding(adapter_id: str, force_recompute: bool = False) -> 
             
             recommendation_service = RecommendationService(
                 db_session=sess,
-                gpu_enabled=gpu_enabled
+                gpu_enabled=gpu_enabled,
             )
             
             logger.info(f"Computing embeddings for adapter {adapter_id}")
@@ -296,8 +298,8 @@ def compute_single_embedding(adapter_id: str, force_recompute: bool = False) -> 
             result = asyncio.run(
                 recommendation_service.compute_embeddings_for_lora(
                     adapter_id=adapter_id,
-                    force_recompute=force_recompute
-                )
+                    force_recompute=force_recompute,
+                ),
             )
             
             if result:
@@ -320,21 +322,23 @@ def rebuild_similarity_index(force: bool = False) -> dict:
         
     Returns:
         Rebuild results
+
     """
     logger = logging.getLogger(__name__)
     
     try:
         with get_session() as sess:
-            from backend.services.recommendations import RecommendationService
-            from backend.models import Adapter
             from sqlmodel import select
+
+            from backend.models import Adapter
+            from backend.services.recommendations import RecommendationService
             
             # Check GPU availability
             gpu_enabled = _is_gpu_available()
             
             recommendation_service = RecommendationService(
                 db_session=sess,
-                gpu_enabled=gpu_enabled
+                gpu_enabled=gpu_enabled,
             )
             
             # Get all active adapters
@@ -349,7 +353,7 @@ def rebuild_similarity_index(force: bool = False) -> dict:
                 "status": "success",
                 "adapters_processed": len(adapters),
                 "index_type": "similarity",
-                "gpu_enabled": gpu_enabled
+                "gpu_enabled": gpu_enabled,
             }
             
             logger.info(f"Similarity index rebuilt successfully for {len(adapters)} adapters")

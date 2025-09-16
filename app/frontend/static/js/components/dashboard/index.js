@@ -5,6 +5,8 @@
  * including stats display, system health monitoring, and data refresh.
  */
 
+import { fetchData } from '../../utils/api.js';
+
 export function createDashboardComponent() {
     return {
         // Page-local loading state used by dashboard header actions
@@ -49,20 +51,16 @@ export function createDashboardComponent() {
             this.loading = true;
             
             try {
-                const response = await fetch('/api/dashboard/stats');
+                const data = await fetchData('/api/dashboard/stats');
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    // Update stats if provided
-                    if (data.stats) {
-                        this.stats = { ...this.stats, ...data.stats };
-                    }
-                    
-                    // Update system health if provided
-                    if (data.system_health) {
-                        this.systemHealth = { ...this.systemHealth, ...data.system_health };
-                    }
+                // Update stats if provided
+                if (data.stats) {
+                    this.stats = { ...this.stats, ...data.stats };
+                }
+                
+                // Update system health if provided
+                if (data.system_health) {
+                    this.systemHealth = { ...this.systemHealth, ...data.system_health };
                 }
             } catch (error) {
                 // Handle network errors gracefully

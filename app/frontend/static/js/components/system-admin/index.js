@@ -113,7 +113,7 @@ function systemAdmin() {
                     this.handleCriticalFailures(criticalFailures);
                 } else {
                     // All critical operations succeeded
-                    this.isInitialized = true;
+                    this.ui.isInitialized = true;
                 }
                 
             } catch (error) {
@@ -167,9 +167,12 @@ function systemAdmin() {
             const failedOperations = failures.map(f => f.name).join(', ');
             this.handleError(`Critical system operations failed: ${failedOperations}`, failures[0].result.reason);
             
-            // Set component to error state but don't completely break
-            this.systemStatus.overall = 'error';
-            this.systemStatus.message = 'System monitoring partially unavailable';
+            // Set component to error state but still allow initialization for demo purposes
+            this.systemStatus.overall = 'unknown';
+            this.systemStatus.message = 'System monitoring unavailable (demo mode)';
+            
+            // Still mark as initialized so the UI shows up
+            this.ui.isInitialized = true;
         },
 
         /**
