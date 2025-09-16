@@ -282,7 +282,20 @@ const mountVueApp = (selector, component) => {
         const props = { ...el.dataset };
         const app = createApp(component, props);
         app.mount(el);
+        
+        // Hide Alpine.js fallback if Vue mounted successfully
+        const fallback = document.querySelector('.alpine-fallback');
+        if (fallback) {
+            fallback.style.display = 'none';
+        }
+        
         return app;
+    } else {
+        // Show Alpine.js fallback if Vue mount point not found
+        const fallback = document.querySelector('.alpine-fallback');
+        if (fallback) {
+            fallback.style.display = 'block';
+        }
     }
     return null;
 };
