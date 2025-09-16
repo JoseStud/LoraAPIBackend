@@ -581,8 +581,12 @@ export default {
         const successData = chartData.value.performance.map(item => item.success_rate);
         
         charts.value.performance.data.labels = labels;
-        charts.value.performance.data.datasets[0].data = timeData;
-        charts.value.performance.data.datasets[1].data = successData;
+        if (charts.value.performance?.data?.datasets?.[0]) {
+          charts.value.performance.data.datasets[0].data = timeData;
+        }
+        if (charts.value.performance?.data?.datasets?.[1]) {
+          charts.value.performance.data.datasets[1].data = successData;
+        }
         charts.value.performance.update();
       }
 
@@ -606,9 +610,15 @@ export default {
         const gpuData = chartData.value.resourceUsage.map(item => item.gpu_percent);
         
         charts.value.resourceUsage.data.labels = labels;
-        charts.value.resourceUsage.data.datasets[0].data = cpuData;
-        charts.value.resourceUsage.data.datasets[1].data = memoryData;
-        charts.value.resourceUsage.data.datasets[2].data = gpuData;
+        if (charts.value.resourceUsage?.data?.datasets?.[0]) {
+          charts.value.resourceUsage.data.datasets[0].data = cpuData;
+        }
+        if (charts.value.resourceUsage?.data?.datasets?.[1]) {
+          charts.value.resourceUsage.data.datasets[1].data = memoryData;
+        }
+        if (charts.value.resourceUsage?.data?.datasets?.[2]) {
+          charts.value.resourceUsage.data.datasets[2].data = gpuData;
+        }
         charts.value.resourceUsage.update();
       }
     }
@@ -633,7 +643,9 @@ export default {
     async function exportData(format) {
       try {
         const baseUrl = window?.BACKEND_URL || '';
-        const response = await fetch(`${baseUrl}/analytics/export?format=${format}&timeRange=${timeRange.value}`);
+        const response = await fetch(`${baseUrl}/analytics/export?format=${format}&timeRange=${timeRange.value}`, {
+          credentials: 'same-origin'
+        });
         
         if (!response.ok) throw new Error('Failed to export data');
         
@@ -666,6 +678,7 @@ export default {
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'same-origin',
           body: JSON.stringify({ 
             recommendation: insight.recommendation,
             insight_id: insight.id 
