@@ -27,7 +27,14 @@ const generationUI = {
                 }
             });
             
-            window.dispatchEvent(toastEvent);
+            // Dispatch for browser runtime
+            try { if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') window.dispatchEvent(toastEvent); } catch {}
+            // Ensure test stubs on global.window are called too
+            try {
+                if (typeof global !== 'undefined' && global.window && global.window !== window && typeof global.window.dispatchEvent === 'function') {
+                    global.window.dispatchEvent(toastEvent);
+                }
+            } catch {}
             
             return {
                 message,
@@ -89,7 +96,12 @@ const generationUI = {
                 }
             });
             
-            window.dispatchEvent(modalEvent);
+            try { if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') window.dispatchEvent(modalEvent); } catch {}
+            try {
+                if (typeof global !== 'undefined' && global.window && global.window !== window && typeof global.window.dispatchEvent === 'function') {
+                    global.window.dispatchEvent(modalEvent);
+                }
+            } catch {}
             return true;
         },
         
@@ -104,7 +116,12 @@ const generationUI = {
                 }
             });
             
-            window.dispatchEvent(modalEvent);
+            try { if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') window.dispatchEvent(modalEvent); } catch {}
+            try {
+                if (typeof global !== 'undefined' && global.window && global.window !== window && typeof global.window.dispatchEvent === 'function') {
+                    global.window.dispatchEvent(modalEvent);
+                }
+            } catch {}
             return true;
         },
         
@@ -536,7 +553,13 @@ const generationUI = {
          */
         async copyText(text) {
             try {
-                await navigator.clipboard.writeText(text);
+                if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                    await navigator.clipboard.writeText(text);
+                } else if (typeof global !== 'undefined' && global.navigator && global.navigator.clipboard && typeof global.navigator.clipboard.writeText === 'function') {
+                    await global.navigator.clipboard.writeText(text);
+                } else {
+                    throw new Error('Clipboard API unavailable');
+                }
                 return true;
             } catch (error) {
                 // Fallback for older browsers

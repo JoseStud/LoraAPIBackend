@@ -1,4 +1,5 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { useApi } from './useApi.js';
 
 const DEFAULT_STATUS = {
   gpu_status: 'Loading…',
@@ -140,36 +141,36 @@ export const useSystemStatus = (options = {}) => {
     }
   };
 
+  // useApi instance for system status
+  const statusUrl = () => `${window?.BACKEND_URL || ''}/system/status`;
+  const {
+    data: statusData,
+    error: statusError,
+    isLoading: statusLoading,
+    fetchData: fetchStatusData,
+    lastResponse,
+  } = useApi(statusUrl, { credentials: 'same-origin' });
+
   const fetchStatus = async () => {
-    const backend = window?.BACKEND_URL || '';
-
     try {
-      const response = await fetch(`${backend}/system/status`);
-
-      if (response.ok) {
-        const data = await response.json();
-        applyStatus(data);
+      await fetchStatusData();
+      const resp = lastResponse.value || {};
+      if (resp.ok) {
+        applyStatus(statusData.value || {});
         lastUpdate.value = new Date();
         apiAvailable.value = true;
-      } else if (response.status === 404) {
+      } else if (resp.status === 404) {
         apiAvailable.value = false;
         applyFallback();
         lastUpdate.value = new Date();
         stopPolling();
       } else {
         apiAvailable.value = true;
-        applyStatus({
-          status: 'error',
-          gpu_status: 'Unknown',
-        });
+        applyStatus({ status: 'error', gpu_status: 'Unknown' });
       }
     } catch (error) {
       apiAvailable.value = true;
-      applyStatus({
-        status: 'error',
-        gpu_status: 'Unknown',
-      });
-
+      applyStatus({ status: 'error', gpu_status: 'Unknown' });
       if (import.meta.env.DEV) {
         // eslint-disable-next-line no-console
         console.error('Failed to load system status', error);
