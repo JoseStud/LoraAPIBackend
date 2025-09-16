@@ -23,6 +23,7 @@ import HelloWorld from '../vue/HelloWorld.vue';
 import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
+import SystemAdminStatusCard from '../vue/SystemAdminStatusCard.vue';
 
 // Utilities
 import Utils, {
@@ -63,8 +64,8 @@ import { createNotificationsComponent } from './components/notifications/index.j
 // STEP 2: CONFIGURE EXTERNAL LIBRARIES
 // =================================================================
 
-// Make HTMX available globally
-window.htmx = htmx;
+// Make HTMX available globally (it's already loaded by the import)
+// window.htmx is already available after import 'htmx.org'
 
 // Make Chart.js available globally  
 window.Chart = Chart;
@@ -308,6 +309,12 @@ mountVueApp('[data-vue-root="mobile-nav"]', MobileNav) ||
 mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard);
+    });
+
+// Mount System Admin Status card if present on page
+mountVueApp('[data-vue-root="system-admin-status-card"]', SystemAdminStatusCard) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="system-admin-status-card"]', SystemAdminStatusCard);
     });
 
 
