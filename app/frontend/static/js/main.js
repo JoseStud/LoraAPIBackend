@@ -16,7 +16,7 @@ import '../css/accessibility.css';
 
 // External libraries
 import Alpine from 'alpinejs';
-import htmx from 'htmx.org';
+import 'htmx.org';
 import Chart from 'chart.js/auto';
 import { createApp } from 'vue';
 import HelloWorld from '../vue/HelloWorld.vue';

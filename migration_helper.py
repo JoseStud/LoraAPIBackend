@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
-"""
-Migration Helper Script
+"""Migration Helper Script
 
 Helps migrate from monolithic files to the new modular structure.
 This script can be used to gradually transition components.
 """
 
-import os
 import shutil
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Dict, List
 
 # Base directory for the project
 PROJECT_ROOT = Path(__file__).parent
@@ -23,7 +21,7 @@ FILE_MIGRATION_MAP = {
         "app/frontend/static/js/components/system-admin/state.js",
         "app/frontend/static/js/components/system-admin/metrics.js",
         "app/frontend/static/js/components/system-admin/backup.js",
-        "app/frontend/static/js/components/system-admin/logs.js"
+        "app/frontend/static/js/components/system-admin/logs.js",
     ],
     
     # Component Loader
@@ -31,7 +29,7 @@ FILE_MIGRATION_MAP = {
         "app/frontend/static/js/core/component-loader/core.js",
         "app/frontend/static/js/core/component-loader/registry.js",
         "app/frontend/static/js/core/component-loader/stubs.js",
-        "app/frontend/static/js/core/component-loader/logger.js"
+        "app/frontend/static/js/core/component-loader/logger.js",
     ],
     
     # Alpine Config - dependencies removed after refactoring to apiDataFetcher
@@ -44,8 +42,8 @@ FILE_MIGRATION_MAP = {
         "app/frontend/routes/pages.py",
         "app/frontend/routes/htmx.py", 
         "app/frontend/routes/sw.py",
-        "app/frontend/utils/http.py"
-    ]
+        "app/frontend/utils/http.py",
+    ],
 }
 
 

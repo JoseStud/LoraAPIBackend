@@ -1,22 +1,23 @@
-"""
-HTTP Client utilities for frontend routes.
+"""HTTP Client utilities for frontend routes.
 
 Provides a centralized httpx wrapper with consistent timeouts, retries, 
 centralized logging and error handling for backend requests.
 """
 
-import httpx
-import logging
-from typing import Optional, Dict, Any, Tuple, Union
 import asyncio
-from urllib.parse import urljoin
 import json
+import logging
+from typing import Any, Dict, Optional, Tuple, Union
+from urllib.parse import urljoin
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
 
 class BackendError(Exception):
     """Exception raised when backend requests fail."""
+
     def __init__(self, message: str, status_code: Optional[int] = None, response_data: Optional[Dict] = None):
         self.message = message
         self.status_code = status_code
@@ -34,6 +35,7 @@ class HTTPClient:
             base_url: Base URL for backend API
             timeout: Request timeout in seconds
             max_retries: Maximum number of retry attempts
+
         """
         self.base_url = base_url.rstrip('/')
         self.timeout = timeout
@@ -46,7 +48,7 @@ class HTTPClient:
         if self._client is None:
             self._client = httpx.AsyncClient(
                 timeout=httpx.Timeout(self.timeout),
-                limits=httpx.Limits(max_keepalive_connections=10, max_connections=20)
+                limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
             )
         return self._client
     
@@ -72,7 +74,7 @@ class HTTPClient:
         """Log response details."""
         logger.debug(
             f"HTTP {response.status_code} {response.url} "
-            f"({duration:.3f}s) {len(response.content)} bytes"
+            f"({duration:.3f}s) {len(response.content)} bytes",
         )
         if response.status_code >= 400:
             logger.warning(f"HTTP Error {response.status_code}: {response.text[:200]}")
@@ -82,7 +84,7 @@ class HTTPClient:
         method: str, 
         url: str, 
         retry_count: int = 0,
-        **kwargs
+        **kwargs,
     ) -> httpx.Response:
         """Make HTTP request with retry logic."""
         import time
@@ -117,7 +119,7 @@ class HTTPClient:
         method: str, 
         path: str, 
         raise_for_status: bool = True,
-        **kwargs
+        **kwargs,
     ) -> Tuple[int, Union[Dict[str, Any], str]]:
         """Make HTTP request and return (status_code, data).
         
@@ -132,6 +134,7 @@ class HTTPClient:
             
         Raises:
             BackendError: If request fails or backend returns error
+
         """
         url = self._build_url(path)
         response = await self._make_request(method, url, **kwargs)
@@ -152,7 +155,7 @@ class HTTPClient:
             raise BackendError(
                 error_msg, 
                 status_code=response.status_code, 
-                response_data=data if isinstance(data, dict) else None
+                response_data=data if isinstance(data, dict) else None,
             )
         
         return response.status_code, data
@@ -197,7 +200,7 @@ async def fetch_backend(
     params: Optional[Dict] = None,
     data: Optional[Dict] = None,
     json: Optional[Dict] = None,
-    **kwargs
+    **kwargs,
 ) -> Tuple[int, Any]:
     """Convenience function to make backend requests.
     
