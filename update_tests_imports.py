@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""
-Script to update all import statements in test files
+"""Script to update all import statements in test files
 from 'app.' to 'backend.' to reflect the new project structure
 """
 
-import os
 import re
 from pathlib import Path
+
 
 def update_imports_in_file(file_path):
     """Update imports in a single Python file"""

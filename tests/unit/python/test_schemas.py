@@ -1,10 +1,10 @@
-"""
-Pytest tests for Pydantic schema validation
+"""Pytest tests for Pydantic schema validation
 """
 
 import pytest
 from pydantic import ValidationError
-from app.frontend.schemas import SimilarityForm, PromptForm
+
+from app.frontend.schemas import PromptForm, SimilarityForm
 
 
 class TestSimilarityForm:
@@ -18,7 +18,7 @@ class TestSimilarityForm:
             'artistic_weight': 0.3,
             'technical_weight': 0.3,
             'limit': 10,
-            'threshold': 0.1
+            'threshold': 0.1,
         }
         
         form = SimilarityForm(**valid_data)
@@ -37,7 +37,7 @@ class TestSimilarityForm:
             'artistic_weight': 0.3,
             'technical_weight': 0.3,
             'limit': 10,
-            'threshold': 0.1
+            'threshold': 0.1,
         }
         
         with pytest.raises(ValidationError) as exc_info:
@@ -55,7 +55,7 @@ class TestSimilarityForm:
             'artistic_weight': 0.3,
             'technical_weight': 0.3,
             'limit': 10,
-            'threshold': 0.1
+            'threshold': 0.1,
         }
         
         with pytest.raises(ValidationError) as exc_info:
@@ -72,7 +72,7 @@ class TestSimilarityForm:
             'artistic_weight': 0.3,
             'technical_weight': 0.3,
             'limit': 10,
-            'threshold': 0.1
+            'threshold': 0.1,
         }
         
         with pytest.raises(ValidationError) as exc_info:
@@ -89,7 +89,7 @@ class TestSimilarityForm:
             'artistic_weight': 0.3,
             'technical_weight': 0.3,
             'limit': 10,
-            'threshold': 0.1
+            'threshold': 0.1,
         }
         
         with pytest.raises(ValidationError) as exc_info:
@@ -106,7 +106,7 @@ class TestSimilarityForm:
             'artistic_weight': 0.3,
             'technical_weight': 0.3,
             'limit': 0,
-            'threshold': 0.1
+            'threshold': 0.1,
         }
         
         with pytest.raises(ValidationError) as exc_info:
@@ -123,7 +123,7 @@ class TestSimilarityForm:
             'artistic_weight': 0.3,
             'technical_weight': 0.3,
             'limit': 150,
-            'threshold': 0.1
+            'threshold': 0.1,
         }
         
         with pytest.raises(ValidationError) as exc_info:
@@ -140,7 +140,7 @@ class TestSimilarityForm:
             'artistic_weight': 0.3,
             'technical_weight': 0.3,
             'limit': 10,
-            'threshold': -0.1
+            'threshold': -0.1,
         }
         
         with pytest.raises(ValidationError) as exc_info:
@@ -157,7 +157,7 @@ class TestSimilarityForm:
             'artistic_weight': '0.3',
             'technical_weight': '0.3',
             'limit': '10',
-            'threshold': '0.1'
+            'threshold': '0.1',
         }
         
         form = SimilarityForm(**data_with_strings)
@@ -179,7 +179,7 @@ class TestPromptForm:
             'semantic_weight': 0.4,
             'style_weight': 0.3,
             'context_weight': 0.3,
-            'limit': 10
+            'limit': 10,
         }
         
         form = PromptForm(**valid_data)
@@ -196,7 +196,7 @@ class TestPromptForm:
             'semantic_weight': 0.4,
             'style_weight': 0.3,
             'context_weight': 0.3,
-            'limit': 10
+            'limit': 10,
         }
         
         with pytest.raises(ValidationError) as exc_info:
@@ -212,7 +212,7 @@ class TestPromptForm:
             'semantic_weight': 0.4,
             'style_weight': 0.3,
             'context_weight': 0.3,
-            'limit': 10
+            'limit': 10,
         }
         
         with pytest.raises(ValidationError) as exc_info:
@@ -228,7 +228,7 @@ class TestPromptForm:
             'semantic_weight': 0.4,
             'style_weight': 0.3,
             'context_weight': 0.3,
-            'limit': 10
+            'limit': 10,
         }
         
         with pytest.raises(ValidationError) as exc_info:
@@ -245,7 +245,7 @@ class TestPromptForm:
             'semantic_weight': 0.4,
             'style_weight': 0.3,
             'context_weight': 0.3,
-            'limit': 10
+            'limit': 10,
         }
         
         with pytest.raises(ValidationError) as exc_info:
@@ -261,7 +261,7 @@ class TestPromptForm:
             'semantic_weight': -0.1,
             'style_weight': 0.3,
             'context_weight': 0.3,
-            'limit': 10
+            'limit': 10,
         }
         
         with pytest.raises(ValidationError) as exc_info:
@@ -277,7 +277,7 @@ class TestPromptForm:
             'semantic_weight': 0.4,
             'style_weight': 1.5,
             'context_weight': 0.3,
-            'limit': 10
+            'limit': 10,
         }
         
         with pytest.raises(ValidationError) as exc_info:
@@ -289,7 +289,7 @@ class TestPromptForm:
     def test_default_values(self):
         """Test that default values are applied when fields are missing"""
         minimal_data = {
-            'prompt': 'Test prompt'
+            'prompt': 'Test prompt',
         }
         
         form = PromptForm(**minimal_data)
@@ -314,7 +314,7 @@ class TestSchemaIntegration:
             'artistic_weight': '0.3',
             'technical_weight': '0.2',
             'limit': '15',
-            'threshold': '0.05'
+            'threshold': '0.05',
         }
         
         # Convert string values as they would come from form
@@ -324,7 +324,7 @@ class TestSchemaIntegration:
             'artistic_weight': float(form_data['artistic_weight']),
             'technical_weight': float(form_data['technical_weight']),
             'limit': int(form_data['limit']),
-            'threshold': float(form_data['threshold'])
+            'threshold': float(form_data['threshold']),
         }
         
         form = SimilarityForm(**converted_data)
@@ -335,7 +335,7 @@ class TestSchemaIntegration:
         invalid_data = {
             'lora_id': '',
             'semantic_weight': -1,
-            'limit': 0
+            'limit': 0,
         }
         
         with pytest.raises(ValidationError) as exc_info:
@@ -358,7 +358,7 @@ class TestSchemaIntegration:
             'semantic_weight': 2.0,  # Too high
             'artistic_weight': -0.5,  # Negative
             'limit': 0,  # Too low
-            'threshold': -1  # Negative
+            'threshold': -1,  # Negative
         }
         
         with pytest.raises(ValidationError) as exc_info:
