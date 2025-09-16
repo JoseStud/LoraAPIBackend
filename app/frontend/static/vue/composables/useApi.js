@@ -1,8 +1,8 @@
-// Lightweight API composable using centralized API utilities
-// Designed for Vue islands; uses utils/api.js for consistency.
+// Lightweight API composable that delegates to the shared API utilities
+// Ensures Vue islands use the same request logic as Alpine/vanilla modules.
 
 import { ref, unref } from 'vue';
-import { fetchData } from '../../js/utils/api.js';
+import { fetchData as apiFetchData } from '../../js/utils/api.js';
 
 // url can be a string, a ref/computed, or a function returning a string
 export function useApi(url, options = {}) {
@@ -26,10 +26,29 @@ export function useApi(url, options = {}) {
     try {
       const target = resolveUrl();
       if (!target) throw new Error('Missing URL for useApi');
-      const result = await fetchData(target, { credentials: 'same-origin', ...options, ...init });
-      data.value = result;
+      const requestOptions = { ...options, ...init };
+      const { data: payload, meta } = await apiFetchData(target, {
+        ...requestOptions,
+        returnResponse: true,
+      });
+      data.value = payload;
+      lastResponse.value = meta;
+      return payload;
     } catch (err) {
       error.value = err;
+      if (err?.response) {
+        lastResponse.value = {
+          ok: !!err.response?.ok,
+          status: typeof err.response?.status === 'number' ? err.response.status : 0,
+          headers: err.response?.headers || null,
+        };
+      } else {
+        lastResponse.value = {
+          ok: false,
+          status: typeof err?.status === 'number' ? err.status : 0,
+          headers: null,
+        };
+      }
     } finally {
       isLoading.value = false;
     }
