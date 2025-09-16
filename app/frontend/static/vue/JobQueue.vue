@@ -78,7 +78,6 @@
 
 <script>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useApi } from './composables/useApi.js';
 
 export default {
   name: 'JobQueue',
@@ -185,14 +184,29 @@ export default {
 
       try {
         const backendUrl = window?.BACKEND_URL || '';
-        const response = await fetch(`${backendUrl}/jobs/status`);
+        
+        // Try the newer generation endpoint first, fallback to legacy
+        let response;
+        try {
+          response = await fetch(`${backendUrl}/generation/jobs/active`, {
+            credentials: 'same-origin'
+          });
+        } catch (error) {
+          // Fallback to legacy endpoint if generation endpoint fails
+          response = await fetch(`${backendUrl}/jobs/status`, {
+            credentials: 'same-origin'
+          });
+        }
         
         if (response.ok) {
           const apiJobs = await response.json();
           
           // Update each job in the store
           apiJobs.forEach(apiJob => {
-            const storeJob = store.activeJobs.find(j => j.jobId === apiJob.id);
+            // Support both jobId and id for backward compatibility
+            const storeJob = store.activeJobs.find(j => 
+              j.jobId === apiJob.id || j.id === apiJob.id
+            );
             if (storeJob) {
               store.updateJob(storeJob.id, {
                 status: apiJob.status,
@@ -229,11 +243,30 @@ export default {
         isCancelling.value = true;
         const job = store.activeJobs.find(j => j.id === jobId);
         
-        if (job && job.jobId) {
+        if (job) {
+          // Support both jobId and id for backward compatibility
+          const backendJobId = job.jobId || job.id;
+          if (!backendJobId) {
+            store.addNotification('Cannot cancel job: missing job ID', 'error');
+            return;
+          }
+          
           const backendUrl = window?.BACKEND_URL || '';
-          const response = await fetch(`${backendUrl}/jobs/${job.jobId}/cancel`, {
-            method: 'POST'
-          });
+          
+          // Try the newer generation endpoint first, fallback to legacy
+          let response;
+          try {
+            response = await fetch(`${backendUrl}/generation/jobs/${backendJobId}/cancel`, {
+              method: 'POST',
+              credentials: 'same-origin'
+            });
+          } catch (error) {
+            // Fallback to legacy endpoint if generation endpoint fails
+            response = await fetch(`${backendUrl}/jobs/${backendJobId}/cancel`, {
+              method: 'POST',
+              credentials: 'same-origin'
+            });
+          }
           
           if (response.ok) {
             store.removeJob(jobId);

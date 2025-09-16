@@ -134,6 +134,38 @@ describe('JobQueue.vue', () => {
     wrapper.unmount();
   });
 
+  it('handles job cancellation with id fallback when jobId is missing', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200
+    }));
+
+    mockStore.activeJobs = [
+      { 
+        id: 'job1', 
+        // No jobId property, should fallback to id
+        status: 'running', 
+        startTime: new Date() 
+      }
+    ];
+
+    const wrapper = mount(JobQueue);
+    await flush();
+
+    // Simulate cancel action
+    await wrapper.vm.handleCancelJob('job1');
+    await flush();
+
+    // Should use the job.id when jobId is not available
+    expect(global.fetch).toHaveBeenCalledWith('/generation/jobs/job1/cancel', {
+      method: 'POST',
+      credentials: 'same-origin'
+    });
+    expect(mockStore.removeJob).toHaveBeenCalledWith('job1');
+
+    wrapper.unmount();
+  });
+
   it('calls cancelJob when cancel button is clicked', async () => {
     global.fetch = vi.fn(async () => ({
       ok: true,
@@ -163,8 +195,10 @@ describe('JobQueue.vue', () => {
     await wrapper.vm.handleCancelJob('job1');
     await flush();
 
-    expect(global.fetch).toHaveBeenCalledWith('/jobs/backend-job-1/cancel', {
-      method: 'POST'
+    // Should try generation endpoint first
+    expect(global.fetch).toHaveBeenCalledWith('/generation/jobs/backend-job-1/cancel', {
+      method: 'POST',
+      credentials: 'same-origin'
     });
     expect(mockStore.removeJob).toHaveBeenCalledWith('job1');
     expect(mockStore.addNotification).toHaveBeenCalledWith('Job cancelled', 'info');
