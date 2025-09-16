@@ -51,6 +51,7 @@ __pycache__
 *.sqlite3
 *.db
 
+<<<<<<< HEAD
 # Node.js
 node_modules/
 npm-debug.log*
@@ -68,3 +69,12 @@ build/
 
 # Temporary test files
 test-refactor.html
+=======
+node_modules
+
+# Test coverage
+coverage/
+
+# Cache files
+.cache/
+>>>>>>> 1ccbccb (Refactor generation-studio fetches to use utils/api.js)
