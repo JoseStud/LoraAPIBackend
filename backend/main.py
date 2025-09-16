@@ -6,7 +6,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.api.v1 import adapters, compose, deliveries, generation, recommendations, websocket, dashboard
+from backend.api.v1 import adapters, compose, deliveries, generation, recommendations, websocket, dashboard, import_export
 from backend.core.database import init_db
 from backend.core.logging import setup_logging
 from backend.core.security import get_api_key
@@ -39,6 +39,7 @@ def create_app() -> FastAPI:
     app.include_router(deliveries.router, prefix="/v1", dependencies=[Depends(get_api_key)])
     app.include_router(generation.router, prefix="/v1", dependencies=[Depends(get_api_key)])
     app.include_router(recommendations.router, prefix="/v1", dependencies=[Depends(get_api_key)])
+    app.include_router(import_export.router, dependencies=[Depends(get_api_key)])
     app.include_router(dashboard.router)  # Dashboard uses root prefix for frontend compatibility
     app.include_router(websocket.router)  # WebSocket doesn't use API key auth or versioning
 
