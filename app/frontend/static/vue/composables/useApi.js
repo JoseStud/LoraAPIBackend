@@ -1,7 +1,8 @@
-// Lightweight API composable using native fetch
-// Designed for Vue islands; avoids adding axios dependency initially.
+// Lightweight API composable that delegates to the shared API utilities
+// Ensures Vue islands use the same request logic as Alpine/vanilla modules.
 
 import { ref, unref } from 'vue';
+import { fetchData as apiFetchData } from '../../js/utils/api.js';
 
 // url can be a string, a ref/computed, or a function returning a string
 export function useApi(url, options = {}) {
@@ -25,22 +26,29 @@ export function useApi(url, options = {}) {
     try {
       const target = resolveUrl();
       if (!target) throw new Error('Missing URL for useApi');
-      const res = await fetch(target, { credentials: 'same-origin', ...options, ...init });
-      // capture minimal response metadata for callers
-      lastResponse.value = {
-        ok: !!res?.ok,
-        status: typeof res?.status === 'number' ? res.status : 0,
-        headers: res?.headers || null,
-      };
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const ct = (res && res.headers && typeof res.headers.get === 'function')
-        ? (res.headers.get('content-type') || '')
-        : '';
-      // If content-type is unavailable, assume JSON when a json() method exists
-      const preferJson = ct.includes('application/json') || typeof res.json === 'function';
-      data.value = preferJson ? await res.json() : await res.text();
+      const requestOptions = { ...options, ...init };
+      const { data: payload, meta } = await apiFetchData(target, {
+        ...requestOptions,
+        returnResponse: true,
+      });
+      data.value = payload;
+      lastResponse.value = meta;
+      return payload;
     } catch (err) {
       error.value = err;
+      if (err?.response) {
+        lastResponse.value = {
+          ok: !!err.response?.ok,
+          status: typeof err.response?.status === 'number' ? err.response.status : 0,
+          headers: err.response?.headers || null,
+        };
+      } else {
+        lastResponse.value = {
+          ok: false,
+          status: typeof err?.status === 'number' ? err.status : 0,
+          headers: null,
+        };
+      }
     } finally {
       isLoading.value = false;
     }
