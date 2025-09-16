@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
-"""
-Generate a JSON report mapping templates -> x-data component -> template-used properties -> component-provided keys
+"""Generate a JSON report mapping templates -> x-data component -> template-used properties -> component-provided keys
 Writes output to outputs/alpine_report.json
 """
-import re
 import json
-import os
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -63,7 +61,7 @@ for tf in template_files:
                 props.add(token)
     for comp in matches:
         report.setdefault(str(tf.relative_to(ROOT)), {})[comp] = {
-            'template_properties': sorted(list(props))
+            'template_properties': sorted(list(props)),
         }
 
 # Parse components to extract provided keys
@@ -268,7 +266,7 @@ for tf_path, comps in report.items():
             clean_report['report'].setdefault(tf_path, {})[comp_name] = {
                 'template_properties': data.get('template_properties', []),
                 'component_provided_keys': data.get('component_provided_keys', []),
-                'missing_keys': data.get('missing_keys', [])
+                'missing_keys': data.get('missing_keys', []),
             }
 
 clean_out.write_text(json.dumps(clean_report, indent=2), encoding='utf8')
@@ -281,7 +279,7 @@ runtime_prefixes = ('lora', 'result', 'stats', 'worker', 'gpu', 'backup')
 ui_tokens = set([
     'btn','button','primary','secondary','text','bg','blue','green','red','yellow','white',
     'sm','md','lg','border','shadow','rounded','icon','items','list','grid','show','hide',
-    'in','init','length','slice','item','items','badge','status','tag','btn-sm','btn-lg'
+    'in','init','length','slice','item','items','badge','status','tag','btn-sm','btn-lg',
 ])
 focused = {'generated_by':'generate_alpine_report.py','report':{}}
 for tf_path, comps in clean_report['report'].items():
@@ -302,7 +300,7 @@ for tf_path, comps in clean_report['report'].items():
         if filtered_missing:
             focused['report'].setdefault(tf_path, {})[comp_name] = {
                 'missing_top_level_keys': filtered_missing,
-                'component_provided_keys': data.get('component_provided_keys', [])
+                'component_provided_keys': data.get('component_provided_keys', []),
             }
 focused_out.write_text(json.dumps(focused, indent=2), encoding='utf8')
 print('Wrote', focused_out)
