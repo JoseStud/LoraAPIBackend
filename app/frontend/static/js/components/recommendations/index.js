@@ -5,7 +5,7 @@
  * in a format compatible with the new Vite-based system.
  */
 
-import { fetchData } from '../utils/api.js';
+import { fetchData } from '../../utils/api.js';
 
 // For now, we'll create a simple wrapper that maintains backward compatibility
 // Later, this can be refactored to use proper ES modules

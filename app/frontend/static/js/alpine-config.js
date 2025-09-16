@@ -1,7 +1,7 @@
 // Alpine.js Global Configuration and Store
 // This file sets up global Alpine.js stores and components for the LoRA Manager frontend
 
-import { fetchData, putData, deleteData } from './utils/api.js';
+import { fetchData, putData, deleteData, downloadBlob, postForBlob } from './utils/api.js';
 
 // Guard against Alpine not being loaded yet
 if (typeof window.Alpine === 'undefined') {
@@ -432,7 +432,16 @@ ensureAlpine(() => {
 
         async downloadImage(result) {
             try {
-                const response = await fetch(result.image_url); const blob = await response.blob(); const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `generation-${result.id}.png`; document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); document.body.removeChild(a); this.showToastMessage('Download started');
+                const blob = await downloadBlob(result.image_url);
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `generation-${result.id}.png`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                this.showToastMessage('Download started');
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error downloading image:', error);
                 this.showToastMessage('Failed to download image', 'error');
@@ -475,8 +484,17 @@ ensureAlpine(() => {
         async exportSelected() {
             if (this.selectedItems.length === 0) return;
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/results/export', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ids: this.selectedItems }) });
-                if (!response.ok) throw new Error('Failed to export results'); const blob = await response.blob(); const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `generation-export-${Date.now()}.zip`; document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); document.body.removeChild(a); this.showToastMessage('Export started');
+                const baseUrl = window?.BACKEND_URL || '';
+                const blob = await postForBlob(`${baseUrl}/results/export`, { ids: this.selectedItems });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `generation-export-${Date.now()}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                this.showToastMessage('Export started');
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error exporting results:', error);
                 this.showToastMessage('Failed to export images', 'error');

@@ -3,6 +3,8 @@
  * Reusable Alpine.js component for handling API data fetching with loading states, errors, and pagination
  */
 
+import { fetchData, postData, putData, deleteData } from '../../utils/api.js';
+
 /**
  * Creates a generic data fetcher component that can be mixed into other Alpine.js components
  * @param {string} endpoint - The API endpoint to fetch data from
@@ -133,7 +135,6 @@ export default function apiDataFetcher(endpoint, options = {}) {
             for (let attempt = 0; attempt <= retryAttempts; attempt++) {
                 try {
                     const headers = {
-                        'Content-Type': 'application/json',
                         ...customHeaders
                     };
                     
@@ -143,16 +144,13 @@ export default function apiDataFetcher(endpoint, options = {}) {
                         Object.assign(headers, authHeaders);
                     }
                     
-                    const response = await fetch(url, {
+                    // Use centralized fetchData with signal support
+                    const options = {
                         signal: this.abortController?.signal,
                         headers
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-
-                    return await response.json();
+                    };
+                    
+                    return await fetchData(url, options);
                     
                 } catch (error) {
                     if (error.name === 'AbortError' || attempt === retryAttempts) {
@@ -296,7 +294,6 @@ export default function apiDataFetcher(endpoint, options = {}) {
             
             try {
                 const headers = {
-                    'Content-Type': 'application/json',
                     ...customHeaders,
                     ...requestHeaders
                 };
@@ -307,30 +304,19 @@ export default function apiDataFetcher(endpoint, options = {}) {
                     Object.assign(headers, authHeaders);
                 }
                 
-                const fetchOptions = {
-                    method: method.toUpperCase(),
-                    headers
-                };
+                const options = { headers };
                 
-                // Add body for non-GET requests
-                if (data && method.toUpperCase() !== 'GET') {
-                    fetchOptions.body = JSON.stringify(data);
-                }
-                
-                const response = await fetch(url, fetchOptions);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                // Handle different content types
-                const contentType = response.headers.get('content-type');
-                if (contentType?.includes('application/json')) {
-                    return await response.json();
-                } else if (contentType?.includes('text/')) {
-                    return await response.text();
-                } else {
-                    return response;
+                // Use appropriate centralized API function based on method
+                switch (method.toUpperCase()) {
+                    case 'POST':
+                        return await postData(url, data, options);
+                    case 'PUT':
+                        return await putData(url, data, options);
+                    case 'DELETE':
+                        return await deleteData(url, options);
+                    case 'GET':
+                    default:
+                        return await fetchData(url, options);
                 }
                 
             } catch (error) {
