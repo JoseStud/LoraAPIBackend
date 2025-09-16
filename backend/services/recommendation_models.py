@@ -1,9 +1,6 @@
 """GPU-accelerated recommendation models for 8GB VRAM deployment."""
 
-import os
-import pickle
 import re
-import time
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -19,6 +16,7 @@ class LoRASemanticEmbedder:
             device: Device to use ('cuda' or 'cpu')
             batch_size: Batch size for processing
             mixed_precision: Use FP16 for memory efficiency
+
         """
         self.device = device
         self.batch_size = batch_size
@@ -31,7 +29,7 @@ class LoRASemanticEmbedder:
         except ImportError:
             raise ImportError(
                 "sentence-transformers is required. Install with: "
-                "pip install sentence-transformers"
+                "pip install sentence-transformers",
             )
         
         # Check GPU availability (supports both CUDA and ROCm)
@@ -69,7 +67,7 @@ class LoRASemanticEmbedder:
             # Primary embedding model - excellent for semantic similarity
             # VRAM Usage: ~2-3GB, 1024-dim embeddings, superior quality
             self._primary_model = self.SentenceTransformer(
-                'sentence-transformers/all-mpnet-base-v2'
+                'sentence-transformers/all-mpnet-base-v2',
             )
             if self.device == 'cuda':
                 self._primary_model = self._primary_model.to(self.device)
@@ -77,7 +75,7 @@ class LoRASemanticEmbedder:
             # Specialized art/anime model for domain-specific understanding
             # VRAM Usage: ~1-2GB, 768-dim embeddings
             self._art_model = self.SentenceTransformer(
-                'sentence-transformers/all-MiniLM-L12-v2'
+                'sentence-transformers/all-MiniLM-L12-v2',
             )
             if self.device == 'cuda':
                 self._art_model = self._art_model.to(self.device)
@@ -85,7 +83,7 @@ class LoRASemanticEmbedder:
             # Technical prompt analysis model for parameter understanding
             # VRAM Usage: ~1GB, optimized for technical content
             self._technical_model = self.SentenceTransformer(
-                'sentence-transformers/paraphrase-mpnet-base-v2'
+                'sentence-transformers/paraphrase-mpnet-base-v2',
             )
             if self.device == 'cuda':
                 self._technical_model = self._technical_model.to(self.device)
@@ -115,7 +113,6 @@ class LoRASemanticEmbedder:
 
     def create_multi_modal_embedding(self, lora) -> Dict[str, np.ndarray]:
         """Generate multiple specialized embeddings for different aspects."""
-        
         # Prepare different text representations
         content_texts = self._prepare_multi_modal_text(lora)
         
@@ -128,7 +125,7 @@ class LoRASemanticEmbedder:
                 semantic_text,
                 device=self.device,
                 show_progress_bar=False,
-                convert_to_numpy=True
+                convert_to_numpy=True,
             )
         else:
             # Fallback empty embedding
@@ -141,7 +138,7 @@ class LoRASemanticEmbedder:
                 art_text,
                 device=self.device,
                 show_progress_bar=False,
-                convert_to_numpy=True
+                convert_to_numpy=True,
             )
         else:
             embeddings['artistic'] = np.zeros(384, dtype=np.float32)
@@ -153,7 +150,7 @@ class LoRASemanticEmbedder:
                 tech_text,
                 device=self.device,
                 show_progress_bar=False,
-                convert_to_numpy=True
+                convert_to_numpy=True,
             )
         else:
             embeddings['technical'] = np.zeros(768, dtype=np.float32)
@@ -162,7 +159,6 @@ class LoRASemanticEmbedder:
     
     def _prepare_multi_modal_text(self, lora) -> Dict[str, str]:
         """Prepare specialized text representations for different embedding types."""
-        
         # Semantic representation - comprehensive content understanding
         semantic_components = []
         if lora.description:
@@ -205,7 +201,7 @@ class LoRASemanticEmbedder:
         return {
             'semantic': " | ".join(semantic_components) if semantic_components else "",
             'artistic': " | ".join(artistic_components) if artistic_components else "",
-            'technical': " | ".join(technical_components) if technical_components else ""
+            'technical': " | ".join(technical_components) if technical_components else "",
         }
 
     def _extract_artistic_terms(self, description: str) -> str:
@@ -218,7 +214,7 @@ class LoRASemanticEmbedder:
             'anime', 'realistic', 'cartoon', 'abstract', 'photographic',
             'digital art', 'painting', 'sketch', '3d render', 'pixel art',
             'watercolor', 'oil painting', 'concept art', 'illustration',
-            'manga', 'comic', 'fantasy', 'sci-fi', 'portrait', 'landscape'
+            'manga', 'comic', 'fantasy', 'sci-fi', 'portrait', 'landscape',
         ]
         
         found_terms = []
@@ -234,7 +230,7 @@ class LoRASemanticEmbedder:
         art_related = [
             'style', 'art', 'anime', 'realistic', 'character', 'portrait',
             'landscape', 'fantasy', 'sci-fi', 'concept', 'illustration',
-            'digital', 'painting', 'drawing', 'sketch', '3d', 'render'
+            'digital', 'painting', 'drawing', 'sketch', '3d', 'render',
         ]
         
         tag_lower = tag.lower()
@@ -255,7 +251,6 @@ class LoRASemanticEmbedder:
 
     def batch_encode_collection(self, loras: List) -> Dict[str, np.ndarray]:
         """Efficiently batch process entire LoRA collection using GPU."""
-        
         # Prepare all texts
         all_semantic = []
         all_artistic = []
@@ -285,7 +280,7 @@ class LoRASemanticEmbedder:
                     batch_size=self.batch_size,
                     device=self.device,
                     show_progress_bar=True,
-                    convert_to_numpy=True
+                    convert_to_numpy=True,
                 )
                 
                 artistic_embeddings = self.art_model.encode(
@@ -293,7 +288,7 @@ class LoRASemanticEmbedder:
                     batch_size=self.batch_size,
                     device=self.device,
                     show_progress_bar=True,
-                    convert_to_numpy=True
+                    convert_to_numpy=True,
                 )
                 
                 technical_embeddings = self.technical_model.encode(
@@ -301,34 +296,34 @@ class LoRASemanticEmbedder:
                     batch_size=self.batch_size,
                     device=self.device,
                     show_progress_bar=True,
-                    convert_to_numpy=True
+                    convert_to_numpy=True,
                 )
         else:
             semantic_embeddings = self.primary_model.encode(
                 all_semantic,
                 batch_size=self.batch_size,
                 show_progress_bar=True,
-                convert_to_numpy=True
+                convert_to_numpy=True,
             )
             
             artistic_embeddings = self.art_model.encode(
                 all_artistic,
                 batch_size=self.batch_size,
                 show_progress_bar=True,
-                convert_to_numpy=True
+                convert_to_numpy=True,
             )
             
             technical_embeddings = self.technical_model.encode(
                 all_technical,
                 batch_size=self.batch_size,
                 show_progress_bar=True,
-                convert_to_numpy=True
+                convert_to_numpy=True,
             )
         
         return {
             'semantic': semantic_embeddings,
             'artistic': artistic_embeddings,
-            'technical': technical_embeddings
+            'technical': technical_embeddings,
         }
 
 
@@ -340,6 +335,7 @@ class GPULoRAFeatureExtractor:
         
         Args:
             device: Device to use ('cuda' or 'cpu')
+
         """
         self.device = device
         self.semantic_embedder = LoRASemanticEmbedder(device=device)
@@ -356,7 +352,7 @@ class GPULoRAFeatureExtractor:
                 # Try to load KeyBERT for advanced keyword extraction
                 from keybert import KeyBERT
                 self._keyword_extractor = KeyBERT(
-                    model='sentence-transformers/all-mpnet-base-v2'
+                    model='sentence-transformers/all-mpnet-base-v2',
                 )
                 print("✅ KeyBERT loaded for keyword extraction")
             except ImportError:
@@ -370,7 +366,7 @@ class GPULoRAFeatureExtractor:
                 self._sentiment_analyzer = pipeline(
                     "sentiment-analysis",
                     model="cardiffnlp/twitter-roberta-base-sentiment-latest",
-                    device=0 if self.device == 'cuda' else -1
+                    device=0 if self.device == 'cuda' else -1,
                 )
                 print("✅ Sentiment analyzer loaded")
             except ImportError:
@@ -383,7 +379,7 @@ class GPULoRAFeatureExtractor:
                 self._style_classifier = pipeline(
                     "zero-shot-classification",
                     model="facebook/bart-large-mnli",
-                    device=0 if self.device == 'cuda' else -1
+                    device=0 if self.device == 'cuda' else -1,
                 )
                 print("✅ Style classifier loaded")
             except ImportError:
@@ -392,7 +388,6 @@ class GPULoRAFeatureExtractor:
 
     def extract_advanced_features(self, lora) -> Dict[str, Any]:
         """Extract comprehensive features using available models."""
-        
         features = {}
         
         # Basic embeddings
@@ -400,7 +395,7 @@ class GPULoRAFeatureExtractor:
         features.update({
             'semantic_embedding': embeddings['semantic'],
             'artistic_embedding': embeddings['artistic'],
-            'technical_embedding': embeddings['technical']
+            'technical_embedding': embeddings['technical'],
         })
         
         # Load advanced models if needed
@@ -414,7 +409,7 @@ class GPULoRAFeatureExtractor:
                         lora.description,
                         keyphrase_ngram_range=(1, 3),
                         stop_words='english',
-                        top_k=10
+                        top_k=10,
                     )
                     features['extracted_keywords'] = [kw[0] for kw in keywords]
                     features['keyword_scores'] = [kw[1] for kw in keywords]
@@ -442,7 +437,7 @@ class GPULoRAFeatureExtractor:
                 try:
                     art_styles = [
                         "anime", "realistic", "cartoon", "abstract", "photographic",
-                        "digital art", "painting", "sketch", "3D render", "pixel art"
+                        "digital art", "painting", "sketch", "3D render", "pixel art",
                     ]
                     style_result = self._style_classifier(lora.description[:512], art_styles)
                     features['predicted_style'] = style_result['labels'][0]
@@ -476,7 +471,7 @@ class GPULoRAFeatureExtractor:
             # User interaction features (placeholders for now)
             'user_activation_frequency': 0.0,  # TODO: Implement from usage history
             'user_success_rate': 0.5,          # TODO: Implement from generation results
-            'recent_usage_trend': 0.0          # TODO: Implement trend analysis
+            'recent_usage_trend': 0.0,          # TODO: Implement trend analysis
         })
         
         return features
@@ -495,7 +490,7 @@ class GPULoRAFeatureExtractor:
         
         return {
             'extracted_keywords': [kw[0] for kw in top_keywords],
-            'keyword_scores': [kw[1] / len(words) for kw in top_keywords]
+            'keyword_scores': [kw[1] / len(words) for kw in top_keywords],
         }
 
     def _fallback_sentiment_analysis(self, text: str) -> Dict[str, Any]:
@@ -521,7 +516,7 @@ class GPULoRAFeatureExtractor:
             'realistic': ['realistic', 'photorealistic', 'photo', 'real'],
             'cartoon': ['cartoon', 'comic', 'toon'],
             'digital art': ['digital', 'cg', 'computer'],
-            'painting': ['painting', 'paint', 'oil', 'watercolor']
+            'painting': ['painting', 'paint', 'oil', 'watercolor'],
         }
         
         text_lower = text.lower()
@@ -547,7 +542,7 @@ class GPULoRAFeatureExtractor:
         # Simple one-hot-like encoding for common tag categories
         common_categories = [
             'character', 'style', 'anime', 'realistic', 'fantasy',
-            'portrait', 'landscape', 'nsfw', 'safe', 'concept'
+            'portrait', 'landscape', 'nsfw', 'safe', 'concept',
         ]
         
         vector = []
@@ -695,6 +690,7 @@ class LoRARecommendationEngine:
         Args:
             feature_extractor: Feature extraction service
             device: Device to use for computations
+
         """
         self.feature_extractor = feature_extractor
         self.device = device
@@ -718,7 +714,6 @@ class LoRARecommendationEngine:
 
     def build_similarity_index(self, loras: List):
         """Build similarity index for fast recommendations."""
-        
         print(f"🚀 Building similarity index for {len(loras)} LoRAs...")
         
         # Extract all embeddings in batches
@@ -762,15 +757,14 @@ class LoRARecommendationEngine:
         self,
         target_lora,
         n_recommendations: int = 20,
-        weights: Optional[Dict[str, float]] = None
+        weights: Optional[Dict[str, float]] = None,
     ) -> List[Dict[str, Any]]:
         """Generate recommendations using multi-modal similarity."""
-        
         if weights is None:
             weights = {
                 'semantic': 0.6,    # Primary weight for content similarity
                 'artistic': 0.3,    # Style and aesthetic matching
-                'technical': 0.1    # Compatibility factors
+                'technical': 0.1,    # Compatibility factors
             }
         
         # Extract target embeddings
@@ -778,13 +772,13 @@ class LoRARecommendationEngine:
         
         # Normalize target embeddings
         semantic_query = self._normalize_embeddings(
-            target_embeddings['semantic'].reshape(1, -1)
+            target_embeddings['semantic'].reshape(1, -1),
         )[0]
         artistic_query = self._normalize_embeddings(
-            target_embeddings['artistic'].reshape(1, -1)
+            target_embeddings['artistic'].reshape(1, -1),
         )[0]
         technical_query = self._normalize_embeddings(
-            target_embeddings['technical'].reshape(1, -1)
+            target_embeddings['technical'].reshape(1, -1),
         )[0]
         
         # Calculate similarities
@@ -837,7 +831,7 @@ class LoRARecommendationEngine:
                     'technical_similarity': float(technical_similarities[idx]),
                     'quality_boost': float(quality_boost),
                     'popularity_boost': float(popularity_boost),
-                    'recency_boost': float(recency_boost)
+                    'recency_boost': float(recency_boost),
                 })
                 
                 if len(final_recommendations) >= n_recommendations:
@@ -865,7 +859,7 @@ class LoRARecommendationEngine:
         if target_lora.description and candidate_lora.description:
             common_keywords = self._find_common_keywords(
                 target_lora.description, 
-                candidate_lora.description
+                candidate_lora.description,
             )
             if common_keywords:
                 explanations.append(f"Similar content: {', '.join(common_keywords[:3])}")

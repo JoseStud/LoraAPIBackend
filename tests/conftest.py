@@ -38,7 +38,6 @@ def mock_storage_fixture(monkeypatch) -> MagicMock:
     mock_storage_service.validate_file_path.side_effect = lambda path: mock.exists(path)
     
     # Patch the storage service factory in all possible locations
-    import backend.services.storage
     # Since we moved to backend, we need to patch the backend app's services
     monkeypatch.setattr("backend.services.storage.get_storage_service", lambda: mock_storage_service)
     

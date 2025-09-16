@@ -1,5 +1,4 @@
-"""
-Vite Asset Helper for LoRA Manager
+"""Vite Asset Helper for LoRA Manager
 
 This module provides utilities for serving assets built by Vite,
 handling both development and production environments.
@@ -15,8 +14,7 @@ VITE_DEV_SERVER = "http://localhost:5173"
 VITE_MANIFEST_PATH = "dist/static/.vite/manifest.json"
 
 def is_development() -> bool:
-    """
-    Determine if we're in development mode.
+    """Determine if we're in development mode.
     You can customize this based on your environment setup.
     """
     # Check multiple environment indicators
@@ -29,8 +27,7 @@ def is_development() -> bool:
     return env == "development" or debug or vite_dev_running
 
 def load_vite_manifest() -> Optional[Dict]:
-    """
-    Load the Vite manifest file if it exists.
+    """Load the Vite manifest file if it exists.
     Returns None if the file doesn't exist or can't be parsed.
     """
     try:
@@ -43,8 +40,7 @@ def load_vite_manifest() -> Optional[Dict]:
     return None
 
 def vite_asset(path: str) -> str:
-    """
-    Generate the correct asset path for Vite.
+    """Generate the correct asset path for Vite.
     
     In development, it points to the Vite dev server.
     In production, it uses the manifest file to get the hashed filename.
@@ -54,6 +50,7 @@ def vite_asset(path: str) -> str:
     
     Returns:
         The complete URL for the asset
+
     """
     if is_development():
         # In development, assets are served by the Vite dev server
@@ -69,14 +66,14 @@ def vite_asset(path: str) -> str:
             return f"/static/{path}"
 
 def vite_asset_css(js_path: str) -> Optional[str]:
-    """
-    Get the corresponding CSS file for a JavaScript entry point.
+    """Get the corresponding CSS file for a JavaScript entry point.
     
     Args:
         js_path: The JavaScript asset path (e.g., 'js/main.js')
     
     Returns:
         The CSS file URL if it exists, None otherwise
+
     """
     if is_development():
         # In development, CSS is injected by Vite

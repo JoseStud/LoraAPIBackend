@@ -16,14 +16,18 @@ import '../css/accessibility.css';
 
 // External libraries
 import Alpine from 'alpinejs';
+
 // import htmx from 'htmx.org'; // Imported differently - will use CDN or script tag
+
 import Chart from 'chart.js/auto';
 import { createApp } from 'vue';
 import HelloWorld from '../vue/HelloWorld.vue';
 import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
+
 import PerformanceAnalytics from '../vue/PerformanceAnalytics.vue';
+
 
 // Utilities
 import Utils, {
@@ -64,8 +68,10 @@ import { createNotificationsComponent } from './components/notifications/index.j
 // STEP 2: CONFIGURE EXTERNAL LIBRARIES
 // =================================================================
 
+
 // Make HTMX available globally (loaded via script tag in template)
 // window.htmx = htmx;
+
 
 // Make Chart.js available globally  
 window.Chart = Chart;
@@ -316,6 +322,7 @@ mountVueApp('[data-vue-root="performance-analytics"]', PerformanceAnalytics) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="performance-analytics"]', PerformanceAnalytics);
     });
+
 
 
 // STEP 4: A SINGLE START CALL AT THE VERY END
