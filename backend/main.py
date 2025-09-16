@@ -6,7 +6,15 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.api.v1 import adapters, compose, deliveries, generation, recommendations, websocket, dashboard
+from backend.api.v1 import (
+    adapters,
+    compose,
+    dashboard,
+    deliveries,
+    generation,
+    recommendations,
+    websocket,
+)
 from backend.core.database import init_db
 from backend.core.logging import setup_logging
 from backend.core.security import get_api_key

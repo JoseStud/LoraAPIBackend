@@ -1,25 +1,23 @@
-"""
-Dashboard API endpoints for frontend statistics and system health.
+"""Dashboard API endpoints for frontend statistics and system health.
 """
 
 from fastapi import APIRouter, Depends
-from sqlmodel import Session, select, func
+from sqlmodel import Session, func, select
+
 from backend.core.database import get_session
 from backend.models.adapters import Adapter
-from backend.services import ServiceContainer
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 @router.get("/stats")
 async def get_dashboard_stats(session: Session = Depends(get_session)):
     """Get dashboard statistics and system health information."""
-    
     # LoRA Statistics
     total_loras_result = session.exec(select(func.count(Adapter.id))).first()
     total_loras = total_loras_result or 0
     
     active_loras_result = session.exec(
-        select(func.count(Adapter.id)).where(Adapter.active == True)
+        select(func.count(Adapter.id)).where(Adapter.active == True),
     ).first()
     active_loras = active_loras_result or 0
     
@@ -35,7 +33,7 @@ async def get_dashboard_stats(session: Session = Depends(get_session)):
         "gpu_status": "GPU Available",
         "gpu_memory": "8.2 GB / 24 GB",
         "queue_status": "active",
-        "storage_usage": "45.2 GB / 500 GB"
+        "storage_usage": "45.2 GB / 500 GB",
     }
     
     return {
@@ -43,21 +41,20 @@ async def get_dashboard_stats(session: Session = Depends(get_session)):
             "total_loras": total_loras,
             "active_loras": active_loras,
             "embeddings_coverage": embeddings_coverage,
-            "recent_imports": recent_imports
+            "recent_imports": recent_imports,
         },
-        "system_health": system_health
+        "system_health": system_health,
     }
 
 @router.get("/featured-loras")
 async def get_featured_loras(session: Session = Depends(get_session)):
     """Get featured LoRAs for the dashboard."""
-    
     # Get top 5 most recently active LoRAs
     featured_loras = session.exec(
         select(Adapter)
         .where(Adapter.active == True)
         .order_by(Adapter.id.desc())
-        .limit(5)
+        .limit(5),
     ).all()
     
     return [
@@ -68,7 +65,7 @@ async def get_featured_loras(session: Session = Depends(get_session)):
             "tags": lora.tags or [],
             "active": lora.active,
             "civitai_url": None,  # Field doesn't exist in model, use None or implement later
-            "description": lora.description
+            "description": lora.description,
         }
         for lora in featured_loras
     ]
@@ -76,7 +73,6 @@ async def get_featured_loras(session: Session = Depends(get_session)):
 @router.get("/activity-feed")
 async def get_activity_feed():
     """Get recent activity feed for the dashboard."""
-    
     # Mock activity data - would implement with actual activity tracking
     activities = [
         {
@@ -84,29 +80,29 @@ async def get_activity_feed():
             "type": "import",
             "message": "Imported 3 new LoRAs",
             "timestamp": "2 hours ago",
-            "icon": "📥"
+            "icon": "📥",
         },
         {
             "id": 2,
             "type": "generation",
             "message": "Generated 5 images with AnimeMix LoRA",
             "timestamp": "4 hours ago",
-            "icon": "🎨"
+            "icon": "🎨",
         },
         {
             "id": 3,
             "type": "recommendation",
             "message": "AI recommended 4 similar LoRAs",
             "timestamp": "6 hours ago",
-            "icon": "🎯"
+            "icon": "🎯",
         },
         {
             "id": 4,
             "type": "activation",
             "message": "Activated RealisticVision LoRA",
             "timestamp": "1 day ago",
-            "icon": "✅"
-        }
+            "icon": "✅",
+        },
     ]
     
     return activities

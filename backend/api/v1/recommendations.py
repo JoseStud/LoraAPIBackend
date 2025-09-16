@@ -2,23 +2,20 @@
 
 import asyncio
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 
 from backend.core.database import get_session
 from backend.core.dependencies import get_recommendation_service
-from backend.models import Adapter
 from backend.schemas.recommendations import (
     BatchEmbeddingRequest,
     BatchEmbeddingResponse,
     EmbeddingStatus,
     PromptRecommendationRequest,
-    RecommendationItem,
     RecommendationResponse,
     RecommendationStats,
-    SimilarityRequest,
     UserFeedbackRequest,
     UserPreferenceRequest,
 )
@@ -47,6 +44,7 @@ async def get_similar_loras(
         
     Returns:
         List of similar LoRA recommendations with similarity scores and explanations
+
     """
     try:
         start_time = datetime.now()
@@ -56,7 +54,7 @@ async def get_similar_loras(
             target_lora_id=lora_id,
             limit=limit,
             similarity_threshold=similarity_threshold,
-            weights=weights
+            weights=weights,
         )
         
         processing_time = (datetime.now() - start_time).total_seconds() * 1000
@@ -70,9 +68,9 @@ async def get_similar_loras(
                 'device': recommendation_service.device,
                 'gpu_enabled': recommendation_service.gpu_enabled,
                 'similarity_threshold': similarity_threshold,
-                'weights': weights or {'semantic': 0.6, 'artistic': 0.3, 'technical': 0.1}
+                'weights': weights or {'semantic': 0.6, 'artistic': 0.3, 'technical': 0.1},
             },
-            generated_at=datetime.now(timezone.utc)
+            generated_at=datetime.now(timezone.utc),
         )
         
     except ValueError as e:
@@ -93,6 +91,7 @@ async def get_recommendations_for_prompt(
         
     Returns:
         List of LoRA recommendations optimized for the given prompt
+
     """
     try:
         start_time = datetime.now()
@@ -102,7 +101,7 @@ async def get_recommendations_for_prompt(
             prompt=request.prompt,
             active_loras=request.active_loras,
             limit=request.limit,
-            style_preference=request.style_preference
+            style_preference=request.style_preference,
         )
         
         processing_time = (datetime.now() - start_time).total_seconds() * 1000
@@ -116,9 +115,9 @@ async def get_recommendations_for_prompt(
                 'device': recommendation_service.device,
                 'gpu_enabled': recommendation_service.gpu_enabled,
                 'style_preference': request.style_preference,
-                'technical_requirements': request.technical_requirements
+                'technical_requirements': request.technical_requirements,
             },
-            generated_at=datetime.now(timezone.utc)
+            generated_at=datetime.now(timezone.utc),
         )
         
     except Exception as e:
@@ -133,6 +132,7 @@ async def get_recommendation_stats(
     
     Returns:
         Statistics including coverage, performance metrics, and system status
+
     """
     try:
         stats = recommendation_service.get_recommendation_stats()
@@ -154,6 +154,7 @@ async def compute_embeddings(
         
     Returns:
         Processing results with counts and timing information
+
     """
     try:
         if request.compute_all:
@@ -161,14 +162,14 @@ async def compute_embeddings(
             result = await recommendation_service.batch_compute_embeddings(
                 adapter_ids=None,
                 force_recompute=request.force_recompute,
-                batch_size=request.batch_size
+                batch_size=request.batch_size,
             )
         else:
             # Compute for specific LoRAs
             result = await recommendation_service.batch_compute_embeddings(
                 adapter_ids=request.adapter_ids,
                 force_recompute=request.force_recompute,
-                batch_size=request.batch_size
+                batch_size=request.batch_size,
             )
         
         return BatchEmbeddingResponse(**result)
@@ -189,6 +190,7 @@ async def get_embedding_status(
         
     Returns:
         Embedding status including what embeddings are available and when computed
+
     """
     try:
         status = recommendation_service.get_embedding_status(lora_id)
@@ -212,11 +214,12 @@ async def compute_single_embedding(
         
     Returns:
         Success status
+
     """
     try:
         success = await recommendation_service.compute_embeddings_for_lora(
             adapter_id=lora_id,
-            force_recompute=force_recompute
+            force_recompute=force_recompute,
         )
         
         if success:
@@ -242,6 +245,7 @@ async def submit_recommendation_feedback(
         
     Returns:
         Success confirmation
+
     """
     try:
         # TODO: Implement feedback storage and learning
@@ -251,7 +255,7 @@ async def submit_recommendation_feedback(
         
         return {
             "status": "success", 
-            "message": "Feedback recorded (implementation pending)"
+            "message": "Feedback recorded (implementation pending)",
         }
         
     except Exception as e:
@@ -270,6 +274,7 @@ async def update_user_preferences(
         
     Returns:
         Success confirmation
+
     """
     try:
         # TODO: Implement preference storage and learning
@@ -279,7 +284,7 @@ async def update_user_preferences(
         
         return {
             "status": "success",
-            "message": "Preference updated (implementation pending)"
+            "message": "Preference updated (implementation pending)",
         }
         
     except Exception as e:
@@ -298,6 +303,7 @@ async def rebuild_similarity_index(
         
     Returns:
         Rebuild status and timing
+
     """
     try:
         start_time = datetime.now()
@@ -312,7 +318,7 @@ async def rebuild_similarity_index(
             "status": "success",
             "message": "Similarity index rebuilt",
             "processing_time_seconds": processing_time,
-            "rebuilt_at": datetime.now(timezone.utc).isoformat()
+            "rebuilt_at": datetime.now(timezone.utc).isoformat(),
         }
         
     except Exception as e:
@@ -327,6 +333,7 @@ async def get_recommendation_health(
     
     Returns:
         Health status including model availability and performance metrics
+
     """
     try:
         stats = recommendation_service.get_recommendation_stats()
@@ -338,16 +345,16 @@ async def get_recommendation_health(
                 "models_loaded": True,  # TODO: Check if models are actually loaded
                 "embeddings_coverage": stats.embedding_coverage > 0.5,
                 "performance_acceptable": stats.avg_recommendation_time_ms < 5000,
-                "memory_usage_ok": stats.model_memory_usage_gb < 7.5  # For 8GB VRAM
+                "memory_usage_ok": stats.model_memory_usage_gb < 7.5,  # For 8GB VRAM
             },
             "metrics": {
                 "embedding_coverage": stats.embedding_coverage,
                 "avg_response_time_ms": stats.avg_recommendation_time_ms,
                 "memory_usage_gb": stats.model_memory_usage_gb,
                 "total_loras": stats.total_loras,
-                "loras_with_embeddings": stats.loras_with_embeddings
+                "loras_with_embeddings": stats.loras_with_embeddings,
             },
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         
         # Overall health determination
@@ -360,5 +367,5 @@ async def get_recommendation_health(
         return {
             "status": "unhealthy",
             "error": str(e),
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
