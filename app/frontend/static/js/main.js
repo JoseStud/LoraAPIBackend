@@ -23,7 +23,9 @@ import HelloWorld from '../vue/HelloWorld.vue';
 import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
-import SystemAdminStatusCard from '../vue/SystemAdminStatusCard.vue';
+
+import GenerationHistory from '../vue/GenerationHistory.vue';
+
 
 // Utilities
 import Utils, {
@@ -64,8 +66,9 @@ import { createNotificationsComponent } from './components/notifications/index.j
 // STEP 2: CONFIGURE EXTERNAL LIBRARIES
 // =================================================================
 
-// Make HTMX available globally (it's already loaded by the import)
-// window.htmx is already available after import 'htmx.org'
+// Make HTMX available globally (htmx auto-registers itself when imported)
+// window.htmx is already available globally from the htmx.org import
+
 
 // Make Chart.js available globally  
 window.Chart = Chart;
@@ -311,11 +314,12 @@ mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard) ||
         mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard);
     });
 
-// Mount System Admin Status card if present on page
-mountVueApp('[data-vue-root="system-admin-status-card"]', SystemAdminStatusCard) ||
+
+// Mount Generation History if present on page
+mountVueApp('[data-vue-root="generation-history"]', GenerationHistory) ||
     window.addEventListener('DOMContentLoaded', () => {
-        mountVueApp('[data-vue-root="system-admin-status-card"]', SystemAdminStatusCard);
-    });
+        mountVueApp('[data-vue-root="generation-history"]', GenerationHistory);
+
 
 
 // STEP 4: A SINGLE START CALL AT THE VERY END
