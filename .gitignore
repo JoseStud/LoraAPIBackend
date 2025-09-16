@@ -51,6 +51,7 @@ __pycache__
 *.sqlite3
 *.db
 
+
 # Node.js
 node_modules/
 npm-debug.log*
