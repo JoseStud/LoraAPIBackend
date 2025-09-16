@@ -23,15 +23,11 @@ import HelloWorld from '../vue/HelloWorld.vue';
 import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
-<<<<<<< HEAD
 import JobQueue from '../vue/JobQueue.vue';
 import SystemStatusPanel from '../vue/SystemStatusPanel.vue';
 import PerformanceAnalytics from '../vue/PerformanceAnalytics.vue';
 import Notifications from '../vue/Notifications.vue';
 import GenerationHistory from '../vue/GenerationHistory.vue';
-=======
-import GenerationHistory from '../vue/GenerationHistory.vue';
->>>>>>> c967c06 (Implement GenerationHistory Vue component with Vue island pattern)
 
 // Utilities
 import Utils, {
@@ -72,13 +68,7 @@ import { createNotificationsComponent } from './components/notifications/index.j
 // STEP 2: CONFIGURE EXTERNAL LIBRARIES
 // =================================================================
 
-<<<<<<< HEAD
 // HTMX auto-registers via import above
-=======
-// Make HTMX available globally (htmx auto-registers itself when imported)
-// window.htmx is already available globally from the htmx.org import
-
->>>>>>> 4d2bf67 (Changes before error encountered)
 // Make Chart.js available globally  
 window.Chart = Chart;
 // STEP 3: ALL CONFIGURATION AND REGISTRATION

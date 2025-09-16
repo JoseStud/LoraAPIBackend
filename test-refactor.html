@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Component Loader Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 40px auto; 
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status.pass { background-color: #d4edda; color: #155724; }
+        .status.fail { background-color: #f8d7da; color: #721c24; }
+        .status.pending { background-color: #fff3cd; color: #856404; }
+        code {
+            background-color: #f1f1f1;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Component Loader API Refactor Test</h1>
+    
+    <div class="test-section">
+        <h2>Import Test</h2>
+        <p>Testing if the fetchData function can be imported from utils/api.js</p>
+        <div id="import-status" class="status pending">Testing...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Mock API Test</h2>
+        <p>Testing if fetchData works with a mock endpoint</p>
+        <div id="mock-status" class="status pending">Testing...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Component Integration Test</h2>
+        <p>Testing if component methods use fetchData correctly</p>
+        <div id="component-status" class="status pending">Testing...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Results</h2>
+        <pre id="test-output"></pre>
+    </div>
+
+    <script>
+        // Set up backend URL similar to the real app
+        window.BACKEND_URL = 'http://localhost:8000/api';
+        
+        // Mock DevLogger
+        window.DevLogger = {
+            debug: (...args) => console.log('[DEBUG]', ...args),
+            error: (...args) => console.error('[ERROR]', ...args)
+        };
+
+        // Log output collector
+        const testOutput = [];
+        function log(message) {
+            testOutput.push(message);
+            document.getElementById('test-output').textContent = testOutput.join('\n');
+            console.log(message);
+        }
+
+        // Test functions
+        async function testImport() {
+            try {
+                // Use dynamic import to test ES modules
+                const { fetchData } = await import('./app/frontend/static/js/utils/api.js');
+                
+                if (typeof fetchData === 'function') {
+                    document.getElementById('import-status').className = 'status pass';
+                    document.getElementById('import-status').textContent = '✓ PASS: fetchData imported successfully';
+                    log('✓ Import test passed');
+                    return fetchData;
+                } else {
+                    throw new Error('fetchData is not a function');
+                }
+            } catch (error) {
+                document.getElementById('import-status').className = 'status fail';
+                document.getElementById('import-status').textContent = '✗ FAIL: ' + error.message;
+                log('✗ Import test failed: ' + error.message);
+                return null;
+            }
+        }
+
+        async function testMockAPI(fetchData) {
+            if (!fetchData) {
+                document.getElementById('mock-status').className = 'status fail';
+                document.getElementById('mock-status').textContent = '✗ FAIL: fetchData not available';
+                return false;
+            }
+
+            try {
+                // Mock fetch for testing
+                const originalFetch = window.fetch;
+                window.fetch = async (url, options) => {
+                    log(`Mock fetch called with: ${url}`);
+                    if (url.includes('/adapters/tags')) {
+                        return {
+                            ok: true,
+                            status: 200,
+                            headers: { get: () => 'application/json' },
+                            json: async () => ({ tags: ['test-tag'] })
+                        };
+                    }
+                    throw new Error('Unexpected URL: ' + url);
+                };
+
+                const result = await fetchData(window.BACKEND_URL + '/adapters/tags');
+                window.fetch = originalFetch;
+
+                if (result && result.tags && result.tags.length === 1) {
+                    document.getElementById('mock-status').className = 'status pass';
+                    document.getElementById('mock-status').textContent = '✓ PASS: fetchData works correctly';
+                    log('✓ Mock API test passed');
+                    return true;
+                } else {
+                    throw new Error('Unexpected result: ' + JSON.stringify(result));
+                }
+            } catch (error) {
+                document.getElementById('mock-status').className = 'status fail';
+                document.getElementById('mock-status').textContent = '✗ FAIL: ' + error.message;
+                log('✗ Mock API test failed: ' + error.message);
+                return false;
+            }
+        }
+
+        async function testComponentIntegration(fetchData) {
+            if (!fetchData) {
+                document.getElementById('component-status').className = 'status fail';
+                document.getElementById('component-status').textContent = '✗ FAIL: fetchData not available';
+                return false;
+            }
+
+            try {
+                // Create a mock component that mimics the refactored code
+                const component = {
+                    availableTags: [],
+                    async loadAvailableTags() {
+                        try {
+                            const data = await fetchData((window?.BACKEND_URL || '') + '/adapters/tags');
+                            this.availableTags = data.tags || [];
+                        } catch (error) {
+                            window.DevLogger?.error?.('[ComponentLoader] Failed to load tags:', error);
+                        }
+                    }
+                };
+
+                // Mock fetch again
+                const originalFetch = window.fetch;
+                window.fetch = async (url) => {
+                    log(`Component test fetch called with: ${url}`);
+                    return {
+                        ok: true,
+                        status: 200,
+                        headers: { get: () => 'application/json' },
+                        json: async () => ({ tags: ['component-test-tag'] })
+                    };
+                };
+
+                await component.loadAvailableTags();
+                window.fetch = originalFetch;
+
+                if (component.availableTags.length === 1 && component.availableTags[0] === 'component-test-tag') {
+                    document.getElementById('component-status').className = 'status pass';
+                    document.getElementById('component-status').textContent = '✓ PASS: Component integration works';
+                    log('✓ Component integration test passed');
+                    return true;
+                } else {
+                    throw new Error('Component tags not set correctly: ' + JSON.stringify(component.availableTags));
+                }
+            } catch (error) {
+                document.getElementById('component-status').className = 'status fail';
+                document.getElementById('component-status').textContent = '✗ FAIL: ' + error.message;
+                log('✗ Component integration test failed: ' + error.message);
+                return false;
+            }
+        }
+
+        // Run all tests
+        async function runTests() {
+            log('Starting component loader API refactor tests...\n');
+            
+            const fetchData = await testImport();
+            const mockTest = await testMockAPI(fetchData);
+            const componentTest = await testComponentIntegration(fetchData);
+            
+            const allPassed = fetchData && mockTest && componentTest;
+            
+            log('\n=== FINAL RESULT ===');
+            if (allPassed) {
+                log('🎉 All tests passed! The refactor is working correctly.');
+            } else {
+                log('❌ Some tests failed. Please check the implementation.');
+            }
+        }
+
+        // Run tests when page loads
+        window.addEventListener('load', runTests);
+    </script>
+</body>
+</html>
