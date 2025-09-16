@@ -25,6 +25,7 @@ import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
 import JobQueue from '../vue/JobQueue.vue';
 import SystemStatusPanel from '../vue/SystemStatusPanel.vue';
+import PerformanceAnalytics from '../vue/PerformanceAnalytics.vue';
 
 // Utilities
 import Utils, {
@@ -65,6 +66,7 @@ import { createNotificationsComponent } from './components/notifications/index.j
 // STEP 2: CONFIGURE EXTERNAL LIBRARIES
 // =================================================================
 
+// HTMX auto-registers via import above
 // Make Chart.js available globally  
 window.Chart = Chart;
 // STEP 3: ALL CONFIGURATION AND REGISTRATION
@@ -307,6 +309,12 @@ mountVueApp('[data-vue-root="mobile-nav"]', MobileNav) ||
 mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard);
+    });
+
+// Mount Performance Analytics if present on page
+mountVueApp('[data-vue-root="performance-analytics"]', PerformanceAnalytics) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="performance-analytics"]', PerformanceAnalytics);
     });
 
 // Mount Job Queue if present on page
