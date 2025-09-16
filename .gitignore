@@ -57,7 +57,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Test coverage and cache files
+# Frontend build artifacts and caches
 coverage/
 .cache/
 .nyc_output
