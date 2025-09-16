@@ -446,10 +446,7 @@ if (typeof window !== 'undefined') {
     window.generationStudio = generationStudio;
 }
 
-// ES Module export for Vite
-export function createGenerationStudioComponent() {
-    return generationStudio();
+// CommonJS export for Node/Jest
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { generationStudio, createGenerationStudioComponent: generationStudio };
 }
-
-// Backward compatibility export
-export { generationStudio };

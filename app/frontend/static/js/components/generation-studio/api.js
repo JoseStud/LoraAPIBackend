@@ -14,7 +14,7 @@ const generationAPI = {
      * Base configuration for API requests
      */
     config: {
-        baseUrl: '/api/v1',
+        baseUrl: '/api',
         timeout: 30000,
         retries: 3,
         retryDelay: 1000
