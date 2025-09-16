@@ -424,6 +424,8 @@ function generationHistory() {
     };
 }
 
+export { generationHistory, generationHistory as createGenerationHistoryComponent };
+
 // Register with Alpine.js or make globally available
 if (typeof Alpine !== 'undefined') {
     Alpine.data('generationHistory', generationHistory);
