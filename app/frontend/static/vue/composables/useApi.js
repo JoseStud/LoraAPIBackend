@@ -1,21 +1,20 @@
-// Lightweight API composable using native fetch
-// Designed for Vue islands; avoids adding axios dependency initially.
+// Lightweight API composable using centralized API utilities
+// Designed for Vue islands; uses utils/api.js for consistency.
 
 import { ref } from 'vue';
+import { fetchData } from '../../js/utils/api.js';
 
 export function useApi(url, options = {}) {
   const data = ref(null);
   const error = ref(null);
   const isLoading = ref(false);
 
-  const fetchData = async (init = {}) => {
+  const fetchApiData = async (init = {}) => {
     isLoading.value = true;
     error.value = null;
     try {
-      const res = await fetch(url, { credentials: 'same-origin', ...options, ...init });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const ct = res.headers.get('content-type') || '';
-      data.value = ct.includes('application/json') ? await res.json() : await res.text();
+      const result = await fetchData(url, { credentials: 'same-origin', ...options, ...init });
+      data.value = result;
     } catch (err) {
       error.value = err;
     } finally {
@@ -23,6 +22,6 @@ export function useApi(url, options = {}) {
     }
   };
 
-  return { data, error, isLoading, fetchData };
+  return { data, error, isLoading, fetchData: fetchApiData };
 }
 
