@@ -22,6 +22,7 @@ import { createApp } from 'vue';
 import HelloWorld from '../vue/HelloWorld.vue';
 import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
+import SystemStatusCard from '../vue/SystemStatusCard.vue';
 
 // Utilities
 import Utils, {
@@ -56,7 +57,6 @@ import { createLogViewerComponent } from './components/system-admin/logViewer.js
 import './components/lora-card/index.js';
 import { createGenerationFormComponent } from './components/generation-form/index.js';
 import { createJobQueueComponent } from './components/job-queue/index.js';
-import { createSystemStatusComponent } from './components/system-status/index.js';
 import { createNotificationsComponent } from './components/notifications/index.js';
 
 
@@ -190,7 +190,6 @@ Alpine.data('databaseManager', createDatabaseManagerComponent);
 Alpine.data('logViewer', createLogViewerComponent);
 Alpine.data('generationForm', createGenerationFormComponent);
 Alpine.data('jobQueue', createJobQueueComponent);
-Alpine.data('systemStatus', createSystemStatusComponent);
 Alpine.data('notifications', createNotificationsComponent);
 
 // Register additional simple components
@@ -279,7 +278,8 @@ console.log('🚀 LoRA Manager Initializing...');
 const mountVueApp = (selector, component) => {
     const el = document.querySelector(selector);
     if (el) {
-        const app = createApp(component);
+        const props = { ...el.dataset };
+        const app = createApp(component, props);
         app.mount(el);
         return app;
     }
@@ -302,6 +302,12 @@ mountVueApp('[data-vue-root="recommendations-panel"]', RecommendationsPanel) ||
 mountVueApp('[data-vue-root="mobile-nav"]', MobileNav) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="mobile-nav"]', MobileNav);
+    });
+
+// Mount System Status card if present on page
+mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard);
     });
 
 

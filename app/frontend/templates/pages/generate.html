@@ -281,36 +281,7 @@
                 </div>
                 
                 <!-- System Status -->
-                <div class="card" x-data="systemStatus" x-show="isInitialized">
-                    <div class="card-header">
-                        <h3 class="card-title">System Status</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                                <div class="text-gray-600">GPU Status</div>
-                                <div class="font-semibold" 
-                                     :class="getGpuStatusColor(systemStatus.gpu_status)"
-                                     x-text="systemStatus.gpu_status || 'Unknown'"></div>
-                            </div>
-                            <div>
-                                <div class="text-gray-600">Queue Length</div>
-                                <div class="font-semibold" x-text="queueLength"></div>
-                            </div>
-                            <div>
-                                <div class="text-gray-600">Memory Usage</div>
-                                <div class="font-semibold" x-text="formatMemory(systemStatus.memory_used, systemStatus.memory_total)"></div>
-                            </div>
-                            <div>
-                                <div class="text-gray-600">Status</div>
-                                <div class="font-semibold flex items-center">
-                                    <span x-text="getStatusIcon(systemStatus.status)" class="mr-1"></span>
-                                    <span x-text="systemStatus.status || 'Unknown'"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <div data-vue-root="system-status-card"></div>
             </div>
         </div>
 

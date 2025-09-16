@@ -8,6 +8,7 @@ This document tracks the progressive migration from HTMX + Alpine.js to Vue 3 us
 - Vue 3 dependency declared and available in app runtime.
 - Islands scaffolding in place: `HelloWorld.vue` and `RecommendationsPanel.vue`.
 - Second island migrated: `MobileNav.vue` (replaces Alpine mobile nav in `base.html`).
+- System status widget migrated: `SystemStatusCard.vue` (used on generation pages via Vue island).
 - Conditional, scoped island mounting wired into the single entrypoint (`app/frontend/static/js/main.js`).
 - Tailwind configured to scan `.vue` files (`tailwind.config.js`).
 - Example mounts present in `app/frontend/templates/pages/recommendations.html`.
@@ -21,10 +22,12 @@ This document tracks the progressive migration from HTMX + Alpine.js to Vue 3 us
 - Vue components: `app/frontend/static/vue/**/*.vue`
 - Example component: `app/frontend/static/vue/HelloWorld.vue`
 - Feature component: `app/frontend/static/vue/RecommendationsPanel.vue`
+- Status widget: `app/frontend/static/vue/SystemStatusCard.vue`
 - Composables: `app/frontend/static/vue/composables/*.js`
 - Tailwind config: `tailwind.config.js`
 - Example template mount: `app/frontend/templates/pages/recommendations.html`
 - Base template mount: `app/frontend/templates/base.html` (`data-vue-root="mobile-nav"`).
+- System status mounts: `app/frontend/templates/pages/generate.html` & `generate-composition-example.html` (`data-vue-root="system-status-card"`).
 - Vue unit tests: `tests/vue/*.spec.js`
 - Vitest config: `vitest.config.js`
 - Vitest setup: `tests/setup/vitest.setup.js`
@@ -71,6 +74,14 @@ Mount behavior:
 - Component file: `app/frontend/static/vue/MobileNav.vue`.
 - Behavior: mirrors the previous Alpine mobile menu (toggle, overlay, active link highlight based on `window.location.pathname`).
 
+### Example: System Status Card (Migrated)
+
+- Mount points:
+  - Simple card in `app/frontend/templates/pages/generate.html`: `<div data-vue-root="system-status-card"></div>`
+  - Detailed, collapsible card in `app/frontend/templates/pages/generate-composition-example.html`: `<div data-vue-root="system-status-card" data-variant="detailed"></div>`
+- Component file: `app/frontend/static/vue/SystemStatusCard.vue`.
+- Behavior: fetches `/system/status`, updates the shared Alpine store for compatibility, and handles 404 fallbacks. The detailed variant preserves the expandable panel UI from Alpine.
+
 ## Data Fetching
 
 - Use the included composable for simple fetches: `app/frontend/static/vue/composables/useApi.js`.
@@ -102,6 +113,7 @@ Mount behavior:
 - Example specs:
   - `tests/vue/HelloWorld.spec.js`
   - `tests/vue/RecommendationsPanel.spec.js`
+  - `tests/vue/SystemStatusCard.spec.js`
 
 Troubleshooting:
 - If `vitest` is not found, run `npm install` to ensure devDependencies are present.
