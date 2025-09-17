@@ -10,7 +10,7 @@ Tracking issues for fetch consolidation and Vue Islands migration.
 - ⚠️ **Partial**: recommendations (uses different API pattern)  
 - 🔍 **Review**: pwa-manager (service worker constraints)
 
-**Vue Islands Migration: Components Created, API Integration Incomplete**
+**Vue Islands Migration: Prompt Composer migrated**
 - 📦 **Vue Components**: SystemStatusCard, RecommendationsPanel, etc. exist
 - ⚠️ **API Issue**: Vue components use `useApi` composable with direct fetch
 - 🔧 **Need**: Align Vue components with centralized `utils/api.js`
@@ -35,7 +35,7 @@ Tracking issues for fetch consolidation and Vue Islands migration.
 - [~] FE-103: Migrate Notifications/Toasts to Vue island (docs/issues/FE-103-island-notifications.md) **IN PROGRESS**
 - [~] FE-104: Migrate LoRA Gallery to Vue island (docs/issues/FE-104-island-lora-gallery.md) **IN PROGRESS**
 - [~] FE-105: Wrap Generation History in a Vue island (docs/issues/FE-105-island-generation-history-wrapper.md) **IN PROGRESS**
-- [~] FE-106: Migrate Prompt Composer to Vue island (docs/issues/FE-106-island-prompt-composer.md) **IN PROGRESS**
+- [x] FE-106: Migrate Prompt Composer to Vue island (docs/issues/FE-106-island-prompt-composer.md) **COMPLETED**
 - [~] FE-107: Migrate Performance Analytics to Vue island (docs/issues/FE-107-island-performance-analytics.md) **IN PROGRESS**
 - [~] FE-108: Migrate Import/Export to Vue island (docs/issues/FE-108-island-import-export.md) **IN PROGRESS**
 - [~] FE-109: Gradually islandize System Admin screens (docs/issues/FE-109-island-system-admin.md) **IN PROGRESS**
@@ -100,4 +100,3 @@ Below is an indexed snapshot of the markdown files in this folder and a short st
 - **Coordination Needed**: The two migration efforts need alignment on API patterns
 
 README maintained: scripts create issues from these files; update statuses here when issues are created/resolved.
-

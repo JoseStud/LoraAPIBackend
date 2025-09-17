@@ -3,7 +3,8 @@
  * Reusable Alpine.js component for handling API data fetching with loading states, errors, and pagination
  */
 
-import { fetchData as apiFetchData } from '../../utils/api.js';
+
+import { fetchData, postData, putData, deleteData } from '../../utils/api.js';
 
 /**
  * Creates a generic data fetcher component that can be mixed into other Alpine.js components
@@ -166,11 +167,26 @@ export default function apiDataFetcher(endpoint, options = {}) {
             
             for (let attempt = 0; attempt <= retryAttempts; attempt++) {
                 try {
-                    const headers = this.buildRequestHeaders();
-                    return await apiFetchData(url, {
+
+                    const headers = {
+                        ...customHeaders
+                    };
+                    
+                    // Add authentication headers if required
+                    if (requiresAuth) {
+                        const authHeaders = this.getAuthHeaders();
+                        Object.assign(headers, authHeaders);
+                    }
+                    
+                    // Use centralized fetchData with signal support
+                    const options = {
                         signal: this.abortController?.signal,
                         headers
-                    });
+                    };
+                    
+                    return await fetchData(url, options);
+                    
+
                 } catch (error) {
                     if (error.name === 'AbortError' || attempt === retryAttempts) {
                         throw error;
@@ -197,7 +213,7 @@ export default function apiDataFetcher(endpoint, options = {}) {
                 } else {
                     this.data = [...(this.data || []), ...response.results];
                 }
-                
+
                 this.hasMore = response.has_more || false;
                 this.totalItems = response.total || this.data.length;
                 processedData = this.data;
@@ -317,63 +333,32 @@ export default function apiDataFetcher(endpoint, options = {}) {
             const url = `${baseUrl}${params.toString() ? '?' + params.toString() : ''}`;
 
             try {
-                const headers = this.buildRequestHeaders(requestHeaders);
 
-                if (overrideHeaders) {
-                    Object.assign(headers, normalizeHeaders(overrideHeaders));
-                }
-
-                const fetchConfig = {
-                    ...restOptions,
-                    method: methodUpper,
-                    headers
+                const headers = {
+                    ...customHeaders,
+                    ...requestHeaders
                 };
-
-                let requestBody = overrideBody;
-                if (requestBody === undefined && methodUpper !== 'GET' && data !== null && data !== undefined) {
-                    if (typeof FormData !== 'undefined' && data instanceof FormData) {
-                        requestBody = data;
-                    } else if (typeof data === 'string') {
-                        requestBody = data;
-                    } else {
-                        requestBody = JSON.stringify(data);
-                    }
+                
+                // Add authentication headers if required
+                if (requiresAuth) {
+                    const authHeaders = this.getAuthHeaders();
+                    Object.assign(headers, authHeaders);
                 }
+                
+                const options = { headers };
+                
+                // Use appropriate centralized API function based on method
+                switch (method.toUpperCase()) {
+                    case 'POST':
+                        return await postData(url, data, options);
+                    case 'PUT':
+                        return await putData(url, data, options);
+                    case 'DELETE':
+                        return await deleteData(url, options);
+                    case 'GET':
+                    default:
+                        return await fetchData(url, options);
 
-                if (requestBody !== undefined) {
-                    fetchConfig.body = requestBody;
-                }
-
-                if (typeof FormData !== 'undefined' && fetchConfig.body instanceof FormData) {
-                    delete fetchConfig.headers['Content-Type'];
-                }
-
-                const shouldParse = typeof customParseResponse === 'boolean'
-                    ? customParseResponse
-                    : methodUpper !== 'HEAD';
-
-                const { response } = await apiFetchData(url, {
-                    ...fetchConfig,
-                    returnResponse: true,
-                    parseResponse: false
-                });
-
-                if (!shouldParse) {
-                    return response;
-                }
-
-                const status = typeof response?.status === 'number' ? response.status : 0;
-                if ([204, 205, 304].includes(status)) {
-                    return null;
-                }
-
-                const contentType = response?.headers?.get?.('content-type') || '';
-                if (contentType.includes('application/json') && typeof response?.json === 'function') {
-                    return await response.json();
-                }
-
-                if (contentType.includes('text/') && typeof response?.text === 'function') {
-                    return await response.text();
                 }
 
                 return response;
@@ -439,7 +424,17 @@ export default function apiDataFetcher(endpoint, options = {}) {
         },
 
         clearCache() {
-            if (cacheKey) {
+            ifThis branch has conflicts that must be resolved
+
+Use the web editor or the command line to resolve conflicts before continuing.
+
+.gitignore
+app/frontend/static/js/components/prompt-composer.js
+app/frontend/static/js/components/shared/api-data-fetcher.js
+app/frontend/static/js/main.js
+app/frontend/static/vue/composables/useApi.js
+app/frontend/templates/pages/admin.html
+ (cacheKey) {
                 localStorage.removeItem(this.cacheKey);
             }
         },

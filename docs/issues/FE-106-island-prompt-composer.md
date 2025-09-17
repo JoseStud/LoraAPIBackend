@@ -7,13 +7,13 @@ Port Prompt Composer UI and actions to Vue for improved state handling and testa
 `app/frontend/static/js/components/prompt-composer.js`
 
 ## Tasks
-- [ ] Create `PromptComposer.vue` with form state and validation.
-- [ ] Replace direct fetches with `useApi`/`utils/api.js`.
-- [ ] Add unit tests for validation and submission.
+- [x] Create `PromptComposer.vue` with form state and validation.
+- [x] Replace direct fetches with `useApi`/`utils/api.js`.
+- [x] Add unit tests for validation and submission.
 
 ## Acceptance Criteria
 - Composer functions end-to-end via Vue island.
+- Unit tests cover validation, composition management, and submission.
 
 ## References
 `docs/VUE_MIGRATION.md`
-
