@@ -1,3 +1,4 @@
+
 # LoRA Manager - LoRA Model Management System with AI Recommendations
 
 Always follow these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the information provided here.
@@ -193,3 +194,4 @@ Always follow these instructions first and fallback to search or bash commands o
 - `tests/` - All test files
 
 Always check `README.md` for the latest setup instructions and `docs/DEVELOPMENT.md` for detailed architecture information.
+

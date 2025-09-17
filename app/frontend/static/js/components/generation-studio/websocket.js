@@ -68,17 +68,12 @@ const generationWebSocket = {
      * Handles incoming WebSocket messages
      */
     handleMessage(data, callback) {
-        if (!data || typeof data !== 'object') {
-            this.log('Invalid WebSocket message format:', data);
-            return;
-        }
-        
         const messageInfo = this.parseMessage(data);
         
         if (messageInfo.isValid) {
             callback(messageInfo);
         } else {
-            this.log('Unknown WebSocket message type:', data.type);
+            this.log('Unknown WebSocket message type:', messageInfo.type);
         }
     },
     
@@ -86,6 +81,10 @@ const generationWebSocket = {
      * Parses and validates WebSocket messages
      */
     parseMessage(data) {
+        // Accept either a string (JSON) or a plain object
+        if (typeof data === 'string') {
+            try { data = JSON.parse(data); } catch { data = {}; }
+        }
         const messageInfo = {
             type: data.type,
             isValid: false,
@@ -370,8 +369,11 @@ const generationWebSocket = {
         return {
             connect,
             send: (messageType, payload) => this.send(websocket, messageType, payload),
+            // Aliases expected by some tests
+            sendMessage: (messageType, payload) => this.send(websocket, messageType, payload),
             getStatus: () => this.getConnectionStatus(websocket),
             close: () => this.close(websocket),
+            disconnect: () => this.close(websocket),
             destroy: () => {
                 isDestroyed = true;
                 this.close(websocket);

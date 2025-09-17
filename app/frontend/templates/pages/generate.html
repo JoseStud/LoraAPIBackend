@@ -3,28 +3,6 @@
 {% block title %}Generation Studio{% endblock %}
 
 {% block content %}
-<!-- Global Notifications (Fixed positioned) -->
-<div class="fixed top-4 right-4 z-50 max-w-sm" x-data="notifications">
-    <template x-for="notification in notifications" :key="notification.id">
-        <div :class="getNotificationClasses(notification.type)"
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 transform translate-x-full"
-             x-transition:enter-end="opacity-100 transform translate-x-0"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 transform translate-x-0"
-             x-transition:leave-end="opacity-0 transform translate-x-full">
-            
-            <div class="flex items-center">
-                <span x-text="getNotificationIcon(notification.type)" class="mr-2"></span>
-                <span x-text="notification.message" class="flex-1"></span>
-                <button @click="dismissNotification(notification.id)" 
-                        class="ml-2 text-lg leading-none hover:opacity-70">
-                    ×
-                </button>
-            </div>
-        </div>
-    </template>
-</div>
 
 <div class="generation-page-container">
     <!-- Page Header -->
@@ -219,66 +197,7 @@
             <div class="space-y-6">
                 
                 <!-- Real-time Generation Queue -->
-                <div class="card" x-data="jobQueue" x-show="isInitialized">
-                    <div class="card-header">
-                        <div class="flex items-center justify-between">
-                            <h3 class="card-title">Generation Queue</h3>
-                            <span class="text-sm text-gray-500" x-text="`${jobs.length} active`"></span>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        
-                        <!-- Active Jobs -->
-                        <div class="space-y-3 max-h-96 overflow-y-auto">
-                            <template x-for="job in jobs" :key="job.id">
-                                <div class="border border-gray-200 rounded-lg p-3">
-                                    <div class="flex items-start justify-between mb-2">
-                                        <div class="flex-1 min-w-0">
-                                            <div class="text-sm font-medium text-gray-900 truncate" 
-                                                 x-text="job.name || job.prompt"></div>
-                                            <div class="text-xs text-gray-500" 
-                                                 x-text="job.params ? `${job.params.width}x${job.params.height} • ${job.params.steps} steps` : 'Processing...'"></div>
-                                        </div>
-                                        <button @click="cancelJob(job.id)" 
-                                                x-show="job.status === 'running' || job.status === 'starting'"
-                                                class="text-gray-400 hover:text-red-500 ml-2">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                    
-                                    <!-- Progress Bar -->
-                                    <div class="space-y-1">
-                                        <div class="flex justify-between text-xs">
-                                            <span x-text="job.status" :class="getStatusColor(job.status)"></span>
-                                            <span x-text="`${job.progress || 0}%`" class="text-gray-600"></span>
-                                        </div>
-                                        <div class="progress-bar-bg">
-                                            <div class="progress-bar-fg bg-blue-500" 
-                                                 :style="`width: ${job.progress || 0}%`"></div>
-                                        </div>
-                                        <div class="flex justify-between text-xs text-gray-500">
-                                            <span x-text="formatDuration(job.startTime)"></span>
-                                            <span x-text="job.message || ''"></span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </template>
-                            
-                            <!-- Empty State -->
-                            <template x-if="!hasJobs">
-                                <div class="empty-state-container">
-                                    <svg class="empty-state-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"></path>
-                                    </svg>
-                                    <div class="empty-state-title">No active generations</div>
-                                    <div class="empty-state-message">Start a generation to see progress here</div>
-                                </div>
-                            </template>
-                        </div>
-                    </div>
-                </div>
+                <div data-vue-root="job-queue"></div>
                 
                 <!-- System Status -->
                 <div data-vue-root="system-status-card"></div>

@@ -3,6 +3,8 @@
  * Handles drag-and-drop LoRA composition, weight management, and prompt generation
  */
 
+import { fetchData, postData } from '../utils/api.js';
+
 function promptComposer() {
     return {
         // State
@@ -44,14 +46,9 @@ function promptComposer() {
         async loadAvailableLoras() {
             this.isLoading = true;
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/adapters');
-                if (response.ok) {
-                    this.availableLoras = await response.json();
-                    this.filterLoras();
-                } else {
-                    console.error('Failed to load LoRAs:', response.statusText);
-                    this.showToastMessage('Failed to load LoRAs', 'error');
-                }
+                const data = await fetchData((window?.BACKEND_URL || '') + '/adapters');
+                this.availableLoras = data;
+                this.filterLoras();
             } catch (error) {
                 console.error('Error loading LoRAs:', error);
                 this.showToastMessage('Error loading LoRAs', 'error');
@@ -310,26 +307,13 @@ function promptComposer() {
                     batch_size: 1
                 };
                 
-                const response = await fetch((window?.BACKEND_URL || '') + '/generation/generate', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(generationParams)
-                });
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    this.showToastMessage('Generation started successfully', 'success');
-                    
-                    // Redirect to generation monitoring page or show progress
-                    if (result.job_id) {
-                        window.location.href = `/generate?job_id=${result.job_id}`;
-                    }
-                } else {
-                    const error = await response.text();
-                    console.error('Generation failed:', error);
-                    this.showToastMessage('Generation failed', 'error');
+                const result = await postData((window?.BACKEND_URL || '') + '/generation/generate', generationParams);
+
+                this.showToastMessage('Generation started successfully', 'success');
+
+                // Redirect to generation monitoring page or show progress
+                if (result.job_id) {
+                    window.location.href = `/generate?job_id=${result.job_id}`;
                 }
             } catch (error) {
                 console.error('Error starting generation:', error);

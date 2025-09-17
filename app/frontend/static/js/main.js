@@ -23,6 +23,15 @@ import HelloWorld from '../vue/HelloWorld.vue';
 import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
+import PromptComposer from '../vue/PromptComposer.vue';
+import ImportExport from '../vue/ImportExport.vue';
+import JobQueue from '../vue/JobQueue.vue';
+import SystemStatusPanel from '../vue/SystemStatusPanel.vue';
+import PerformanceAnalytics from '../vue/PerformanceAnalytics.vue';
+import Notifications from '../vue/Notifications.vue';
+import GenerationHistory from '../vue/GenerationHistory.vue';
+import SystemAdminStatusCard from '../vue/SystemAdminStatusCard.vue';
+
 
 // Utilities
 import Utils, {
@@ -46,8 +55,9 @@ import { createRecommendationsComponent } from './components/recommendations/ind
 import { createGenerationHistoryComponent } from './components/generation-history/index.js';
 import { createLoraGalleryComponent } from './components/lora-gallery/index.js';
 import { createGenerationStudioComponent } from './components/generation-studio/index.js';
-import { createPromptComposerComponent } from './components/prompt-composer/index.js';
-import { createPerformanceAnalyticsComponent } from './components/performance-analytics/index.js';
+// import { createPromptComposerComponent } from './components/prompt-composer/index.js';
+// Alpine Performance Analytics migrated to Vue component
+// import { createPerformanceAnalyticsComponent } from './components/performance-analytics/index.js';
 import { createImportExportComponent } from './components/import-export/index.js';
 import { createSystemAdminComponent } from './components/system-admin/index.js';
 import { createDatabaseManagerComponent } from './components/system-admin/databaseManager.js';
@@ -63,8 +73,7 @@ import { createNotificationsComponent } from './components/notifications/index.j
 // STEP 2: CONFIGURE EXTERNAL LIBRARIES
 // =================================================================
 
-// Make HTMX available globally
-window.htmx = htmx;
+// HTMX auto-registers via import above
 
 // Make Chart.js available globally  
 window.Chart = Chart;
@@ -182,8 +191,8 @@ Alpine.data('recommendationsData', createRecommendationsComponent);
 Alpine.data('generationHistory', createGenerationHistoryComponent);
 Alpine.data('loraGallery', createLoraGalleryComponent);
 Alpine.data('generationStudio', createGenerationStudioComponent);
-Alpine.data('promptComposer', createPromptComposerComponent);
-Alpine.data('performanceAnalytics', createPerformanceAnalyticsComponent);
+// Alpine Prompt Composer migrated to Vue island
+// Alpine.data('performanceAnalytics', createPerformanceAnalyticsComponent);
 Alpine.data('importExport', createImportExportComponent);
 Alpine.data('systemAdmin', createSystemAdminComponent);
 Alpine.data('databaseManager', createDatabaseManagerComponent);
@@ -308,6 +317,54 @@ mountVueApp('[data-vue-root="mobile-nav"]', MobileNav) ||
 mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard);
+    });
+
+// Mount Performance Analytics if present on page
+mountVueApp('[data-vue-root="performance-analytics"]', PerformanceAnalytics) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="performance-analytics"]', PerformanceAnalytics);
+    });
+
+// Mount Job Queue if present on page
+mountVueApp('[data-vue-root="job-queue"]', JobQueue) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="job-queue"]', JobQueue);
+    });
+
+// Mount System Status Panel (admin monitoring tab) if present on page
+mountVueApp('[data-vue-root="system-status-panel"]', SystemStatusPanel) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="system-status-panel"]', SystemStatusPanel);
+    });
+
+// Mount Import/Export component if present on page
+mountVueApp('[data-vue-root="import-export"]', ImportExport) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="import-export"]', ImportExport);
+    });
+
+// Mount System Admin Status card if present on page
+mountVueApp('[data-vue-root="system-admin-status-card"]', SystemAdminStatusCard) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="system-admin-status-card"]', SystemAdminStatusCard);
+    });
+
+// Mount Notifications if present on page
+mountVueApp('[data-vue-root="notifications"]', Notifications) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="notifications"]', Notifications);
+    });
+
+// Mount Generation History if present on page
+mountVueApp('[data-vue-root="generation-history"]', GenerationHistory) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="generation-history"]', GenerationHistory);
+    });
+
+// Mount Prompt Composer (Vue island)
+mountVueApp('[data-vue-root="prompt-composer"]', PromptComposer) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="prompt-composer"]', PromptComposer);
     });
 
 
