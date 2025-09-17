@@ -1,273 +1,197 @@
-# LoRA Manager - GitHub Copilot Instructions
 
-**ALWAYS** follow these instructions first and fallback to additional search and context gathering ONLY if the information in these instructions is incomplete or found to be in error.
+# LoRA Manager - LoRA Model Management System with AI Recommendations
 
-## Project Overview
+Always follow these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the information provided here.
 
-LoRA Manager is a FastAPI-based backend with modern Vite frontend for managing LoRA adapters with AI-powered recommendations, real-time generation monitoring, and multi-backend delivery support. The project uses a modular architecture with clear separation between backend API (`backend/`) and frontend application (`app/frontend/`).
+## Working Effectively
 
-## Bootstrap and Setup Commands
+### Bootstrap, Build, and Test the Repository
 
-**Run these commands in exact order to set up the development environment:**
-
-1. **Install Python dependencies** (takes ~1 minute):
+1. Install Python dependencies:
    ```bash
-   pip install -r requirements.txt
+   pip3 install -r requirements.txt
    ```
+   Takes approximately 30 seconds. No timeout needed.
 
-2. **Install Node.js dependencies** (takes ~7 seconds):
+2. Install development dependencies:
+   ```bash
+   pip3 install -r dev-requirements.txt
+   ```
+   Takes approximately 15 seconds. No timeout needed.
+
+3. Install Node.js dependencies (SPECIAL NOTE - Puppeteer fails due to network restrictions):
    ```bash
    PUPPETEER_SKIP_DOWNLOAD=true npm install
    ```
-   Note: PUPPETEER_SKIP_DOWNLOAD=true is required in sandboxed environments where Chrome download fails.
+   Takes approximately 8 seconds. NEVER use `npm install` without `PUPPETEER_SKIP_DOWNLOAD=true` - it will fail due to firewall limitations.
 
-3. **Build frontend assets** (takes ~4 seconds total):
+4. Build frontend assets:
    ```bash
-   npm run build:css  # Tailwind CSS compilation (~1.6s)
-   npm run build      # Vite production build (~2.4s)
+   npm run build
    ```
+   Takes approximately 3 seconds. No timeout needed.
 
-## Development Workflow
+5. Build CSS assets:
+   ```bash
+   npm run build:css
+   ```
+   Takes approximately 2 seconds. No timeout needed.
 
-### Two-Terminal Development Setup (Recommended)
+### Run and Test the Application
 
-**Terminal 1: Backend Server**
-```bash
-uvicorn app.main:app --reload --port 8000
-```
-- Backend API available at: `http://localhost:8000`
-- API Documentation at: `http://localhost:8000/api/docs`
-- Health check: `curl http://localhost:8000/health`
+- **Backend only** (serves frontend from dist/):
+  ```bash
+  uvicorn app.main:app --reload --port 8000
+  ```
+  Starts in 2-3 seconds. Access at http://localhost:8000
 
-**Terminal 2: Frontend Development Server**
-```bash
-npm run dev
-```
-- Frontend dev server at: `http://localhost:5173`
-- Hot module replacement enabled
-- Proxies API requests to backend
+- **Full development setup** (backend + frontend dev server):
+  ```bash
+  npm run dev:full
+  ```
+  Starts both backend (port 8000) and frontend dev server (port 5173) concurrently. Ready in 5-10 seconds.
 
-### Alternative Development Commands
+- **Backend only for development**:
+  ```bash
+  npm run dev:backend
+  ```
 
-```bash
-# Run both backend and frontend simultaneously
-npm run dev:full
+- **Frontend dev server only**:
+  ```bash
+  npm run dev
+  ```
 
-# Backend only (serves frontend from dist/)
-npm run build && npm run dev:backend
+### Testing
 
-# CSS development (Tailwind watch mode)
-npm run dev:css
-```
+- **Python tests** (core functionality):
+  ```bash
+  pytest tests/test_main.py tests/test_services.py tests/test_recommendations.py -v
+  ```
+  Takes approximately 2-3 seconds. NEVER CANCEL. Some tests may fail due to missing ML dependencies (torch, sentence-transformers) - this is expected in basic environments.
 
-## Testing
+- **Vue component tests** (always work):
+  ```bash
+  npm run test:unit:vue
+  ```
+  Takes approximately 3 seconds. NEVER CANCEL. Set timeout to 10+ seconds.
 
-### Python Tests
+- **JavaScript unit tests** (some syntax issues exist):
+  ```bash
+  npm run test:unit
+  ```
+  Takes approximately 10 seconds. NEVER CANCEL. Set timeout to 20+ seconds. Some tests fail due to parsing issues - this is a known limitation.
 
-```bash
-# Install test dependencies first (takes ~30s)
-pip install -r dev-requirements.txt
-pip install pytest-asyncio
+### Code Quality
 
-# Run working tests (takes ~2s, timeout: 2 minutes)
-pytest tests/test_services.py tests/test_main.py -v
+- **JavaScript linting**:
+  ```bash
+  npm run lint
+  ```
+  Takes approximately 2 seconds. Shows many warnings and one error - this is expected.
 
-# Run recommendation tests (requires ML dependencies, may fail without torch/transformers)
-pytest tests/test_recommendations.py -v
-```
+- **JavaScript lint fixing**:
+  ```bash
+  npm run lint:fix
+  ```
 
-**Note:** Some tests require optional ML dependencies (torch, sentence-transformers) that are not installed by default. Test failures related to missing ML libraries are expected in basic setup.
+- **Python linting**:
+  ```bash
+  ruff check .
+  ```
+  Takes less than 1 second. Shows many docstring style warnings - this is expected.
 
-### JavaScript Tests
+- **Pre-commit validation**:
+  ```bash
+  npm run validate
+  ```
+  Runs linting + tests. Takes approximately 15 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
 
-```bash
-# Run unit tests (takes ~9s, timeout: 2 minutes)
-npm run test:unit
+## Validation
 
-# Run individual test suites
-npm run test:integration  # API integration tests  
-npm run test:e2e         # Playwright end-to-end tests (may fail without browser)
-```
+- **ALWAYS** manually test the application after making changes by running `npm run dev:full` and accessing http://localhost:8000
+- **ALWAYS** test the API health endpoint: `curl http://localhost:8000/api/health` should return `{"status":"ok"}`
+- **ALWAYS** run Python tests with `pytest tests/test_main.py tests/test_services.py -v` before committing
+- **ALWAYS** run Vue tests with `npm run test:unit:vue` before committing
+- **CRITICAL HTMX FIX**: If you encounter HTMX import errors in Vite build, use `import 'htmx.org';` NOT `import htmx from 'htmx.org';`
 
-**Expected:** Some JavaScript tests may fail due to syntax parsing issues or missing browser dependencies in sandboxed environments. Core functionality tests should pass.
+## Architecture Understanding
 
-## Code Quality and Linting
-
-### JavaScript Linting
-```bash
-# Run linting (takes ~1.5s, timeout: 2 minutes)
-npm run lint
-
-# Auto-fix linting issues
-npm run lint:fix
-
-# Validate linting + tests
-npm run validate
-```
-
-### Python Linting
-```bash
-# Run ruff linting with auto-fix (takes ~0.1s, timeout: 2 minutes)
-ruff check --fix
-
-# Note: Expect docstring formatting warnings - these don't affect functionality
-```
-
-## Build and Production
-
-### Production Build
-```bash
-# NEVER CANCEL: Build takes up to 5 minutes total. Set timeout to 10+ minutes.
-npm run build:css  # 1-2 seconds
-npm run build      # 2-3 seconds
-
-# Production server
-ENVIRONMENT=production uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-### Docker Deployment Options
-
-```bash
-cd infrastructure/docker
-
-# Auto-detect hardware (recommended for development)
-docker-compose up -d
-
-# NVIDIA GPU (production)
-docker-compose -f docker-compose.gpu.yml up -d
-
-# AMD ROCm GPU  
-docker-compose -f docker-compose.rocm.yml up -d
-
-# CPU only
-docker-compose -f docker-compose.cpu.yml up -d
-```
-
-**Docker Services:**
-- LoRA Manager API: `http://localhost:8782`
-- SDNext WebUI: `http://localhost:7860`
-- PostgreSQL: `localhost:5433`
-- Redis: `localhost:6380`
-
-## Critical Timing and Timeout Information
-
-**NEVER CANCEL these commands - they WILL complete:**
-
-- `pip install -r requirements.txt`: 1 minute (timeout: 5 minutes)
-- `npm install`: 7 seconds (timeout: 3 minutes)  
-- `npm run build`: 3 seconds (timeout: 2 minutes)
-- `pytest`: 2 seconds (timeout: 2 minutes)
-- `npm test`: 9 seconds (timeout: 3 minutes)
-- `docker-compose up`: 2-5 minutes (timeout: 10 minutes)
-
-## Validation Scenarios
-
-**Always test these scenarios after making changes:**
-
-### Backend API Validation
-```bash
-# 1. Start backend
-uvicorn app.main:app --reload --port 8000
-
-# 2. Test health endpoint
-curl http://localhost:8000/health
-# Expected: {"status":"healthy","service":"lora-manager"}
-
-# 3. Test API documentation
-curl http://localhost:8000/api/docs
-# Expected: HTML page with Swagger UI
-```
-
-### Frontend Validation  
-```bash
-# 1. Build frontend assets
-npm run build
-
-# 2. Start development server
-npm run dev
-
-# 3. Test frontend endpoint  
-curl http://localhost:5173/
-# Expected: HTML content or successful response
-```
-
-### Full Application Validation
-```bash
-# 1. Start both services
-npm run dev:full
-
-# 2. Verify both endpoints respond
-curl http://localhost:8000/health && curl http://localhost:5173/
-
-# 3. Test API through frontend proxy
-curl http://localhost:5173/api/docs
-```
-
-## Directory Structure
-
+### Project Structure
 ```
 .
 ├── app/              # Main application wrapper and frontend
-│   ├── frontend/     # Frontend assets (Vite + Alpine.js + Tailwind)
-│   └── main.py       # FastAPI wrapper mounting backend at /api
-├── backend/          # Self-contained FastAPI backend
-│   ├── api/v1/       # API endpoints
-│   ├── core/         # Configuration, database, dependencies
+│   ├── frontend/     # Vite + Alpine.js + Tailwind CSS frontend
+│   │   ├── static/   # JS components, CSS, images
+│   │   └── templates/ # Jinja2 HTML templates
+│   └── main.py       # FastAPI wrapper that serves frontend + mounts backend
+├── backend/          # Self-contained FastAPI backend API
+│   ├── api/v1/       # API endpoints (adapters, generation, etc.)
+│   ├── core/         # Database, config, security
 │   ├── models/       # SQLModel database models
-│   ├── schemas/      # Pydantic schemas
-│   └── services/     # Business logic
-├── tests/            # Test suites (Python pytest, JavaScript jest)
-├── infrastructure/   # Docker, Alembic migrations
-└── scripts/          # Utility scripts
+│   ├── schemas/      # Pydantic request/response schemas
+│   ├── services/     # Business logic (recommendations, generation)
+│   └── delivery/     # Pluggable backends (HTTP, CLI, SDNext)
+├── tests/            # Comprehensive test suite
+└── infrastructure/   # Docker deployment configurations
 ```
+
+### Technology Stack
+- **Backend**: FastAPI + SQLModel + PostgreSQL/SQLite + Redis/RQ
+- **Frontend**: Vite + Alpine.js + Tailwind CSS + HTMX
+- **Testing**: Pytest (Python) + Jest/Vitest (JavaScript) + Playwright (E2E)
+- **Deployment**: Docker + Docker Compose with GPU support
+
+### Key Features
+- AI-powered LoRA recommendations using semantic similarity
+- Real-time generation monitoring via WebSockets
+- Multi-backend delivery (HTTP, CLI, SDNext integration)
+- Progressive Web App with offline capabilities
+- Comprehensive API with 28+ endpoints
 
 ## Common Issues and Solutions
 
-### Node.js Installation Fails
-```bash
-# Use this exact command to skip Puppeteer download:
-PUPPETEER_SKIP_DOWNLOAD=true npm install
-```
+### Build Issues
+- **HTMX Import Error**: Use `import 'htmx.org';` not `import htmx from 'htmx.org';`
+- **Puppeteer Installation**: Always use `PUPPETEER_SKIP_DOWNLOAD=true npm install`
+- **Missing ML Dependencies**: Tests may fail without torch/sentence-transformers - this is expected
 
-### Build Fails on HTMX Import
-- Fixed: Import HTMX as `import 'htmx.org';` (not default import)
+### Development Workflow
+- Use `npm run dev:full` for active development with hot reload
+- Access frontend at http://localhost:5173 (dev server) or http://localhost:8000 (production build)
+- API documentation available at http://localhost:8000/docs
+- WebSocket connections available at ws://localhost:8000/ws
 
-### Python Tests Fail on ML Dependencies
-- Expected: Tests requiring torch/transformers will fail without ML dependencies
-- Core API and service tests should pass
+### Testing Strategy
+- Python tests cover backend API and business logic
+- Vue tests cover component functionality
+- Jest tests have known parsing issues but import-export tests work
+- Always test both Python and Vue test suites before committing
 
-### Docker Fails to Start
-```bash
-# Check system requirements and run health check:
-cd infrastructure/docker
-./health-check.sh
-```
+### Code Quality Standards
+- Python: Ruff linting (many docstring warnings expected)
+- JavaScript: ESLint (many console.log warnings expected)
+- Use `npm run validate` to run complete quality checks
 
-## API Endpoints Summary
+## Important File Locations
 
-The backend API is mounted at `/api` with key endpoints:
-- `GET /health` - Health check
-- `GET /api/docs` - API documentation  
-- `GET /api/v1/adapters` - List LoRA adapters
-- `POST /api/v1/generation/enqueue` - Start image generation
-- `GET /api/v1/recommendations/for-prompt/{prompt}` - Get AI recommendations
+### Configuration Files
+- `package.json` - Frontend dependencies and scripts
+- `requirements.txt` - Python dependencies
+- `dev-requirements.txt` - Python development tools
+- `pyproject.toml` - Python project configuration
+- `vite.config.js` - Frontend build configuration
+- `tailwind.config.js` - CSS framework configuration
 
-## Environment Variables
+### Entry Points
+- `app/main.py` - Main application server
+- `backend/main.py` - Backend API only
+- `app/frontend/static/js/main.js` - Frontend JavaScript entry point
 
-**Development:**
-- `DATABASE_URL`: SQLite by default (`sqlite:///./db.sqlite`)
-- `REDIS_URL`: Optional for background jobs
-- `BACKEND_URL`: `http://localhost:8000` (for frontend proxy)
+### Critical Components
+- `backend/services/` - Core business logic
+- `app/frontend/static/js/components/` - Frontend components
+- `backend/api/v1/` - API endpoint definitions
+- `tests/` - All test files
 
-**Production:**
-- `ENVIRONMENT=production`
-- `DATABASE_URL`: PostgreSQL connection string
-- `SDNEXT_BASE_URL`: Stable Diffusion backend URL
+Always check `README.md` for the latest setup instructions and `docs/DEVELOPMENT.md` for detailed architecture information.
 
-## Final Notes
-
-- Backend serves at port 8000, frontend dev server at 5173
-- All builds complete in under 5 seconds in normal environments
-- Test suites are comprehensive but may have expected failures for optional dependencies
-- Docker deployment supports CPU, NVIDIA GPU, and AMD ROCm configurations
-- Always run linting before committing: `npm run lint && ruff check --fix`
