@@ -1,7 +1,7 @@
 """GPU detection and configuration utilities."""
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -15,12 +15,13 @@ def detect_gpu() -> Dict[str, Any]:
         - type: str - 'amd', 'nvidia', or 'cpu'
         - device: str - Device string for PyTorch
         - details: dict - Additional GPU information
+
     """
     gpu_info = {
         'available': False,
         'type': 'cpu',
         'device': 'cpu',
-        'details': {}
+        'details': {},
     }
     
     try:
@@ -32,7 +33,7 @@ def detect_gpu() -> Dict[str, Any]:
             
             # Detect if this is AMD GPU (common AMD GPU names)
             is_amd = any(amd_identifier in device_name.lower() for amd_identifier in [
-                'amd', 'radeon', 'rx ', 'vega', 'navi', 'rdna', 'gfx'
+                'amd', 'radeon', 'rx ', 'vega', 'navi', 'rdna', 'gfx',
             ])
             
             # Check if this is ROCm build
@@ -53,8 +54,8 @@ def detect_gpu() -> Dict[str, Any]:
                         'pytorch_version': torch.__version__,
                         'is_rocm_build': is_rocm,
                         'hip_version': getattr(torch.version, 'hip', None),
-                        'rocm_version': getattr(torch.version, 'rocm', 'unknown')
-                    }
+                        'rocm_version': getattr(torch.version, 'rocm', 'unknown'),
+                    },
                 })
                 logger.info(f"AMD GPU detected (ROCm): {device_name}")
             else:
@@ -66,8 +67,8 @@ def detect_gpu() -> Dict[str, Any]:
                         'device_count': torch.cuda.device_count(),
                         'device_name': device_name,
                         'memory_total': torch.cuda.get_device_properties(0).total_memory,
-                        'cuda_version': torch.version.cuda
-                    }
+                        'cuda_version': torch.version.cuda,
+                    },
                 })
                 logger.info(f"NVIDIA GPU detected: {device_name}")
             
@@ -92,6 +93,7 @@ def get_optimal_device() -> str:
     
     Returns:
         Device string ('cuda' for GPU, 'cpu' for CPU)
+
     """
     gpu_info = detect_gpu()
     return gpu_info['device']
@@ -102,6 +104,7 @@ def get_gpu_memory_info() -> Optional[Dict[str, int]]:
     
     Returns:
         Dictionary with memory info or None if no GPU
+
     """
     try:
         import torch
@@ -111,7 +114,7 @@ def get_gpu_memory_info() -> Optional[Dict[str, int]]:
                 'total': torch.cuda.get_device_properties(0).total_memory,
                 'allocated': torch.cuda.memory_allocated(0),
                 'reserved': torch.cuda.memory_reserved(0),
-                'free': torch.cuda.get_device_properties(0).total_memory - torch.cuda.memory_allocated(0)
+                'free': torch.cuda.get_device_properties(0).total_memory - torch.cuda.memory_allocated(0),
             }
     except Exception as e:
         logger.error(f"Error getting GPU memory info: {e}")

@@ -236,8 +236,11 @@ const pwaServiceWorker = {
      */
     async validateScript(swPath) {
         try {
-            const response = await fetch(swPath, { cache: 'no-cache' });
-            return response.ok;
+            // Use fetchData from window.Utils with cache control options for service worker validation
+            await window.Utils.fetchData(swPath, { 
+                headers: { 'Cache-Control': 'no-cache' }
+            });
+            return true;
         } catch (error) {
             return false;
         }

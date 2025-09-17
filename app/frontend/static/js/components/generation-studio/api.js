@@ -4,6 +4,8 @@
  * Handles all API communications for data loading and generation requests.
  */
 
+import { fetchData, postData, deleteData } from '../../utils/api.js';
+
 /**
  * API operations for generation studio
  */
@@ -12,87 +14,10 @@ const generationAPI = {
      * Base configuration for API requests
      */
     config: {
-        baseUrl: '/api/v1',
+        baseUrl: '/api',
         timeout: 30000,
         retries: 3,
         retryDelay: 1000
-    },
-    
-    /**
-     * Makes an API request with error handling and retries
-     */
-    async request(endpoint, options = {}) {
-        const {
-            method = 'GET',
-            headers = {},
-            body = null,
-            timeout = this.config.timeout,
-            retries = this.config.retries
-        } = options;
-        
-        const url = `${this.config.baseUrl}${endpoint}`;
-        const requestOptions = {
-            method,
-            headers: {
-                'Content-Type': 'application/json',
-                ...headers
-            }
-        };
-        
-        if (body) {
-            requestOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
-        }
-        
-        let lastError = null;
-        
-        for (let attempt = 0; attempt <= retries; attempt++) {
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), timeout);
-                
-                const response = await fetch(url, {
-                    ...requestOptions,
-                    signal: controller.signal
-                });
-                
-                clearTimeout(timeoutId);
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${errorText}`);
-                }
-                
-                return response;
-            } catch (error) {
-                lastError = error;
-                
-                if (attempt < retries && this.isRetryableError(error)) {
-                    await this.delay(this.config.retryDelay * Math.pow(2, attempt));
-                    continue;
-                }
-                
-                break;
-            }
-        }
-        
-        throw lastError;
-    },
-    
-    /**
-     * Determines if an error is retryable
-     */
-    isRetryableError(error) {
-        return error.name === 'AbortError' || 
-               error.message.includes('fetch') ||
-               error.message.includes('NetworkError') ||
-               error.message.includes('ERR_NETWORK');
-    },
-    
-    /**
-     * Delay utility for retries
-     */
-    delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
     },
     
     /**
@@ -100,8 +25,7 @@ const generationAPI = {
      */
     async loadSystemStatus() {
         try {
-            const response = await this.request('/system/status');
-            const data = await response.json();
+            const data = await fetchData(`${this.config.baseUrl}/system/status`);
             
             return {
                 success: true,
@@ -132,8 +56,7 @@ const generationAPI = {
      */
     async loadActiveJobs() {
         try {
-            const response = await this.request('/generation/jobs/active');
-            const data = await response.json();
+            const data = await fetchData(`${this.config.baseUrl}/generation/jobs/active`);
             
             return {
                 success: true,
@@ -173,8 +96,7 @@ const generationAPI = {
      */
     async loadRecentResults(limit = 10) {
         try {
-            const response = await this.request(`/generation/results?limit=${limit}&sort=created_at:desc`);
-            const data = await response.json();
+            const data = await fetchData(`${this.config.baseUrl}/generation/results?limit=${limit}&sort=created_at:desc`);
             
             return {
                 success: true,
@@ -217,12 +139,7 @@ const generationAPI = {
         try {
             const validatedParams = this.validateGenerationParams(params);
             
-            const response = await this.request('/generation/generate', {
-                method: 'POST',
-                body: validatedParams
-            });
-            
-            const data = await response.json();
+            const data = await postData(`${this.config.baseUrl}/generation/generate`, validatedParams);
             
             return {
                 success: true,
@@ -351,11 +268,7 @@ const generationAPI = {
      */
     async cancelJob(jobId) {
         try {
-            const response = await this.request(`/generation/jobs/${jobId}/cancel`, {
-                method: 'POST'
-            });
-            
-            const data = await response.json();
+            const data = await postData(`${this.config.baseUrl}/generation/jobs/${jobId}/cancel`, {});
             
             return {
                 success: true,
@@ -379,9 +292,7 @@ const generationAPI = {
      */
     async deleteResult(resultId) {
         try {
-            await this.request(`/generation/results/${resultId}`, {
-                method: 'DELETE'
-            });
+            await deleteData(`${this.config.baseUrl}/generation/results/${resultId}`);
             
             return {
                 success: true,
@@ -404,8 +315,7 @@ const generationAPI = {
      */
     async getAvailableModels() {
         try {
-            const response = await this.request('/models/available');
-            const data = await response.json();
+            const data = await fetchData(`${this.config.baseUrl}/models/available`);
             
             return {
                 success: true,
@@ -434,8 +344,7 @@ const generationAPI = {
      */
     async getQueueInfo() {
         try {
-            const response = await this.request('/generation/queue/info');
-            const data = await response.json();
+            const data = await fetchData(`${this.config.baseUrl}/generation/queue/info`);
             
             return {
                 success: true,
@@ -461,12 +370,7 @@ const generationAPI = {
      */
     async rateResult(resultId, rating) {
         try {
-            const response = await this.request(`/generation/results/${resultId}/rate`, {
-                method: 'POST',
-                body: { rating: Number(rating) }
-            });
-            
-            const data = await response.json();
+            const data = await postData(`${this.config.baseUrl}/generation/results/${resultId}/rate`, { rating: Number(rating) });
             
             return {
                 success: true,
@@ -490,12 +394,7 @@ const generationAPI = {
      */
     async tagResult(resultId, tags) {
         try {
-            const response = await this.request(`/generation/results/${resultId}/tags`, {
-                method: 'POST',
-                body: { tags: Array.isArray(tags) ? tags : [tags] }
-            });
-            
-            const data = await response.json();
+            const data = await postData(`${this.config.baseUrl}/generation/results/${resultId}/tags`, { tags: Array.isArray(tags) ? tags : [tags] });
             
             return {
                 success: true,
@@ -519,8 +418,7 @@ const generationAPI = {
      */
     async getGenerationStats(timeRange = '24h') {
         try {
-            const response = await this.request(`/generation/stats?range=${timeRange}`);
-            const data = await response.json();
+            const data = await fetchData(`${this.config.baseUrl}/generation/stats?range=${timeRange}`);
             
             return {
                 success: true,
@@ -548,7 +446,9 @@ const generationAPI = {
      */
     async downloadResult(resultId, format = 'original') {
         try {
-            const response = await this.request(`/generation/results/${resultId}/download?format=${format}`, {
+            // Use raw fetch for blob downloads as utils/api.js doesn't handle blobs
+            const response = await fetch(`${this.config.baseUrl}/generation/results/${resultId}/download?format=${format}`, {
+                method: 'GET',
                 headers: {}  // Don't set Content-Type for downloads
             });
             
@@ -584,3 +484,5 @@ if (typeof module !== 'undefined' && module.exports) {
 } else if (typeof window !== 'undefined') {
     window.generationAPI = generationAPI;
 }
+
+export { generationAPI };

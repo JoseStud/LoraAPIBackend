@@ -5,6 +5,8 @@
 
 /* eslint-disable no-console */
 
+import { fetchData } from './utils/api.js';
+
 window.ComponentLoader = {
     // Component definitions
     components: {},
@@ -569,11 +571,8 @@ window.ComponentLoader = {
             
             async loadAvailableTags() {
                 try {
-                    const response = await fetch((window?.BACKEND_URL || '') + '/adapters/tags');
-                    if (response.ok) {
-                        const data = await response.json();
-                        this.availableTags = data.tags || [];
-                    }
+                    const data = await fetchData((window?.BACKEND_URL || '') + '/adapters/tags');
+                    this.availableTags = data.tags || [];
                 } catch (error) {
                     window.DevLogger?.error?.('[ComponentLoader] Failed to load tags:', error);
                 }
@@ -616,12 +615,9 @@ window.ComponentLoader = {
             
             async refreshData() {
                 try {
-                    const response = await fetch((window?.BACKEND_URL || '') + '/dashboard/stats');
-                    if (response.ok) {
-                        const data = await response.json();
-                        this.stats = data.stats || this.stats;
-                        this.systemHealth = data.system_health || this.systemHealth;
-                    }
+                    const data = await fetchData((window?.BACKEND_URL || '') + '/dashboard/stats');
+                    this.stats = data.stats || this.stats;
+                    this.systemHealth = data.system_health || this.systemHealth;
                 } catch (e) {
                     window.DevLogger?.debug?.('[ComponentLoader] Dashboard data not available');
                 }
@@ -649,11 +645,8 @@ window.ComponentLoader = {
             
             async loadActiveJobs() {
                 try {
-                    const response = await fetch((window?.BACKEND_URL || '') + '/jobs/active');
-                    if (response.ok) {
-                        const jobs = await response.json();
-                        this.activeJobs = jobs.jobs || [];
-                    }
+                    const jobs = await fetchData((window?.BACKEND_URL || '') + '/jobs/active');
+                    this.activeJobs = jobs.jobs || [];
                 } catch (error) {
                     window.DevLogger?.error?.('[ComponentLoader] Failed to load active jobs:', error);
                 }

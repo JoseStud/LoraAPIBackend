@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""
-Script to update import paths from 'app.' to 'backend.' in test files
+"""Script to update import paths from 'app.' to 'backend.' in test files
 """
 
-import os
 import re
 from pathlib import Path
+
 
 def update_imports_in_file(file_path):
     """Update imports from app. to backend. in a single file"""

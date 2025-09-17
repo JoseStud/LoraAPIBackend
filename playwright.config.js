@@ -227,7 +227,7 @@ export default defineConfig({
       },
       
       api: {
-        baseURL: process.env.API_BASE_URL || 'http://localhost:8000/api/v1',
+        baseURL: process.env.API_BASE_URL || 'http://localhost:8000/api',
         timeout: 10000
       }
     }

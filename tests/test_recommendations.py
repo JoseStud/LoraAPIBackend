@@ -1,13 +1,14 @@
 """Tests for the recommendation system."""
 
-import pytest
-import numpy as np
 from datetime import datetime, timezone
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import numpy as np
+import pytest
 
 from backend.models import Adapter, LoRAEmbedding
-from backend.services.recommendations import RecommendationService
 from backend.schemas.recommendations import RecommendationItem
+from backend.services.recommendations import RecommendationService
 
 
 @pytest.fixture
@@ -29,10 +30,10 @@ def sample_adapter():
             "downloadCount": 1500,
             "favoriteCount": 120,
             "rating": 4.5,
-            "commentCount": 25
+            "commentCount": 25,
         },
         published_at=datetime.now(timezone.utc),
-        created_at=datetime.now(timezone.utc)
+        created_at=datetime.now(timezone.utc),
     )
 
 
@@ -51,7 +52,7 @@ def sample_adapters():
         file_path="/test/anime1.safetensors",
         sd_version="SD1.5",
         nsfw_level=0,
-        stats={"downloadCount": 2000, "rating": 4.7}
+        stats={"downloadCount": 2000, "rating": 4.7},
     ))
     
     # Realistic portrait LoRA
@@ -64,7 +65,7 @@ def sample_adapters():
         file_path="/test/realistic1.safetensors",
         sd_version="SDXL",
         nsfw_level=0,
-        stats={"downloadCount": 800, "rating": 4.2}
+        stats={"downloadCount": 800, "rating": 4.2},
     ))
     
     # Style LoRA
@@ -77,7 +78,7 @@ def sample_adapters():
         file_path="/test/style1.safetensors",
         sd_version="SD1.5",
         nsfw_level=0,
-        stats={"downloadCount": 1200, "rating": 4.4}
+        stats={"downloadCount": 1200, "rating": 4.4},
     ))
     
     return adapters
@@ -122,7 +123,7 @@ class TestRecommendationService:
                 'keyword_scores': [0.9, 0.8],
                 'predicted_style': 'anime',
                 'style_confidence': 0.85,
-                'quality_score': 0.7
+                'quality_score': 0.7,
             }
             
             mock_extractor_instance = MagicMock()
@@ -165,7 +166,7 @@ class TestRecommendationService:
                 'artistic_embedding': [0.2] * 384,
                 'technical_embedding': [0.3] * 768,
                 'extracted_keywords': ['test'],
-                'quality_score': 0.7
+                'quality_score': 0.7,
             }
             
             mock_extractor_instance = MagicMock()
@@ -196,7 +197,7 @@ class TestRecommendationService:
             embedding = LoRAEmbedding(
                 adapter_id=adapter.id,
                 semantic_embedding=b'mock_embedding_data',
-                predicted_style='anime' if 'anime' in adapter.tags else 'realistic'
+                predicted_style='anime' if 'anime' in adapter.tags else 'realistic',
             )
             db_session.add(embedding)
         db_session.commit()
@@ -213,7 +214,7 @@ class TestRecommendationService:
                 # Test prompt recommendations
                 recommendations = await service.get_recommendations_for_prompt(
                     prompt="anime girl with blue eyes",
-                    limit=2
+                    limit=2,
                 )
                 
                 assert len(recommendations) <= 2
@@ -263,7 +264,7 @@ class TestRecommendationService:
             adapter_id=sample_adapter.id,
             semantic_embedding=b'test_data',
             artistic_embedding=b'test_data',
-            extracted_keywords=['test']
+            extracted_keywords=['test'],
         )
         db_session.add(embedding)
         db_session.commit()
@@ -358,7 +359,7 @@ class TestRecommendationIntegration:
                 'artistic_embedding': [0.2] * 384,
                 'technical_embedding': [0.3] * 768,
                 'extracted_keywords': ['anime', 'character'],
-                'quality_score': 0.7
+                'quality_score': 0.7,
             }
             mock_extractor_instance = MagicMock()
             mock_extractor_instance.extract_advanced_features.return_value = mock_features
@@ -372,7 +373,7 @@ class TestRecommendationIntegration:
             mock_batch_embeddings = {
                 'semantic': np.array([[0.1] * 1024, [0.2] * 1024, [0.3] * 1024]).astype('float32'),
                 'artistic': np.array([[0.1] * 384, [0.2] * 384, [0.3] * 384]).astype('float32'),
-                'technical': np.array([[0.1] * 768, [0.2] * 768, [0.3] * 768]).astype('float32')
+                'technical': np.array([[0.1] * 768, [0.2] * 768, [0.3] * 768]).astype('float32'),
             }
             mock_embedder_instance.batch_encode_collection.return_value = mock_batch_embeddings
             mock_embedder.return_value = mock_embedder_instance
@@ -399,15 +400,15 @@ class TestRecommendationIntegration:
                         'artistic_similarity': 0.8,
                         'technical_similarity': 0.7,
                         'quality_boost': 0.1,
-                        'popularity_boost': 0.05
-                    }
+                        'popularity_boost': 0.05,
+                    },
                 ]
                 mock_engine.get_recommendations.return_value = mock_recommendations
                 mock_engine_method.return_value = mock_engine
                 
                 recommendations = await service.get_similar_loras(
                     target_lora_id=sample_adapters[0].id,
-                    limit=2
+                    limit=2,
                 )
                 
                 assert len(recommendations) <= 2
@@ -416,7 +417,7 @@ class TestRecommendationIntegration:
             with patch('pickle.loads', return_value=[0.1] * 1024):
                 prompt_recs = await service.get_recommendations_for_prompt(
                     prompt="anime character with blue eyes",
-                    limit=2
+                    limit=2,
                 )
                 
                 assert len(prompt_recs) <= 2

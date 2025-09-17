@@ -5,16 +5,16 @@ import os
 import pickle
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 from sqlmodel import Session, select
 
 from backend.models import Adapter, LoRAEmbedding, RecommendationSession, UserPreference
 from backend.schemas.recommendations import (
+    EmbeddingStatus,
     RecommendationItem,
     RecommendationStats,
-    EmbeddingStatus,
 )
 
 
@@ -27,6 +27,7 @@ class RecommendationService:
         Args:
             db_session: Database session
             gpu_enabled: Whether to use GPU acceleration (requires CUDA setup)
+
         """
         self.db_session = db_session
         self.gpu_enabled = gpu_enabled
@@ -55,7 +56,7 @@ class RecommendationService:
             from .recommendation_models import LoRASemanticEmbedder
             self._semantic_embedder = LoRASemanticEmbedder(
                 device=self.device,
-                batch_size=32 if self.gpu_enabled else 16
+                batch_size=32 if self.gpu_enabled else 16,
             )
         return self._semantic_embedder
 
@@ -72,7 +73,7 @@ class RecommendationService:
             from .recommendation_models import LoRARecommendationEngine
             self._recommendation_engine = LoRARecommendationEngine(
                 self._get_feature_extractor(),
-                device=self.device
+                device=self.device,
             )
         return self._recommendation_engine
 
@@ -81,7 +82,7 @@ class RecommendationService:
         target_lora_id: str,
         limit: int = 10,
         similarity_threshold: float = 0.1,
-        weights: Optional[Dict[str, float]] = None
+        weights: Optional[Dict[str, float]] = None,
     ) -> List[RecommendationItem]:
         """Get LoRAs similar to the target LoRA.
         
@@ -93,6 +94,7 @@ class RecommendationService:
             
         Returns:
             List of recommendation items
+
         """
         start_time = time.time()
         
@@ -116,7 +118,7 @@ class RecommendationService:
             engine.get_recommendations,
             target_lora,
             limit * 2,  # Get more candidates for filtering
-            weights
+            weights,
         )
         
         # Filter by similarity threshold and convert to schema
@@ -143,9 +145,9 @@ class RecommendationService:
                                 'tags': candidate_lora.tags[:5],  # Limit tags
                                 'author': candidate_lora.author_username,
                                 'sd_version': candidate_lora.sd_version,
-                                'nsfw_level': candidate_lora.nsfw_level
-                            }
-                        )
+                                'nsfw_level': candidate_lora.nsfw_level,
+                            },
+                        ),
                     )
                     
                     if len(filtered_recommendations) >= limit:
@@ -163,7 +165,7 @@ class RecommendationService:
         prompt: str,
         active_loras: List[str] = None,
         limit: int = 10,
-        style_preference: Optional[str] = None
+        style_preference: Optional[str] = None,
     ) -> List[RecommendationItem]:
         """Get LoRA recommendations that enhance a given prompt.
         
@@ -175,6 +177,7 @@ class RecommendationService:
             
         Returns:
             List of recommendation items
+
         """
         start_time = time.time()
         active_loras = active_loras or []
@@ -187,15 +190,15 @@ class RecommendationService:
             embedder.primary_model.encode,
             prompt,
             device=self.device,
-            convert_to_numpy=True
+            convert_to_numpy=True,
         )
         
         # Get all LoRAs with embeddings
         stmt = select(Adapter, LoRAEmbedding).join(
-            LoRAEmbedding, Adapter.id == LoRAEmbedding.adapter_id
+            LoRAEmbedding, Adapter.id == LoRAEmbedding.adapter_id,
         ).where(
             Adapter.active == True,
-            ~Adapter.id.in_(active_loras)  # Exclude active LoRAs
+            ~Adapter.id.in_(active_loras),  # Exclude active LoRAs
         )
         
         results = self.db_session.exec(stmt).all()
@@ -242,9 +245,9 @@ class RecommendationService:
                             'author': adapter.author_username,
                             'sd_version': adapter.sd_version,
                             'nsfw_level': adapter.nsfw_level,
-                            'predicted_style': embedding.predicted_style
-                        }
-                    )
+                            'predicted_style': embedding.predicted_style,
+                        },
+                    ),
                 )
         
         # Sort by final score and limit results
@@ -260,7 +263,7 @@ class RecommendationService:
     async def compute_embeddings_for_lora(
         self,
         adapter_id: str,
-        force_recompute: bool = False
+        force_recompute: bool = False,
     ) -> bool:
         """Compute and store embeddings for a single LoRA.
         
@@ -270,6 +273,7 @@ class RecommendationService:
             
         Returns:
             True if embeddings were computed successfully
+
         """
         # Get adapter
         adapter = self.db_session.get(Adapter, adapter_id)
@@ -288,7 +292,7 @@ class RecommendationService:
             # Extract features
             features = await asyncio.to_thread(
                 extractor.extract_advanced_features,
-                adapter
+                adapter,
             )
             
             # Serialize embeddings
@@ -328,7 +332,7 @@ class RecommendationService:
                     quality_score=features.get('quality_score'),
                     popularity_score=features.get('popularity_score'),
                     recency_score=features.get('recency_score'),
-                    compatibility_score=features.get('sd_compatibility_score')
+                    compatibility_score=features.get('sd_compatibility_score'),
                 )
                 self.db_session.add(new_embedding)
             
@@ -343,7 +347,7 @@ class RecommendationService:
         self,
         adapter_ids: List[str] = None,
         force_recompute: bool = False,
-        batch_size: int = 32
+        batch_size: int = 32,
     ) -> Dict[str, Any]:
         """Compute embeddings for multiple LoRAs efficiently.
         
@@ -354,6 +358,7 @@ class RecommendationService:
             
         Returns:
             Processing statistics
+
         """
         start_time = time.time()
         
@@ -369,7 +374,7 @@ class RecommendationService:
         if not force_recompute:
             existing_ids = set()
             stmt = select(LoRAEmbedding.adapter_id).where(
-                LoRAEmbedding.adapter_id.in_([a.id for a in adapters])
+                LoRAEmbedding.adapter_id.in_([a.id for a in adapters]),
             )
             existing_ids.update(self.db_session.exec(stmt))
             adapters = [a for a in adapters if a.id not in existing_ids]
@@ -388,14 +393,14 @@ class RecommendationService:
                     try:
                         await self.compute_embeddings_for_lora(
                             adapter.id, 
-                            force_recompute
+                            force_recompute,
                         )
                         processed_count += 1
                     except Exception as e:
                         error_count += 1
                         errors.append({
                             'adapter_id': adapter.id,
-                            'error': str(e)
+                            'error': str(e),
                         })
                         
             except Exception as e:
@@ -403,7 +408,7 @@ class RecommendationService:
                 for adapter in batch:
                     errors.append({
                         'adapter_id': adapter.id,
-                        'error': f"Batch processing failed: {e}"
+                        'error': f"Batch processing failed: {e}",
                     })
         
         processing_time = time.time() - start_time
@@ -414,7 +419,7 @@ class RecommendationService:
             'error_count': error_count,
             'processing_time_seconds': processing_time,
             'errors': errors,
-            'completed_at': datetime.now(timezone.utc)
+            'completed_at': datetime.now(timezone.utc),
         }
 
     async def _ensure_embeddings_exist(self, adapters: List[Adapter]):
@@ -423,7 +428,7 @@ class RecommendationService:
         
         # Check which adapters need embeddings
         stmt = select(LoRAEmbedding.adapter_id).where(
-            LoRAEmbedding.adapter_id.in_(adapter_ids)
+            LoRAEmbedding.adapter_id.in_(adapter_ids),
         )
         existing_ids = set(self.db_session.exec(stmt))
         
@@ -436,7 +441,7 @@ class RecommendationService:
         """Build or rebuild the similarity index for fast recommendations."""
         # Get all LoRAs with embeddings
         stmt = select(Adapter).join(
-            LoRAEmbedding, Adapter.id == LoRAEmbedding.adapter_id
+            LoRAEmbedding, Adapter.id == LoRAEmbedding.adapter_id,
         ).where(Adapter.active == True)
         
         adapters = list(self.db_session.exec(stmt))
@@ -449,12 +454,12 @@ class RecommendationService:
         """Get comprehensive recommendation system statistics."""
         # Count total LoRAs
         total_loras = len(list(self.db_session.exec(
-            select(Adapter).where(Adapter.active == True)
+            select(Adapter).where(Adapter.active == True),
         )))
         
         # Count LoRAs with embeddings
         loras_with_embeddings = len(list(self.db_session.exec(
-            select(LoRAEmbedding)
+            select(LoRAEmbedding),
         )))
         
         # Calculate coverage
@@ -464,12 +469,12 @@ class RecommendationService:
         
         # Get user preference count
         user_preferences_count = len(list(self.db_session.exec(
-            select(UserPreference)
+            select(UserPreference),
         )))
         
         # Get session count
         session_count = len(list(self.db_session.exec(
-            select(RecommendationSession)
+            select(RecommendationSession),
         )))
         
         # Calculate average query time
@@ -497,7 +502,7 @@ class RecommendationService:
         
         # Get last embedding update
         last_embedding = self.db_session.exec(
-            select(LoRAEmbedding).order_by(LoRAEmbedding.last_computed.desc())
+            select(LoRAEmbedding).order_by(LoRAEmbedding.last_computed.desc()),
         ).first()
         last_index_update = (
             last_embedding.last_computed if last_embedding 
@@ -514,7 +519,7 @@ class RecommendationService:
             user_preferences_count=user_preferences_count,
             feedback_count=0,  # TODO: Implement feedback tracking
             model_memory_usage_gb=memory_usage,
-            last_index_update=last_index_update
+            last_index_update=last_index_update,
         )
 
     def get_embedding_status(self, adapter_id: str) -> EmbeddingStatus:
@@ -528,7 +533,7 @@ class RecommendationService:
                 has_artistic_embedding=False,
                 has_technical_embedding=False,
                 has_extracted_features=False,
-                needs_recomputation=True
+                needs_recomputation=True,
             )
         
         return EmbeddingStatus(
@@ -538,5 +543,5 @@ class RecommendationService:
             has_technical_embedding=bool(embedding.technical_embedding),
             has_extracted_features=bool(embedding.extracted_keywords),
             last_computed=embedding.last_computed,
-            needs_recomputation=False
+            needs_recomputation=False,
         )

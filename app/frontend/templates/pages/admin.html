@@ -155,119 +155,12 @@
         <div class="card-body">
             
             <!-- System Monitoring Tab -->
-            <div x-show="ui.activeTab === 'monitoring'" class="space-y-6">
-                
-                <!-- Real-time Metrics -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    
-                    <!-- CPU & Memory Usage -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="text-lg font-semibold">System Resources</h3>
-                        </div>
-                        <div class="card-body space-y-4">
-                            <!-- CPU Usage -->
-                            <div>
-                                <div class="flex justify-between text-sm mb-1">
-                                    <span>CPU Usage</span>
-                                    <span x-text="`${systemMetrics.cpu_percent}%`"></span>
-                                </div>
-                                <div class="w-full bg-gray-200 rounded-full h-2">
-                                    <div class="bg-blue-600 h-2 rounded-full transition-all duration-500"
-                                         :style="`width: ${systemMetrics.cpu_percent}%`"></div>
-                                </div>
-                            </div>
-                            
-                            <!-- Memory Usage -->
-                            <div>
-                                <div class="flex justify-between text-sm mb-1">
-                                    <span>Memory Usage</span>
-                                    <span x-text="`${systemMetrics.memory_percent}% (${formatSize(systemMetrics.memory_used)})`"></span>
-                                </div>
-                                <div class="w-full bg-gray-200 rounded-full h-2">
-                                    <div class="bg-green-600 h-2 rounded-full transition-all duration-500"
-                                         :style="`width: ${systemMetrics.memory_percent}%`"></div>
-                                </div>
-                            </div>
-                            
-                            <!-- Disk Usage -->
-                            <div>
-                                <div class="flex justify-between text-sm mb-1">
-                                    <span>Disk Usage</span>
-                                    <span x-text="`${systemMetrics.disk_percent}% (${formatSize(systemMetrics.disk_used)})`"></span>
-                                </div>
-                                <div class="w-full bg-gray-200 rounded-full h-2">
-                                    <div class="bg-yellow-600 h-2 rounded-full transition-all duration-500"
-                                         :style="`width: ${systemMetrics.disk_percent}%`"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- GPU Status -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="text-lg font-semibold">GPU Status</h3>
-                        </div>
-                        <div class="card-body space-y-4">
-                            <template x-for="gpu in systemMetrics.gpus" :key="gpu.id">
-                                <div>
-                                    <div class="flex justify-between text-sm mb-2">
-                                        <span x-text="`GPU ${gpu.id}: ${gpu.name}`"></span>
-                                        <span x-text="`${gpu.temperature}°C`"></span>
-                                    </div>
-                                    
-                                    <!-- GPU Memory -->
-                                    <div class="mb-2">
-                                        <div class="flex justify-between text-xs mb-1">
-                                            <span>Memory</span>
-                                            <span x-text="`${gpu.memory_percent}%`"></span>
-                                        </div>
-                                        <div class="w-full bg-gray-200 rounded-full h-1.5">
-                                            <div class="bg-red-600 h-1.5 rounded-full transition-all duration-500"
-                                                 :style="`width: ${gpu.memory_percent}%`"></div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- GPU Utilization -->
-                                    <div>
-                                        <div class="flex justify-between text-xs mb-1">
-                                            <span>Utilization</span>
-                                            <span x-text="`${gpu.utilization}%`"></span>
-                                        </div>
-                                        <div class="w-full bg-gray-200 rounded-full h-1.5">
-                                            <div class="bg-purple-600 h-1.5 rounded-full transition-all duration-500"
-                                                 :style="`width: ${gpu.utilization}%`"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Performance Charts -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="text-lg font-semibold">Performance Trends</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div class="performance-chart">
-                                <h4 class="text-sm font-medium mb-3">CPU & Memory (Last Hour)</h4>
-                                <div id="cpu-memory-chart" class="h-40 bg-gray-50 rounded flex items-center justify-center text-gray-500">
-                                    <span>Performance chart will render here</span>
-                                </div>
-                            </div>
-                            <div class="performance-chart">
-                                <h4 class="text-sm font-medium mb-3">GPU Utilization (Last Hour)</h4>
-                                <div id="gpu-chart" class="h-40 bg-gray-50 rounded flex items-center justify-center text-gray-500">
-                                    <span>GPU chart will render here</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div x-show="ui.activeTab === 'monitoring'">
+
+                <!-- Vue Islands: Admin Status + Detailed System Status Panel -->
+                <div data-vue-root="system-admin-status-card"></div>
+
+                <div data-vue-root="system-status-panel"></div>
             </div>
             
             <!-- Worker Management Tab -->

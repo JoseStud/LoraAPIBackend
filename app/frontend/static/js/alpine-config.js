@@ -1,6 +1,8 @@
 // Alpine.js Global Configuration and Store
 // This file sets up global Alpine.js stores and components for the LoRA Manager frontend
 
+import { fetchData, putData, deleteData, downloadBlob, postForBlob } from './utils/api.js';
+
 // Guard against Alpine not being loaded yet
 if (typeof window.Alpine === 'undefined') {
     // Alpine not loaded yet - registration will occur on alpine:init
@@ -188,10 +190,7 @@ ensureAlpine(() => {
     
     async loadAvailableTags() {
         try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/adapters/tags');
-            if (response.ok) {
-                this.availableTags = await response.json();
-            }
+            this.availableTags = await fetchData((window?.BACKEND_URL || '') + '/adapters/tags');
         } catch (error) {
             window.DevLogger && window.DevLogger.error && window.DevLogger.error('Failed to load tags:', error);
         }
@@ -240,12 +239,9 @@ ensureAlpine(() => {
             if (this.loading) return;
             this.loading = true;
             try {
-                const resp = await fetch('/api/dashboard/stats');
-                if (resp.ok) {
-                    const data = await resp.json();
-                    this.stats = data.stats || this.stats;
-                    this.systemHealth = data.system_health || this.systemHealth;
-                }
+                const data = await fetchData('/api/dashboard/stats');
+                this.stats = data.stats || this.stats;
+                this.systemHealth = data.system_health || this.systemHealth;
             } catch (e) {
                 // no-op; backend may be offline
             } finally {
@@ -276,10 +272,7 @@ ensureAlpine(() => {
         
         async loadActiveJobs() {
             try {
-                const response = await fetch('/api/deliveries/jobs?status=processing');
-                if (response.ok) {
-                    this.activeJobs = await response.json();
-                }
+                this.activeJobs = await fetchData('/api/deliveries/jobs?status=processing');
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Failed to load active jobs:', error);
             }
@@ -345,9 +338,7 @@ ensureAlpine(() => {
             try {
                 this.isLoading = true;
                 const params = new URLSearchParams({ page: this.currentPage, page_size: 50 });
-                const response = await fetch(`/api/results?${params}`);
-                if (!response.ok) throw new Error('Failed to load results');
-                const data = await response.json();
+                const data = await fetchData(`/api/results?${params}`);
                 if (this.currentPage === 1) this.results = data.results;
                 else this.results.push(...data.results);
                 this.hasMore = data.has_more;
@@ -415,8 +406,7 @@ ensureAlpine(() => {
 
         async setRating(result, rating) {
             try {
-                const response = await fetch(`/api/results/${result.id}/rating`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rating }) });
-                if (!response.ok) throw new Error('Failed to update rating');
+                await putData(`/api/results/${result.id}/rating`, { rating });
                 result.rating = rating; this.calculateStats(); this.showToastMessage('Rating updated successfully');
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error updating rating:', error);
@@ -426,8 +416,7 @@ ensureAlpine(() => {
 
         async toggleFavorite(result) {
             try {
-                const response = await fetch(`/api/results/${result.id}/favorite`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ is_favorite: !result.is_favorite }) });
-                if (!response.ok) throw new Error('Failed to update favorite status');
+                await putData(`/api/results/${result.id}/favorite`, { is_favorite: !result.is_favorite });
                 result.is_favorite = !result.is_favorite; this.calculateStats(); const message = result.is_favorite ? 'Added to favorites' : 'Removed from favorites'; this.showToastMessage(message);
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error updating favorite:', error);
@@ -443,7 +432,16 @@ ensureAlpine(() => {
 
         async downloadImage(result) {
             try {
-                const response = await fetch(result.image_url); const blob = await response.blob(); const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `generation-${result.id}.png`; document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); document.body.removeChild(a); this.showToastMessage('Download started');
+                const blob = await downloadBlob(result.image_url);
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `generation-${result.id}.png`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                this.showToastMessage('Download started');
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error downloading image:', error);
                 this.showToastMessage('Failed to download image', 'error');
@@ -453,8 +451,8 @@ ensureAlpine(() => {
         async deleteResult(resultId) {
             if (!confirm('Are you sure you want to delete this image?')) return;
             try {
-                const response = await fetch(`/api/results/${resultId}`, { method: 'DELETE' });
-                if (!response.ok) throw new Error('Failed to delete result'); this.results = this.results.filter(r => r.id !== resultId); this.applyFilters(); this.showToastMessage('Image deleted successfully');
+                await deleteData(`/api/results/${resultId}`);
+                this.results = this.results.filter(r => r.id !== resultId); this.applyFilters(); this.showToastMessage('Image deleted successfully');
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error deleting result:', error);
                 this.showToastMessage('Failed to delete image', 'error');
@@ -464,8 +462,8 @@ ensureAlpine(() => {
         async deleteSelected() {
             if (this.selectedItems.length === 0) return; const count = this.selectedItems.length; if (!confirm(`Are you sure you want to delete ${count} selected images?`)) return;
             try {
-                const response = await fetch('/api/results/bulk-delete', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ids: this.selectedItems }) });
-                if (!response.ok) throw new Error('Failed to delete results'); this.results = this.results.filter(r => !this.selectedItems.includes(r.id)); this.selectedItems = []; this.applyFilters(); this.showToastMessage(`${count} images deleted successfully`);
+                await deleteData('/api/results/bulk-delete', { body: JSON.stringify({ ids: this.selectedItems }) });
+                this.results = this.results.filter(r => !this.selectedItems.includes(r.id)); this.selectedItems = []; this.applyFilters(); this.showToastMessage(`${count} images deleted successfully`);
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error deleting results:', error);
                 this.showToastMessage('Failed to delete images', 'error');
@@ -475,8 +473,8 @@ ensureAlpine(() => {
         async favoriteSelected() {
             if (this.selectedItems.length === 0) return;
             try {
-                const response = await fetch('/api/results/bulk-favorite', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ids: this.selectedItems, is_favorite: true }) });
-                if (!response.ok) throw new Error('Failed to update favorites'); this.results.forEach(result => { if (this.selectedItems.includes(result.id)) result.is_favorite = true; }); this.calculateStats(); this.showToastMessage(`${this.selectedItems.length} images added to favorites`);
+                await putData('/api/results/bulk-favorite', { ids: this.selectedItems, is_favorite: true });
+                this.results.forEach(result => { if (this.selectedItems.includes(result.id)) result.is_favorite = true; }); this.calculateStats(); this.showToastMessage(`${this.selectedItems.length} images added to favorites`);
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error updating favorites:', error);
                 this.showToastMessage('Failed to update favorites', 'error');
@@ -486,8 +484,17 @@ ensureAlpine(() => {
         async exportSelected() {
             if (this.selectedItems.length === 0) return;
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/results/export', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ids: this.selectedItems }) });
-                if (!response.ok) throw new Error('Failed to export results'); const blob = await response.blob(); const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `generation-export-${Date.now()}.zip`; document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); document.body.removeChild(a); this.showToastMessage('Export started');
+                const baseUrl = window?.BACKEND_URL || '';
+                const blob = await postForBlob(`${baseUrl}/results/export`, { ids: this.selectedItems });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `generation-export-${Date.now()}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                this.showToastMessage('Export started');
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error exporting results:', error);
                 this.showToastMessage('Failed to export images', 'error');
