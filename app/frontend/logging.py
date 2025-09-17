@@ -1,4 +1,4 @@
-"""Logging Configuration
+"""Logging Configuration.
 
 Sets up structured logging for the LoRA Manager frontend application.
 Provides JSON output for production and human-readable format for development.
@@ -16,10 +16,10 @@ settings = get_settings()
 
 
 class JSONFormatter(logging.Formatter):
-    """Custom JSON formatter for structured logging"""
+    """Custom JSON formatter for structured logging."""
     
     def format(self, record: logging.LogRecord) -> str:
-        """Format log record as JSON"""
+        """Format log record as JSON."""
         import json
         
         # Base log entry
@@ -53,7 +53,7 @@ class JSONFormatter(logging.Formatter):
 
 
 class ColoredFormatter(logging.Formatter):
-    """Colored formatter for development console output"""
+    """Colored formatter for development console output."""
     
     # ANSI color codes
     COLORS = {
@@ -66,7 +66,7 @@ class ColoredFormatter(logging.Formatter):
     }
     
     def format(self, record: logging.LogRecord) -> str:
-        """Format log record with colors"""
+        """Format log record with colors."""
         # Add color to level name
         level_color = self.COLORS.get(record.levelname, '')
         reset_color = self.COLORS['RESET']
@@ -113,7 +113,7 @@ def setup_logging(
     format_type: Optional[str] = None,
     log_file: Optional[str] = None,
 ) -> None:
-    """Setup logging configuration
+    """Setup logging configuration.
     
     Args:
         level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -169,7 +169,7 @@ def setup_logging(
 
 
 def configure_logger_levels() -> None:
-    """Configure specific logger levels"""
+    """Configure specific logger levels."""
     # Reduce noise from external libraries
     logging.getLogger("uvicorn").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
@@ -186,7 +186,7 @@ def configure_logger_levels() -> None:
 
 
 def get_logger(name: str) -> logging.Logger:
-    """Get logger with consistent configuration
+    """Get logger with consistent configuration.
     
     Args:
         name: Logger name
@@ -206,7 +206,7 @@ def log_request(
     user_agent: Optional[str] = None,
     ip_address: Optional[str] = None,
 ) -> None:
-    """Log HTTP request in structured format
+    """Log HTTP request in structured format.
     
     Args:
         method: HTTP method
@@ -246,7 +246,7 @@ def log_backend_request(
     request_id: Optional[str] = None,
     error: Optional[str] = None,
 ) -> None:
-    """Log backend request in structured format
+    """Log backend request in structured format.
     
     Args:
         method: HTTP method
@@ -285,7 +285,7 @@ def log_cache_operation(
     hit: bool = False,
     ttl: Optional[int] = None,
 ) -> None:
-    """Log cache operations for debugging
+    """Log cache operations for debugging.
     
     Args:
         operation: Cache operation (get, set, delete, etc.)

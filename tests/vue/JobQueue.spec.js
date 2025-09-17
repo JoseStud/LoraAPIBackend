@@ -157,7 +157,7 @@ describe('JobQueue.vue', () => {
     await flush();
 
     // Should use the job.id when jobId is not available
-    expect(global.fetch).toHaveBeenCalledWith('/generation/jobs/job1/cancel', {
+    expect(global.fetch).toHaveBeenCalledWith('/api/v1/generation/jobs/job1/cancel', {
       method: 'POST',
       credentials: 'same-origin'
     });
@@ -196,7 +196,7 @@ describe('JobQueue.vue', () => {
     await flush();
 
     // Should try generation endpoint first
-    expect(global.fetch).toHaveBeenCalledWith('/generation/jobs/backend-job-1/cancel', {
+    expect(global.fetch).toHaveBeenCalledWith('/api/v1/generation/jobs/backend-job-1/cancel', {
       method: 'POST',
       credentials: 'same-origin'
     });

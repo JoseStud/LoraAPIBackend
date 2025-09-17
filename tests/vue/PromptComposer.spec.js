@@ -14,7 +14,7 @@ describe('PromptComposer.vue', () => {
     // Simple fetch stub for LoRAs and generate endpoint
     global.fetch = vi.fn(async (input, init) => {
       const url = typeof input === 'string' ? input : input?.url || '';
-      if (url.includes('/api/adapters')) {
+      if (url.includes('/api/v1/adapters')) {
         return {
           ok: true,
           status: 200,

@@ -1,4 +1,4 @@
-"""Vite Asset Helper for LoRA Manager
+"""Vite Asset Helper for LoRA Manager.
 
 This module provides utilities for serving assets built by Vite,
 handling both development and production environments.

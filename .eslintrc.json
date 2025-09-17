@@ -16,7 +16,7 @@
   ],
   "rules": {
     "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
-    "no-console": "warn",
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
     "no-debugger": "error",
     "prefer-const": "warn",
     "no-var": "error"
@@ -27,7 +27,8 @@
     "Chart": "readonly",
     "HTMXUtils": "readonly",
     "LoRAManager": "readonly",
-    "module": "writable"
+    "module": "writable",
+    "global": "readonly"
   },
   "ignorePatterns": [
     "node_modules/",

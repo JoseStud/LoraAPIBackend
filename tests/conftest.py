@@ -39,11 +39,13 @@ def mock_storage_fixture(monkeypatch) -> MagicMock:
     
     # Patch the storage service factory in all possible locations
     # Since we moved to backend, we need to patch the backend app's services
-    monkeypatch.setattr("backend.services.storage.get_storage_service", lambda: mock_storage_service)
+    monkeypatch.setattr(
+        "backend.services.storage.get_storage_service", 
+        lambda: mock_storage_service,
+    )
     
     # Also patch the ServiceContainer's property method directly
     from backend.services import ServiceContainer
-    original_storage_property = ServiceContainer.storage
     
     def mock_storage_property(self):
         return mock_storage_service
@@ -70,7 +72,8 @@ def db_session_fixture():
     # test behavior matches production DB expectations.
     with engine.begin() as conn:
         conn.exec_driver_sql(
-            "CREATE UNIQUE INDEX IF NOT EXISTS ux_adapter_name_version ON adapter (name, version)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_adapter_name_version "
+            "ON adapter (name, version)",
         )
     with Session(engine) as session:
         yield session

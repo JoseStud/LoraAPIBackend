@@ -83,7 +83,9 @@ def test_comprehensive_civitai_parsing():
         assert extra["stats"]["downloadCount"] == 500
 
         # Test dry-run output
-        result = register_adapter_from_metadata(parsed, json_path=str(json_path), dry_run=True)
+        result = register_adapter_from_metadata(
+            parsed, json_path=str(json_path), dry_run=True,
+        )
         assert result["status"] == "would_register"
         
         payload = result["payload"]

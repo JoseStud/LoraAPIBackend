@@ -21,7 +21,7 @@ def file_exists(path: str) -> bool:
     return storage_service.validate_file_path(path)
 
 # Import db.get_session for backward compatibility with importer
-from backend.core.database import get_session
+from backend.core.database import get_session, get_session_context
 
 
 class ServiceContainer:

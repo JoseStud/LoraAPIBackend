@@ -3,7 +3,10 @@
 import json
 
 
-def test_importer_integration_creates_adapter(tmp_path, db_session, mock_storage, monkeypatch):
+def test_importer_integration_creates_adapter(
+    tmp_path, db_session, mock_storage, monkeypatch,
+):
+    """Test that importer integration creates adapter successfully."""
     # create json and model file
     jp = tmp_path / "intf.json"
     model = tmp_path / "intf.safetensors"
@@ -37,7 +40,9 @@ def test_importer_integration_creates_adapter(tmp_path, db_session, mock_storage
     # Parse and register (non-dry run). register_adapter_from_metadata will
     # call the service helper which now uses the patched get_session.
     parsed = importer.parse_civitai_json(str(jp))
-    result = importer.register_adapter_from_metadata(parsed, json_path=str(jp), dry_run=False)
+    result = importer.register_adapter_from_metadata(
+        parsed, json_path=str(jp), dry_run=False,
+    )
 
     assert result["status"] == "upserted"
     assert "id" in result

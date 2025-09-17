@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Script to update all import statements in test files
-from 'app.' to 'backend.' to reflect the new project structure
+"""Script to update all import statements in test files.
+
+Update import statements from 'app.' to 'backend.' to reflect the new project structure.
 """
 
 import re
@@ -8,7 +9,7 @@ from pathlib import Path
 
 
 def update_imports_in_file(file_path):
-    """Update imports in a single Python file"""
+    """Update imports in a single Python file."""
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -40,7 +41,7 @@ def update_imports_in_file(file_path):
         return False
 
 def main():
-    """Update all Python files in the tests directory"""
+    """Update all Python files in the tests directory."""
     tests_dir = Path("/home/anxilinux/DeepVault/models/Lora/lora-manager/tests")
     scripts_dir = Path("/home/anxilinux/DeepVault/models/Lora/lora-manager/scripts")
     

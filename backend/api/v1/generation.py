@@ -5,7 +5,7 @@ from typing import Dict
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlmodel import Session
 
-from backend.core.database import get_session
+from backend.core.database import get_session, get_session_context
 from backend.delivery import get_generation_backend
 from backend.schemas import (
     ComposeRequest,
@@ -270,8 +270,6 @@ async def _process_generation_job(job_id: str, params: Dict):
         params: Generation parameters
 
     """
-    from backend.core.database import get_session
-    
     with get_session_context() as session:
         services = create_service_container(session)
         

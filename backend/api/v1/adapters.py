@@ -1,10 +1,10 @@
 """HTTP routes for managing adapters."""
 
 from datetime import datetime, timezone
+from typing import List, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
-from typing import List, Literal, Optional
 from sqlmodel import Session, select
 
 from backend.core.database import get_session
@@ -61,7 +61,7 @@ def list_adapters(
     
     # Apply active filter
     if active_only:
-        q = q.where(Adapter.active == True)
+        q = q.where(Adapter.active)
     
     # Apply tag filters (tags is comma-separated string)
     tag_list = []
@@ -171,7 +171,7 @@ def bulk_adapter_action(
 
     # Fetch targeted adapters
     adapters = db_session.exec(
-        select(Adapter).where(Adapter.id.in_(request.lora_ids))
+        select(Adapter).where(Adapter.id.in_(request.lora_ids)),
     ).all()
 
     processed_ids: List[str] = []
@@ -217,7 +217,7 @@ def patch_adapter(
     ALLOWED_FIELDS = {
         "weight", "active", "ordinal", "tags", "description", "activation_text",
         "trained_words", "triggers", "archetype", "archetype_confidence",
-        "visibility", "nsfw_level", "supports_generation", "sd_version"
+        "visibility", "nsfw_level", "supports_generation", "sd_version",
     }
     
     a = db_session.get(Adapter, adapter_id)
@@ -230,7 +230,7 @@ def patch_adapter(
         if k not in ALLOWED_FIELDS:
             raise HTTPException(
                 status_code=400, 
-                detail=f"Field '{k}' is not allowed to be modified. Allowed fields: {', '.join(sorted(ALLOWED_FIELDS))}"
+                detail=f"Field '{k}' is not allowed to be modified. Allowed fields: {', '.join(sorted(ALLOWED_FIELDS))}",
             )
         if hasattr(a, k):
             # Type validation for specific fields

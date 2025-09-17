@@ -350,7 +350,7 @@ function promptComposer() {
         },
         
         // Toast Notification System
-        showToastMessage(message, type = 'success') {
+        showToastMessage(message, _type = 'success') {
             this.toastMessage = message;
             this.showToast = true;
             
@@ -359,4 +359,14 @@ function promptComposer() {
             }, 3000);
         }
     };
+}
+
+// Make function available globally for Alpine.js or direct use
+if (typeof window !== 'undefined') {
+    window.promptComposer = promptComposer;
+}
+
+// Export for module systems
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { promptComposer };
 }

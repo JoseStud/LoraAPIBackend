@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Migration Helper Script
+"""Migration Helper Script.
 
 Helps migrate from monolithic files to the new modular structure.
 This script can be used to gradually transition components.
@@ -48,7 +48,7 @@ FILE_MIGRATION_MAP = {
 
 
 def backup_original_files() -> None:
-    """Create backups of original files before migration"""
+    """Create backups of original files before migration."""
     backup_dir = PROJECT_ROOT / "migration_backup"
     backup_dir.mkdir(exist_ok=True)
     
@@ -65,7 +65,7 @@ def backup_original_files() -> None:
 
 
 def check_new_files() -> Dict[str, List[str]]:
-    """Check which new modular files exist"""
+    """Check which new modular files exist."""
     status = {}
     
     for original_file, new_files in FILE_MIGRATION_MAP.items():
@@ -82,7 +82,7 @@ def check_new_files() -> Dict[str, List[str]]:
 
 
 def print_migration_status() -> None:
-    """Print current migration status"""
+    """Print current migration status."""
     print("\n" + "="*60)
     print("MIGRATION STATUS")
     print("="*60)
@@ -117,7 +117,7 @@ def print_migration_status() -> None:
 
 
 def update_template_imports(dry_run: bool = True) -> None:
-    """Update template files to use new modular imports"""
+    """Update template files to use new modular imports."""
     templates_dir = PROJECT_ROOT / "app/frontend/templates"
     
     if not templates_dir.exists():
@@ -142,9 +142,13 @@ def update_template_imports(dry_run: bool = True) -> None:
             if old_import in content:
                 if isinstance(new_import, list):
                     # Replace with multiple imports
-                    old_tag = f'<script src="{{ url_for(\'static\', path=\'{old_import}\') }}"></script>'
+                    old_tag = (
+                        f'<script src="{{ url_for(\'static\', '
+                        f'path=\'{old_import}\') }}"></script>'
+                    )
                     new_tags = '\n'.join([
-                        f'<script src="{{ url_for(\'static\', path=\'{ni}\') }}"></script>'
+                        f'<script src="{{ url_for(\'static\', '
+                        f'path=\'{ni}\') }}"></script>'
                         for ni in new_import
                     ])
                     updated_content = updated_content.replace(old_tag, new_tags)
@@ -153,14 +157,17 @@ def update_template_imports(dry_run: bool = True) -> None:
                     updated_content = updated_content.replace(old_import, new_import)
                 
                 updated = True
-                print(f"  {'[DRY] ' if dry_run else ''}Updated {template_file.relative_to(PROJECT_ROOT)}")
+                print(
+                    f"  {'[DRY] ' if dry_run else ''}"
+                    f"Updated {template_file.relative_to(PROJECT_ROOT)}",
+                )
         
         if updated and not dry_run:
             template_file.write_text(updated_content)
 
 
 def create_integration_test() -> None:
-    """Create a simple integration test to verify the migration"""
+    """Create a simple integration test to verify the migration."""
     test_content = '''
 /**
  * Integration test for migrated components
@@ -200,7 +207,7 @@ describe('Migration Integration Tests', () => {
 
 
 def main():
-    """Main migration helper function"""
+    """Run the main migration helper process."""
     print("LoRA Manager Frontend Migration Helper")
     print("="*50)
     

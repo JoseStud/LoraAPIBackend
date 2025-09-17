@@ -94,7 +94,7 @@ class SDNextGenerationBackend(GenerationBackend):
         
         # Extract generation parameters
         gen_params = params.get("generation_params", {})
-        mode = params.get("mode", "immediate")
+        params.get("mode", "immediate")
         save_images = params.get("save_images", True)
         return_format = params.get("return_format", "base64")
         

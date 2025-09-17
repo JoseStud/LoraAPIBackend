@@ -1,4 +1,4 @@
-"""Error Handling Utilities
+"""Error Handling Utilities.
 
 Provides consistent error handling and fallback rendering
 for the LoRA Manager frontend application.
@@ -19,9 +19,14 @@ settings = get_settings()
 
 
 class FrontendError(Exception):
-    """Base exception for frontend errors"""
+    """Base exception for frontend errors."""
     
-    def __init__(self, message: str, status_code: int = 500, details: Optional[Dict] = None):
+    def __init__(
+        self, 
+        message: str, 
+        status_code: int = 500, 
+        details: Optional[Dict] = None,
+    ):
         self.message = message
         self.status_code = status_code
         self.details = details or {}
@@ -29,22 +34,30 @@ class FrontendError(Exception):
 
 
 class BackendConnectionError(FrontendError):
-    """Error when backend is unreachable"""
+    """Error when backend is unreachable."""
     
-    def __init__(self, message: str = "Backend service unavailable", details: Optional[Dict] = None):
+    def __init__(
+        self, 
+        message: str = "Backend service unavailable", 
+        details: Optional[Dict] = None,
+    ):
         super().__init__(message, status_code=502, details=details)
 
 
 class ValidationFailedError(FrontendError):
-    """Error for validation failures"""
+    """Error for validation failures."""
     
-    def __init__(self, message: str = "Validation failed", validation_errors: Optional[Dict] = None):
+    def __init__(
+        self, 
+        message: str = "Validation failed", 
+        validation_errors: Optional[Dict] = None,
+    ):
         details = {"validation_errors": validation_errors or {}}
         super().__init__(message, status_code=400, details=details)
 
 
 def format_validation_errors(validation_error: ValidationError) -> Dict[str, str]:
-    """Format Pydantic validation errors for display
+    """Format Pydantic validation errors for display.
     
     Args:
         validation_error: Pydantic ValidationError instance
@@ -67,9 +80,11 @@ def format_validation_errors(validation_error: ValidationError) -> Dict[str, str
         elif error['type'] == 'type_error.integer':
             error_msg = "Must be a valid integer"
         elif error['type'] == 'value_error.number.not_gt':
-            error_msg = f"Must be greater than {error.get('ctx', {}).get('limit_value', 0)}"
+            limit = error.get('ctx', {}).get('limit_value', 0)
+            error_msg = f"Must be greater than {limit}"
         elif error['type'] == 'value_error.number.not_le':
-            error_msg = f"Must be less than or equal to {error.get('ctx', {}).get('limit_value', 1)}"
+            limit = error.get('ctx', {}).get('limit_value', 1)
+            error_msg = f"Must be less than or equal to {limit}"
         elif error['type'] == 'value_error.str.regex':
             error_msg = "Invalid format"
         
@@ -86,7 +101,7 @@ def render_error_fallback(
     fallback_data: Optional[Dict] = None,
     status_code: int = 500,
 ) -> HTMLResponse:
-    """Render error fallback template with consistent context
+    """Render error fallback template with consistent context.
     
     Args:
         request: FastAPI Request object
@@ -159,7 +174,7 @@ def create_htmx_error_response(
     partial_template: str = "partials/error.html",
     retarget: Optional[str] = None,
 ) -> HTMLResponse:
-    """Create HTMX-compatible error response
+    """Create HTMX-compatible error response.
     
     Args:
         request: FastAPI Request object
@@ -194,11 +209,17 @@ def create_htmx_error_response(
     headers["HX-Trigger-After-Swap"] = "errorOccurred"
     
     try:
+        # Determine status code based on error type
+        if isinstance(error, FrontendError):
+            status_code = getattr(error, 'status_code', 500)
+        else:
+            status_code = 500
+            
         return templates.TemplateResponse(
             partial_template,
             context,
             headers=headers,
-            status_code=getattr(error, 'status_code', 500) if isinstance(error, FrontendError) else 500,
+            status_code=status_code,
         )
     except Exception as template_error:
         logger.error(f"Error partial rendering failed: {template_error}")
@@ -213,7 +234,7 @@ def create_json_error_response(
     error: Union[str, Exception],
     status_code: Optional[int] = None,
 ) -> JSONResponse:
-    """Create JSON error response for API endpoints
+    """Create JSON error response for API endpoints.
     
     Args:
         error: Error message or exception
@@ -259,7 +280,7 @@ def handle_backend_error(
     template_name: str,
     fallback_data: Optional[Dict] = None,
 ) -> HTMLResponse:
-    """Handle backend service errors with appropriate fallbacks
+    """Handle backend service errors with appropriate fallbacks.
     
     Args:
         request: FastAPI Request object
@@ -302,7 +323,7 @@ def log_error_with_context(
     context: Dict[str, Any],
     level: str = "error",
 ) -> None:
-    """Log error with additional context for debugging
+    """Log error with additional context for debugging.
     
     Args:
         error: Exception to log
@@ -325,7 +346,7 @@ def log_error_with_context(
 
 # Decorator for consistent error handling in route handlers
 def handle_route_errors(fallback_template: str, fallback_data: Optional[Dict] = None):
-    """Decorator for consistent error handling in route handlers
+    """Decorator for consistent error handling in route handlers.
     
     Args:
         fallback_template: Template to render on error

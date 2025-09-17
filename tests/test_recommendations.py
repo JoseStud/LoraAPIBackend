@@ -127,7 +127,10 @@ class TestRecommendationService:
             }
             
             mock_extractor_instance = MagicMock()
-            mock_extractor_instance.extract_advanced_features.return_value = mock_features
+            mock_result = mock_features
+            mock_extractor_instance.extract_advanced_features.return_value = (
+                mock_result
+            )
             mock_extractor.return_value = mock_extractor_instance
             
             # Test embedding computation
@@ -170,7 +173,10 @@ class TestRecommendationService:
             }
             
             mock_extractor_instance = MagicMock()
-            mock_extractor_instance.extract_advanced_features.return_value = mock_features
+            mock_batch_result = mock_features
+            mock_extractor_instance.extract_advanced_features.return_value = (
+                mock_batch_result
+            )
             mock_extractor.return_value = mock_extractor_instance
             
             # Test batch processing
@@ -287,7 +293,9 @@ class TestRecommendationModels:
         with patch('sentence_transformers.SentenceTransformer'):
             from backend.services.recommendation_models import LoRASemanticEmbedder
             
-            embedder = LoRASemanticEmbedder(device='cpu', batch_size=16, mixed_precision=False)
+            embedder = LoRASemanticEmbedder(
+                device='cpu', batch_size=16, mixed_precision=False,
+            )
             
             assert embedder.device == 'cpu'
             assert embedder.batch_size == 16
@@ -318,18 +326,23 @@ class TestRecommendationModels:
         extractor = GPULoRAFeatureExtractor(device='cpu')
         
         # Test fallback keyword extraction
-        result = extractor._fallback_keyword_extraction("This is a test description with anime character")
+        test_desc = "This is a test description with anime character"
+        result = extractor._fallback_keyword_extraction(test_desc)
         assert 'extracted_keywords' in result
         assert 'keyword_scores' in result
         assert len(result['extracted_keywords']) > 0
         
         # Test fallback sentiment analysis
-        result = extractor._fallback_sentiment_analysis("This is a great and amazing LoRA")
+        result = extractor._fallback_sentiment_analysis(
+            "This is a great and amazing LoRA",
+        )
         assert result['sentiment_label'] == 'POSITIVE'
         assert result['sentiment_score'] > 0.5
         
         # Test fallback style classification
-        result = extractor._fallback_style_classification("This is an anime style digital art")
+        result = extractor._fallback_style_classification(
+            "This is an anime style digital art",
+        )
         assert result['predicted_style'] in ['anime', 'digital art']
         assert result['style_confidence'] >= 0
 
@@ -362,7 +375,10 @@ class TestRecommendationIntegration:
                 'quality_score': 0.7,
             }
             mock_extractor_instance = MagicMock()
-            mock_extractor_instance.extract_advanced_features.return_value = mock_features
+            extract_result = mock_features
+            mock_extractor_instance.extract_advanced_features.return_value = (
+                extract_result
+            )
             mock_extractor.return_value = mock_extractor_instance
             
             # Setup mock embedder
@@ -371,11 +387,20 @@ class TestRecommendationIntegration:
             
             # Mock batch_encode_collection to return proper 2D arrays
             mock_batch_embeddings = {
-                'semantic': np.array([[0.1] * 1024, [0.2] * 1024, [0.3] * 1024]).astype('float32'),
-                'artistic': np.array([[0.1] * 384, [0.2] * 384, [0.3] * 384]).astype('float32'),
-                'technical': np.array([[0.1] * 768, [0.2] * 768, [0.3] * 768]).astype('float32'),
+                'semantic': np.array([
+                    [0.1] * 1024, [0.2] * 1024, [0.3] * 1024,
+                ]).astype('float32'),
+                'artistic': np.array([
+                    [0.1] * 384, [0.2] * 384, [0.3] * 384,
+                ]).astype('float32'),
+                'technical': np.array([
+                    [0.1] * 768, [0.2] * 768, [0.3] * 768,
+                ]).astype('float32'),
             }
-            mock_embedder_instance.batch_encode_collection.return_value = mock_batch_embeddings
+            batch_result = mock_batch_embeddings
+            mock_embedder_instance.batch_encode_collection.return_value = (
+                batch_result
+            )
             mock_embedder.return_value = mock_embedder_instance
             
             # Step 1: Compute embeddings
@@ -386,13 +411,16 @@ class TestRecommendationIntegration:
             
             # Step 2: Get similar LoRAs
             # Mock the recommendation engine to avoid the embedding issue
-            with patch.object(service, '_get_recommendation_engine') as mock_engine_method:
+            with patch.object(
+                service, '_get_recommendation_engine',
+            ) as mock_engine_method:
                 mock_engine = MagicMock()
 
                 # Mock the get_recommendations method to return proper results
                 mock_recommendations = [
                     {
-                        'lora_id': sample_adapters[1].id,  # Return a different adapter as recommendation
+                        # Return a different adapter as recommendation
+                        'lora_id': sample_adapters[1].id,
                         'similarity_score': 0.85,
                         'final_score': 0.85,
                         'explanation': 'High semantic similarity',

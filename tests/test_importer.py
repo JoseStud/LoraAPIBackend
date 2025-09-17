@@ -4,6 +4,7 @@ import json
 
 
 def test_parse_civitai_json_with_model(tmp_path):
+    """Test parsing Civitai JSON with model file."""
     jp = tmp_path / "char.json"
     model = tmp_path / "char.safetensors"
     data = {
@@ -26,6 +27,7 @@ def test_parse_civitai_json_with_model(tmp_path):
 
 
 def test_parse_civitai_json_without_model(tmp_path):
+    """Test parsing Civitai JSON without model file."""
     jp = tmp_path / "other.json"
     data = {"name": "other-lora"}
     jp.write_text(json.dumps(data), encoding="utf-8")

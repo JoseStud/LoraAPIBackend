@@ -419,7 +419,7 @@ function importExport() {
             }, 1000);
         },
         
-        restoreBackup(backupId) {
+        restoreBackup(_backupId) {
             if (!confirm('Are you sure you want to restore this backup? This will overwrite current data.')) {
                 return;
             }
@@ -623,4 +623,14 @@ function importExport() {
             }
         }
     };
+}
+
+// Make function available globally for Alpine.js or direct use
+if (typeof window !== 'undefined') {
+    window.importExport = importExport;
+}
+
+// Export for module systems
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { importExport };
 }

@@ -1,5 +1,5 @@
-"""Simple validation tests for the new modular file structure.
-"""
+"""Simple validation tests for the new modular file structure."""
+
 import os
 
 
@@ -61,7 +61,9 @@ class TestFileStructure:
             with open(file_path, 'r') as f:
                 content = f.read().strip()
                 assert len(content) > 100, f"{file_path} seems too short or empty"
-                assert "function" in content or "const" in content, f"{file_path} doesn't seem to contain JavaScript"
+                assert (
+                    "function" in content or "const" in content
+                ), f"{file_path} doesn't seem to contain JavaScript"
 
 
 class TestModuleStructure:

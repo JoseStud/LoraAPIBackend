@@ -231,7 +231,7 @@ describe('GenerationStudio.vue', () => {
 
     // Should have called fetch with the generation endpoint
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/generation/generate'),
+      expect.stringContaining('/api/v1/generation/generate'),
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({

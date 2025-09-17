@@ -1,5 +1,5 @@
 
-"""add complete civitai fields
+"""add complete civitai fields.
 
 Revision ID: d16f3e1df8bd
 Revises: 7176100dd1ac

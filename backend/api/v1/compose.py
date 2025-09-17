@@ -78,8 +78,6 @@ async def compose(
 
 async def _deliver_http(prompt: str, params: dict, job_id: str):
     """Background task for HTTP delivery."""
-    from backend.core.database import get_session
-    
     try:
         backend = get_delivery_backend("http")
         result = await backend.deliver(prompt, params)
@@ -103,8 +101,6 @@ async def _deliver_http(prompt: str, params: dict, job_id: str):
 
 async def _deliver_cli(prompt: str, params: dict, job_id: str):
     """Background task for CLI delivery."""
-    from backend.core.database import get_session
-    
     try:
         backend = get_delivery_backend("cli")
         result = await backend.deliver(prompt, params)
@@ -128,8 +124,6 @@ async def _deliver_cli(prompt: str, params: dict, job_id: str):
 
 async def _deliver_sdnext(prompt: str, params: dict, job_id: str):
     """Background task for SDNext generation delivery."""
-    from backend.core.database import get_session
-    
     try:
         backend = get_generation_backend("sdnext")
         

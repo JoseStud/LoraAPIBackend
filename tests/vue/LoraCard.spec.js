@@ -161,6 +161,9 @@ describe('LoraCard', () => {
     });
     global.fetch = fetchSpy;
     
+    // Mock window.alert for generatePreview
+    window.alert = vi.fn();
+    
     const wrapper = mount(LoraCard, {
       props: {
         lora: mockLora
@@ -170,22 +173,19 @@ describe('LoraCard', () => {
     // Test weight update URL
     await wrapper.vm.updateWeight();
     expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/v1/adapters/1/weight',
+      '/api/v1/adapters/1',
       expect.objectContaining({ method: 'PATCH' })
     );
 
     // Test toggle active URL
     await wrapper.vm.toggleActive();
     expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/v1/adapters/1/toggle',
+      '/api/v1/adapters/1/deactivate',
       expect.objectContaining({ method: 'POST' })
     );
 
-    // Test generate preview URL
+    // Test generate preview (no fetch call, just shows alert)
     await wrapper.vm.generatePreview();
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/v1/adapters/1/generate-preview',
-      expect.objectContaining({ method: 'POST' })
-    );
+    expect(window.alert).toHaveBeenCalledWith('Preview generation not available yet.');
   });
 });

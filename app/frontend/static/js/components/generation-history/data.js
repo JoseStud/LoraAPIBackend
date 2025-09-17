@@ -5,14 +5,14 @@
  */
 
 // Support both CommonJS (tests/Node) and browser environments
-let fetchData, postData, putData, deleteData;
+let fetchData, putData, deleteData;
 try {
     // Node/Jest environment
-    ({ fetchData, postData, putData, deleteData } = require('../../utils/api.js'));
+    ({ fetchData, putData, deleteData } = require('../../utils/api.js'));
 } catch (e) {
     // Browser global fallback
     if (typeof window !== 'undefined' && window.Utils) {
-        ({ fetchData, postData, putData, deleteData } = window.Utils);
+        ({ fetchData, putData, deleteData } = window.Utils);
     }
 }
 

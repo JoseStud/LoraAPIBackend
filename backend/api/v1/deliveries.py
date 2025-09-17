@@ -5,7 +5,7 @@ import os
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlmodel import Session
 
-from backend.core.database import get_session
+from backend.core.database import get_session, get_session_context
 from backend.delivery import get_delivery_backend, get_generation_backend
 from backend.schemas import (
     DeliveryCreate,
@@ -85,8 +85,6 @@ def get_delivery(delivery_id: str, session: Session = Depends(get_session)):
 
 async def _process_delivery_fallback(job_id: str, prompt: str, mode: str, params: dict):
     """Fallback delivery processing when Redis is not available."""
-    from backend.core.database import get_session
-    
     try:
         with get_session_context() as session:
             services = create_service_container(session)

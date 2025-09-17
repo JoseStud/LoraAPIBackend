@@ -26,7 +26,7 @@ logger = logging.getLogger("lora.importer")
 
 
 def json_serial(obj):
-    """JSON serializer for objects not serializable by default json code"""
+    """JSON serializer for objects not serializable by default json code."""
     if isinstance(obj, datetime):
         return obj.isoformat()
     raise TypeError(f"Type {type(obj)} not serializable")
@@ -34,6 +34,8 @@ def json_serial(obj):
 
 @dataclass
 class ParsedMetadata:
+    """Parsed metadata from Civitai JSON."""
+
     name: str
     version: Optional[str]
     tags: list
@@ -106,12 +108,15 @@ def parse_civitai_json(json_path: str) -> ParsedMetadata:
     tags = data.get("tags", [])
     weight = data.get("weight") or data.get("default_weight")
 
-    # Determine model file path by looking for files with same basename and known extensions
+    # Determine model file path by looking for files with same basename 
+    # and known extensions
     base = os.path.splitext(json_path)[0]
     candidate = None
     if primary_file_name:
         # Try to find the file with the exact name from JSON
-        candidate_with_name = os.path.join(os.path.dirname(json_path), primary_file_name)
+        candidate_with_name = os.path.join(
+            os.path.dirname(json_path), primary_file_name,
+        )
         if os.path.exists(candidate_with_name):
             candidate = candidate_with_name
     
@@ -168,7 +173,11 @@ def discover_metadata(import_path: str):
                 yield os.path.join(root, fn)
 
 
-def register_adapter_from_metadata(parsed: ParsedMetadata, json_path: Optional[str] = None, dry_run: bool = True):
+def register_adapter_from_metadata(
+    parsed: ParsedMetadata, 
+    json_path: Optional[str] = None, 
+    dry_run: bool = True,
+):
     """Register parsed metadata; returns a result dict describing the action.
 
     In dry-run mode this does not persist anything and returns a dict with
@@ -297,7 +306,13 @@ def needs_resync(json_path: str, force_resync: bool = False) -> bool:
         session.close()
 
 
-def run_poller(import_path: str, poll_seconds: int, dry_run: bool, force_resync: bool = False):
+def run_poller(
+    import_path: str, 
+    poll_seconds: int, 
+    dry_run: bool, 
+    force_resync: bool = False,
+):
+    """Run the import poller to process JSON files."""
     seen = set()
     # Dry-run mode: perform a single pass and emit a JSON summary then exit.
     if dry_run:
@@ -305,11 +320,12 @@ def run_poller(import_path: str, poll_seconds: int, dry_run: bool, force_resync:
         for jpath in discover_metadata(import_path):
             # In dry-run mode, check if file needs processing for summary
             needs_processing = needs_resync(jpath, force_resync)
-            status_prefix = "would_resync" if needs_processing else "would_skip"
             
             try:
                 parsed = parse_civitai_json(jpath)
-                res = register_adapter_from_metadata(parsed, json_path=jpath, dry_run=True)
+                res = register_adapter_from_metadata(
+                    parsed, json_path=jpath, dry_run=True,
+                )
                 if not needs_processing:
                     res["status"] = "would_skip_no_changes"
                 results.append(res)
@@ -339,7 +355,9 @@ def run_poller(import_path: str, poll_seconds: int, dry_run: bool, force_resync:
                 
             try:
                 parsed = parse_civitai_json(jpath)
-                result = register_adapter_from_metadata(parsed, json_path=jpath, dry_run=False)
+                result = register_adapter_from_metadata(
+                    parsed, json_path=jpath, dry_run=False,
+                )
                 logger.info("Processed %s: %s", jpath, result["status"])
                 processed_count += 1
                 seen.add(jpath)
@@ -348,19 +366,39 @@ def run_poller(import_path: str, poll_seconds: int, dry_run: bool, force_resync:
         
         # In force_resync mode, run once and exit (don't poll indefinitely)
         if force_resync:
-            logger.info("Force resync completed. Processed %d files, skipped %d files.", 
-                       processed_count, skipped_count)
+            logger.info(
+                "Force resync completed. Processed %d files, skipped %d files.", 
+                processed_count, skipped_count,
+            )
             break
             
         time.sleep(poll_seconds)
 
 
 def main():
+    """Main function to run the importer."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dry-run", action="store_true", help="Don't persist changes, only log them")
-    parser.add_argument("--force-resync", action="store_true", help="Re-process all files even if seen before")
-    parser.add_argument("--path", default=settings.IMPORT_PATH, help="Directory to scan for metadata")
-    parser.add_argument("--poll", type=int, default=settings.IMPORT_POLL_SECONDS, help="Poll interval in seconds")
+    parser.add_argument(
+        "--dry-run", 
+        action="store_true", 
+        help="Don't persist changes, only log them",
+    )
+    parser.add_argument(
+        "--force-resync", 
+        action="store_true", 
+        help="Re-process all files even if seen before",
+    )
+    parser.add_argument(
+        "--path", 
+        default=settings.IMPORT_PATH, 
+        help="Directory to scan for metadata",
+    )
+    parser.add_argument(
+        "--poll", 
+        type=int, 
+        default=settings.IMPORT_POLL_SECONDS, 
+        help="Poll interval in seconds",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)

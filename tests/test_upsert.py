@@ -8,6 +8,7 @@ from backend.services.adapters import AdapterService
 
 
 def test_upsert_creates_and_updates(db_session, mock_storage):
+    """Test that upsert creates and updates adapters correctly."""
     # initial create
     mock_storage.exists.return_value = True
     payload = AdapterCreate(
@@ -38,7 +39,7 @@ def test_upsert_creates_and_updates(db_session, mock_storage):
 
 
 def test_duplicate_save_raises_integrity_error(db_session, mock_storage):
-    """Direct save_adapter should raise IntegrityError when duplicate exists
+    """Direct save_adapter should raise IntegrityError when duplicate exists.
 
     This verifies the database-level unique index on (name, version) is
     enforced in tests (we create the index in the test fixture).

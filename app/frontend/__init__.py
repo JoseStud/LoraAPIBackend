@@ -1,2 +1,1 @@
-"""Frontend application module
-"""
+"""Frontend application module."""

@@ -29,7 +29,7 @@ except Exception:
             interval: list | None = None
 
 
-from backend.core.database import get_session
+from backend.core.database import get_session_context
 from backend.delivery import get_delivery_backend, get_generation_backend
 from backend.schemas import SDNextGenerationParams
 from backend.services import create_service_container
@@ -336,13 +336,13 @@ def rebuild_similarity_index(force: bool = False) -> dict:
             # Check GPU availability
             gpu_enabled = _is_gpu_available()
             
-            recommendation_service = RecommendationService(
+            RecommendationService(
                 db_session=sess,
                 gpu_enabled=gpu_enabled,
             )
             
             # Get all active adapters
-            stmt = select(Adapter).where(Adapter.active == True)
+            stmt = select(Adapter).where(Adapter.active)
             adapters = list(sess.exec(stmt))
             
             logger.info(f"Rebuilding similarity index for {len(adapters)} adapters")

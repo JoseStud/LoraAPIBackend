@@ -78,16 +78,6 @@ const generationAPI = {
                 error: error.message,
                 data: []
             };
-        } catch (error) {
-            if (window.DevLogger && window.DevLogger.error) {
-                window.DevLogger.error('Failed to load active jobs:', error);
-            }
-            
-            return {
-                success: false,
-                error: error.message,
-                data: []
-            };
         }
     },
     

@@ -8,7 +8,7 @@ import pytest
 fakeredis = pytest.importorskip("fakeredis")
 from rq import Queue, SimpleWorker  # noqa: E402
 
-from backend.core.database import get_session, init_db  # noqa: E402
+from backend.core.database import get_session_context, init_db  # noqa: E402
 from backend.models.deliveries import DeliveryJob  # noqa: E402
 from backend.workers.tasks import enqueue_delivery  # noqa: E402
 

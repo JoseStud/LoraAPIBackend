@@ -6,9 +6,10 @@
 
 import apiDataFetcher from '../shared/api-data-fetcher.js';
 import { fetchData, postData } from '../../utils/api.js';
-import { formatFileSize, formatRelativeTime } from '../../utils/formatters.js';
-import { copyToClipboard } from '../../utils/browser.js';
-import { showElement, hideElement } from '../../utils/dom.js';
+// Utility imports available but not currently used
+// import { formatFileSize, formatRelativeTime } from '../../utils/formatters.js';
+// import { copyToClipboard } from '../../utils/browser.js';
+// import { showElement, hideElement } from '../../utils/dom.js';
 
 /**
  * Individual LoRA Card Component

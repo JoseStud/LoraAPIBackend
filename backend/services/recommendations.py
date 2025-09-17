@@ -197,7 +197,7 @@ class RecommendationService:
         stmt = select(Adapter, LoRAEmbedding).join(
             LoRAEmbedding, Adapter.id == LoRAEmbedding.adapter_id,
         ).where(
-            Adapter.active == True,
+            Adapter.active,
             ~Adapter.id.in_(active_loras),  # Exclude active LoRAs
         )
         
@@ -227,7 +227,8 @@ class RecommendationService:
                 # Generate explanation
                 explanation_parts = [f"Prompt similarity: {similarity:.2f}"]
                 if style_boost > 0:
-                    explanation_parts.append(f"Style match: {embedding.predicted_style}")
+                    style_text = f"Style match: {embedding.predicted_style}"
+                    explanation_parts.append(style_text)
                 if adapter.tags:
                     explanation_parts.append(f"Tags: {', '.join(adapter.tags[:3])}")
                 
@@ -305,7 +306,8 @@ class RecommendationService:
                 existing_embedding.semantic_embedding = semantic_bytes
                 existing_embedding.artistic_embedding = artistic_bytes
                 existing_embedding.technical_embedding = technical_bytes
-                existing_embedding.extracted_keywords = features.get('extracted_keywords', [])
+                keywords = features.get('extracted_keywords', [])
+                existing_embedding.extracted_keywords = keywords
                 existing_embedding.keyword_scores = features.get('keyword_scores', [])
                 existing_embedding.predicted_style = features.get('predicted_style')
                 existing_embedding.style_confidence = features.get('style_confidence')
@@ -314,7 +316,8 @@ class RecommendationService:
                 existing_embedding.quality_score = features.get('quality_score')
                 existing_embedding.popularity_score = features.get('popularity_score')
                 existing_embedding.recency_score = features.get('recency_score')
-                existing_embedding.compatibility_score = features.get('sd_compatibility_score')
+                compat_score = features.get('sd_compatibility_score')
+                existing_embedding.compatibility_score = compat_score
                 existing_embedding.last_computed = datetime.now(timezone.utc)
                 existing_embedding.updated_at = datetime.now(timezone.utc)
             else:
@@ -366,7 +369,7 @@ class RecommendationService:
         if adapter_ids:
             stmt = select(Adapter).where(Adapter.id.in_(adapter_ids))
         else:
-            stmt = select(Adapter).where(Adapter.active == True)
+            stmt = select(Adapter).where(Adapter.active)
         
         adapters = list(self.db_session.exec(stmt))
         
@@ -442,7 +445,7 @@ class RecommendationService:
         # Get all LoRAs with embeddings
         stmt = select(Adapter).join(
             LoRAEmbedding, Adapter.id == LoRAEmbedding.adapter_id,
-        ).where(Adapter.active == True)
+        ).where(Adapter.active)
         
         adapters = list(self.db_session.exec(stmt))
         
@@ -454,7 +457,7 @@ class RecommendationService:
         """Get comprehensive recommendation system statistics."""
         # Count total LoRAs
         total_loras = len(list(self.db_session.exec(
-            select(Adapter).where(Adapter.active == True),
+            select(Adapter).where(Adapter.active),
         )))
         
         # Count LoRAs with embeddings

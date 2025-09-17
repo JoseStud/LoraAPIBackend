@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""WebSocket Test Client for SDNext Integration
+"""WebSocket Test Client for SDNext Integration.
 
 This script demonstrates how to:
 1. Connect to the WebSocket progress endpoint
@@ -21,7 +21,7 @@ import websockets
 
 
 async def monitor_progress(websocket_url: str):
-    """Monitor WebSocket progress updates"""
+    """Monitor WebSocket progress updates."""
     try:
         async with websockets.connect(websocket_url) as websocket:
             print(f"✅ Connected to WebSocket: {websocket_url}")
@@ -57,7 +57,7 @@ async def monitor_progress(websocket_url: str):
 
 
 async def submit_generation_request(api_url: str, api_key: str = None):
-    """Submit a test generation request"""
+    """Submit a test generation request."""
     headers = {"Content-Type": "application/json"}
     if api_key:
         headers["X-API-Key"] = api_key
@@ -96,7 +96,7 @@ async def submit_generation_request(api_url: str, api_key: str = None):
 
 
 async def test_generation_with_monitoring(host: str, port: int, api_key: str = None):
-    """Test the complete generation workflow with WebSocket monitoring"""
+    """Test the complete generation workflow with WebSocket monitoring."""
     websocket_url = f"ws://{host}:{port}/ws/progress"
     api_url = f"http://{host}:{port}/compose/txt2img"
     

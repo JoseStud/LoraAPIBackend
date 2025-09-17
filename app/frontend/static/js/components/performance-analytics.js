@@ -567,14 +567,14 @@ function performanceAnalytics() {
         /**
          * Apply performance recommendation
          */
-        async applyRecommendation(insight) {
+        async applyRecommendation(_insight) {
             this.showToastMessage('Applying recommendations is not available yet', 'info');
         },
         
         /**
          * Export analytics data
          */
-        async exportData(format) {
+        async exportData(_format) {
             try {
                 const response = await fetch('/api/v1/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ format: 'zip', loras: true, generations: true }) });
                 if (!response.ok) throw new Error('Failed to export data');
@@ -650,4 +650,14 @@ function performanceAnalytics() {
             });
         }
     };
+}
+
+// Make function available globally for Alpine.js or direct use
+if (typeof window !== 'undefined') {
+    window.performanceAnalytics = performanceAnalytics;
+}
+
+// Export for module systems
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { performanceAnalytics };
 }

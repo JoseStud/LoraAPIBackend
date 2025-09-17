@@ -1,19 +1,21 @@
 """Import/Export API endpoints."""
 
+import io
+import json
+import zipfile
+from datetime import datetime
 from typing import List, Optional
+
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-import json
-import io
-import zipfile
-from datetime import datetime
 
 router = APIRouter(tags=["import-export"])
 
 
 class ExportConfig(BaseModel):
     """Export configuration schema."""
+
     loras: bool = False
     lora_files: bool = False
     lora_metadata: bool = False
@@ -35,12 +37,14 @@ class ExportConfig(BaseModel):
 
 class ExportEstimate(BaseModel):
     """Export size and time estimates."""
+
     size: str
     time: str
 
 
 class ImportConfig(BaseModel):
     """Import configuration schema."""
+
     mode: str = "merge"
     conflict_resolution: str = "ask"
     validate: bool = True
@@ -50,6 +54,7 @@ class ImportConfig(BaseModel):
 
 class BackupHistoryItem(BaseModel):
     """Backup history item schema."""
+
     id: str
     created_at: str
     type: str
@@ -100,7 +105,7 @@ async def estimate_export(config: ExportConfig) -> ExportEstimate:
         'none': 1.0,
         'fast': 0.7,
         'balanced': 0.5,
-        'maximum': 0.3
+        'maximum': 0.3,
     }[config.compression]
     
     size_bytes *= compression_ratio
@@ -119,7 +124,7 @@ async def estimate_export(config: ExportConfig) -> ExportEstimate:
     
     return ExportEstimate(
         size=format_file_size(size_bytes),
-        time=f"{max(1, round(time_minutes))} minutes"
+        time=f"{max(1, round(time_minutes))} minutes",
     )
 
 
@@ -134,7 +139,7 @@ async def export_data(config: ExportConfig):
         export_info = {
             "export_date": datetime.now().isoformat(),
             "config": config.dict(),
-            "version": "2.1.0"
+            "version": "2.1.0",
         }
         zip_file.writestr("export_info.json", json.dumps(export_info, indent=2))
         
@@ -163,18 +168,18 @@ async def export_data(config: ExportConfig):
     return StreamingResponse(
         io.BytesIO(output.read()),
         media_type="application/zip",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 
 @router.post("/import")
 async def import_data(
     files: List[UploadFile] = File(...),
-    config: str = Form(...)
+    config: str = Form(...),
 ):
     """Import data from uploaded files."""
     try:
-        import_config = ImportConfig.parse_raw(config)
+        ImportConfig.parse_raw(config)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid config: {str(e)}")
     
@@ -189,7 +194,7 @@ async def import_data(
             results.append({
                 "file": file.filename,
                 "status": "skipped",
-                "reason": "Unsupported file type"
+                "reason": "Unsupported file type",
             })
             continue
         
@@ -200,14 +205,14 @@ async def import_data(
             "file": file.filename,
             "status": "processed",
             "size": len(content),
-            "items_imported": 1 if file_ext == '.json' else 0
+            "items_imported": 1 if file_ext == '.json' else 0,
         })
     
     return {
         "success": True,
         "processed_files": len([r for r in results if r["status"] == "processed"]),
         "total_files": len(files),
-        "results": results
+        "results": results,
     }
 
 
@@ -221,15 +226,15 @@ async def get_backup_history() -> List[BackupHistoryItem]:
             created_at=datetime.now().isoformat(),
             type="Full Backup",
             size=1024 * 1024 * 100,  # 100MB
-            status="completed"
+            status="completed",
         ),
         BackupHistoryItem(
             id="backup_002", 
             created_at=datetime.now().isoformat(),
             type="Quick Backup",
             size=1024 * 1024 * 50,  # 50MB
-            status="completed"
-        )
+            status="completed",
+        ),
     ]
 
 
@@ -240,5 +245,5 @@ async def create_backup(backup_type: str = "full"):
         "success": True,
         "backup_id": f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
         "type": backup_type,
-        "status": "initiated"
+        "status": "initiated",
     }

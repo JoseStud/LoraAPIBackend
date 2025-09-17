@@ -351,8 +351,7 @@ function generationStudio() {
                 this.params.prompt = urlParams.get('prompt');
             }
             if (urlParams.has('job_id')) {
-                // If there's a specific job ID, focus on it
-                const jobId = urlParams.get('job_id');
+                // TODO: If there's a specific job ID, focus on it
                 // This could be used to highlight a specific job or show its progress
             }
         },
@@ -373,7 +372,7 @@ function generationStudio() {
         },
         
         // Toast Notification System
-        showToastMessage(message, type = 'success') {
+        showToastMessage(message, _type = 'success') {
             this.toastMessage = message;
             this.showToast = true;
             

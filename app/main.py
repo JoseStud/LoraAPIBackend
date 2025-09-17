@@ -1,4 +1,4 @@
-"""LoRA Manager - Main Application Entry Point
+"""LoRA Manager - Main Application Entry Point.
 
 This file integrates both the backend API and frontend routes.
 The backend is located in the backend/ directory.
@@ -47,7 +47,7 @@ app.mount("/api", backend_app)
 # Root endpoint redirect to dashboard
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint."""
     return {"status": "healthy", "service": "lora-manager"}
 
 if __name__ == "__main__":

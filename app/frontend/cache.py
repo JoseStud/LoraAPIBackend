@@ -1,4 +1,4 @@
-"""In-Process TTL Cache Module
+"""In-Process TTL Cache Module.
 
 Provides simple time-to-live caching for expensive operations
 to avoid repeated backend requests and improve performance.
@@ -16,17 +16,17 @@ settings = get_settings()
 
 @dataclass
 class CacheEntry:
-    """Cache entry with value and expiration"""
+    """Cache entry with value and expiration."""
 
     value: Any
     expires_at: float
 
 
 class TTLCache:
-    """Thread-safe TTL cache implementation"""
+    """Thread-safe TTL cache implementation."""
     
     def __init__(self, default_ttl: int = 300):
-        """Initialize TTL cache
+        """Initialize TTL cache.
         
         Args:
             default_ttl: Default time-to-live in seconds (5 minutes default)
@@ -37,7 +37,7 @@ class TTLCache:
         self._lock = threading.RLock()
     
     def get(self, key: str) -> Optional[Any]:
-        """Get value from cache if not expired
+        """Get value from cache if not expired.
         
         Args:
             key: Cache key
@@ -60,7 +60,7 @@ class TTLCache:
             return entry.value
     
     def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
-        """Set value in cache with TTL
+        """Set value in cache with TTL.
         
         Args:
             key: Cache key
@@ -77,7 +77,7 @@ class TTLCache:
             self._cache[key] = CacheEntry(value=value, expires_at=expires_at)
     
     def delete(self, key: str) -> bool:
-        """Delete entry from cache
+        """Delete entry from cache.
         
         Args:
             key: Cache key
@@ -93,12 +93,12 @@ class TTLCache:
             return False
     
     def clear(self) -> None:
-        """Clear all entries from cache"""
+        """Clear all entries from cache."""
         with self._lock:
             self._cache.clear()
     
     def cleanup_expired(self) -> int:
-        """Remove all expired entries
+        """Remove all expired entries.
         
         Returns:
             Number of entries removed
@@ -118,7 +118,7 @@ class TTLCache:
         return len(expired_keys)
     
     def get_stats(self) -> Dict[str, Any]:
-        """Get cache statistics
+        """Get cache statistics.
         
         Returns:
             Dictionary with cache stats
@@ -139,8 +139,13 @@ class TTLCache:
                 "default_ttl": self.default_ttl,
             }
     
-    def get_or_set(self, key: str, factory: Callable[[], Any], ttl: Optional[int] = None) -> Any:
-        """Get value from cache or set it using factory function
+    def get_or_set(
+        self, 
+        key: str, 
+        factory: Callable[[], Any], 
+        ttl: Optional[int] = None,
+    ) -> Any:
+        """Get value from cache or set it using factory function.
         
         Args:
             key: Cache key
@@ -172,23 +177,23 @@ _lora_metadata_cache = TTLCache(default_ttl=600)  # 10 minutes for LoRA metadata
 
 
 def get_embedding_cache() -> TTLCache:
-    """Get the embedding cache instance"""
+    """Get the embedding cache instance."""
     return _embedding_cache
 
 
 def get_system_stats_cache() -> TTLCache:
-    """Get the system stats cache instance"""
+    """Get the system stats cache instance."""
     return _system_stats_cache
 
 
 def get_lora_metadata_cache() -> TTLCache:
-    """Get the LoRA metadata cache instance"""
+    """Get the LoRA metadata cache instance."""
     return _lora_metadata_cache
 
 
 # Convenience functions for common caching patterns
 async def cache_embedding_stats(lora_id: str, stats_factory: Callable) -> Any:
-    """Cache embedding statistics for a LoRA
+    """Cache embedding statistics for a LoRA.
     
     Args:
         lora_id: LoRA identifier
@@ -215,7 +220,7 @@ async def cache_embedding_stats(lora_id: str, stats_factory: Callable) -> Any:
 
 
 async def cache_system_metrics(metrics_factory: Callable) -> Any:
-    """Cache system metrics
+    """Cache system metrics.
     
     Args:
         metrics_factory: Async function to compute metrics
@@ -241,7 +246,7 @@ async def cache_system_metrics(metrics_factory: Callable) -> Any:
 
 
 async def cache_lora_metadata(lora_id: str, metadata_factory: Callable) -> Any:
-    """Cache LoRA metadata
+    """Cache LoRA metadata.
     
     Args:
         lora_id: LoRA identifier
@@ -268,7 +273,7 @@ async def cache_lora_metadata(lora_id: str, metadata_factory: Callable) -> Any:
 
 
 def invalidate_lora_cache(lora_id: str) -> None:
-    """Invalidate all cache entries related to a specific LoRA
+    """Invalidate all cache entries related to a specific LoRA.
     
     Args:
         lora_id: LoRA identifier
@@ -279,12 +284,12 @@ def invalidate_lora_cache(lora_id: str) -> None:
 
 
 def invalidate_system_cache() -> None:
-    """Invalidate system-related cache entries"""
+    """Invalidate system-related cache entries."""
     _system_stats_cache.clear()
 
 
 def cleanup_all_caches() -> Dict[str, int]:
-    """Clean up expired entries from all caches
+    """Clean up expired entries from all caches.
     
     Returns:
         Dictionary with cleanup stats for each cache
@@ -298,7 +303,7 @@ def cleanup_all_caches() -> Dict[str, int]:
 
 
 def get_all_cache_stats() -> Dict[str, Dict[str, Any]]:
-    """Get statistics for all caches
+    """Get statistics for all caches.
     
     Returns:
         Dictionary with stats for each cache
@@ -313,7 +318,7 @@ def get_all_cache_stats() -> Dict[str, Dict[str, Any]]:
 
 # Background cleanup task (can be called periodically)
 def periodic_cache_cleanup() -> None:
-    """Periodic cleanup task for all caches"""
+    """Periodic cleanup task for all caches."""
     cleanup_stats = cleanup_all_caches()
     
     # Log cleanup if any entries were removed
@@ -321,4 +326,7 @@ def periodic_cache_cleanup() -> None:
     if total_cleaned > 0:
         import logging
         logger = logging.getLogger(__name__)
-        logger.debug(f"Cache cleanup: removed {total_cleaned} expired entries", extra=cleanup_stats)
+        logger.debug(
+            f"Cache cleanup: removed {total_cleaned} expired entries", 
+            extra=cleanup_stats,
+        )

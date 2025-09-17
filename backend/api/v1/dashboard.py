@@ -1,5 +1,4 @@
-"""Dashboard API endpoints for frontend statistics and system health.
-"""
+"""Dashboard API endpoints for frontend statistics and system health."""
 
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, func, select
@@ -17,7 +16,7 @@ async def get_dashboard_stats(session: Session = Depends(get_session)):
     total_loras = total_loras_result or 0
     
     active_loras_result = session.exec(
-        select(func.count(Adapter.id)).where(Adapter.active == True),
+        select(func.count(Adapter.id)).where(Adapter.active),
     ).first()
     active_loras = active_loras_result or 0
     
@@ -52,7 +51,7 @@ async def get_featured_loras(session: Session = Depends(get_session)):
     # Get top 5 most recently active LoRAs
     featured_loras = session.exec(
         select(Adapter)
-        .where(Adapter.active == True)
+        .where(Adapter.active)
         .order_by(Adapter.id.desc())
         .limit(5),
     ).all()

@@ -2,13 +2,13 @@
 
 import uuid
 from typing import List
-
 from unittest.mock import MagicMock
+
 from fastapi.testclient import TestClient
 
 
 def _create_adapter(client: TestClient, name_suffix: str, tags: List[str]) -> str:
-    """Helper to create an adapter and return its id."""
+    """Create an adapter and return its id."""
     data = {
         "name": f"test-{name_suffix}-{uuid.uuid4().hex[:8]}",
         "version": "v1",

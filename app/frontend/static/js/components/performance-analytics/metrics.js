@@ -11,7 +11,7 @@ const performanceMetrics = {
     /**
      * Loads key performance indicators
      */
-    async loadKPIs(timeRange) {
+    async loadKPIs(_timeRange) {
         try {
             const response = await fetch(`/api/v1/dashboard/stats`);
             if (!response.ok) throw new Error('Failed to load KPIs');
@@ -55,7 +55,7 @@ const performanceMetrics = {
     /**
      * Loads top performing LoRAs
      */
-    async loadTopLoras(timeRange) {
+    async loadTopLoras(_timeRange) {
         try {
             const response = await fetch(`/api/v1/adapters?per_page=10`);
             if (!response.ok) throw new Error('Failed to load top LoRAs');

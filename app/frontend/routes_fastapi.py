@@ -35,7 +35,7 @@ templates.env.globals['BACKEND_URL'] = frontend_settings.backend_url
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    """Main dashboard page"""
+    """Main dashboard page."""
     return templates.TemplateResponse("pages/dashboard.html", {
         "request": request,
         "title": "LoRA Manager Dashboard",
@@ -43,7 +43,7 @@ async def dashboard(request: Request):
 
 @router.get("/loras", response_class=HTMLResponse)
 async def loras(request: Request):
-    """LoRA management page"""
+    """LoRA management page."""
     return templates.TemplateResponse("pages/loras.html", {
         "request": request,
         "title": "LoRA Collection",
@@ -51,7 +51,7 @@ async def loras(request: Request):
 
 @router.get("/recommendations", response_class=HTMLResponse)
 async def recommendations(request: Request):
-    """AI Recommendations page"""
+    """AI Recommendations page."""
     return templates.TemplateResponse("pages/recommendations.html", {
         "request": request,
         "title": "AI Recommendations",
@@ -59,7 +59,7 @@ async def recommendations(request: Request):
 
 @router.get("/compose", response_class=HTMLResponse)
 async def compose(request: Request):
-    """Prompt Composer page"""
+    """Prompt Composer page."""
     return templates.TemplateResponse("pages/compose.html", {
         "request": request,
         "title": "Prompt Composer",
@@ -67,7 +67,7 @@ async def compose(request: Request):
 
 @router.get("/generate", response_class=HTMLResponse)
 async def generate(request: Request):
-    """Generation Studio page"""
+    """Generation Studio page."""
     return templates.TemplateResponse("pages/generate.html", {
         "request": request,
         "title": "Generation Studio",
@@ -75,7 +75,7 @@ async def generate(request: Request):
 
 @router.get("/history", response_class=HTMLResponse)
 async def history(request: Request):
-    """Generation History page"""
+    """Generation History page."""
     return templates.TemplateResponse("pages/history.html", {
         "request": request,
         "title": "Generation History",
@@ -83,7 +83,7 @@ async def history(request: Request):
 
 @router.get("/admin", response_class=HTMLResponse)
 async def admin(request: Request):
-    """System Administration page"""
+    """System Administration page."""
     return templates.TemplateResponse("pages/admin.html", {
         "request": request,
         "title": "System Administration",
@@ -91,7 +91,7 @@ async def admin(request: Request):
 
 @router.get("/analytics")
 async def analytics_page(request: Request):
-    """Performance analytics dashboard"""
+    """Performance analytics dashboard."""
     context = {
         "request": request,
         "title": "Performance Analytics",
@@ -101,7 +101,7 @@ async def analytics_page(request: Request):
 
 @router.get("/import-export")
 async def import_export_page(request: Request):
-    """Import/Export data management"""
+    """Import/Export data management."""
     context = {
         "request": request,
         "title": "Import/Export",
@@ -111,7 +111,7 @@ async def import_export_page(request: Request):
 
 @router.get("/offline")
 async def offline_page(request: Request):
-    """Offline page for PWA"""
+    """Offline page for PWA."""
     context = {
         "request": request,
         "title": "Offline",
@@ -172,7 +172,7 @@ async def htmx_activity_feed(request: Request):
 # HTMX API Endpoints for Recommendations
 @router.post("/api/htmx/recommendations/similar", response_class=HTMLResponse)
 async def htmx_similarity_recommendations(request: Request):
-    """HTMX endpoint for similarity-based recommendations"""
+    """HTMX endpoint for similarity-based recommendations."""
     form = None
     try:
         data = await request.form()
@@ -246,7 +246,7 @@ async def htmx_similarity_recommendations(request: Request):
 
 @router.post("/api/htmx/recommendations/prompt", response_class=HTMLResponse)
 async def htmx_prompt_recommendations(request: Request):
-    """HTMX endpoint for prompt-based recommendations"""
+    """HTMX endpoint for prompt-based recommendations."""
     try:
         data = await request.form()
         try:
@@ -323,7 +323,7 @@ async def htmx_prompt_recommendations(request: Request):
 
 @router.get("/api/htmx/recommendations/embedding-status", response_class=HTMLResponse)
 async def htmx_embedding_status(request: Request):
-    """HTMX endpoint for embedding status and statistics"""
+    """HTMX endpoint for embedding status and statistics."""
     try:
         # Make request to backend API
         async with httpx.AsyncClient() as client:
@@ -415,7 +415,7 @@ async def htmx_embedding_status(request: Request):
 
 @router.get("/api/htmx/recommendations/status/embeddings", response_class=HTMLResponse)
 async def htmx_embeddings_status(request: Request):
-    """HTMX endpoint for embeddings-specific status"""
+    """HTMX endpoint for embeddings-specific status."""
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -467,7 +467,7 @@ async def htmx_embeddings_status(request: Request):
 
 @router.get("/api/htmx/recommendations/status/performance", response_class=HTMLResponse)
 async def htmx_performance_status(request: Request):
-    """HTMX endpoint for performance-specific status"""
+    """HTMX endpoint for performance-specific status."""
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -519,7 +519,7 @@ async def htmx_performance_status(request: Request):
 
 @router.get("/api/htmx/loras/available")
 async def htmx_available_loras():
-    """HTMX endpoint to get available LoRAs for selection"""
+    """HTMX endpoint to get available LoRAs for selection."""
     try:
         # Make request to backend API
         async with httpx.AsyncClient() as client:
@@ -544,7 +544,7 @@ async def htmx_available_loras():
 # Dashboard compatibility routes (legacy paths used in templates)
 @router.get("/embedding-status", response_class=HTMLResponse)
 async def embedding_status_legacy(request: Request):
-    """Legacy embedding status endpoint - safely delegates to HTMX embedding status"""
+    """Legacy embedding status endpoint - safely delegates to HTMX embedding status."""
     try:
         # Delegate to HTMX embedding status endpoint
         return await htmx_embedding_status(request)

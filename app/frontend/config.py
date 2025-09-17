@@ -1,7 +1,8 @@
-"""Frontend Configuration Module
+"""Frontend Configuration Module.
 
-Centralized configuration management using Pydantic BaseSettings for the LoRA Manager frontend.
-Handles environment variables, timeouts, feature flags, and other application settings.
+Centralized configuration management using Pydantic BaseSettings for the LoRA 
+Manager frontend. Handles environment variables, timeouts, feature flags, and 
+other application settings.
 """
 
 from pathlib import Path
@@ -37,7 +38,10 @@ class FrontendSettings(BaseSettings):
     @classmethod
     def construct_backend_url(cls, v, info):
         """Construct backend URL if not explicitly provided."""
-        if v == "http://localhost:8000/v1" and ('backend_host' in info.data or 'backend_port' in info.data):
+        backend_host_check = 'backend_host' in info.data
+        backend_port_check = 'backend_port' in info.data
+        default_url = "http://localhost:8000/v1"
+        if v == default_url and (backend_host_check or backend_port_check):
             host = info.data.get('backend_host', 'localhost')
             port = info.data.get('backend_port', 8000)
             return f"http://{host}:{port}/v1"
@@ -226,7 +230,10 @@ class FrontendSettings(BaseSettings):
     
     def is_file_allowed(self, filename: str) -> bool:
         """Check if file extension is allowed."""
-        return any(filename.lower().endswith(ext.lower()) for ext in self.allowed_file_extensions)
+        return any(
+            filename.lower().endswith(ext.lower()) 
+            for ext in self.allowed_file_extensions
+        )
     
     def get_cors_config(self) -> Dict[str, Any]:
         """Get CORS configuration for FastAPI."""

@@ -1,4 +1,4 @@
-"""add unique index on adapter (name, version)
+"""add unique index on adapter (name, version).
 
 Revision ID: 7176100dd1ac
 Revises: 5f681a8fe826

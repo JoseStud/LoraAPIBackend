@@ -1,16 +1,17 @@
-"""Tests for Pydantic schema validation and backend configuration.
-"""
+"""Tests for Pydantic schema validation and backend configuration."""
+
 import pytest
-from backend.utils.cache import TTLCache
-from backend.core.config import Settings
+
 from app.frontend.utils.http import HTTPClient
-from pydantic import ValidationError
+from backend.core.config import Settings
+from backend.utils.cache import TTLCache
 
 
 class TestSettings:
     """Tests aligned with backend.core.config.Settings."""
 
     def test_backend_url_default_and_types(self):
+        """Test backend URL default values and types."""
         s = Settings()
         assert isinstance(s.BACKEND_HOST, str)
         assert isinstance(s.BACKEND_PORT, int)
@@ -19,7 +20,9 @@ class TestSettings:
         assert url.startswith("http://") or url.startswith("https://")
 
     def test_backend_url_override(self):
-        # When BACKEND_URL is provided, get_backend_url should return it (sans trailing slash)
+        """Test backend URL override functionality."""
+        # When BACKEND_URL is provided, get_backend_url should return it 
+        # (sans trailing slash)
         s = Settings(BACKEND_URL="http://localhost:9999/api/")
         assert s.get_backend_url == "http://localhost:9999/api"
 

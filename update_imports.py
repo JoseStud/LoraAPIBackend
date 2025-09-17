@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Script to update import paths from 'app.' to 'backend.' in test files
-"""
+"""Script to update import paths from 'app.' to 'backend.' in test files."""
 
 import re
 from pathlib import Path
 
 
 def update_imports_in_file(file_path):
-    """Update imports from app. to backend. in a single file"""
+    """Update imports from app. to backend. in a single file."""
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
     
@@ -23,7 +22,7 @@ def update_imports_in_file(file_path):
     print(f"Updated imports in {file_path}")
 
 def main():
-    """Main function to update all test files"""
+    """Update all test files."""
     test_dir = Path("tests")
     
     if not test_dir.exists():

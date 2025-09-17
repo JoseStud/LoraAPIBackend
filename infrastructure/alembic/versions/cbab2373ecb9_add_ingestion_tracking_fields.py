@@ -1,7 +1,7 @@
 
 """Revision ID: cbab2373ecb9
 Revises: d16f3e1df8bd
-Create Date: 2025-08-28 21:03:36.796948
+Create Date: 2025-08-28 21:03:36.796948.
 """
 
 import sqlalchemy as sa

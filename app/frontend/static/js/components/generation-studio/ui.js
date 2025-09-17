@@ -28,13 +28,17 @@ const generationUI = {
             });
             
             // Dispatch for browser runtime
-            try { if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') window.dispatchEvent(toastEvent); } catch {}
+            try { if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') window.dispatchEvent(toastEvent); } catch {
+                // Ignore dispatch errors in browser runtime
+            }
             // Ensure test stubs on global.window are called too
             try {
                 if (typeof global !== 'undefined' && global.window && global.window !== window && typeof global.window.dispatchEvent === 'function') {
                     global.window.dispatchEvent(toastEvent);
                 }
-            } catch {}
+            } catch {
+                // Ignore dispatch errors in test runtime
+            }
             
             return {
                 message,
@@ -96,12 +100,16 @@ const generationUI = {
                 }
             });
             
-            try { if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') window.dispatchEvent(modalEvent); } catch {}
+            try { if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') window.dispatchEvent(modalEvent); } catch {
+                // Ignore dispatch errors in browser runtime
+            }
             try {
                 if (typeof global !== 'undefined' && global.window && global.window !== window && typeof global.window.dispatchEvent === 'function') {
                     global.window.dispatchEvent(modalEvent);
                 }
-            } catch {}
+            } catch {
+                // Ignore dispatch errors in test runtime
+            }
             return true;
         },
         
@@ -116,12 +124,16 @@ const generationUI = {
                 }
             });
             
-            try { if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') window.dispatchEvent(modalEvent); } catch {}
+            try { if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') window.dispatchEvent(modalEvent); } catch {
+                // Ignore dispatch errors in browser runtime
+            }
             try {
                 if (typeof global !== 'undefined' && global.window && global.window !== window && typeof global.window.dispatchEvent === 'function') {
                     global.window.dispatchEvent(modalEvent);
                 }
-            } catch {}
+            } catch {
+                // Ignore dispatch errors in test runtime
+            }
             return true;
         },
         

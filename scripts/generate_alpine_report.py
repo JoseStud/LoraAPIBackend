@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Generate a JSON report mapping templates -> x-data component -> template-used properties -> component-provided keys
-Writes output to outputs/alpine_report.json
+Writes output to outputs/alpine_report.json.
 """
 import json
 import re
@@ -55,7 +55,8 @@ for tf in template_files:
         for dm in dotted_ident_re.finditer(expr):
             token = dm.group(1)
             # skip single-letter tokens or tokens that look like CSS classes (heuristic)
-            if not token: continue
+            if not token: 
+                continue
             # keep tokens starting with lowercase
             if token[0].islower():
                 props.add(token)
@@ -95,6 +96,7 @@ for cf in component_files:
         cf_path = str(cf)
     # Helper to parse JS object starting at a brace index and return nested dict + end index
     def parse_object(text, start):
+        """Parse JS object starting at a brace index and return nested dict + end index."""
         # text[start] should be '{'
         assert text[start] == '{'
         i = start + 1
@@ -129,8 +131,10 @@ for cf in component_files:
                 depth = 1
                 j = i + 1
                 while j < length and depth > 0:
-                    if text[j] == '[': depth += 1
-                    elif text[j] == ']': depth -= 1
+                    if text[j] == '[': 
+                        depth += 1
+                    elif text[j] == ']': 
+                        depth -= 1
                     j += 1
                 i = j
                 obj[key] = True
@@ -144,8 +148,10 @@ for cf in component_files:
                     depth = 1
                     k = j + 1
                     while k < length and depth > 0:
-                        if text[k] == '{': depth += 1
-                        elif text[k] == '}': depth -= 1
+                        if text[k] == '{': 
+                            depth += 1
+                        elif text[k] == '}': 
+                            depth -= 1
                         k += 1
                     j = k
                 else:
@@ -202,7 +208,8 @@ for cf in component_files:
         end = None
         while i < len(text):
             ch = text[i]
-            if ch == '{': depth += 1
+            if ch == '{': 
+                depth += 1
             elif ch == '}':
                 depth -= 1
                 if depth == 0:
@@ -220,7 +227,7 @@ for cf in component_files:
                 components[name] = sorted(list(keys))
 
 # Add components to report and compute missing keys per template-component
-for tf_path, comps in report.items():
+for _tf_path, comps in report.items():
     for comp_name, data in comps.items():
         provided = components.get(comp_name, None)
         data['component_provided_keys'] = provided if provided is not None else []
@@ -308,9 +315,11 @@ print('Wrote', focused_out)
 # Produce a very small report of likely real bugs using heuristics
 real_out = Path('/tmp/alpine_report_real_bugs.json')
 def is_camel_case(s):
+    """Check if string is in camelCase."""
     return any(c.isupper() for c in s)
 
 def is_snake_case(s):
+    """Check if string is in snake_case."""
     return '_' in s
 
 allowlist = set(['filters','selectedLoras','availableTags','bulkMode','viewMode','allSelected','totalLoras','isLoading','results','kpis','workers','logs','backupHistory','importFiles','exportConfig','selectedLora','selectedLoraId'])
