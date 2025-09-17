@@ -549,7 +549,7 @@ const loadRecentResultsDataFn = async () => {
 const initWebSocket = () => {
   try {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${window.location.host}/ws/progress`
+    const wsUrl = `${protocol}//${window.location.host}/v1/ws/progress`
     
     websocket.value = new WebSocket(wsUrl)
     
