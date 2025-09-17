@@ -23,6 +23,7 @@ import HelloWorld from '../vue/HelloWorld.vue';
 import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
+import LoraGallery from '../vue/LoraGallery.vue';
 import PromptComposer from '../vue/PromptComposer.vue';
 import ImportExport from '../vue/ImportExport.vue';
 import JobQueue from '../vue/JobQueue.vue';
@@ -31,7 +32,6 @@ import PerformanceAnalytics from '../vue/PerformanceAnalytics.vue';
 import Notifications from '../vue/Notifications.vue';
 import GenerationHistory from '../vue/GenerationHistory.vue';
 import SystemAdminStatusCard from '../vue/SystemAdminStatusCard.vue';
-
 
 // Utilities
 import Utils, {
@@ -290,7 +290,20 @@ const mountVueApp = (selector, component) => {
         const props = { ...el.dataset };
         const app = createApp(component, props);
         app.mount(el);
+        
+        // Hide Alpine.js fallback if Vue mounted successfully
+        const fallback = document.querySelector('.alpine-fallback');
+        if (fallback) {
+            fallback.style.display = 'none';
+        }
+        
         return app;
+    } else {
+        // Show Alpine.js fallback if Vue mount point not found
+        const fallback = document.querySelector('.alpine-fallback');
+        if (fallback) {
+            fallback.style.display = 'block';
+        }
     }
     return null;
 };
@@ -317,6 +330,12 @@ mountVueApp('[data-vue-root="mobile-nav"]', MobileNav) ||
 mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard);
+    });
+
+// Mount LoRA Gallery if present on page
+mountVueApp('[data-vue-root="lora-gallery"]', LoraGallery) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="lora-gallery"]', LoraGallery);
     });
 
 // Mount Performance Analytics if present on page
