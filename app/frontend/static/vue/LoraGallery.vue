@@ -283,7 +283,8 @@ const filteredLoras = computed(() => {
 const loadLoraData = async () => {
   isLoading.value = true;
   try {
-    const url = `${window?.BACKEND_URL || ''}/api/v1/adapters?per_page=100`;
+    // Use relative API path to avoid duplicating /api from BACKEND_URL
+    const url = `/api/v1/adapters?per_page=100`;
     const response = await fetch(url, { credentials: 'same-origin' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
@@ -300,7 +301,8 @@ const loadLoraData = async () => {
 
 const fetchAvailableTags = async () => {
   try {
-    const url = `${window?.BACKEND_URL || ''}/api/v1/adapters/tags`;
+    // Endpoint may not be implemented yet; handled gracefully on error
+    const url = `/api/v1/adapters/tags`;
     const response = await fetch(url, { credentials: 'same-origin' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
@@ -376,7 +378,8 @@ const performBulkAction = async (action) => {
   }
 
   try {
-    const url = `${window?.BACKEND_URL || ''}/api/v1/adapters/bulk`;
+    const url = `/api/v1/adapters/bulk`;
+    const count = selectedLoras.value.length;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -398,7 +401,7 @@ const performBulkAction = async (action) => {
 
     if (typeof window.htmx !== 'undefined') {
       window.htmx.trigger(document.body, 'show-notification', {
-        detail: { message: `Successfully ${action}d ${selectedLoras.value.length} LoRA(s).`, type: 'success' }
+        detail: { message: `Successfully ${action}d ${count} LoRA(s).`, type: 'success' }
       });
     }
   } catch (error) {
