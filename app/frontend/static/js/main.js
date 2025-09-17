@@ -23,6 +23,7 @@ import HelloWorld from '../vue/HelloWorld.vue';
 import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
+import PromptComposer from '../vue/PromptComposer.vue';
 
 import JobQueue from '../vue/JobQueue.vue';
 import SystemStatusPanel from '../vue/SystemStatusPanel.vue';
@@ -54,8 +55,9 @@ import { createRecommendationsComponent } from './components/recommendations/ind
 import { createGenerationHistoryComponent } from './components/generation-history/index.js';
 import { createLoraGalleryComponent } from './components/lora-gallery/index.js';
 import { createGenerationStudioComponent } from './components/generation-studio/index.js';
-import { createPromptComposerComponent } from './components/prompt-composer/index.js';
-// import { createPerformanceAnalyticsComponent } from './components/performance-analytics/index.js'; // Migrated to Vue
+// import { createPromptComposerComponent } from './components/prompt-composer/index.js';
+// Alpine Performance Analytics migrated to Vue component
+// import { createPerformanceAnalyticsComponent } from './components/performance-analytics/index.js';
 import { createImportExportComponent } from './components/import-export/index.js';
 import { createSystemAdminComponent } from './components/system-admin/index.js';
 import { createDatabaseManagerComponent } from './components/system-admin/databaseManager.js';
@@ -189,8 +191,8 @@ Alpine.data('recommendationsData', createRecommendationsComponent);
 Alpine.data('generationHistory', createGenerationHistoryComponent);
 Alpine.data('loraGallery', createLoraGalleryComponent);
 Alpine.data('generationStudio', createGenerationStudioComponent);
-Alpine.data('promptComposer', createPromptComposerComponent);
-// Alpine.data('performanceAnalytics', createPerformanceAnalyticsComponent); // Migrated to Vue
+// Alpine Prompt Composer migrated to Vue island
+// Alpine.data('performanceAnalytics', createPerformanceAnalyticsComponent);
 Alpine.data('importExport', createImportExportComponent);
 Alpine.data('systemAdmin', createSystemAdminComponent);
 Alpine.data('databaseManager', createDatabaseManagerComponent);
@@ -317,6 +319,9 @@ mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard) ||
         mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard);
     });
 
+<<<<<<< HEAD
+// Mount Prompt Composer if present on page
+=======
 // Mount Performance Analytics if present on page
 mountVueApp('[data-vue-root="performance-analytics"]', PerformanceAnalytics) ||
     window.addEventListener('DOMContentLoaded', () => {
@@ -351,6 +356,13 @@ mountVueApp('[data-vue-root="notifications"]', Notifications) ||
 mountVueApp('[data-vue-root="generation-history"]', GenerationHistory) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="generation-history"]', GenerationHistory);
+    });
+
+// Mount Prompt Composer (Vue island)
+>>>>>>> temp/fe-106-migration
+mountVueApp('[data-vue-root="prompt-composer"]', PromptComposer) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="prompt-composer"]', PromptComposer);
     });
 
 

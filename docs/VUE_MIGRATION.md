@@ -99,7 +99,7 @@ Mount behavior:
   - Pending: `app/frontend/static/js/alpine-config.js` (results list, ratings, favorites, exports)
   - Pending: `app/frontend/static/js/components/recommendations/index.js`
   - Pending: `app/frontend/static/js/components/dashboard/index.js`
-  - Pending: `app/frontend/static/js/components/prompt-composer.js`
+  - Done: `app/frontend/static/vue/PromptComposer.vue` (migrated from `components/prompt-composer.js`)
   - Pending: `app/frontend/static/js/components/generation-studio.js`
   - Pending (consider service-worker constraints): `app/frontend/static/js/pwa-manager.js`
   - Pending: `app/frontend/static/js/common.js` (adapter actions)
@@ -110,7 +110,7 @@ Mount behavior:
   - Pending: Notifications/toasts (`app/frontend/static/js/components/notifications/*`)
   - Pending: LoRA Gallery (`app/frontend/static/js/components/lora-gallery/*`)
   - Pending: Generation History view (island wrapper around existing modules)
-  - Pending: Prompt Composer (`app/frontend/static/js/components/prompt-composer.js`)
+  - Completed: Prompt Composer (`app/frontend/static/vue/PromptComposer.vue`)
   - Pending: Performance Analytics (`app/frontend/static/js/components/performance-analytics/*`)
   - Pending: Import/Export (`app/frontend/static/js/components/import-export/*`)
   - Later: System Admin screens (gradual islandization of sections)
@@ -143,6 +143,7 @@ Mount behavior:
   - `tests/vue/RecommendationsPanel.spec.js`
   - `tests/vue/MobileNav.spec.js`
   - `tests/vue/SystemStatusCard.spec.js`
+  - `tests/vue/PromptComposer.spec.js`
 
 Troubleshooting:
 - If `vitest` is not found, run `npm install` to ensure devDependencies are present.

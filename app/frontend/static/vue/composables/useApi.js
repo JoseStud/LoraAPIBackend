@@ -1,8 +1,7 @@
-
 // Lightweight API composable using centralized API utilities
 // Designed for Vue islands; uses utils/api.js for consistency.
 
-import { ref } from 'vue';
+import { ref, unref } from 'vue';
 import { fetchData } from '../../js/utils/api.js';
 
 // url can be a string, a ref/computed, or a function returning a string
@@ -11,7 +10,6 @@ export function useApi(url, options = {}) {
   const error = ref(null);
   const isLoading = ref(false);
   const lastResponse = ref(null);
-
 
   const resolveUrl = () => {
     try {
@@ -26,9 +24,11 @@ export function useApi(url, options = {}) {
     isLoading.value = true;
     error.value = null;
     try {
-      const result = await fetchData(url, { credentials: 'same-origin', ...options, ...init });
-      data.value = result;
-
+      const actualUrl = resolveUrl();
+      const result = await fetchData(actualUrl, { returnResponse: true, credentials: 'same-origin', ...options, ...init });
+      // Normalize result shape from utils/api.js when returnResponse=true
+      lastResponse.value = result?.meta || null;
+      data.value = result?.data ?? null;
     } catch (err) {
       error.value = err;
       if (err?.response) {
@@ -49,7 +49,5 @@ export function useApi(url, options = {}) {
     }
   };
 
-  return { data, error, isLoading, fetchData: fetchApiData };
-
+  return { data, error, isLoading, fetchData: fetchApiData, lastResponse };
 }
-
