@@ -342,11 +342,11 @@
                       <input type="file" 
                              @change="handleFileSelect" 
                              multiple 
-                             accept=".zip,.tar.gz,.json,.csv"
+                             accept=".zip,.tar.gz,.json,.lora,.safetensors"
                              class="hidden">
                     </label>
                     <p class="mt-2 text-xs text-gray-500">
-                      Supports ZIP, TAR.GZ, JSON, CSV files
+                      Supports ZIP, TAR.GZ, JSON, LoRA, SafeTensors files
                     </p>
                   </div>
                 </div>
@@ -531,6 +531,66 @@
               <p class="text-sm text-gray-600">Automatic recurring backups</p>
             </button>
           </div>
+          
+          <!-- Backup History -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="text-lg font-semibold">Backup History</h3>
+              <p class="text-sm text-gray-600">Manage existing backups</p>
+            </div>
+            <div class="card-body">
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    <tr v-for="backup in backupHistory" :key="backup.id">
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ formatDate(backup.created_at) }}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ backup.type }}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ formatFileSize(backup.size) }}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                              :class="backup.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                                      backup.status === 'failed' ? 'bg-red-100 text-red-800' : 
+                                      'bg-yellow-100 text-yellow-800'">
+                          {{ backup.status }}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div class="flex space-x-2">
+                          <button @click="downloadBackup(backup.id)" class="text-blue-600 hover:text-blue-900">
+                            Download
+                          </button>
+                          <button @click="restoreBackup(backup.id)" class="text-green-600 hover:text-green-900">
+                            Restore
+                          </button>
+                          <button @click="deleteBackup(backup.id)" class="text-red-600 hover:text-red-900">
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr v-if="backupHistory.length === 0">
+                      <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">
+                        No backups found. Create your first backup above.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
         
         <!-- Migration Tab -->
@@ -602,13 +662,17 @@
     <!-- Progress Modal -->
     <div v-show="showProgress" 
          class="fixed inset-0 z-50 overflow-y-auto transition-opacity duration-300"
-         :class="showProgress ? 'opacity-100' : 'opacity-0'">
+         :class="showProgress ? 'opacity-100' : 'opacity-0'"
+         role="dialog"
+         aria-modal="true"
+         :aria-busy="showProgress"
+         aria-labelledby="progress-title">
       <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75"></div>
         
         <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
           <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">{{ progressTitle }}</h3>
+            <h3 id="progress-title" class="text-lg leading-6 font-medium text-gray-900 mb-4">{{ progressTitle }}</h3>
             
             <div class="space-y-4">
               <div>
@@ -749,6 +813,9 @@ export default {
       )
     );
     
+    // Backup state
+    const backupHistory = ref([]);
+    
     // Export estimates
     const estimatedSize = ref('0 MB');
     const estimatedTime = ref('0 minutes');
@@ -763,8 +830,8 @@ export default {
     );
     
     // Watch for config changes to update estimates
-    watch(exportConfig, () => {
-      updateEstimates();
+    watch(exportConfig, async () => {
+      await updateEstimates();
     }, { deep: true });
     
     // Utility functions
@@ -774,6 +841,16 @@ export default {
       const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
       const i = Math.floor(Math.log(bytes) / Math.log(k));
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+    
+    const formatDate = (dateString) => {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
     };
     
     const showToastMessage = (message, type = 'info') => {
@@ -808,7 +885,32 @@ export default {
     };
     
     // Export functions
-    const updateEstimates = () => {
+    const updateEstimates = async () => {
+      try {
+        const response = await fetch('/api/v1/export/estimate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify(exportConfig)
+        });
+        
+        if (response.ok) {
+          const estimates = await response.json();
+          estimatedSize.value = estimates.size;
+          estimatedTime.value = estimates.time;
+        } else {
+          // Fallback to local calculation
+          updateEstimatesLocal();
+        }
+      } catch (error) {
+        // Fallback to local calculation
+        updateEstimatesLocal();
+      }
+    };
+    
+    const updateEstimatesLocal = () => {
       let sizeBytes = 0;
       let timeMinutes = 0;
       
@@ -905,27 +1007,67 @@ export default {
         progressValue.value = 0;
         progressMessages.value = [];
         
-        // Simulate export process
-        const steps = [
-          { step: 'Initializing export...', duration: 500 },
-          { step: 'Collecting LoRA metadata...', duration: 1000 },
-          { step: 'Packaging files...', duration: 2000 },
-          { step: 'Creating archive...', duration: 1500 },
-          { step: 'Finalizing export...', duration: 500 }
-        ];
+        updateProgressDisplay({
+          value: 10,
+          step: 'Preparing export...',
+          message: 'Validating configuration'
+        });
         
-        for (let i = 0; i < steps.length; i++) {
-          const step = steps[i];
-          const progress = Math.round(((i + 1) / steps.length) * 100);
-          
-          updateProgressDisplay({
-            value: progress,
-            step: step.step,
-            message: step.step
-          });
-          
-          await new Promise(resolve => setTimeout(resolve, step.duration));
+        // Call the real export API
+        const response = await fetch('/api/v1/export', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify(exportConfig)
+        });
+        
+        updateProgressDisplay({
+          value: 50,
+          step: 'Generating export...',
+          message: 'Creating archive'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Export failed: ${response.status}`);
         }
+        
+        updateProgressDisplay({
+          value: 90,
+          step: 'Finalizing export...',
+          message: 'Preparing download'
+        });
+        
+        // Get the blob and trigger download
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        // Extract filename from Content-Disposition header or use default
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = `lora_export_${new Date().toISOString().slice(0, 10)}.${exportConfig.format}`;
+        
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+          if (filenameMatch) {
+            filename = filenameMatch[1];
+          }
+        }
+        
+        // Trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        updateProgressDisplay({
+          value: 100,
+          step: 'Export completed',
+          message: 'Download started'
+        });
         
         showToastMessage('Export completed successfully', 'success');
         
@@ -1068,30 +1210,56 @@ export default {
         progressValue.value = 0;
         progressMessages.value = [];
         
-        // Simulate import process
-        const steps = [
-          { step: 'Initializing import...', duration: 500 },
-          { step: 'Creating backup...', duration: 2000 },
-          { step: 'Validating files...', duration: 1500 },
-          { step: 'Processing files...', duration: 3000 },
-          { step: 'Updating indexes...', duration: 1000 },
-          { step: 'Finalizing import...', duration: 500 }
-        ];
+        updateProgressDisplay({
+          value: 10,
+          step: 'Preparing import...',
+          message: 'Validating files'
+        });
         
-        for (let i = 0; i < steps.length; i++) {
-          const step = steps[i];
-          const progress = Math.round(((i + 1) / steps.length) * 100);
-          
-          updateProgressDisplay({
-            value: progress,
-            step: step.step,
-            message: step.step
-          });
-          
-          await new Promise(resolve => setTimeout(resolve, step.duration));
+        // Create FormData for multipart upload
+        const formData = new FormData();
+        
+        // Add files
+        importFiles.value.forEach(file => {
+          formData.append('files', file);
+        });
+        
+        // Add configuration as JSON string
+        formData.append('config', JSON.stringify(importConfig));
+        
+        updateProgressDisplay({
+          value: 30,
+          step: 'Uploading files...',
+          message: 'Sending files to server'
+        });
+        
+        // Call the real import API
+        const response = await fetch('/api/v1/import', {
+          method: 'POST',
+          credentials: 'same-origin',
+          body: formData
+          // Do not set Content-Type header manually for FormData
+        });
+        
+        updateProgressDisplay({
+          value: 70,
+          step: 'Processing import...',
+          message: 'Server is processing files'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Import failed: ${response.status}`);
         }
         
-        showToastMessage(`Import completed: ${importFiles.value.length} files processed`, 'success');
+        const result = await response.json();
+        
+        updateProgressDisplay({
+          value: 100,
+          step: 'Import completed',
+          message: `Processed ${result.processed_files} of ${result.total_files} files`
+        });
+        
+        showToastMessage(`Import completed: ${result.processed_files} files processed`, 'success');
         importFiles.value = [];
         importPreview.value = [];
         
@@ -1104,16 +1272,80 @@ export default {
     };
     
     // Backup functions
-    const createFullBackup = () => {
-      showToastMessage('Full backup functionality coming soon', 'info');
+    const loadBackupHistory = async () => {
+      try {
+        const response = await fetch('/api/v1/backups/history', {
+          credentials: 'same-origin'
+        });
+        
+        if (response.ok) {
+          backupHistory.value = await response.json();
+        }
+      } catch (error) {
+        console.error('Failed to load backup history:', error);
+      }
     };
     
-    const createQuickBackup = () => {
-      showToastMessage('Quick backup functionality coming soon', 'info');
+    const createFullBackup = async () => {
+      try {
+        const response = await fetch('/api/v1/backup/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({ backup_type: 'full' })
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          showToastMessage(`Full backup initiated: ${result.backup_id}`, 'success');
+          await loadBackupHistory(); // Refresh history
+        } else {
+          throw new Error(`Backup failed: ${response.status}`);
+        }
+      } catch (error) {
+        showToastMessage(`Backup failed: ${error.message}`, 'error');
+      }
+    };
+    
+    const createQuickBackup = async () => {
+      try {
+        const response = await fetch('/api/v1/backup/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({ backup_type: 'quick' })
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          showToastMessage(`Quick backup initiated: ${result.backup_id}`, 'success');
+          await loadBackupHistory(); // Refresh history
+        } else {
+          throw new Error(`Backup failed: ${response.status}`);
+        }
+      } catch (error) {
+        showToastMessage(`Backup failed: ${error.message}`, 'error');
+      }
     };
     
     const scheduleBackup = () => {
       showToastMessage('Schedule backup functionality coming soon', 'info');
+    };
+    
+    const downloadBackup = (backupId) => {
+      showToastMessage(`Download backup ${backupId} functionality coming soon`, 'info');
+    };
+    
+    const restoreBackup = (backupId) => {
+      showToastMessage(`Restore backup ${backupId} functionality coming soon`, 'info');
+    };
+    
+    const deleteBackup = (backupId) => {
+      showToastMessage(`Delete backup ${backupId} functionality coming soon`, 'info');
     };
     
     // Migration functions
@@ -1139,8 +1371,9 @@ export default {
     };
     
     // Initialize component
-    onMounted(() => {
-      updateEstimates();
+    onMounted(async () => {
+      await updateEstimates();
+      await loadBackupHistory();
       
       // Set up auto-hide for toast messages
       watch(showToast, (value) => {
@@ -1185,6 +1418,9 @@ export default {
       importPreview,
       hasEncryptedFiles,
       
+      // Backup state
+      backupHistory,
+      
       // Computed
       canExport,
       estimatedSize,
@@ -1192,6 +1428,7 @@ export default {
       
       // Utility functions
       formatFileSize,
+      formatDate,
       getStatusClasses,
       
       // Export functions
@@ -1214,6 +1451,9 @@ export default {
       createFullBackup,
       createQuickBackup,
       scheduleBackup,
+      downloadBackup,
+      restoreBackup,
+      deleteBackup,
       
       // Migration functions
       startVersionMigration,
