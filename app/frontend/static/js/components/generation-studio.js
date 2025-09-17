@@ -58,7 +58,7 @@ function generationStudio() {
         initWebSocket() {
             try {
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}/ws/generation`;
+                const wsUrl = `${protocol}//${window.location.host}/ws/progress`;
                 
                 this.websocket = new WebSocket(wsUrl);
                 

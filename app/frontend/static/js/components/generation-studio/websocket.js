@@ -22,7 +22,7 @@ const generationWebSocket = {
         
         try {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws/generation`;
+            const wsUrl = `${protocol}//${window.location.host}/ws/progress`;
             
             const websocket = new WebSocket(wsUrl);
             

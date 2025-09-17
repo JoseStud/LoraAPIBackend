@@ -31,8 +31,8 @@
         
         <!-- Status Badge -->
         <div class="lora-card-status-badge-container">
-          <span :class="['status-badge', lora.active ? 'status-active' : 'status-inactive']">
-            {{ lora.active ? 'Active' : 'Inactive' }}
+          <span :class="['status-badge', isActive ? 'status-active' : 'status-inactive']">
+            {{ isActive ? 'Active' : 'Inactive' }}
           </span>
         </div>
         
@@ -117,7 +117,7 @@
         </div>
         
         <!-- Weight Control -->
-        <div v-if="lora.active" class="lora-card-weight-control">
+        <div v-if="isActive" class="lora-card-weight-control">
           <label class="form-label text-xs">Weight</label>
           <input 
             type="range" 
@@ -198,7 +198,7 @@
               </div>
               
               <!-- Weight Control (if active) -->
-              <div v-if="lora.active" class="flex items-center space-x-3">
+              <div v-if="isActive" class="flex items-center space-x-3">
                 <div class="flex items-center space-x-2">
                   <span class="text-xs text-gray-600">Weight:</span>
                   <input 
@@ -250,7 +250,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 
 const props = defineProps({
   lora: {
@@ -276,7 +276,17 @@ const emit = defineEmits(['toggle-selection', 'lora-updated', 'lora-deleted', 'l
 // Local state
 const showActions = ref(false);
 const weight = ref(props.lora.weight || 1.0);
+const isActive = ref(props.lora.active || false); // Local reactive state for active status
 const actionsMenuRef = ref(null);
+
+// Watch for prop changes to sync local state
+watch(() => props.lora.active, (newActive) => {
+  isActive.value = newActive;
+});
+
+watch(() => props.lora.weight, (newWeight) => {
+  weight.value = newWeight || 1.0;
+});
 
 // Click outside handler
 const handleClickOutside = (event) => {
@@ -320,7 +330,7 @@ const updateWeight = async () => {
 
 const toggleActive = async () => {
   try {
-    const endpoint = props.lora.active ? 'deactivate' : 'activate';
+    const endpoint = isActive.value ? 'deactivate' : 'activate';
     const response = await fetch(`/api/v1/adapters/${props.lora.id}/${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
@@ -330,12 +340,12 @@ const toggleActive = async () => {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    // Update local state
-    props.lora.active = !props.lora.active;
+    // Update local state (no prop mutation)
+    isActive.value = !isActive.value;
     
     emit('lora-updated', {
       id: props.lora.id,
-      active: props.lora.active,
+      active: isActive.value,
       type: 'active'
     });
   } catch (error) {

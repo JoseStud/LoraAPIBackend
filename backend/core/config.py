@@ -1,6 +1,6 @@
 """Configuration settings for the application."""
 
-from typing import Optional
+from typing import List, Optional
 
 from pydantic_settings import BaseSettings
 
@@ -35,6 +35,13 @@ class Settings(BaseSettings):
     SDNEXT_DEFAULT_SAMPLER: str = "DPM++ 2M"
     SDNEXT_DEFAULT_CFG_SCALE: float = 7.0
     SDNEXT_OUTPUT_DIR: Optional[str] = None  # local storage for generated images
+    
+    # CORS settings for backend API
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:8000",
+        "http://localhost:5173",
+    ]
+    CORS_ALLOW_CREDENTIALS: bool = False
     
     @property
     def get_backend_url(self) -> str:

@@ -154,7 +154,7 @@ class FrontendSettings(BaseSettings):
     )
     
     cors_origins: List[str] = Field(
-        default=["http://localhost:3000", "http://localhost:8080"],
+        default=["http://localhost:5173", "http://localhost:8000"],
         env="CORS_ORIGINS",
         description="Allowed CORS origins",
     )
@@ -233,9 +233,14 @@ class FrontendSettings(BaseSettings):
         if not self.enable_cors:
             return {}
         
+        # Don't allow credentials with wildcard origins for security
+        allow_credentials = True
+        if "*" in self.cors_origins:
+            allow_credentials = False
+        
         return {
             "allow_origins": self.cors_origins,
-            "allow_credentials": True,
+            "allow_credentials": allow_credentials,
             "allow_methods": ["*"],
             "allow_headers": ["*"],
         }

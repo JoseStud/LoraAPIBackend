@@ -173,7 +173,7 @@ def upsert_adapter_from_payload(payload):
         payload = AdapterCreate(**payload)
     
     # Use the same pattern as the legacy function
-    with get_session() as session:
+    with get_session_context() as session:
         container = ServiceContainer(session)
         return container.adapters.upsert_adapter(payload)
 

@@ -14,7 +14,7 @@ const generationAPI = {
      * Base configuration for API requests
      */
     config: {
-        baseUrl: '/api',
+        baseUrl: '/api/v1',
         timeout: 30000,
         retries: 3,
         retryDelay: 1000
@@ -53,36 +53,36 @@ const generationAPI = {
     
     /**
      * Loads active generation jobs
+     * NOTE: /generation/jobs/active endpoint doesn't exist yet in backend
+     * Using deliveries API as fallback
      */
     async loadActiveJobs() {
         try {
-            const data = await fetchData(`${this.config.baseUrl}/generation/jobs/active`);
+            // TODO: Implement proper /generation/jobs/active endpoint in backend
+            // For now return empty array as this endpoint doesn't exist
+            if (window.DevLogger && window.DevLogger.warn) {
+                window.DevLogger.warn('loadActiveJobs: /generation/jobs/active endpoint not implemented in backend');
+            }
             
             return {
                 success: true,
-                data: Array.isArray(data) ? data.map(job => ({
-                    id: job.id,
-                    prompt: job.prompt,
-                    negative_prompt: job.negative_prompt,
-                    width: job.width,
-                    height: job.height,
-                    steps: job.steps,
-                    cfg_scale: job.cfg_scale,
-                    seed: job.seed,
-                    batch_count: job.batch_count,
-                    batch_size: job.batch_size,
-                    status: job.status,
-                    progress: job.progress || 0,
-                    current_step: job.current_step || 0,
-                    total_steps: job.total_steps || job.steps,
-                    created_at: job.created_at,
-                    start_time: job.start_time,
-                    eta: job.eta,
-                    model_used: job.model_used,
-                    user_id: job.user_id
-                })) : []
+                data: []
             };
         } catch (error) {
+            if (window.DevLogger && window.DevLogger.error) {
+                window.DevLogger.error('Failed to load active jobs:', error);
+            }
+            
+            return {
+                success: false,
+                error: error.message,
+                data: []
+            };
+        } catch (error) {
+            if (window.DevLogger && window.DevLogger.error) {
+                window.DevLogger.error('Failed to load active jobs:', error);
+            }
+            
             return {
                 success: false,
                 error: error.message,

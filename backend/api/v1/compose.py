@@ -7,7 +7,7 @@ from active adapters and optionally schedules a delivery.
 from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlmodel import Session
 
-from backend.core.database import get_session
+from backend.core.database import get_session, get_session_context
 from backend.delivery import get_delivery_backend, get_generation_backend
 from backend.schemas import ComposeRequest, ComposeResponse, SDNextGenerationParams
 from backend.services import create_service_container
@@ -85,14 +85,14 @@ async def _deliver_http(prompt: str, params: dict, job_id: str):
         result = await backend.deliver(prompt, params)
         
         # Update job status
-        with get_session() as session:
+        with get_session_context() as session:
             services = create_service_container(session)
             if result.get("status") in (200, "ok"):
                 services.deliveries.update_job_status(job_id, "succeeded", result)
             else:
                 services.deliveries.update_job_status(job_id, "failed", result)
     except Exception as exc:
-        with get_session() as session:
+        with get_session_context() as session:
             services = create_service_container(session)
             services.deliveries.update_job_status(
                 job_id, 
@@ -110,14 +110,14 @@ async def _deliver_cli(prompt: str, params: dict, job_id: str):
         result = await backend.deliver(prompt, params)
         
         # Update job status
-        with get_session() as session:
+        with get_session_context() as session:
             services = create_service_container(session)
             if result.get("status") == "ok":
                 services.deliveries.update_job_status(job_id, "succeeded", result)
             else:
                 services.deliveries.update_job_status(job_id, "failed", result)
     except Exception as exc:
-        with get_session() as session:
+        with get_session_context() as session:
             services = create_service_container(session)
             services.deliveries.update_job_status(
                 job_id, 
@@ -151,7 +151,7 @@ async def _deliver_sdnext(prompt: str, params: dict, job_id: str):
         result = await backend.generate_image(prompt, full_params)
         
         # Update job status
-        with get_session() as session:
+        with get_session_context() as session:
             services = create_service_container(session)
             if result.status == "completed":
                 services.deliveries.update_job_status(
@@ -166,7 +166,7 @@ async def _deliver_sdnext(prompt: str, params: dict, job_id: str):
                     result.model_dump(),
                 )
     except Exception as exc:
-        with get_session() as session:
+        with get_session_context() as session:
             services = create_service_container(session)
             services.deliveries.update_job_status(
                 job_id, 

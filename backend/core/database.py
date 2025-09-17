@@ -47,5 +47,15 @@ def init_db():
 
 
 def get_session():
-    """Return a new Session bound to the module ENGINE."""
+    """Return a new Session bound to the module ENGINE with proper lifecycle management.
+    
+    This is a generator function intended for use as a FastAPI dependency.
+    For direct usage, use get_session_context() instead.
+    """
+    with Session(ENGINE) as session:
+        yield session
+
+
+def get_session_context():
+    """Return a new Session as a context manager for direct usage."""
     return Session(ENGINE)

@@ -54,7 +54,7 @@ def enqueue_delivery(prompt: str, mode: str, params: dict, max_retries: int = 3)
     max_retries is the number of retry attempts (not counting the first try).
     """
     # Create delivery job using the service layer
-    with get_session() as sess:
+    with get_session_context() as sess:
         services = create_service_container(sess)
         dj = services.deliveries.create_job(prompt, mode, params)
     
@@ -84,7 +84,7 @@ def process_delivery(delivery_id: str):
     logger.info(json.dumps({"event": "start", "delivery_id": delivery_id}))
     
     # Set job to running
-    with get_session() as sess:
+    with get_session_context() as sess:
         services = create_service_container(sess)
         dj = services.deliveries.get_job(delivery_id)
         if not dj:
@@ -95,7 +95,7 @@ def process_delivery(delivery_id: str):
 
     try:
         # Get job parameters
-        with get_session() as sess:
+        with get_session_context() as sess:
             services = create_service_container(sess)
             dj = services.deliveries.get_job(delivery_id)
             params = services.deliveries.get_job_params(dj)
@@ -111,7 +111,7 @@ def process_delivery(delivery_id: str):
             result = {"status": "error", "detail": f"unknown mode: {dj.mode}"}
 
         # Update job with success
-        with get_session() as sess:
+        with get_session_context() as sess:
             services = create_service_container(sess)
             services.deliveries.update_job_status(delivery_id, "succeeded", result)
 
@@ -126,7 +126,7 @@ def process_delivery(delivery_id: str):
             retries_left = None
 
         # Update job with error
-        with get_session() as sess:
+        with get_session_context() as sess:
             services = create_service_container(sess)
             error_result = {"error": str(exc)}
             
@@ -229,7 +229,7 @@ def process_embeddings_batch(
     
     try:
         # Create database session and services
-        with get_session() as sess:
+        with get_session_context() as sess:
             from backend.services.recommendations import RecommendationService
             
             # Check if GPU is available
@@ -282,7 +282,7 @@ def compute_single_embedding(adapter_id: str, force_recompute: bool = False) -> 
     logger = logging.getLogger(__name__)
     
     try:
-        with get_session() as sess:
+        with get_session_context() as sess:
             from backend.services.recommendations import RecommendationService
             
             # Check GPU availability
@@ -327,7 +327,7 @@ def rebuild_similarity_index(force: bool = False) -> dict:
     logger = logging.getLogger(__name__)
     
     try:
-        with get_session() as sess:
+        with get_session_context() as sess:
             from sqlmodel import select
 
             from backend.models import Adapter

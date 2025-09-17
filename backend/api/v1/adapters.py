@@ -64,32 +64,43 @@ def list_adapters(
         q = q.where(Adapter.active == True)
     
     # Apply tag filters (tags is comma-separated string)
+    tag_list = []
     if tags:
         tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
-        if tag_list:
-            # For now, we'll do a simple contains check
-            # In a real implementation, you'd parse JSON tags properly
-            for tag in tag_list:
-                q = q.where(Adapter.tags.ilike(f"%{tag}%"))
     
-    # Get total count before pagination
-    total_count = len(db_session.exec(q).all())
+    # Execute initial query without tag filtering (done in Python)
+    all_results = db_session.exec(q).all()
+    
+    # Apply tag filtering in Python for cross-database compatibility
+    if tag_list:
+        def has_matching_tags(adapter):
+            if not adapter.tags:
+                return False
+            adapter_tags = adapter.tags if isinstance(adapter.tags, list) else []
+            # Convert to lowercase for case-insensitive matching
+            adapter_tags_lower = [tag.lower() for tag in adapter_tags if isinstance(tag, str)]
+            return any(filter_tag.lower() in adapter_tags_lower for filter_tag in tag_list)
+        
+        all_results = [adapter for adapter in all_results if has_matching_tags(adapter)]
+    
+    # Get total count after filtering
+    total_count = len(all_results)
     
     # Apply sorting
     if sort == "name":
-        q = q.order_by(Adapter.name)
+        all_results.sort(key=lambda x: x.name.lower() if x.name else "")
     elif sort == "created_at":
-        q = q.order_by(Adapter.created_at.desc())
+        all_results.sort(key=lambda x: x.created_at, reverse=True)
     elif sort == "updated_at":
-        q = q.order_by(Adapter.updated_at.desc())
+        all_results.sort(key=lambda x: x.updated_at, reverse=True)
     elif sort == "file_size":
-        q = q.order_by(Adapter.file_size.desc())
+        all_results.sort(key=lambda x: x.primary_file_size_kb or 0, reverse=True)
     else:
-        q = q.order_by(Adapter.name)
+        all_results.sort(key=lambda x: x.name.lower() if x.name else "")
     
     # Apply pagination
     offset = (page - 1) * per_page
-    results = db_session.exec(q.offset(offset).limit(per_page)).all()
+    results = all_results[offset:offset + per_page]
     
     # Calculate pagination info
     total_pages = (total_count + per_page - 1) // per_page
@@ -200,13 +211,46 @@ def patch_adapter(
     """Update an adapter's fields.
 
     Supports updating tags (stored as JSON string) and other updatable fields.
+    Only allows updating specific safe fields to prevent unauthorized modifications.
     """
+    # Define allowlist of patchable fields
+    ALLOWED_FIELDS = {
+        "weight", "active", "ordinal", "tags", "description", "activation_text",
+        "trained_words", "triggers", "archetype", "archetype_confidence",
+        "visibility", "nsfw_level", "supports_generation", "sd_version"
+    }
+    
     a = db_session.get(Adapter, adapter_id)
     if not a:
         raise HTTPException(status_code=404, detail="adapter not found")
+    
+    # Validate and apply only allowed fields
+    updated_fields = []
     for k, v in payload.items():
+        if k not in ALLOWED_FIELDS:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Field '{k}' is not allowed to be modified. Allowed fields: {', '.join(sorted(ALLOWED_FIELDS))}"
+            )
         if hasattr(a, k):
+            # Type validation for specific fields
+            if k == "weight" and not isinstance(v, (int, float)):
+                raise HTTPException(status_code=400, detail="Field 'weight' must be a number")
+            if k == "active" and not isinstance(v, bool):
+                raise HTTPException(status_code=400, detail="Field 'active' must be a boolean")
+            if k == "ordinal" and v is not None and not isinstance(v, int):
+                raise HTTPException(status_code=400, detail="Field 'ordinal' must be an integer or null")
+            if k == "tags" and not isinstance(v, list):
+                raise HTTPException(status_code=400, detail="Field 'tags' must be a list")
+            if k == "nsfw_level" and not isinstance(v, int):
+                raise HTTPException(status_code=400, detail="Field 'nsfw_level' must be an integer")
+            
             setattr(a, k, v)
+            updated_fields.append(k)
+    
+    if not updated_fields:
+        raise HTTPException(status_code=400, detail="No valid fields provided for update")
+    
     a.updated_at = datetime.now(timezone.utc)
     db_session.add(a)
     db_session.commit()

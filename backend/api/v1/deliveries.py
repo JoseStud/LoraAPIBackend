@@ -88,7 +88,7 @@ async def _process_delivery_fallback(job_id: str, prompt: str, mode: str, params
     from backend.core.database import get_session
     
     try:
-        with get_session() as session:
+        with get_session_context() as session:
             services = create_service_container(session)
             services.deliveries.update_job_status(job_id, "running")
         
@@ -122,7 +122,7 @@ async def _process_delivery_fallback(job_id: str, prompt: str, mode: str, params
             result = {"status": "error", "detail": f"unknown mode: {mode}"}
         
         # Update job with result
-        with get_session() as session:
+        with get_session_context() as session:
             services = create_service_container(session)
             if result.get("status") in ("ok", "completed", 200):
                 services.deliveries.update_job_status(job_id, "succeeded", result)
@@ -130,7 +130,7 @@ async def _process_delivery_fallback(job_id: str, prompt: str, mode: str, params
                 services.deliveries.update_job_status(job_id, "failed", result)
                 
     except Exception as exc:
-        with get_session() as session:
+        with get_session_context() as session:
             services = create_service_container(session)
             services.deliveries.update_job_status(
                 job_id, 

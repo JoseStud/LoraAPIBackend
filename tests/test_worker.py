@@ -37,7 +37,7 @@ def test_worker_process_cycle(tmp_path, monkeypatch):
     worker.work(burst=True)
 
     # check DB state
-    with get_session() as sess:
+    with get_session_context() as sess:
         dj = sess.get(DeliveryJob, did)
         assert dj is not None
         # Either succeeded or failed depending on execution; we expect at

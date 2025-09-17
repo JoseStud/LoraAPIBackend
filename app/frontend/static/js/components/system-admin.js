@@ -389,7 +389,7 @@ function systemAdmin() {
                 const formData = new FormData();
                 formData.append('backup_file', file);
                 
-                const formData = new FormData();
+
                 formData.append('files', file);
                 formData.append('config', JSON.stringify({ mode: 'merge', conflict_resolution: 'ask', validate: true, backup_before: true }));
                 const response = await fetch('/api/v1/import', { method: 'POST', body: formData });

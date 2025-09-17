@@ -272,7 +272,7 @@ async def _process_generation_job(job_id: str, params: Dict):
     """
     from backend.core.database import get_session
     
-    with get_session() as session:
+    with get_session_context() as session:
         services = create_service_container(session)
         
         # Update job status to running

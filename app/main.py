@@ -22,13 +22,17 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Add CORS middleware
+# Add CORS middleware using frontend settings
+from app.frontend.config import get_settings as get_frontend_settings
+
+_fe_settings = get_frontend_settings()
+_cors = _fe_settings.get_cors_config()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_cors.get("allow_origins", ["http://localhost:5173", "http://localhost:8000"]),
+    allow_credentials=_cors.get("allow_credentials", True),
+    allow_methods=_cors.get("allow_methods", ["*"]),
+    allow_headers=_cors.get("allow_headers", ["*"]),
 )
 
 # Mount static files for frontend

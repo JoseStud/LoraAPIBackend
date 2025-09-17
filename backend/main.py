@@ -23,6 +23,7 @@ from backend.api.v1 import (
 from backend.core.database import init_db
 from backend.core.logging import setup_logging
 from backend.core.security import get_api_key
+from backend.core.config import settings
 
 
 @asynccontextmanager
@@ -40,8 +41,8 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
         allow_methods=["*"],
         allow_headers=["*"],
     )

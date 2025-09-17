@@ -64,7 +64,7 @@ async def get_similar_loras(
             recommendations=recommendations,
             total_candidates=len(recommendations),
             processing_time_ms=processing_time,
-            model_config={
+            recommendation_config={
                 'device': recommendation_service.device,
                 'gpu_enabled': recommendation_service.gpu_enabled,
                 'similarity_threshold': similarity_threshold,
@@ -111,7 +111,7 @@ async def get_recommendations_for_prompt(
             recommendations=recommendations,
             total_candidates=len(recommendations),
             processing_time_ms=processing_time,
-            model_config={
+            recommendation_config={
                 'device': recommendation_service.device,
                 'gpu_enabled': recommendation_service.gpu_enabled,
                 'style_preference': request.style_preference,
