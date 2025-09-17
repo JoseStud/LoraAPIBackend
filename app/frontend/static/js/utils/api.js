@@ -12,26 +12,75 @@
  * @returns {Promise<any>} The response data
  */
 export async function fetchData(url, options = {}) {
+    const {
+        headers = {},
+        parseResponse = true,
+        returnResponse = false,
+        ...fetchOptions
+    } = options;
+
+    const normalizedHeaders = headers instanceof Headers
+        ? Object.fromEntries(headers.entries())
+        : headers;
+
+    const requestHeaders = {
+        'Content-Type': 'application/json',
+        ...normalizedHeaders
+    };
+
+    if (requestHeaders['Content-Type'] === null || requestHeaders['Content-Type'] === undefined) {
+        delete requestHeaders['Content-Type'];
+    }
+
+    const requestOptions = {
+        credentials: 'same-origin',
+        ...fetchOptions,
+        headers: requestHeaders
+    };
+
+    if (typeof FormData !== 'undefined' && requestOptions.body instanceof FormData) {
+        delete requestOptions.headers['Content-Type'];
+    }
+
+    const method = typeof requestOptions.method === 'string'
+        ? requestOptions.method.toUpperCase()
+        : 'GET';
+
     try {
-        const defaultOptions = {
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers
-            }
+        const response = await fetch(url, requestOptions);
+
+        const meta = {
+            ok: !!response?.ok,
+            status: typeof response?.status === 'number' ? response.status : 0,
+            headers: response?.headers || null
         };
 
-        const response = await fetch(url, { ...defaultOptions, ...options });
-        
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const error = new Error(`HTTP error! status: ${response.status}`);
+            error.response = response;
+            error.status = response.status;
+            throw error;
         }
-        
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-            return await response.json();
-        } else {
-            return await response.text();
+
+        const shouldParseBody = parseResponse && method !== 'HEAD' && ![204, 205, 304].includes(meta.status);
+
+        let data = null;
+        if (shouldParseBody) {
+            const contentType = response?.headers?.get?.('content-type') || '';
+            const preferJson = contentType.includes('application/json') || typeof response?.json === 'function';
+
+            if (preferJson) {
+                data = await response.json();
+            } else if (typeof response?.text === 'function') {
+                data = await response.text();
+            }
         }
+
+        if (returnResponse) {
+            return { data, response, meta };
+        }
+
+        return data;
     } catch (error) {
         console.error('API request failed:', error);
         throw error;
@@ -121,4 +170,62 @@ export async function uploadFile(url, formData, onProgress = null) {
         xhr.open('POST', url);
         xhr.send(formData);
     });
+}
+
+/**
+ * Download a file as blob
+ * @param {string} url - The file URL
+ * @param {object} options - Additional fetch options
+ * @returns {Promise<Blob>} The file blob
+ */
+export async function downloadBlob(url, options = {}) {
+    try {
+        const defaultOptions = {
+            headers: {
+                ...options.headers
+            }
+        };
+
+        const response = await fetch(url, { ...defaultOptions, ...options });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        return await response.blob();
+    } catch (error) {
+        console.error('Blob download failed:', error);
+        throw error;
+    }
+}
+
+/**
+ * Post data and download response as blob
+ * @param {string} url - The API endpoint URL
+ * @param {any} data - The data to send
+ * @param {object} options - Additional fetch options
+ * @returns {Promise<Blob>} The response blob
+ */
+export async function postForBlob(url, data, options = {}) {
+    try {
+        const defaultOptions = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            },
+            body: JSON.stringify(data)
+        };
+
+        const response = await fetch(url, { ...defaultOptions, ...options });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        return await response.blob();
+    } catch (error) {
+        console.error('Blob POST failed:', error);
+        throw error;
+    }
 }

@@ -1,8 +1,6 @@
-"""
-Simple validation tests for the new modular file structure.
+"""Simple validation tests for the new modular file structure.
 """
 import os
-import pytest
 
 
 class TestFileStructure:
@@ -55,7 +53,7 @@ class TestFileStructure:
             f"{base_path}/components/system-admin/index.js",
             f"{base_path}/components/import-export/index.js",
             f"{base_path}/components/import-export/state.js",
-            f"{base_path}/utils/index.js"
+            f"{base_path}/utils/index.js",
         ]
         
         for file_path in files_to_check:
