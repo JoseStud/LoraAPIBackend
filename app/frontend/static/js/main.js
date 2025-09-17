@@ -24,7 +24,7 @@ import RecommendationsPanel from '../vue/RecommendationsPanel.vue';
 import MobileNav from '../vue/MobileNav.vue';
 import SystemStatusCard from '../vue/SystemStatusCard.vue';
 import PromptComposer from '../vue/PromptComposer.vue';
-
+import ImportExport from '../vue/ImportExport.vue';
 import JobQueue from '../vue/JobQueue.vue';
 import SystemStatusPanel from '../vue/SystemStatusPanel.vue';
 import PerformanceAnalytics from '../vue/PerformanceAnalytics.vue';
@@ -319,9 +319,6 @@ mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard) ||
         mountVueApp('[data-vue-root="system-status-card"]', SystemStatusCard);
     });
 
-<<<<<<< HEAD
-// Mount Prompt Composer if present on page
-=======
 // Mount Performance Analytics if present on page
 mountVueApp('[data-vue-root="performance-analytics"]', PerformanceAnalytics) ||
     window.addEventListener('DOMContentLoaded', () => {
@@ -338,6 +335,12 @@ mountVueApp('[data-vue-root="job-queue"]', JobQueue) ||
 mountVueApp('[data-vue-root="system-status-panel"]', SystemStatusPanel) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="system-status-panel"]', SystemStatusPanel);
+    });
+
+// Mount Import/Export component if present on page
+mountVueApp('[data-vue-root="import-export"]', ImportExport) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="import-export"]', ImportExport);
     });
 
 // Mount System Admin Status card if present on page
@@ -359,7 +362,6 @@ mountVueApp('[data-vue-root="generation-history"]', GenerationHistory) ||
     });
 
 // Mount Prompt Composer (Vue island)
->>>>>>> temp/fe-106-migration
 mountVueApp('[data-vue-root="prompt-composer"]', PromptComposer) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="prompt-composer"]', PromptComposer);
