@@ -424,17 +424,7 @@ export default function apiDataFetcher(endpoint, options = {}) {
         },
 
         clearCache() {
-            ifThis branch has conflicts that must be resolved
-
-Use the web editor or the command line to resolve conflicts before continuing.
-
-.gitignore
-app/frontend/static/js/components/prompt-composer.js
-app/frontend/static/js/components/shared/api-data-fetcher.js
-app/frontend/static/js/main.js
-app/frontend/static/vue/composables/useApi.js
-app/frontend/templates/pages/admin.html
- (cacheKey) {
+            if (this.cacheKey) {
                 localStorage.removeItem(this.cacheKey);
             }
         },
