@@ -103,4 +103,29 @@ describe('LoraGallery', () => {
     
     expect(wrapper.vm.bulkMode).toBe(true);
   });
+
+  it('uses correct API URL composition', async () => {
+    // Mock fetch to capture URLs
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ items: [], tags: [] })
+    });
+    global.fetch = fetchSpy;
+    
+    const wrapper = mount(LoraGallery);
+    
+    // Wait for initial data load
+    await wrapper.vm.$nextTick();
+    
+    // Check that URLs use relative paths with /api/v1/
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/v1/adapters?per_page=100',
+      expect.objectContaining({ credentials: 'same-origin' })
+    );
+    
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/v1/adapters/tags',
+      expect.objectContaining({ credentials: 'same-origin' })
+    );
+  });
 });

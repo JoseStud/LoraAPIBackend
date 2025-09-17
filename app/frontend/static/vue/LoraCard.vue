@@ -53,7 +53,13 @@
           </h3>
           <!-- Quick Actions Dropdown -->
           <div class="relative">
-            <button @click="showActions = !showActions" class="lora-card-actions-btn">
+            <button 
+              @click="showActions = !showActions" 
+              class="lora-card-actions-btn"
+              aria-haspopup="menu"
+              :aria-expanded="showActions"
+              aria-label="Open actions menu"
+            >
               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path>
               </svg>
@@ -62,6 +68,8 @@
               v-show="showActions" 
               ref="actionsMenuRef"
               class="lora-card-actions-menu"
+              role="menu"
+              aria-label="LoRA actions"
             >
               <div class="py-1">
                 <a :href="`/loras/${lora.id}`" class="lora-card-menu-item">
@@ -280,7 +288,7 @@ const handleClickOutside = (event) => {
 // Methods
 const updateWeight = async () => {
   try {
-    const response = await fetch(`${window?.BACKEND_URL || ''}/adapters/${props.lora.id}/weight`, {
+    const response = await fetch(`/api/v1/adapters/${props.lora.id}/weight`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json'
@@ -312,7 +320,7 @@ const updateWeight = async () => {
 
 const toggleActive = async () => {
   try {
-    const response = await fetch(`${window?.BACKEND_URL || ''}/adapters/${props.lora.id}/toggle`, {
+    const response = await fetch(`/api/v1/adapters/${props.lora.id}/toggle`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -357,7 +365,7 @@ const getRecommendations = async () => {
 
 const generatePreview = async () => {
   try {
-    const response = await fetch(`${window?.BACKEND_URL || ''}/adapters/${props.lora.id}/generate-preview`, {
+    const response = await fetch(`/api/v1/adapters/${props.lora.id}/generate-preview`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -393,7 +401,7 @@ const deleteLora = async () => {
   }
   
   try {
-    const response = await fetch(`${window?.BACKEND_URL || ''}/adapters/${props.lora.id}`, {
+    const response = await fetch(`/api/v1/adapters/${props.lora.id}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json'

@@ -283,7 +283,7 @@ const filteredLoras = computed(() => {
 const loadLoraData = async () => {
   isLoading.value = true;
   try {
-    const url = `${window?.BACKEND_URL || ''}/api/v1/adapters?per_page=100`;
+    const url = '/api/v1/adapters?per_page=100';
     const response = await fetch(url, { credentials: 'same-origin' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
@@ -300,7 +300,7 @@ const loadLoraData = async () => {
 
 const fetchAvailableTags = async () => {
   try {
-    const url = `${window?.BACKEND_URL || ''}/api/v1/adapters/tags`;
+    const url = '/api/v1/adapters/tags';
     const response = await fetch(url, { credentials: 'same-origin' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
@@ -323,7 +323,8 @@ const debounceSearch = (() => {
   return () => {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => {
-      // Filters are reactive, so the computed filteredLoras will update automatically
+      // No-op: Vue's reactivity automatically updates filteredLoras when searchTerm changes
+      // This debounce prevents excessive re-renders during typing
     }, 300);
   };
 })();
@@ -375,8 +376,11 @@ const performBulkAction = async (action) => {
     return;
   }
 
+  // Store count before clearing selection
+  const count = selectedLoras.value.length;
+
   try {
-    const url = `${window?.BACKEND_URL || ''}/api/v1/adapters/bulk`;
+    const url = '/api/v1/adapters/bulk';
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -398,7 +402,7 @@ const performBulkAction = async (action) => {
 
     if (typeof window.htmx !== 'undefined') {
       window.htmx.trigger(document.body, 'show-notification', {
-        detail: { message: `Successfully ${action}d ${selectedLoras.value.length} LoRA(s).`, type: 'success' }
+        detail: { message: `Successfully ${action}d ${count} LoRA(s).`, type: 'success' }
       });
     }
   } catch (error) {
