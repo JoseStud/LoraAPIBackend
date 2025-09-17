@@ -421,7 +421,9 @@ export default function apiDataFetcher(endpoint, options = {}) {
         },
 
         clearCache() {
-            if (cacheKey) {
+
+            if (this.cacheKey) {
+
                 localStorage.removeItem(this.cacheKey);
             }
         },
