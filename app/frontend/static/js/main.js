@@ -30,6 +30,7 @@ import PerformanceAnalytics from '../vue/PerformanceAnalytics.vue';
 import Notifications from '../vue/Notifications.vue';
 import GenerationHistory from '../vue/GenerationHistory.vue';
 import SystemAdminStatusCard from '../vue/SystemAdminStatusCard.vue';
+import PromptComposer from '../vue/PromptComposer.vue';
 
 
 // Utilities
@@ -54,7 +55,7 @@ import { createRecommendationsComponent } from './components/recommendations/ind
 import { createGenerationHistoryComponent } from './components/generation-history/index.js';
 import { createLoraGalleryComponent } from './components/lora-gallery/index.js';
 import { createGenerationStudioComponent } from './components/generation-studio/index.js';
-import { createPromptComposerComponent } from './components/prompt-composer/index.js';
+// import { createPromptComposerComponent } from './components/prompt-composer/index.js';
 // import { createPerformanceAnalyticsComponent } from './components/performance-analytics/index.js'; // Migrated to Vue
 import { createImportExportComponent } from './components/import-export/index.js';
 import { createSystemAdminComponent } from './components/system-admin/index.js';
@@ -189,7 +190,7 @@ Alpine.data('recommendationsData', createRecommendationsComponent);
 Alpine.data('generationHistory', createGenerationHistoryComponent);
 Alpine.data('loraGallery', createLoraGalleryComponent);
 Alpine.data('generationStudio', createGenerationStudioComponent);
-Alpine.data('promptComposer', createPromptComposerComponent);
+// Alpine Prompt Composer migrated to Vue island
 // Alpine.data('performanceAnalytics', createPerformanceAnalyticsComponent); // Migrated to Vue
 Alpine.data('importExport', createImportExportComponent);
 Alpine.data('systemAdmin', createSystemAdminComponent);
@@ -351,6 +352,12 @@ mountVueApp('[data-vue-root="notifications"]', Notifications) ||
 mountVueApp('[data-vue-root="generation-history"]', GenerationHistory) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="generation-history"]', GenerationHistory);
+    });
+
+// Mount Prompt Composer (Vue island)
+mountVueApp('[data-vue-root="prompt-composer"]', PromptComposer) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="prompt-composer"]', PromptComposer);
     });
 
 
