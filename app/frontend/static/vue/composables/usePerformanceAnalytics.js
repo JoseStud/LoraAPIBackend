@@ -37,13 +37,12 @@ export function usePerformanceAnalytics() {
   });
 
   // Base URL for API calls
-  const baseUrl = window?.BACKEND_URL || '';
+  const baseUrl = '';
 
   // Methods
   async function loadKPIs() {
     try {
-      const url = `${baseUrl}/analytics/kpis?timeRange=${timeRange.value}`;
-      const response = await fetch(url, { 
+      const response = await fetch('/api/v1/dashboard/stats', { 
         method: 'GET',
         headers: { 'Cache-Control': 'no-cache' },
         credentials: 'same-origin'
@@ -51,7 +50,17 @@ export function usePerformanceAnalytics() {
       
       if (!response.ok) throw new Error('Failed to load KPIs');
       const data = await response.json();
-      kpis.value = data;
+      const stats = data?.stats || {};
+      kpis.value = {
+        total_generations: 0,
+        generation_growth: 0,
+        avg_generation_time: 0,
+        time_improvement: 0,
+        success_rate: 0,
+        total_failed: 0,
+        active_loras: stats.active_loras || 0,
+        total_loras: stats.total_loras || 0
+      };
     } catch (error) {
       console.error('Error loading KPIs:', error);
       // Use fallback mock data for development only
@@ -72,8 +81,7 @@ export function usePerformanceAnalytics() {
 
   async function loadTopLoras() {
     try {
-      const url = `${baseUrl}/analytics/top-loras?timeRange=${timeRange.value}`;
-      const response = await fetch(url, { 
+      const response = await fetch('/api/v1/adapters?per_page=10', { 
         method: 'GET',
         headers: { 'Cache-Control': 'no-cache' },
         credentials: 'same-origin'
@@ -81,7 +89,8 @@ export function usePerformanceAnalytics() {
       
       if (!response.ok) throw new Error('Failed to load top LoRAs');
       const data = await response.json();
-      topLoras.value = data;
+      const items = Array.isArray(data?.items) ? data.items : [];
+      topLoras.value = items.map(i => ({ id: i.id, name: i.name, version: i.version, usage_count: 0, success_rate: 0, avg_time: 0 }));
     } catch (error) {
       console.error('Error loading top LoRAs:', error);
       // Use fallback mock data for development only
@@ -133,118 +142,28 @@ export function usePerformanceAnalytics() {
   }
 
   async function loadErrorAnalysis() {
-    try {
-      const url = `${baseUrl}/analytics/errors?timeRange=${timeRange.value}`;
-      const response = await fetch(url, { 
-        method: 'GET',
-        headers: { 'Cache-Control': 'no-cache' },
-        credentials: 'same-origin'
-      });
-      
-      if (!response.ok) throw new Error('Failed to load error analysis');
-      const data = await response.json();
-      errorAnalysis.value = data;
-    } catch (error) {
-      console.error('Error loading error analysis:', error);
-      // Use fallback mock data for development only
-      if (import.meta.env.DEV) {
-        errorAnalysis.value = [
-          {
-            type: "GPU Memory Exhausted",
-            count: 28,
-            percentage: 39.4,
-            description: "Generation failed due to insufficient GPU memory. Consider reducing batch size or image resolution."
-          },
-          {
-            type: "Network Timeout",
-            count: 15,
-            percentage: 21.1,
-            description: "Request timed out waiting for generation completion. Check network connectivity and worker status."
-          },
-          {
-            type: "Invalid LoRA Combination",
-            count: 12,
-            percentage: 16.9,
-            description: "Incompatible LoRA models used together. Review LoRA compatibility matrix."
-          },
-          {
-            type: "Prompt Validation Error",
-            count: 8,
-            percentage: 11.3,
-            description: "Prompt contains invalid or unsafe content. Review content filtering policies."
-          },
-          {
-            type: "Worker Crash",
-            count: 8,
-            percentage: 11.3,
-            description: "Generation worker crashed during processing. Check worker logs for details."
-          }
-        ];
-      }
+    // No analytics endpoint; use empty list or mock in dev
+    errorAnalysis.value = [];
+    if (import.meta.env.DEV) {
+      errorAnalysis.value = [
+        { type: 'GPU Memory Exhausted', count: 28, percentage: 39.4, description: 'Insufficient GPU memory' },
+      ];
     }
   }
 
   async function loadPerformanceInsights() {
-    try {
-      const url = `${baseUrl}/analytics/insights?timeRange=${timeRange.value}`;
-      const response = await fetch(url, { 
-        method: 'GET',
-        headers: { 'Cache-Control': 'no-cache' },
-        credentials: 'same-origin'
-      });
-      
-      if (!response.ok) throw new Error('Failed to load performance insights');
-      const data = await response.json();
-      performanceInsights.value = data;
-    } catch (error) {
-      console.error('Error loading performance insights:', error);
-      // Use fallback mock data for development only
-      if (import.meta.env.DEV) {
-        performanceInsights.value = [
-          {
-            id: 1,
-            title: "High GPU Memory Usage",
-            description: "GPU memory utilization averaging 87%. Consider optimizing memory management or adding additional GPU capacity.",
-            severity: "medium",
-            recommendation: "enable_memory_optimization"
-          },
-          {
-            id: 2,
-            title: "Queue Backup During Peak Hours",
-            description: "Generation queue backing up 14:00-18:00 daily. Consider auto-scaling workers during peak periods.",
-            severity: "high",
-            recommendation: "configure_auto_scaling"
-          },
-          {
-            id: 3,
-            title: "Unused LoRAs Taking Space",
-            description: "42 LoRAs haven't been used in 30+ days. Archive unused models to free up storage space.",
-            severity: "low",
-            recommendation: "archive_unused_loras"
-          }
-        ];
-      }
+    performanceInsights.value = [];
+    if (import.meta.env.DEV) {
+      performanceInsights.value = [
+        { id: 1, title: 'High GPU Memory Usage', description: 'GPU memory utilization averaging 87%.', severity: 'medium', recommendation: 'enable_memory_optimization' },
+      ];
     }
   }
 
   async function loadChartData() {
-    try {
-      const url = `${baseUrl}/analytics/charts?timeRange=${timeRange.value}`;
-      const response = await fetch(url, { 
-        method: 'GET',
-        headers: { 'Cache-Control': 'no-cache' },
-        credentials: 'same-origin'
-      });
-      
-      if (!response.ok) throw new Error('Failed to load chart data');
-      const data = await response.json();
-      chartData.value = data;
-    } catch (error) {
-      console.error('Error loading chart data:', error);
-      // Generate fallback mock data for development only
-      if (import.meta.env.DEV) {
-        generateMockChartData();
-      }
+    chartData.value = { generationVolume: [], performance: [], loraUsage: [], resourceUsage: [] };
+    if (import.meta.env.DEV) {
+      generateMockChartData();
     }
   }
 

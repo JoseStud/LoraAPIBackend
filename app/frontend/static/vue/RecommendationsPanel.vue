@@ -135,7 +135,7 @@ const recsError = ref('');
 const fmtScore = (v) => (v == null ? '-' : Number(v).toFixed(3));
 
 // Data loading via composables
-const lorasUrl = '/api/adapters?per_page=100&page=1';
+const lorasUrl = '/api/v1/adapters?per_page=100&page=1';
 const { data: lorasData, error: lorasErr, isLoading: lorasLoading, fetchData: loadLoras } = useApi(lorasUrl, { credentials: 'same-origin' });
 
 const fetchLoras = async () => {
@@ -158,7 +158,7 @@ const fetchLoras = async () => {
 
 const buildSimilarUrl = () => {
   if (!selectedLoraId.value) return '';
-  const base = `/api/recommendations/similar/${encodeURIComponent(selectedLoraId.value)}`;
+  const base = `/api/v1/recommendations/similar/${encodeURIComponent(selectedLoraId.value)}`;
   const params = new URLSearchParams();
   params.set('limit', String(limit.value));
   params.set('similarity_threshold', String(similarityThreshold.value));

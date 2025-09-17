@@ -207,7 +207,7 @@ const exportOperations = {
         const filename = `lora_export_${timestamp}.${exportConfig.format}`;
         
         // Simulate file creation and return mock download URL
-        return `/api/downloads/${filename}`;
+        return `/api/v1/downloads/${filename}`;
     },
     
     /**

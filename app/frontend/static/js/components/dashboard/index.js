@@ -51,7 +51,7 @@ export function createDashboardComponent() {
             this.loading = true;
             
             try {
-                const data = await fetchData('/api/dashboard/stats');
+                const data = await fetchData('/api/v1/dashboard/stats');
                 
                 // Update stats if provided
                 if (data.stats) {

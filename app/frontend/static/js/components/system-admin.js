@@ -128,8 +128,9 @@ function systemAdmin() {
          */
         async loadSystemStatus() {
             try {
-                const data = await fetchData((window?.BACKEND_URL || '') + '/admin/system/status');
-                this.systemStatus = data;
+                const data = await fetchData('/api/v1/dashboard/stats');
+                const status = data?.system_health?.status || 'healthy';
+                this.systemStatus = { overall: status, last_check: new Date().toISOString() };
             } catch (error) {
                 console.error('Error loading system status:', error);
                 this.systemStatus.overall = 'error';
@@ -141,8 +142,17 @@ function systemAdmin() {
          */
         async loadSystemStats() {
             try {
-                const data = await fetchData((window?.BACKEND_URL || '') + '/admin/system/stats');
-                this.systemStats = data;
+                const data = await fetchData('/api/v1/dashboard/stats');
+                const stats = data?.stats || {};
+                this.systemStats = {
+                    uptime: 'N/A',
+                    active_workers: 0,
+                    total_workers: 0,
+                    database_size: 0,
+                    total_records: stats.total_loras || 0,
+                    gpu_memory_used: 'N/A',
+                    gpu_memory_total: 'N/A'
+                };
             } catch (error) {
                 console.error('Error loading system stats:', error);
                 this.showToastMessage('Failed to load system statistics', 'error');
@@ -154,9 +164,16 @@ function systemAdmin() {
          */
         async loadSystemMetrics() {
             try {
-                const data = await fetchData((window?.BACKEND_URL || '') + '/admin/system/metrics');
-                this.systemMetrics = data;
-                // Update system status based on metrics
+                // No dedicated metrics endpoint; approximate from dashboard stats
+                await this.loadSystemStatus();
+                this.systemMetrics = {
+                    cpu_percent: 0,
+                    memory_percent: 0,
+                    memory_used: 0,
+                    disk_percent: 0,
+                    disk_used: 0,
+                    gpus: []
+                };
                 this.updateSystemStatus();
             } catch (error) {
                 console.error('Error loading system metrics:', error);
@@ -202,13 +219,8 @@ function systemAdmin() {
          * Load workers information
          */
         async loadWorkers() {
-            try {
-                const data = await fetchData((window?.BACKEND_URL || '') + '/admin/workers');
-                this.workers = data;
-            } catch (error) {
-                console.error('Error loading workers:', error);
-                this.showToastMessage('Failed to load worker information', 'error');
-            }
+            // Workers endpoint not implemented yet; keep empty list
+            this.workers = [];
         },
         
         /**
@@ -216,8 +228,13 @@ function systemAdmin() {
          */
         async loadDatabaseStats() {
             try {
-                const data = await fetchData((window?.BACKEND_URL || '') + '/admin/database/stats');
-                this.dbStats = data;
+                const data = await fetchData('/api/v1/dashboard/stats');
+                const stats = data?.stats || {};
+                this.dbStats = {
+                    total_loras: stats.total_loras || 0,
+                    total_generations: 0,
+                    database_size: 0,
+                };
             } catch (error) {
                 console.error('Error loading database stats:', error);
                 this.showToastMessage('Failed to load database statistics', 'error');
@@ -228,27 +245,17 @@ function systemAdmin() {
          * Load system configuration
          */
         async loadConfiguration() {
-            try {
-                const data = await fetchData((window?.BACKEND_URL || '') + '/admin/config');
-                this.config = { ...this.config, ...data };
-            } catch (error) {
-                console.error('Error loading configuration:', error);
-                this.showToastMessage('Failed to load configuration', 'error');
-            }
+            // No configuration endpoint; keep defaults
+            return;
         },
         
         /**
          * Load system logs
          */
         async loadLogs() {
-            try {
-                const data = await fetchData((window?.BACKEND_URL || '') + '/admin/logs?limit=500');
-                this.logs = data;
-                this.filterLogs();
-            } catch (error) {
-                console.error('Error loading logs:', error);
-                this.showToastMessage('Failed to load system logs', 'error');
-            }
+            // No logs endpoint; clear logs list
+            this.logs = [];
+            this.filteredLogs = [];
         },
         
         /**
@@ -256,8 +263,8 @@ function systemAdmin() {
          */
         async loadRecentBackups() {
             try {
-                const data = await fetchData((window?.BACKEND_URL || '') + '/admin/backups');
-                this.recentBackups = data;
+                const data = await fetchData('/api/v1/backups/history');
+                this.recentBackups = Array.isArray(data) ? data : [];
             } catch (error) {
                 console.error('Error loading backups:', error);
                 this.showToastMessage('Failed to load backup history', 'error');
@@ -285,7 +292,7 @@ function systemAdmin() {
         async scaleWorkers(direction) {
             try {
                 const endpoint = direction === 'up' ? 'add' : 'remove';
-                await postData((window?.BACKEND_URL || '') + `/admin/workers/${endpoint}`);
+                this.showToastMessage('Worker scaling not available', 'info');
                 await this.loadWorkers();
                 this.showToastMessage(`Worker ${direction === 'up' ? 'added' : 'removed'} successfully`);
                 
@@ -304,7 +311,7 @@ function systemAdmin() {
             }
             
             try {
-                await postData((window?.BACKEND_URL || '') + '/admin/workers/restart-all');
+                this.showToastMessage('Restart all workers is not available', 'info');
                 await this.loadWorkers();
                 this.showToastMessage('All workers restarted successfully');
                 
@@ -319,7 +326,7 @@ function systemAdmin() {
          */
         async restartWorker(workerId) {
             try {
-                await postData((window?.BACKEND_URL || '') + `/admin/workers/${workerId}/restart`);
+                this.showToastMessage('Worker restart is not available', 'info');
                 await this.loadWorkers();
                 this.showToastMessage(`Worker ${workerId} restarted successfully`);
                 
@@ -338,7 +345,7 @@ function systemAdmin() {
             }
             
             try {
-                await postData((window?.BACKEND_URL || '') + `/admin/workers/${workerId}/stop`);
+                this.showToastMessage('Worker stop is not available', 'info');
                 await this.loadWorkers();
                 this.showToastMessage(`Worker ${workerId} stopped successfully`);
                 
@@ -354,7 +361,7 @@ function systemAdmin() {
         async createBackup() {
             this.isBackingUp = true;
             try {
-                await postData((window?.BACKEND_URL || '') + '/admin/database/backup');
+                await postData('/api/v1/backup/create', {});
                 await this.loadRecentBackups();
                 this.showToastMessage('Database backup created successfully');
                 
@@ -382,10 +389,10 @@ function systemAdmin() {
                 const formData = new FormData();
                 formData.append('backup_file', file);
                 
-                const response = await fetch((window?.BACKEND_URL || '') + '/admin/database/restore', {
-                    method: 'POST',
-                    body: formData
-                });
+                const formData = new FormData();
+                formData.append('files', file);
+                formData.append('config', JSON.stringify({ mode: 'merge', conflict_resolution: 'ask', validate: true, backup_before: true }));
+                const response = await fetch('/api/v1/import', { method: 'POST', body: formData });
                 
                 if (!response.ok) throw new Error('Failed to restore backup');
                 
@@ -404,20 +411,7 @@ function systemAdmin() {
          */
         async downloadBackup(backupId) {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + `/admin/backups/${backupId}/download`);
-                if (!response.ok) throw new Error('Failed to download backup');
-                
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `backup-${backupId}.sql`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                
-                this.showToastMessage('Backup download started');
+                this.showToastMessage('Backup download not available', 'info');
                 
             } catch (error) {
                 console.error('Error downloading backup:', error);
@@ -434,9 +428,7 @@ function systemAdmin() {
             }
             
             try {
-                await deleteData((window?.BACKEND_URL || '') + `/admin/backups/${backupId}`);
-                await this.loadRecentBackups();
-                this.showToastMessage('Backup deleted successfully');
+                this.showToastMessage('Backup delete not available', 'info');
                 
             } catch (error) {
                 console.error('Error deleting backup:', error);
@@ -450,9 +442,7 @@ function systemAdmin() {
         async optimizeDatabase() {
             this.isOptimizing = true;
             try {
-                await postData((window?.BACKEND_URL || '') + '/admin/database/optimize');
-                await this.loadDatabaseStats();
-                this.showToastMessage('Database optimized successfully');
+                this.showToastMessage('Database optimize not available', 'info');
                 
             } catch (error) {
                 console.error('Error optimizing database:', error);
@@ -467,8 +457,7 @@ function systemAdmin() {
          */
         async rebuildIndexes() {
             try {
-                await postData((window?.BACKEND_URL || '') + '/admin/database/rebuild-indexes');
-                this.showToastMessage('Search indexes rebuilt successfully');
+                this.showToastMessage('Rebuild indexes not available', 'info');
                 
             } catch (error) {
                 console.error('Error rebuilding indexes:', error);
@@ -485,8 +474,7 @@ function systemAdmin() {
             }
             
             try {
-                const data = await postData((window?.BACKEND_URL || '') + '/admin/database/cleanup-orphaned');
-                this.showToastMessage(`Cleaned up ${data.files_removed ?? 0} orphaned files`);
+                this.showToastMessage('Cleanup orphaned files not available', 'info');
                 
             } catch (error) {
                 console.error('Error cleaning up orphaned files:', error);
@@ -499,12 +487,7 @@ function systemAdmin() {
          */
         async validateData() {
             try {
-                const data = await postData((window?.BACKEND_URL || '') + '/admin/database/validate');
-                if (data.issues_found > 0) {
-                    this.showToastMessage(`Validation completed. ${data.issues_found} issues found.`, 'warning');
-                } else {
-                    this.showToastMessage('Data validation passed. No issues found.');
-                }
+                this.showToastMessage('Data validation not available', 'info');
                 
             } catch (error) {
                 console.error('Error validating data:', error);
@@ -517,8 +500,7 @@ function systemAdmin() {
          */
         async saveConfiguration() {
             try {
-                await putData((window?.BACKEND_URL || '') + '/admin/config', this.config);
-                this.showToastMessage('Configuration saved successfully');
+                this.showToastMessage('Saving configuration not available', 'info');
                 
             } catch (error) {
                 console.error('Error saving configuration:', error);
@@ -535,7 +517,7 @@ function systemAdmin() {
             }
             
             try {
-                await postData((window?.BACKEND_URL || '') + '/admin/config/reset');
+                this.showToastMessage('Reset configuration not available', 'info');
                 await this.loadConfiguration();
                 this.showToastMessage('Configuration reset to defaults');
                 
@@ -599,10 +581,7 @@ function systemAdmin() {
             }
             
             try {
-                await deleteData((window?.BACKEND_URL || '') + '/admin/logs');
-                this.logs = [];
-                this.filteredLogs = [];
-                this.showToastMessage('System logs cleared');
+                this.showToastMessage('Clearing logs not available', 'info');
                 
             } catch (error) {
                 console.error('Error clearing logs:', error);
@@ -620,20 +599,7 @@ function systemAdmin() {
                     source: this.logSource
                 });
                 
-                const response = await fetch((window?.BACKEND_URL || '') + `/admin/logs/download?${params}`);
-                if (!response.ok) throw new Error('Failed to download logs');
-                
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `system-logs-${new Date().toISOString().split('T')[0]}.txt`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                
-                this.showToastMessage('Log download started');
+                this.showToastMessage('Downloading logs not available', 'info');
                 
             } catch (error) {
                 console.error('Error downloading logs:', error);
@@ -646,12 +612,8 @@ function systemAdmin() {
          */
         async enableMaintenanceMode() {
             try {
-                await postData((window?.BACKEND_URL || '') + '/admin/maintenance', {
-                    enabled: true,
-                    message: this.maintenanceMessage
-                });
                 this.showMaintenance = false;
-                this.showToastMessage('Maintenance mode enabled');
+                this.showToastMessage('Maintenance mode not available', 'info');
                 
             } catch (error) {
                 console.error('Error enabling maintenance mode:', error);

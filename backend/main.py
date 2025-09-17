@@ -52,9 +52,11 @@ def create_app() -> FastAPI:
     app.include_router(deliveries.router, prefix="/v1", dependencies=[Depends(get_api_key)])
     app.include_router(generation.router, prefix="/v1", dependencies=[Depends(get_api_key)])
     app.include_router(recommendations.router, prefix="/v1", dependencies=[Depends(get_api_key)])
-    app.include_router(import_export.router, dependencies=[Depends(get_api_key)])
+    app.include_router(import_export.router, prefix="/v1", dependencies=[Depends(get_api_key)])
     app.include_router(dashboard.router)  # Dashboard uses root prefix for frontend compatibility
     app.include_router(websocket.router)  # WebSocket doesn't use API key auth or versioning
+
+    # Note: Unversioned routes are intentionally not included; use /v1/*
 
     @app.get("/health")
     def health():

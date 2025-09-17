@@ -1,45 +1,27 @@
 """Tests for Pydantic schema validation and backend configuration.
 """
 import pytest
-from backend.cache import TTLCache
-from backend.config import Settings
-from backend.utils.http import HTTPClient
+from backend.utils.cache import TTLCache
+from backend.core.config import Settings
+from app.frontend.utils.http import HTTPClient
 from pydantic import ValidationError
 
 
 class TestSettings:
-    """Test Pydantic settings validation."""
-    
-    def test_default_settings(self):
-        """Test that default settings are valid."""
-        settings = Settings()
-        assert settings.timeout > 0
-        assert settings.base_url is not None
-        assert isinstance(settings.enable_analytics, bool)
-    
-    def test_timeout_validation(self):
-        """Test timeout must be positive."""
-        with pytest.raises(ValidationError):
-            Settings(timeout=-1)
-        
-        with pytest.raises(ValidationError):
-            Settings(timeout=0)
-    
-    def test_base_url_validation(self):
-        """Test base_url must be valid URL."""
-        # Valid URLs should work
-        settings = Settings(base_url="http://localhost:8000")
-        assert settings.base_url == "http://localhost:8000"
-        
-        settings = Settings(base_url="https://api.example.com")
-        assert settings.base_url == "https://api.example.com"
-        
-        # Invalid URLs should fail
-        with pytest.raises(ValidationError):
-            Settings(base_url="not-a-url")
-        
-        with pytest.raises(ValidationError):
-            Settings(base_url="ftp://invalid")
+    """Tests aligned with backend.core.config.Settings."""
+
+    def test_backend_url_default_and_types(self):
+        s = Settings()
+        assert isinstance(s.BACKEND_HOST, str)
+        assert isinstance(s.BACKEND_PORT, int)
+        # get_backend_url should construct a URL with host:port
+        url = s.get_backend_url
+        assert url.startswith("http://") or url.startswith("https://")
+
+    def test_backend_url_override(self):
+        # When BACKEND_URL is provided, get_backend_url should return it (sans trailing slash)
+        s = Settings(BACKEND_URL="http://localhost:9999/api/")
+        assert s.get_backend_url == "http://localhost:9999/api"
 
 
 class TestTTLCache:

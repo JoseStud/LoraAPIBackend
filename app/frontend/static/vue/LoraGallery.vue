@@ -283,12 +283,8 @@ const filteredLoras = computed(() => {
 const loadLoraData = async () => {
   isLoading.value = true;
   try {
-<<<<<<< HEAD
-    // Use relative API path to avoid duplicating /api from BACKEND_URL
-    const url = `/api/v1/adapters?per_page=100`;
-=======
+    // Use relative API path to avoid duplicating /v1 from BACKEND_URL
     const url = '/api/v1/adapters?per_page=100';
->>>>>>> origin/copilot/fix-12
     const response = await fetch(url, { credentials: 'same-origin' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
@@ -305,12 +301,8 @@ const loadLoraData = async () => {
 
 const fetchAvailableTags = async () => {
   try {
-<<<<<<< HEAD
     // Endpoint may not be implemented yet; handled gracefully on error
-    const url = `/api/v1/adapters/tags`;
-=======
     const url = '/api/v1/adapters/tags';
->>>>>>> origin/copilot/fix-12
     const response = await fetch(url, { credentials: 'same-origin' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();

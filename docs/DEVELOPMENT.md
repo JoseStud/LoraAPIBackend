@@ -6,7 +6,7 @@ This project follows a modern, decoupled architecture with a distinct backend AP
 
 -   **Backend**: A self-contained FastAPI application located in the `backend/` directory. It handles all business logic, database interactions, and serves the API.
 -   **Frontend**: A Vite-powered single-page application located in `app/frontend/`. It's built with Alpine.js and Tailwind CSS.
--   **Main Entrypoint**: The `app/main.py` file acts as a wrapper that serves the frontend and mounts the backend API at the `/api` path.
+-   **Main Entrypoint**: The `app/main.py` file acts as a wrapper that serves the frontend and mounts the backend API under the versioned `/v1` path.
 
 ---
 
@@ -49,7 +49,7 @@ This project follows a modern, decoupled architecture with a distinct backend AP
 ### Backend (`backend/`)
 
 -   **Framework**: FastAPI with SQLModel for ORM.
--   **API Routers (`backend/api/v1/`)**: Endpoints are organized by resource (e.g., `adapters.py`, `generation.py`). Public API routes are exposed under `/api`.
+-   **API Routers (`backend/api/v1/`)**: Endpoints are organized by resource (e.g., `adapters.py`, `generation.py`). Public API routes are exposed under `/v1`.
 -   **Services (`backend/services/`)**: The business logic is encapsulated in services (e.g., `AdapterService`, `GenerationService`) and injected into the API layer using FastAPI's dependency injection.
 -   **Database (`backend/core/database.py`)**: Manages database sessions and initialization. Supports both SQLite and PostgreSQL.
 -   **Background Jobs (`backend/workers/`)**: Uses Redis and RQ for handling long-running tasks like image generation or batch processing.

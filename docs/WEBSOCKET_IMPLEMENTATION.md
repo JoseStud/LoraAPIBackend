@@ -29,12 +29,12 @@ The implementation consists of three main components:
     -   Handles incoming client messages (e.g., subscription requests).
 
 3.  **WebSocket Endpoint (`backend/api/v1/websocket.py`)**:
-    -   Exposes the `/api/ws/progress` endpoint.
+    -   Exposes the `/ws/progress` endpoint (unversioned).
     -   Accepts new client connections and passes them to the `WebSocketService`.
 
 ### Message Flow
 
-1.  A client connects to the `ws://<host>/api/ws/progress` endpoint.
+1.  A client connects to the `ws://<host>/ws/progress` endpoint.
 2.  The client sends a `subscribe` message, specifying which job IDs to monitor (or `null` for all jobs).
     ```json
     {
@@ -57,7 +57,7 @@ Clients need to connect to the WebSocket and handle incoming messages.
 
 ```javascript
 // Example client-side JavaScript
-const ws = new WebSocket('ws://localhost:8000/api/ws/progress');
+const ws = new WebSocket('ws://localhost:8000/ws/progress');
 
 ws.onopen = () => {
     console.log('WebSocket connected!');

@@ -129,9 +129,9 @@ This multi-factor approach ensures that the recommendations are not just similar
 
 The recommendation engine is exposed through a set of REST API endpoints in `backend/api/v1/recommendations.py`.
 
--   **`POST /api/recommendations/embeddings/compute`**: Computes and caches embeddings for a list of LoRAs.
--   **`GET /api/recommendations/similar/{lora_id}`**: Gets a list of similar LoRAs for a given LoRA.
--   **`POST /api/recommendations/prompt`**: Recommends LoRAs based on a user-provided text prompt.
+-   **`POST /v1/recommendations/embeddings/compute`**: Computes and caches embeddings for a list of LoRAs.
+-   **`GET /v1/recommendations/similar/{lora_id}`**: Gets a list of similar LoRAs for a given LoRA.
+-   **`POST /v1/recommendations/prompt`**: Recommends LoRAs based on a user-provided text prompt.
 
 ---
 

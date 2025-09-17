@@ -2,29 +2,29 @@
 
 ## 🔍 **Issue Identified**
 
-The frontend was making requests to incorrect API endpoints using `/api/v1/` prefix, but the backend serves endpoints directly under `/api/` without the `v1` prefix.
+The frontend and backend now use a unified versioned scheme. Frontend code should call relative `/api/v1/...` URLs which the fetch shim rewrites to the configured backend base (default `/v1`). The backend serves endpoints under `/v1/`.
 
 ### **Error Example:**
 ```
-❌ Frontend Request: GET http://localhost:8000/api/v1/stats/dashboard
+❌ Legacy Frontend Request: GET http://localhost:8000/api/stats/dashboard
 ❌ HTTP 404 Not Found
 
-✅ Correct Endpoint: GET http://localhost:8000/api/dashboard/stats
+✅ Correct Endpoint: GET http://localhost:8000/v1/dashboard/stats
 ```
 
 ## 🏗️ **Actual Backend API Structure**
 
-The backend API is mounted at `/api/` with these routers:
+The backend API is mounted at `/v1/` with these routers:
 
 | Router | Prefix | Endpoints |
 |--------|--------|-----------|
-| `adapters.router` | None | `/api/adapters/*` |
-| `dashboard.router` | `/dashboard` | `/api/dashboard/*` |
-| `recommendations.router` | None | `/api/recommendations/*` |
-| `deliveries.router` | None | `/api/deliveries/*` |
-| `generation.router` | None | `/api/generation/*` |
-| `compose.router` | None | `/api/compose/*` |
-| `websocket.router` | None | `/api/ws/*` |
+| `adapters.router` | None | `/v1/adapters/*` |
+| `dashboard.router` | `/dashboard` | `/v1/dashboard/*` |
+| `recommendations.router` | None | `/v1/recommendations/*` |
+| `deliveries.router` | None | `/v1/deliveries/*` |
+| `generation.router` | None | `/v1/generation/*` |
+| `compose.router` | None | `/v1/compose/*` |
+| `websocket.router` | N/A | `/ws/*` (unversioned)
 
 ## ✅ **Frontend Fixes Applied**
 
@@ -38,13 +38,13 @@ The backend API is mounted at `/api/` with these routers:
 
 | ❌ **Incorrect (Frontend)** | ✅ **Correct (Backend)** |
 |---|---|
-| `/api/v1/stats/dashboard` | `/api/dashboard/stats` |
-| `/api/v1/adapters` | `/api/adapters` |
-| `/api/v1/adapters/tags` | **⚠️ NOT IMPLEMENTED** |
-| `/api/v1/recommendations/stats` | `/api/recommendations/stats` |
-| `/api/v1/recommendations/embeddings/compute` | `/api/recommendations/embeddings/compute` |
-| `/api/v1/deliveries/jobs` | `/api/deliveries/jobs` |
-| `/api/v1/results/*` | **⚠️ NOT IMPLEMENTED** |
+| `/api/v1/stats/dashboard` | `/v1/dashboard/stats` |
+| `/api/v1/adapters` | `/v1/adapters` |
+| `/api/v1/adapters/tags` | `/v1/adapters/tags` |
+| `/api/v1/recommendations/stats` | `/v1/recommendations/stats` |
+| `/api/v1/recommendations/embeddings/compute` | `/v1/recommendations/embeddings/compute` |
+| `/api/v1/deliveries/jobs` | `/v1/deliveries/jobs` |
+| `/api/v1/results/*` | `/v1/results/*` (if implemented) |
 
 ## ⚠️ **Missing Backend Endpoints**
 
@@ -84,8 +84,8 @@ async def get_adapter_tags(session: Session = Depends(get_session)):
 
 ### **3. Update Contract Documentation**
 Update `docs/contract.md` to reflect correct API structure:
-- Remove `/v1/` prefixes
-- Add note about `/api/` mounting
+- Use `/v1/` prefixes
+- Note WebSocket endpoints are unversioned under `/ws/*`
 - Document missing endpoints
 
 ### **4. Clean Up Frontend Admin Features**
@@ -106,13 +106,13 @@ After these fixes:
 To verify fixes:
 ```bash
 # Test dashboard stats
-curl http://localhost:8782/api/dashboard/stats
+curl http://localhost:8782/v1/dashboard/stats
 
 # Test adapters
-curl http://localhost:8782/api/adapters
+curl http://localhost:8782/v1/adapters
 
 # Test recommendations stats  
-curl http://localhost:8782/api/recommendations/stats
+curl http://localhost:8782/v1/recommendations/stats
 ```
 
 The main dashboard functionality should now work correctly! 🎉

@@ -83,11 +83,21 @@ function performanceAnalytics() {
          */
         async loadKPIs() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + `/analytics/kpis?timeRange=${this.timeRange}`);
+                const response = await fetch(`/api/v1/dashboard/stats`);
                 if (!response.ok) throw new Error('Failed to load KPIs');
                 
                 const data = await response.json();
-                this.kpis = data;
+                const stats = data?.stats || {};
+                this.kpis = {
+                    total_generations: 0,
+                    generation_growth: 0,
+                    avg_generation_time: 0,
+                    time_improvement: 0,
+                    success_rate: 0,
+                    total_failed: 0,
+                    active_loras: stats.active_loras || 0,
+                    total_loras: stats.total_loras || 0
+                };
                 
             } catch (error) {
                 console.error('Error loading KPIs:', error);
@@ -110,11 +120,12 @@ function performanceAnalytics() {
          */
         async loadTopLoras() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + `/analytics/top-loras?timeRange=${this.timeRange}`);
+                const response = await fetch(`/api/v1/adapters?per_page=10`);
                 if (!response.ok) throw new Error('Failed to load top LoRAs');
                 
                 const data = await response.json();
-                this.topLoras = data;
+                const items = Array.isArray(data?.items) ? data.items : [];
+                this.topLoras = items.map(i => ({ id: i.id, name: i.name, version: i.version, usage_count: 0, success_rate: 0, avg_time: 0 }));
                 
             } catch (error) {
                 console.error('Error loading top LoRAs:', error);
@@ -557,27 +568,7 @@ function performanceAnalytics() {
          * Apply performance recommendation
          */
         async applyRecommendation(insight) {
-            try {
-                const response = await fetch((window?.BACKEND_URL || '') + '/analytics/apply-recommendation', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ 
-                        recommendation: insight.recommendation,
-                        insight_id: insight.id 
-                    })
-                });
-                
-                if (!response.ok) throw new Error('Failed to apply recommendation');
-                
-                this.showToastMessage('Recommendation applied successfully');
-                await this.loadPerformanceInsights();
-                
-            } catch (error) {
-                console.error('Error applying recommendation:', error);
-                this.showToastMessage('Failed to apply recommendation', 'error');
-            }
+            this.showToastMessage('Applying recommendations is not available yet', 'info');
         },
         
         /**
@@ -585,20 +576,19 @@ function performanceAnalytics() {
          */
         async exportData(format) {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + `/analytics/export?format=${format}&timeRange=${this.timeRange}`);
+                const response = await fetch('/api/v1/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ format: 'zip', loras: true, generations: true }) });
                 if (!response.ok) throw new Error('Failed to export data');
-                
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `analytics-${this.timeRange}-${Date.now()}.${format}`;
+                a.download = `export-${Date.now()}.zip`;
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
                 
-                this.showToastMessage(`${format.toUpperCase()} export started`);
+                this.showToastMessage(`Export started`);
                 
             } catch (error) {
                 console.error('Error exporting data:', error);

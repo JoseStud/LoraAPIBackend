@@ -46,17 +46,17 @@ const STATIC_ASSETS = [
 
 // API endpoints that should work offline with cached data
 const OFFLINE_API_ENDPOINTS = [
-    '/api/loras',
-    '/api/recommendations',
-    '/api/analytics/summary',
-    '/api/system/status'
+    '/api/v1/adapters',
+    '/api/v1/recommendations',
+    '/api/v1/analytics/summary',
+    '/api/v1/system/status'
 ];
 
 // Network-first strategies for these patterns
 const NETWORK_FIRST_PATTERNS = [
-    /\/api\/generation\//,
-    /\/api\/workers\//,
-    /\/api\/system\/real-time/
+    /\/api\/v1\/generation\//,
+    /\/api\/v1\/workers\//,
+    /\/api\/v1\/system\/real-time/
 ];
 
 // Cache-first strategies for these patterns  
@@ -126,7 +126,7 @@ self.addEventListener('fetch', (event) => {
     }
     
     // Handle different types of requests
-    if (url.pathname.startsWith('/api/')) {
+    if (url.pathname.startsWith('/api/v1/')) {
         event.respondWith(handleAPIRequest(request));
     } else if (url.pathname.startsWith('/static/images/')) {
         event.respondWith(handleImageRequest(request));
@@ -292,7 +292,7 @@ function createOfflineAPIResponse(pathname) {
     let offlineData = {};
     
     switch (pathname) {
-    case '/api/loras':
+    case '/api/v1/adapters':
             offlineData = {
                 loras: [],
                 total: 0,
@@ -300,14 +300,14 @@ function createOfflineAPIResponse(pathname) {
             };
             break;
             
-    case '/api/recommendations':
+    case '/api/v1/recommendations':
             offlineData = {
                 recommendations: [],
                 message: 'Offline - recommendations require network connection'
             };
             break;
             
-    case '/api/analytics/summary':
+    case '/api/v1/analytics/summary':
             offlineData = {
                 metrics: {
                     total_loras: 0,
@@ -319,7 +319,7 @@ function createOfflineAPIResponse(pathname) {
             };
             break;
             
-    case '/api/system/status':
+    case '/api/v1/system/status':
             offlineData = {
                 status: 'offline',
                 workers: [],

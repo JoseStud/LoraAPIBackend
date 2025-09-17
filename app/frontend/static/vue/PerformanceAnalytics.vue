@@ -642,27 +642,25 @@ export default {
     // Export functions
     async function exportData(format) {
       try {
-        const baseUrl = window?.BACKEND_URL || '';
-        const response = await fetch(`${baseUrl}/analytics/export?format=${format}&timeRange=${timeRange.value}`, {
-          credentials: 'same-origin'
-        });
-        
-        if (!response.ok) throw new Error('Failed to export data');
-        
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `analytics-${timeRange.value}-${Date.now()}.${format}`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        showToastMessage(`${format.toUpperCase()} export completed successfully`);
+        const response = await fetch('/api/v1/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ format: 'zip', loras: true, generations: true })
+        })
+        if (!response.ok) throw new Error('Failed to export data')
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `export-${Date.now()}.zip`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        showToastMessage('Export completed successfully')
       } catch (error) {
-        console.error('Error exporting data:', error);
-        showToastMessage('Failed to export data', 'error');
+        console.error('Error exporting data:', error)
+        showToastMessage('Failed to export data', 'error')
       }
     }
 
@@ -671,28 +669,7 @@ export default {
     }
 
     async function applyRecommendation(insight) {
-      try {
-        const baseUrl = window?.BACKEND_URL || '';
-        const response = await fetch(`${baseUrl}/analytics/apply-recommendation`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'same-origin',
-          body: JSON.stringify({ 
-            recommendation: insight.recommendation,
-            insight_id: insight.id 
-          })
-        });
-        
-        if (!response.ok) throw new Error('Failed to apply recommendation');
-        
-        showToastMessage('Recommendation applied successfully');
-        await loadAllData();
-      } catch (error) {
-        console.error('Error applying recommendation:', error);
-        showToastMessage('Failed to apply recommendation', 'error');
-      }
+      showToastMessage('Applying recommendations is not available yet', 'info')
     }
 
     // Utility functions

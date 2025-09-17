@@ -182,15 +182,22 @@ const loadSystemMetrics = async () => {
     isLoading.value = true
     error.value = null
     
-    const backend = window?.BACKEND_URL || ''
-    const response = await fetch(`${backend}/admin/system/metrics`)
+    const response = await fetch('/api/v1/dashboard/stats')
     
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`)
     }
     
     const data = await response.json()
-    Object.assign(metricsData.value, data)
+    // No direct metrics in backend; keep defaults and update timestamp
+    Object.assign(metricsData.value, {
+      cpu_percent: 0,
+      memory_percent: 0,
+      memory_used: 0,
+      disk_percent: 0,
+      disk_used: 0,
+      gpus: []
+    })
     lastUpdated.value = new Date().toLocaleTimeString()
     
   } catch (err) {

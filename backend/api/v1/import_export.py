@@ -9,7 +9,7 @@ import io
 import zipfile
 from datetime import datetime
 
-router = APIRouter(prefix="/api/v1", tags=["import-export"])
+router = APIRouter(tags=["import-export"])
 
 
 class ExportConfig(BaseModel):

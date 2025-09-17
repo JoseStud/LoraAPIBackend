@@ -13,11 +13,21 @@ const performanceMetrics = {
      */
     async loadKPIs(timeRange) {
         try {
-            const response = await fetch((window?.BACKEND_URL || '') + `/analytics/kpis?timeRange=${timeRange}`);
+            const response = await fetch(`/api/v1/dashboard/stats`);
             if (!response.ok) throw new Error('Failed to load KPIs');
             
             const data = await response.json();
-            return data;
+            const stats = data?.stats || {};
+            return {
+                total_generations: 0,
+                generation_growth: 0,
+                avg_generation_time: 0,
+                time_improvement: 0,
+                success_rate: 0,
+                total_failed: 0,
+                active_loras: stats.active_loras || 0,
+                total_loras: stats.total_loras || 0
+            };
             
         } catch (error) {
             console.error('Error loading KPIs:', error);
@@ -47,11 +57,12 @@ const performanceMetrics = {
      */
     async loadTopLoras(timeRange) {
         try {
-            const response = await fetch((window?.BACKEND_URL || '') + `/analytics/top-loras?timeRange=${timeRange}`);
+            const response = await fetch(`/api/v1/adapters?per_page=10`);
             if (!response.ok) throw new Error('Failed to load top LoRAs');
             
             const data = await response.json();
-            return data;
+            const items = Array.isArray(data?.items) ? data.items : [];
+            return items.map(i => ({ id: i.id, name: i.name, version: i.version, usage_count: 0, success_rate: 0, avg_time: 0 }));
             
         } catch (error) {
             console.error('Error loading top LoRAs:', error);

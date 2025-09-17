@@ -25,25 +25,25 @@ def test_adapter_lifecycle(client: TestClient, mock_storage: MagicMock):
         "file_path": "/fake/path",
         "weight": 1.0,
     }
-    r = client.post("/adapters", json=data)
+    r = client.post("/v1/adapters", json=data)
     assert r.status_code == 201
     adapter = r.json()["adapter"]
     aid = adapter["id"]
 
-    r = client.get(f"/adapters/{aid}")
+    r = client.get(f"/v1/adapters/{aid}")
     assert r.status_code == 200
 
-    r = client.post(f"/adapters/{aid}/activate")
+    r = client.post(f"/v1/adapters/{aid}/activate")
     assert r.status_code == 200
     assert r.json()["adapter"]["active"] is True
 
-    r = client.post("/compose", json={"prefix": "start", "suffix": "end"})
+    r = client.post("/v1/compose", json={"prefix": "start", "suffix": "end"})
     assert r.status_code == 200
     js = r.json()
     assert "prompt" in js
     assert "tokens" in js
 
-    r = client.post(f"/adapters/{aid}/deactivate")
+    r = client.post(f"/v1/adapters/{aid}/deactivate")
     assert r.status_code == 200
     assert r.json()["adapter"]["active"] is False
 
@@ -60,20 +60,20 @@ def test_deliveries_enqueue(client: TestClient, mock_storage: MagicMock):
         "file_path": "/fake/path",
         "weight": 0.5,
     }
-    r = client.post("/adapters", json=data)
+    r = client.post("/v1/adapters", json=data)
     assert r.status_code == 201
     aid = r.json()["adapter"]["id"]
-    client.post(f"/adapters/{aid}/activate")
+    client.post(f"/v1/adapters/{aid}/activate")
 
     # compose with delivery -> should create a delivery job and return id
     payload = {"prefix": "p", "delivery": {"mode": "cli", "cli": {}}}
-    r = client.post("/compose", json=payload)
+    r = client.post("/v1/compose", json=payload)
     assert r.status_code == 200
     js = r.json()
     assert js.get("delivery") and js["delivery"].get("id")
     did = js["delivery"]["id"]
 
-    r = client.get(f"/deliveries/{did}")
+    r = client.get(f"/v1/deliveries/{did}")
     assert r.status_code == 200
     dj = r.json()["delivery"]
     assert dj["id"] == did

@@ -183,7 +183,7 @@
     <!-- Expose backend URL to client-side JS (populated from server config) -->
     <script>
         // Expose backend base URL provided by server
-        window.BACKEND_URL = '{{ BACKEND_URL | default("http://localhost:8000/api") }}';
+        window.BACKEND_URL = '{{ BACKEND_URL | default("http://localhost:8000/v1") }}';
 
         // Runtime shim: rewrite legacy /api/v1/* requests to the configured BACKEND_URL
         (function () {

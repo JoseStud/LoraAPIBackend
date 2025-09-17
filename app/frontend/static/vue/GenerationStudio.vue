@@ -459,11 +459,11 @@ const pollInterval = ref(null)
 const isConnected = ref(false)
 
 // API composables
-const { fetchData: loadSystemStatus } = useApi('/api/system/status')
-const { fetchData: loadActiveJobsData } = useApi('/api/generation/jobs/active')
+const { fetchData: loadSystemStatus } = useApi('/api/v1/system/status')
+const { fetchData: loadActiveJobsData } = useApi('/api/v1/generation/jobs/active')
 const { fetchData: loadRecentResultsData } = useApi(() => {
   const limit = showHistory.value ? 50 : 10
-  return `/api/generation/results?limit=${limit}`
+  return `/api/v1/generation/results?limit=${limit}`
 })
 
 // Computed properties
@@ -629,8 +629,7 @@ const startGeneration = async () => {
   isGenerating.value = true
   
   try {
-    const backend = window?.BACKEND_URL || ''
-    const response = await fetch(`${backend}/api/generation/generate`, {
+    const response = await fetch('/api/v1/generation/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -675,8 +674,7 @@ const startGeneration = async () => {
 
 const cancelJob = async (jobId) => {
   try {
-    const backend = window?.BACKEND_URL || ''
-    await fetch(`${backend}/api/generation/jobs/${jobId}/cancel`, {
+    await fetch(`/api/v1/generation/jobs/${jobId}/cancel`, {
       method: 'POST'
     })
     
@@ -766,8 +764,7 @@ const deleteResult = async (resultId) => {
   if (!confirm('Are you sure you want to delete this result?')) return
   
   try {
-    const backend = window?.BACKEND_URL || ''
-    await fetch(`${backend}/api/generation/results/${resultId}`, {
+    await fetch(`/api/v1/generation/results/${resultId}`, {
       method: 'DELETE'
     })
     

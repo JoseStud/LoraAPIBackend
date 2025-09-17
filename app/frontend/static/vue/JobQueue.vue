@@ -183,17 +183,15 @@ export default {
       if (!apiAvailable.value || !store) return;
 
       try {
-        const backendUrl = window?.BACKEND_URL || '';
-        
         // Try the newer generation endpoint first, fallback to legacy
         let response;
         try {
-          response = await fetch(`${backendUrl}/generation/jobs/active`, {
+          response = await fetch('/api/v1/generation/jobs/active', {
             credentials: 'same-origin'
           });
         } catch (error) {
           // Fallback to legacy endpoint if generation endpoint fails
-          response = await fetch(`${backendUrl}/jobs/status`, {
+          response = await fetch('/api/v1/jobs/status', {
             credentials: 'same-origin'
           });
         }
@@ -251,18 +249,16 @@ export default {
             return;
           }
           
-          const backendUrl = window?.BACKEND_URL || '';
-          
           // Try the newer generation endpoint first, fallback to legacy
           let response;
           try {
-            response = await fetch(`${backendUrl}/generation/jobs/${backendJobId}/cancel`, {
+            response = await fetch(`/api/v1/generation/jobs/${backendJobId}/cancel`, {
               method: 'POST',
               credentials: 'same-origin'
             });
           } catch (error) {
             // Fallback to legacy endpoint if generation endpoint fails
-            response = await fetch(`${backendUrl}/jobs/${backendJobId}/cancel`, {
+            response = await fetch(`/api/v1/jobs/${backendJobId}/cancel`, {
               method: 'POST',
               credentials: 'same-origin'
             });

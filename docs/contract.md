@@ -470,18 +470,18 @@ All endpoints are prefixed with `/api`.
 ### Frontend Integration Points
 ```typescript
 // Compute embeddings for new LoRAs
-POST /api/recommendations/embeddings/compute
+POST /v1/recommendations/embeddings/compute
 { "lora_id": "lora-123" }
 
 // Get similar LoRAs for "More Like This" features  
-GET /api/recommendations/similar/lora-123?limit=5&similarity_threshold=0.3
+GET /v1/recommendations/similar/lora-123?limit=5&similarity_threshold=0.3
 
 // Smart recommendations based on user prompts
-POST /api/recommendations/prompt
+POST /v1/recommendations/prompt
 { "prompt": "anime girl with pink hair", "limit": 10 }
 
 // System health and GPU status
-GET /api/recommendations/stats
+GET /v1/recommendations/stats
 ```
 
 ## Next Steps for Production Deployment

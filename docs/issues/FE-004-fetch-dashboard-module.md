@@ -7,8 +7,8 @@ Use `utils/api.js` helpers in the dashboard Alpine module to unify network handl
 `app/frontend/static/js/components/dashboard/index.js`
 
 ## Tasks
-- [ ] Replace dashboard stats GET with `fetchData('/api/dashboard/stats' or BACKEND_URL variant)`.
-- [ ] Confirm shim in `base.html` properly rewrites `/api/*` in dev/prod.
+- [ ] Replace dashboard stats GET with `fetchData('/api/v1/dashboard/stats')` (shim rewrites to `/v1/...`).
+- [ ] Confirm shim in `base.html` properly rewrites `/api/v1/*` in dev/prod.
 - [ ] Verify UI updates work as before.
 
 ## Acceptance Criteria
@@ -17,4 +17,3 @@ Use `utils/api.js` helpers in the dashboard Alpine module to unify network handl
 ## References
 `docs/VUE_MIGRATION.md`
 `app/frontend/static/js/utils/api.js`
-

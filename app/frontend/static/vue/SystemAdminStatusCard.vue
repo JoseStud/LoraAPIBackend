@@ -231,69 +231,60 @@ const getStatusClass = (status) => {
 // API functions
 const loadSystemStatus = async () => {
   try {
-    const { data, fetchData } = useApi((window?.BACKEND_URL || '') + '/admin/system/status');
+    const { data, fetchData } = useApi('/api/v1/dashboard/stats');
     await fetchData();
     if (data.value) {
-      Object.assign(systemStatus, data.value);
+      const status = data.value?.system_health?.status || 'healthy';
+      Object.assign(systemStatus, { overall: status, last_check: new Date().toISOString() });
       error.value = null;
     }
   } catch (err) {
-    // Fallback to demo data when API is not available
-    Object.assign(systemStatus, {
-      overall: 'healthy',
-      last_check: new Date().toISOString()
-    });
-    error.value = null; // Don't show error for missing admin API
+    Object.assign(systemStatus, { overall: 'healthy', last_check: new Date().toISOString() });
+    error.value = null;
   }
 };
 
 const loadSystemStats = async () => {
   try {
-    const { data, fetchData } = useApi((window?.BACKEND_URL || '') + '/admin/system/stats');
+    const { data, fetchData } = useApi('/api/v1/dashboard/stats');
     await fetchData();
-    if (data.value) {
-      Object.assign(systemStats, data.value);
-    }
-  } catch (err) {
-    // Fallback to demo data
+    const stats = data.value?.stats || {};
     Object.assign(systemStats, {
-      uptime: '2d 14h 30m',
-      active_workers: 2,
-      total_workers: 4,
-      database_size: 1048576 * 25, // 25MB
-      total_records: 1250,
-      gpu_memory_used: '4GB',
-      gpu_memory_total: '8GB'
+      uptime: 'N/A',
+      active_workers: 0,
+      total_workers: 0,
+      database_size: 0,
+      total_records: stats.total_loras || 0,
+      gpu_memory_used: 'N/A',
+      gpu_memory_total: 'N/A'
+    });
+  } catch (err) {
+    Object.assign(systemStats, {
+      uptime: 'N/A',
+      active_workers: 0,
+      total_workers: 0,
+      database_size: 0,
+      total_records: 0,
+      gpu_memory_used: 'N/A',
+      gpu_memory_total: 'N/A'
     });
   }
 };
 
 const loadSystemMetrics = async () => {
   try {
-    const { data, fetchData } = useApi((window?.BACKEND_URL || '') + '/admin/system/metrics');
-    await fetchData();
-    if (data.value) {
-      Object.assign(systemMetrics, data.value);
-      updateSystemStatus();
-    }
-  } catch (err) {
-    // Fallback to demo data
+    // No metrics endpoint; keep zeros and update status from dashboard
+    await loadSystemStatus();
     Object.assign(systemMetrics, {
-      cpu_percent: 35,
-      memory_percent: 62,
-      memory_used: 1024 * 5120, // 5GB in MB
-      disk_percent: 45,
-      disk_used: 1024 * 1024 * 125, // 125GB in bytes
-      gpus: [
-        {
-          id: 0,
-          name: 'NVIDIA RTX 4080',
-          temperature: 65,
-          memory_percent: 45,
-          utilization: 78
-        }
-      ]
+      cpu_percent: 0,
+      memory_percent: 0,
+      memory_used: 0,
+      disk_percent: 0,
+      disk_used: 0,
+      gpus: []
     });
+    updateSystemStatus();
+  } catch (err) {
     updateSystemStatus();
   }
 };

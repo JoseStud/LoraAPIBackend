@@ -137,7 +137,7 @@ const lastSaved = ref(null);
 const loras = ref([]);
 const searchTerm = ref('');
 const activeOnly = ref(false);
-const { data, error, isLoading, fetchData: loadLoras } = useApi('/api/adapters?per_page=200&page=1', { credentials: 'same-origin' });
+const { data, error, isLoading, fetchData: loadLoras } = useApi('/api/v1/adapters?per_page=200&page=1', { credentials: 'same-origin' });
 
 // Composition
 const activeLoras = ref([]);
@@ -276,8 +276,7 @@ const generateImage = async () => {
   }
   isGenerating.value = true;
   try {
-    const backend = window?.BACKEND_URL || '';
-    await fetch(`${backend}/generate`, {
+    await fetch('/api/v1/generation/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: finalPrompt.value, negative_prompt: negativePrompt.value, loras: activeLoras.value })
@@ -303,4 +302,3 @@ watch([activeLoras, basePrompt, negativePrompt], () => {
 }, { deep: true });
 
 </script>
-

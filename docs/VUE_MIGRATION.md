@@ -64,8 +64,8 @@ Mount behavior:
 - Mount point: add `<div data-vue-root="recommendations-panel"></div>` in a template (already added to `app/frontend/templates/pages/recommendations.html:8`).
 - Component file: `app/frontend/static/vue/RecommendationsPanel.vue`.
 - Data fetches:
-  - LoRAs: `GET /api/adapters?per_page=100`.
-  - Similar: `GET /api/recommendations/similar/{lora_id}?limit=..&similarity_threshold=..`.
+  - LoRAs: `GET /v1/adapters?per_page=100`.
+  - Similar: `GET /v1/recommendations/similar/{lora_id}?limit=..&similarity_threshold=..`.
   - Weights are UI-only initially; backend defaults apply unless nested query dict parsing is enabled.
   - Note: The current implementation uses native `fetch` directly; the `useApi` composable is available if you prefer.
 

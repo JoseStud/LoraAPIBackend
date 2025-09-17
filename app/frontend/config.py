@@ -16,9 +16,9 @@ class FrontendSettings(BaseSettings):
     
     # Backend connection
     backend_url: str = Field(
-        default="http://localhost:8000/api",
+        default="http://localhost:8000/v1",
         env="BACKEND_URL",
-        description="Backend API base URL with /api prefix",
+        description="Backend API base URL with /v1 prefix",
     )
     
     backend_host: str = Field(
@@ -37,10 +37,10 @@ class FrontendSettings(BaseSettings):
     @classmethod
     def construct_backend_url(cls, v, info):
         """Construct backend URL if not explicitly provided."""
-        if v == "http://localhost:8000/api" and ('backend_host' in info.data or 'backend_port' in info.data):
+        if v == "http://localhost:8000/v1" and ('backend_host' in info.data or 'backend_port' in info.data):
             host = info.data.get('backend_host', 'localhost')
             port = info.data.get('backend_port', 8000)
-            return f"http://{host}:{port}/api"
+            return f"http://{host}:{port}/v1"
         return v.rstrip('/') if v.endswith('/') else v
     
     # HTTP client configuration

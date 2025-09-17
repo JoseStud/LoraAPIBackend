@@ -239,7 +239,7 @@ ensureAlpine(() => {
             if (this.loading) return;
             this.loading = true;
             try {
-                const data = await fetchData('/api/dashboard/stats');
+                const data = await fetchData('/api/v1/dashboard/stats');
                 this.stats = data.stats || this.stats;
                 this.systemHealth = data.system_health || this.systemHealth;
             } catch (e) {
@@ -272,7 +272,7 @@ ensureAlpine(() => {
         
         async loadActiveJobs() {
             try {
-                this.activeJobs = await fetchData('/api/deliveries/jobs?status=processing');
+                this.activeJobs = await fetchData('/api/v1/deliveries/jobs?status=processing');
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Failed to load active jobs:', error);
             }
@@ -338,7 +338,7 @@ ensureAlpine(() => {
             try {
                 this.isLoading = true;
                 const params = new URLSearchParams({ page: this.currentPage, page_size: 50 });
-                const data = await fetchData(`/api/results?${params}`);
+                const data = await fetchData(`/api/v1/results?${params}`);
                 if (this.currentPage === 1) this.results = data.results;
                 else this.results.push(...data.results);
                 this.hasMore = data.has_more;
@@ -406,7 +406,7 @@ ensureAlpine(() => {
 
         async setRating(result, rating) {
             try {
-                await putData(`/api/results/${result.id}/rating`, { rating });
+                await putData(`/api/v1/results/${result.id}/rating`, { rating });
                 result.rating = rating; this.calculateStats(); this.showToastMessage('Rating updated successfully');
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error updating rating:', error);
@@ -416,7 +416,7 @@ ensureAlpine(() => {
 
         async toggleFavorite(result) {
             try {
-                await putData(`/api/results/${result.id}/favorite`, { is_favorite: !result.is_favorite });
+                await putData(`/api/v1/results/${result.id}/favorite`, { is_favorite: !result.is_favorite });
                 result.is_favorite = !result.is_favorite; this.calculateStats(); const message = result.is_favorite ? 'Added to favorites' : 'Removed from favorites'; this.showToastMessage(message);
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error updating favorite:', error);
@@ -451,7 +451,7 @@ ensureAlpine(() => {
         async deleteResult(resultId) {
             if (!confirm('Are you sure you want to delete this image?')) return;
             try {
-                await deleteData(`/api/results/${resultId}`);
+                await deleteData(`/api/v1/results/${resultId}`);
                 this.results = this.results.filter(r => r.id !== resultId); this.applyFilters(); this.showToastMessage('Image deleted successfully');
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error deleting result:', error);
@@ -462,7 +462,7 @@ ensureAlpine(() => {
         async deleteSelected() {
             if (this.selectedItems.length === 0) return; const count = this.selectedItems.length; if (!confirm(`Are you sure you want to delete ${count} selected images?`)) return;
             try {
-                await deleteData('/api/results/bulk-delete', { body: JSON.stringify({ ids: this.selectedItems }) });
+                await deleteData('/api/v1/results/bulk-delete', { body: JSON.stringify({ ids: this.selectedItems }) });
                 this.results = this.results.filter(r => !this.selectedItems.includes(r.id)); this.selectedItems = []; this.applyFilters(); this.showToastMessage(`${count} images deleted successfully`);
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error deleting results:', error);
@@ -473,7 +473,7 @@ ensureAlpine(() => {
         async favoriteSelected() {
             if (this.selectedItems.length === 0) return;
             try {
-                await putData('/api/results/bulk-favorite', { ids: this.selectedItems, is_favorite: true });
+                await putData('/api/v1/results/bulk-favorite', { ids: this.selectedItems, is_favorite: true });
                 this.results.forEach(result => { if (this.selectedItems.includes(result.id)) result.is_favorite = true; }); this.calculateStats(); this.showToastMessage(`${this.selectedItems.length} images added to favorites`);
             } catch (error) {
                 window.DevLogger && window.DevLogger.error && window.DevLogger.error('Error updating favorites:', error);
