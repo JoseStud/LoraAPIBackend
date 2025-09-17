@@ -31,6 +31,7 @@ import PerformanceAnalytics from '../vue/PerformanceAnalytics.vue';
 import Notifications from '../vue/Notifications.vue';
 import GenerationHistory from '../vue/GenerationHistory.vue';
 import SystemAdminStatusCard from '../vue/SystemAdminStatusCard.vue';
+import GenerationStudio from '../vue/GenerationStudio.vue';
 
 
 // Utilities
@@ -365,6 +366,12 @@ mountVueApp('[data-vue-root="generation-history"]', GenerationHistory) ||
 mountVueApp('[data-vue-root="prompt-composer"]', PromptComposer) ||
     window.addEventListener('DOMContentLoaded', () => {
         mountVueApp('[data-vue-root="prompt-composer"]', PromptComposer);
+    });
+
+// Mount Generation Studio (Vue island)
+mountVueApp('[data-vue-root="generation-studio"]', GenerationStudio) ||
+    window.addEventListener('DOMContentLoaded', () => {
+        mountVueApp('[data-vue-root="generation-studio"]', GenerationStudio);
     });
 
 
