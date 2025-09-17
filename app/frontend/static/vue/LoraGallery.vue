@@ -283,8 +283,12 @@ const filteredLoras = computed(() => {
 const loadLoraData = async () => {
   isLoading.value = true;
   try {
+<<<<<<< HEAD
     // Use relative API path to avoid duplicating /api from BACKEND_URL
     const url = `/api/v1/adapters?per_page=100`;
+=======
+    const url = '/api/v1/adapters?per_page=100';
+>>>>>>> origin/copilot/fix-12
     const response = await fetch(url, { credentials: 'same-origin' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
@@ -301,8 +305,12 @@ const loadLoraData = async () => {
 
 const fetchAvailableTags = async () => {
   try {
+<<<<<<< HEAD
     // Endpoint may not be implemented yet; handled gracefully on error
     const url = `/api/v1/adapters/tags`;
+=======
+    const url = '/api/v1/adapters/tags';
+>>>>>>> origin/copilot/fix-12
     const response = await fetch(url, { credentials: 'same-origin' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
@@ -325,7 +333,8 @@ const debounceSearch = (() => {
   return () => {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => {
-      // Filters are reactive, so the computed filteredLoras will update automatically
+      // No-op: Vue's reactivity automatically updates filteredLoras when searchTerm changes
+      // This debounce prevents excessive re-renders during typing
     }, 300);
   };
 })();
@@ -377,9 +386,11 @@ const performBulkAction = async (action) => {
     return;
   }
 
+  // Store count before clearing selection
+  const count = selectedLoras.value.length;
+
   try {
-    const url = `/api/v1/adapters/bulk`;
-    const count = selectedLoras.value.length;
+    const url = '/api/v1/adapters/bulk';
     const response = await fetch(url, {
       method: 'POST',
       headers: {

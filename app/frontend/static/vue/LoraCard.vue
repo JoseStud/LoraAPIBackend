@@ -288,7 +288,11 @@ const handleClickOutside = (event) => {
 // Methods
 const updateWeight = async () => {
   try {
+<<<<<<< HEAD
     const response = await fetch(`/api/v1/adapters/${props.lora.id}`, {
+=======
+    const response = await fetch(`/api/v1/adapters/${props.lora.id}/weight`, {
+>>>>>>> origin/copilot/fix-12
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json'

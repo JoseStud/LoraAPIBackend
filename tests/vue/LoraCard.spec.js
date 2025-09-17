@@ -152,4 +152,40 @@ describe('LoraCard', () => {
 
     expect(wrapper.text()).toContain('+2 more');
   });
+
+  it('uses correct API URL composition for actions', async () => {
+    // Mock fetch to capture URLs
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({})
+    });
+    global.fetch = fetchSpy;
+    
+    const wrapper = mount(LoraCard, {
+      props: {
+        lora: mockLora
+      }
+    });
+
+    // Test weight update URL
+    await wrapper.vm.updateWeight();
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/v1/adapters/1/weight',
+      expect.objectContaining({ method: 'PATCH' })
+    );
+
+    // Test toggle active URL
+    await wrapper.vm.toggleActive();
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/v1/adapters/1/toggle',
+      expect.objectContaining({ method: 'POST' })
+    );
+
+    // Test generate preview URL
+    await wrapper.vm.generatePreview();
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/v1/adapters/1/generate-preview',
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
 });
