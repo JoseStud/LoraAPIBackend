@@ -358,10 +358,7 @@ export default function apiDataFetcher(endpoint, options = {}) {
                     case 'GET':
                     default:
                         return await fetchData(url, options);
-
                 }
-
-                return response;
 
             } catch (error) {
                 window.DevLogger?.error?.(`HTTP Request failed (${methodUpper} ${url}):`, error);

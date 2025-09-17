@@ -118,6 +118,21 @@ export async function putData(url, data, options = {}) {
 }
 
 /**
+ * PATCH data to an API endpoint
+ * @param {string} url - The API endpoint URL
+ * @param {any} data - The data to send
+ * @param {object} options - Additional fetch options
+ * @returns {Promise<any>} The response data
+ */
+export async function patchData(url, data, options = {}) {
+    return fetchData(url, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+        ...options
+    });
+}
+
+/**
  * DELETE from an API endpoint
  * @param {string} url - The API endpoint URL
  * @param {object} options - Additional fetch options

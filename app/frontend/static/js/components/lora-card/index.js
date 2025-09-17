@@ -4,6 +4,8 @@
  * Implements proper parent-child communication using Alpine's $dispatch
  */
 
+import { postData, patchData, deleteData } from '../../utils/api.js';
+
 /**
  * Creates a LoRA Card Alpine.js component
  * @param {Object} initialConfig - Initial configuration passed from the template
@@ -38,16 +40,8 @@ function loraCard(initialConfig) {
             
             try {
                 const endpoint = this.active ? 'activate' : 'deactivate';
-                const response = await fetch((window?.BACKEND_URL || '') + `/adapters/${this.id}/${endpoint}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                const baseUrl = window?.BACKEND_URL || '';
+                await postData(`${baseUrl}/adapters/${this.id}/${endpoint}`, {});
                 
                 // Dispatch event to notify parent components of state change
                 this.$dispatch('lora-updated', {
@@ -78,17 +72,9 @@ function loraCard(initialConfig) {
          */
         async updateWeight() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + `/adapters/${this.id}/weight`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ weight: parseFloat(this.weight) })
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                const baseUrl = window?.BACKEND_URL || '';
+                // Use the general PATCH endpoint for adapter updates
+                await patchData(`${baseUrl}/adapters/${this.id}`, { weight: parseFloat(this.weight) });
                 
                 // Dispatch event to notify parent components of weight change
                 this.$dispatch('lora-updated', {
@@ -138,25 +124,17 @@ function loraCard(initialConfig) {
          */
         async generatePreview() {
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + `/generation/preview/${this.id}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+                const baseUrl = window?.BACKEND_URL || '';
+                await postData(`${baseUrl}/generation/preview/${this.id}`, {});
+                
+                // Dispatch success event
+                this.$dispatch('lora-updated', {
+                    id: this.id,
+                    type: 'preview-generated'
                 });
                 
-                if (response.ok) {
-                    // Dispatch success event
-                    this.$dispatch('lora-updated', {
-                        id: this.id,
-                        type: 'preview-generated'
-                    });
-                    
-                    // Show user feedback
-                    alert('Preview generation started');
-                } else {
-                    throw new Error('Failed to start preview generation');
-                }
+                // Show user feedback
+                alert('Preview generation started');
             } catch (error) {
                 if (window.DevLogger && window.DevLogger.error) {
                     window.DevLogger.error('Error generating preview:', error);
@@ -184,25 +162,17 @@ function loraCard(initialConfig) {
             }
             
             try {
-                const response = await fetch((window?.BACKEND_URL || '') + `/adapters/${this.id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+                const baseUrl = window?.BACKEND_URL || '';
+                await deleteData(`${baseUrl}/adapters/${this.id}`);
+                
+                // Dispatch deletion event to parent
+                this.$dispatch('lora-deleted', {
+                    id: this.id,
+                    name: this.name
                 });
                 
-                if (response.ok) {
-                    // Dispatch deletion event to parent
-                    this.$dispatch('lora-deleted', {
-                        id: this.id,
-                        name: this.name
-                    });
-                    
-                    // Remove the element from DOM
-                    this.$el.remove();
-                } else {
-                    throw new Error('Failed to delete LoRA');
-                }
+                // Remove the element from DOM
+                this.$el.remove();
             } catch (error) {
                 if (window.DevLogger && window.DevLogger.error) {
                     window.DevLogger.error('Error deleting LoRA:', error);
