@@ -55,7 +55,8 @@ import { createDashboardComponent } from './components/dashboard/index.js';
 import { createRecommendationsComponent } from './components/recommendations/index.js';
 import { createGenerationHistoryComponent } from './components/generation-history/index.js';
 import { createLoraGalleryComponent } from './components/lora-gallery/index.js';
-import { createGenerationStudioComponent } from './components/generation-studio/index.js';
+// Alpine Generation Studio migrated to Vue island  
+// import { createGenerationStudioComponent } from './components/generation-studio/index.js';
 // import { createPromptComposerComponent } from './components/prompt-composer/index.js';
 // Alpine Performance Analytics migrated to Vue component
 // import { createPerformanceAnalyticsComponent } from './components/performance-analytics/index.js';
@@ -191,7 +192,8 @@ Alpine.data('dashboard', createDashboardComponent);
 Alpine.data('recommendationsData', createRecommendationsComponent);
 Alpine.data('generationHistory', createGenerationHistoryComponent);
 Alpine.data('loraGallery', createLoraGalleryComponent);
-Alpine.data('generationStudio', createGenerationStudioComponent);
+// Alpine Generation Studio migrated to Vue island
+// Alpine.data('generationStudio', createGenerationStudioComponent);
 // Alpine Prompt Composer migrated to Vue island
 // Alpine.data('performanceAnalytics', createPerformanceAnalyticsComponent);
 Alpine.data('importExport', createImportExportComponent);
