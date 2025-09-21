@@ -181,11 +181,11 @@ async def compose_and_generate(
 @router.post("/queue-generation", response_model=DeliveryCreateResponse)
 async def queue_generation_job(
     generation_params: SDNextGenerationParams,
+    background_tasks: BackgroundTasks,
     backend: str = "sdnext",
     mode: str = "deferred",
     save_images: bool = True,
     return_format: str = "base64",
-    background_tasks: BackgroundTasks = BackgroundTasks(),
     services: ServiceContainer = Depends(get_service_container),
 ):
     """Queue a generation job for background processing.
@@ -202,11 +202,15 @@ async def queue_generation_job(
     }
     
     # Create delivery job and schedule it via the configured queue backends
+    schedule_kwargs: Dict[str, Any] = {}
+    if background_tasks is not None:
+        schedule_kwargs["background_tasks"] = background_tasks
+
     job = services.deliveries.schedule_job(
         prompt=generation_params.prompt,
         mode="sdnext",
         params=delivery_params,
-        background_tasks=background_tasks,
+        **schedule_kwargs,
     )
 
     # Start WebSocket monitoring for the job
