@@ -29,7 +29,7 @@ export default defineConfig(({ mode }) => {
     // Configuration for the build process
     build: {
         // Where Vite will put the built files
-        outDir: '../../dist/static',
+        outDir: '../../dist',
 
         // Generates a manifest.json file, which is key for backend integration
         manifest: true,

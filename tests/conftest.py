@@ -1,5 +1,6 @@
 """Shared fixtures for the test suite."""
 
+from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 import pytest
@@ -9,7 +10,8 @@ from sqlmodel import Session, SQLModel, create_engine
 
 # Use new app import paths
 from backend.core.database import get_session
-from backend.main import app
+from app.main import app as fastapi_app
+from backend.main import app as backend_app
 from backend.services import ServiceContainer
 from backend.services.adapters import AdapterService
 from backend.services.composition import ComposeService
@@ -61,6 +63,8 @@ def db_session_fixture():
 
     Creates a new database for each test function and yields a session.
     """
+    from backend import models  # noqa: F401  # Ensure models populate SQLModel metadata
+
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -102,7 +106,7 @@ def compose_service() -> ComposeService:
 
 
 @pytest.fixture(name="client")
-def client_fixture(db_session: Session):
+def client_fixture(db_session: Session, monkeypatch):
     """FastAPI TestClient fixture.
 
     This overrides `get_session` with a test double.
@@ -111,8 +115,17 @@ def client_fixture(db_session: Session):
     def get_session_override():
         return db_session
 
-    app.dependency_overrides[get_session] = get_session_override
+    backend_app.dependency_overrides[get_session] = get_session_override
 
-    yield TestClient(app)
+    @contextmanager
+    def session_context_override():
+        yield db_session
 
-    app.dependency_overrides.clear()
+    monkeypatch.setattr(
+        "backend.api.v1.compose.get_session_context",
+        lambda: session_context_override(),
+    )
+
+    yield TestClient(fastapi_app)
+
+    backend_app.dependency_overrides.clear()

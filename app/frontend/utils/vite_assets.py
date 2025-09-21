@@ -11,7 +11,7 @@ from typing import Dict, Optional
 
 # Configuration
 VITE_DEV_SERVER = "http://localhost:5173"
-VITE_MANIFEST_PATH = "dist/static/.vite/manifest.json"
+VITE_MANIFEST_PATH = "dist/.vite/manifest.json"
 
 def is_development() -> bool:
     """Determine if we're in development mode.
@@ -60,7 +60,7 @@ def vite_asset(path: str) -> str:
         manifest = load_vite_manifest()
         if manifest and path in manifest:
             # Get the correct file path from the manifest
-            return f"/static/{manifest[path]['file']}"
+            return f"/{manifest[path]['file']}"
         else:
             # Fallback if manifest is not found or path is not in manifest
             return f"/static/{path}"
@@ -84,6 +84,6 @@ def vite_asset_css(js_path: str) -> Optional[str]:
         entry = manifest[js_path]
         if "css" in entry and entry["css"]:
             # Return the first CSS file (usually there's only one)
-            return f"/static/{entry['css'][0]}"
+            return f"/{entry['css'][0]}"
     
     return None

@@ -1,19 +1,18 @@
 """LoRA Manager - Main Application Entry Point.
 
-This file integrates both the backend API and frontend routes.
-The backend is located in the backend/ directory.
-The frontend templates and static files are in app/frontend/.
+This module wires the FastAPI backend with the Vue single page application
+served from the Vite build output.
 """
+
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-# Import frontend routes
-from app.frontend import routes_fastapi as frontend_routes
-
 # Import backend application
 from backend.main import app as backend_app
+from backend.core.config import settings as backend_settings
 
 # Create the main application
 app = FastAPI(
@@ -35,20 +34,52 @@ app.add_middleware(
     allow_headers=_cors.get("allow_headers", ["*"]),
 )
 
-# Mount static files for frontend
-app.mount("/static", StaticFiles(directory="app/frontend/static"), name="static")
-
-# Include frontend routes (serve HTML pages)
-app.include_router(frontend_routes.router, tags=["frontend"])
-
 # Include backend API routes
 app.mount("/api", backend_app)
 
-# Root endpoint redirect to dashboard
+
+class SPAStaticFiles(StaticFiles):
+    """Static files handler that falls back to ``index.html`` for SPA routes."""
+
+    def __init__(self, directory: Path):  # noqa: D401 - short init docstring inherited
+        self.directory_path = directory
+        super().__init__(
+            directory=str(directory),
+            html=True,
+            check_dir=False,
+        )
+
+    async def get_response(self, path, scope):  # type: ignore[override]
+        response = await super().get_response(path, scope)
+        if response.status_code == 404:
+            index_path = self.directory_path / "index.html"
+            if index_path.exists():
+                return await super().get_response("index.html", scope)
+        return response
+
+
+SPA_DIST_DIR = (Path(__file__).resolve().parent.parent / "dist").resolve()
+SPA_STATIC_APP = SPAStaticFiles(SPA_DIST_DIR)
+
+
+@app.get("/frontend/settings", tags=["frontend"])
+async def frontend_settings():
+    """Expose runtime configuration for the Vue SPA."""
+    backend_url = _fe_settings.backend_url.rstrip("/")
+    return {
+        "backendUrl": backend_url,
+        "backendApiKey": backend_settings.API_KEY or None,
+    }
+
+# Service health endpoint
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy", "service": "lora-manager"}
+    return {"status": "ok", "service": "lora-manager"}
+
+
+# Serve the compiled SPA assets (fallback to index.html for client-side routing)
+app.mount("/", SPA_STATIC_APP, name="spa")
 
 if __name__ == "__main__":
     import uvicorn

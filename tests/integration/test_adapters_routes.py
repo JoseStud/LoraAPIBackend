@@ -16,7 +16,7 @@ def _create_adapter(client: TestClient, name_suffix: str, tags: List[str]) -> st
         "weight": 1.0,
         "tags": tags,
     }
-    r = client.post("/v1/adapters", json=data)
+    r = client.post("/api/v1/adapters", json=data)
     assert r.status_code == 201, r.text
     return r.json()["adapter"]["id"]
 
@@ -31,13 +31,13 @@ def test_adapter_tags_and_bulk_actions(client: TestClient, mock_storage: MagicMo
     id2 = _create_adapter(client, "b", ["beta", "gamma"]) 
 
     # GET /v1/adapters/tags => should contain unique union of tags
-    r = client.get("/v1/adapters/tags")
+    r = client.get("/api/v1/adapters/tags")
     assert r.status_code == 200
     tags = set(r.json().get("tags", []))
     assert {"alpha", "beta", "gamma"}.issubset(tags)
 
     # Bulk activate both
-    r = client.post("/v1/adapters/bulk", json={
+    r = client.post("/api/v1/adapters/bulk", json={
         "action": "activate",
         "lora_ids": [id1, id2],
     })
@@ -47,14 +47,14 @@ def test_adapter_tags_and_bulk_actions(client: TestClient, mock_storage: MagicMo
     assert body.get("processed") == 2
 
     # Verify active state flipped
-    r1 = client.get(f"/v1/adapters/{id1}")
-    r2 = client.get(f"/v1/adapters/{id2}")
+    r1 = client.get(f"/api/v1/adapters/{id1}")
+    r2 = client.get(f"/api/v1/adapters/{id2}")
     assert r1.status_code == 200 and r2.status_code == 200
     assert r1.json()["adapter"]["active"] is True
     assert r2.json()["adapter"]["active"] is True
 
     # Bulk delete first
-    r = client.post("/v1/adapters/bulk", json={
+    r = client.post("/api/v1/adapters/bulk", json={
         "action": "delete",
         "lora_ids": [id1],
     })
@@ -62,8 +62,8 @@ def test_adapter_tags_and_bulk_actions(client: TestClient, mock_storage: MagicMo
     assert r.json().get("processed") == 1
 
     # Verify first is gone, second remains
-    r = client.get(f"/v1/adapters/{id1}")
+    r = client.get(f"/api/v1/adapters/{id1}")
     assert r.status_code == 404
-    r = client.get(f"/v1/adapters/{id2}")
+    r = client.get(f"/api/v1/adapters/{id2}")
     assert r.status_code == 200
 

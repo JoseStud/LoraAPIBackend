@@ -2,6 +2,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { SystemStatusState, useAppStore } from '@/stores/app';
+import { useSettingsStore } from '@/stores/settings';
 
 const DEFAULT_STATUS: SystemStatusState = {
   gpu_status: 'Loading…',
@@ -90,7 +91,9 @@ export const useSystemStatus = (options: UseSystemStatusOptions = {}) => {
   const pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
 
   const appStore = useAppStore();
+  const settingsStore = useSettingsStore();
   const { systemStatus } = storeToRefs(appStore);
+  const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
 
   const apiAvailable = ref(true);
   const isReady = ref(false);
@@ -131,7 +134,7 @@ export const useSystemStatus = (options: UseSystemStatusOptions = {}) => {
   };
 
   const statusUrl = computed(() => {
-    const base = typeof window !== 'undefined' ? (window as typeof window & { BACKEND_URL?: string }).BACKEND_URL ?? '' : '';
+    const base = configuredBackendUrl.value || '/api/v1';
     return `${base}/system/status`;
   });
 
