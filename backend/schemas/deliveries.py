@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
+from .generation import ComposeDeliverySDNext
+
 
 class ComposeDeliveryHTTP(BaseModel):
     """HTTP delivery configuration for compose requests."""
@@ -26,6 +28,7 @@ class ComposeDelivery(BaseModel):
     mode: str
     http: Optional[ComposeDeliveryHTTP] = None
     cli: Optional[ComposeDeliveryCLI] = None
+    sdnext: Optional[ComposeDeliverySDNext] = None
 
 
 class ComposeDeliveryInfo(BaseModel):
