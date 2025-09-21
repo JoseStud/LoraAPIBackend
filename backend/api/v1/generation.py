@@ -60,7 +60,6 @@ async def generate_image(
     
     # Prepare parameters
     params = {
-        "generation_params": generation_params.model_dump(),
         "mode": mode,
         "save_images": save_images,
         "return_format": return_format,
@@ -150,7 +149,6 @@ async def compose_and_generate(
     
     # Prepare parameters
     params = {
-        "generation_params": generation_params.model_dump(),
         "mode": mode,
         "save_images": save_images,
         "return_format": return_format,
@@ -282,11 +280,16 @@ async def _process_generation_job_async(job_id: str, params: Dict) -> None:
             backend = params.get("backend", "sdnext")
 
             # Generate image
+            generation_kwargs = {
+                key: value
+                for key, value in params.items()
+                if key != "generation_params"
+            }
             result = await services.generation.generate_image(
                 gen_params.prompt,
                 backend,
                 gen_params,
-                **params,
+                **generation_kwargs,
             )
 
             # Update job with result
