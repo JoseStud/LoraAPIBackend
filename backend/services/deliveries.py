@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from fastapi import BackgroundTasks
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from backend.models import DeliveryJob
@@ -15,6 +17,7 @@ if TYPE_CHECKING:  # pragma: no cover - used for type checking only
     from .queue import QueueBackend
 
 _SUCCESS_STATUSES = {"ok", "completed", 200}
+_ACTIVE_STATUSES = {"pending", "running", "retrying"}
 
 
 class DeliveryService:
@@ -126,6 +129,79 @@ class DeliveryService:
 
         q = q.offset(offset).limit(limit).order_by(DeliveryJob.created_at.desc())
         return list(self.db_session.exec(q).all())
+
+    def count_active_jobs(self) -> int:
+        """Return the number of jobs currently in flight."""
+
+        result = self.db_session.exec(
+            select(func.count(DeliveryJob.id)).where(DeliveryJob.status.in_(_ACTIVE_STATUSES))
+        ).one()
+        return int(result or 0)
+
+    def get_queue_statistics(self) -> Dict[str, int]:
+        """Return queue statistics derived from the delivery jobs table."""
+
+        total_jobs = self.db_session.exec(select(func.count(DeliveryJob.id))).one() or 0
+        active_jobs = self.count_active_jobs()
+        running_jobs = (
+            self.db_session.exec(
+                select(func.count(DeliveryJob.id)).where(DeliveryJob.status == "running")
+            ).one()
+            or 0
+        )
+        failed_jobs = (
+            self.db_session.exec(
+                select(func.count(DeliveryJob.id)).where(DeliveryJob.status == "failed")
+            ).one()
+            or 0
+        )
+
+        return {
+            "total": int(total_jobs),
+            "active": int(active_jobs),
+            "running": int(running_jobs),
+            "failed": int(failed_jobs),
+        }
+
+    def get_recent_activity(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Return a recent activity feed derived from delivery jobs."""
+
+        q = (
+            select(DeliveryJob)
+            .order_by(DeliveryJob.created_at.desc())
+            .limit(max(1, limit))
+        )
+        jobs = list(self.db_session.exec(q).all())
+
+        def _status_icon(status: str) -> str:
+            return {
+                "pending": "⏳",
+                "running": "🚀",
+                "retrying": "🔁",
+                "succeeded": "✅",
+                "failed": "⚠️",
+                "cancelled": "🚫",
+            }.get(status, "ℹ️")
+
+        activities: List[Dict[str, Any]] = []
+        for job in jobs:
+            status = job.status or "pending"
+            created_at = job.created_at or datetime.now(timezone.utc)
+            message = f"Delivery job '{job.prompt}' {status}"
+            activities.append(
+                {
+                    "id": job.id,
+                    "type": status,
+                    "status": status,
+                    "message": message,
+                    "mode": job.mode,
+                    "prompt": job.prompt,
+                    "timestamp": created_at.isoformat(),
+                    "icon": _status_icon(status),
+                }
+            )
+
+        return activities
 
     def update_job_status(
         self,
