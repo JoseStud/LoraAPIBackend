@@ -17,6 +17,7 @@ from backend.api.v1 import (
     generation,
     import_export,
     recommendations,
+    system,
     websocket,
 )
 from backend.core.config import settings
@@ -113,6 +114,7 @@ def create_app() -> FastAPI:
     app.include_router(recommendations.router, prefix="/v1", dependencies=[Depends(get_api_key)])
     app.include_router(import_export.router, prefix="/v1", dependencies=[Depends(get_api_key)])
     app.include_router(dashboard.router, prefix="/v1")
+    app.include_router(system.router, prefix="/v1")
     app.include_router(websocket.router, prefix="/v1")  # Align WebSocket with API versioning
 
     # Note: Unversioned routes are intentionally not included; use /v1/*
