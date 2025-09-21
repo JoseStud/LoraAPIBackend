@@ -416,6 +416,10 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 
+import { deleteRequest, getJson, putJson, requestBlob } from '@/utils/api';
+import { debounce } from '@/utils/async';
+import { downloadFile } from '@/utils/browser';
+import { formatFileSize as formatBytes } from '@/utils/format';
 import { useSettingsStore } from '@/stores/settings';
 
 // State mirroring the Alpine.js implementation
@@ -457,47 +461,43 @@ const settingsStore = useSettingsStore();
 const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
 const apiBaseUrl = computed(() => configuredBackendUrl.value || '/api/v1');
 
-// Debounced filter application
-let debounceTimeout = null;
-const debouncedApplyFilters = () => {
-  clearTimeout(debounceTimeout);
-  debounceTimeout = setTimeout(() => {
-    applyFilters();
-  }, 300);
-};
-
 // Methods - mirrors Alpine.js implementation
 const loadResults = async () => {
   isLoading.value = true;
   error.value = null;
-  
+
   try {
     const params = new URLSearchParams({
-      page: currentPage.value,
-      page_size: pageSize.value
+      page: String(currentPage.value),
+      page_size: String(pageSize.value)
     });
-    
-    const response = await fetch(`${apiBaseUrl.value}/results?${params}`, {
-      credentials: 'same-origin'
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to load results');
+
+    const { data: payload } = await getJson(
+      `${apiBaseUrl.value}/results?${params.toString()}`
+    );
+
+    let resultsArray = [];
+    if (Array.isArray(payload)) {
+      resultsArray = payload;
+    } else if (payload && typeof payload === 'object' && Array.isArray(payload.results)) {
+      resultsArray = payload.results;
     }
-    
-    const responseData = await response.json();
-    
+
     if (currentPage.value === 1) {
-      data.value = responseData.results || responseData || [];
+      data.value = resultsArray;
     } else {
-      data.value.push(...(responseData.results || responseData || []));
+      data.value.push(...resultsArray);
     }
-    
-    hasMore.value = responseData.has_more || false;
+
+    if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+      hasMore.value = Boolean(payload.has_more);
+    } else {
+      hasMore.value = false;
+    }
     applyFilters();
-    
+
   } catch (err) {
-    error.value = err.message;
+    error.value = err instanceof Error ? err.message : 'Failed to load results';
     showToastMessage('Failed to load results', 'error');
   } finally {
     isLoading.value = false;
@@ -560,6 +560,8 @@ const applyFilters = () => {
   calculateStats();
 };
 
+const debouncedApplyFilters = debounce(applyFilters, 300);
+
 const sortResults = (results) => {
   switch (sortBy.value) {
     case 'created_at':
@@ -613,22 +615,12 @@ const showImageModal = (result) => {
 
 const setRating = async (result, rating) => {
   try {
-    const response = await fetch(`${apiBaseUrl.value}/results/${result.id}/rating`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ rating })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to update rating');
-    }
-    
+    await putJson(`${apiBaseUrl.value}/results/${result.id}/rating`, { rating });
+
     // Update local data
     result.rating = rating;
     calculateStats();
-    
+
     showToastMessage('Rating updated successfully');
     
   } catch (error) {
@@ -639,18 +631,8 @@ const setRating = async (result, rating) => {
 
 const toggleFavorite = async (result) => {
   try {
-    const response = await fetch(`${apiBaseUrl.value}/results/${result.id}/favorite`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ is_favorite: !result.is_favorite })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to update favorite status');
-    }
-    
+    await putJson(`${apiBaseUrl.value}/results/${result.id}/favorite`, { is_favorite: !result.is_favorite });
+
     // Update local data
     result.is_favorite = !result.is_favorite;
     calculateStats();
@@ -685,20 +667,11 @@ const reuseParameters = (result) => {
 
 const downloadImage = async (result) => {
   try {
-    const response = await fetch(result.image_url);
-    const blob = await response.blob();
-    
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `generation-${result.id}.png`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-    
+    const { blob } = await requestBlob(result.image_url);
+    downloadFile(blob, `generation-${result.id}.png`);
+
     showToastMessage('Download started');
-    
+
   } catch (error) {
     console.error('Error downloading image:', error);
     showToastMessage('Failed to download image', 'error');
@@ -709,16 +682,10 @@ const deleteResult = async (resultId) => {
   if (!confirm('Are you sure you want to delete this image?')) {
     return;
   }
-  
+
   try {
-    const response = await fetch(`${apiBaseUrl.value}/results/${resultId}`, {
-      method: 'DELETE'
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to delete result');
-    }
-    
+    await deleteRequest(`${apiBaseUrl.value}/results/${resultId}`);
+
     // Remove from local data
     data.value = data.value.filter(r => r.id !== resultId);
     applyFilters();
@@ -740,18 +707,11 @@ const deleteSelected = async () => {
   }
   
   try {
-    const response = await fetch(`${apiBaseUrl.value}/results/bulk-delete`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    await deleteRequest(`${apiBaseUrl.value}/results/bulk-delete`, {
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids: selectedItems.value })
     });
-    
-    if (!response.ok) {
-      throw new Error('Failed to delete results');
-    }
-    
+
     // Remove from local data
     data.value = data.value.filter(r => !selectedItems.value.includes(r.id));
     selectedItems.value = [];
@@ -769,21 +729,11 @@ const favoriteSelected = async () => {
   if (selectedItems.value.length === 0) return;
   
   try {
-    const response = await fetch(`${apiBaseUrl.value}/results/bulk-favorite`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        ids: selectedItems.value,
-        is_favorite: true 
-      })
+    await putJson(`${apiBaseUrl.value}/results/bulk-favorite`, {
+      ids: selectedItems.value,
+      is_favorite: true
     });
-    
-    if (!response.ok) {
-      throw new Error('Failed to update favorites');
-    }
-    
+
     // Update local data
     data.value.forEach(result => {
       if (selectedItems.value.includes(result.id)) {
@@ -804,30 +754,18 @@ const exportSelected = async () => {
   if (selectedItems.value.length === 0) return;
   
   try {
-    const response = await fetch(`${apiBaseUrl.value}/results/export`, {
+    const { blob } = await requestBlob(`${apiBaseUrl.value}/results/export`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ ids: selectedItems.value })
     });
-    
-    if (!response.ok) {
-      throw new Error('Failed to export results');
-    }
-    
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `generation-export-${Date.now()}.zip`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-    
+
+    downloadFile(blob, `generation-export-${Date.now()}.zip`);
+
     showToastMessage('Export started');
-    
+
   } catch (error) {
     console.error('Error exporting results:', error);
     showToastMessage('Failed to export images', 'error');
@@ -862,15 +800,7 @@ const formatDate = (dateString) => {
   }
 };
 
-const formatFileSize = (bytes) => {
-  if (bytes === 0) return '0 Bytes';
-  
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
+const formatFileSize = (bytes) => formatBytes(typeof bytes === 'number' ? bytes : 0);
 
 const showToastMessage = (message, type = 'success') => {
   toastMessage.value = message;
@@ -916,11 +846,9 @@ onMounted(async () => {
 onUnmounted(() => {
   // Clean up event listener
   document.removeEventListener('keydown', handleKeydown);
-  
+
   // Clear any pending debounce
-  if (debounceTimeout) {
-    clearTimeout(debounceTimeout);
-  }
+  debouncedApplyFilters.cancel();
 });
 
 // Watch for view mode changes and save preference

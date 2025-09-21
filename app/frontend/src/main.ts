@@ -4,6 +4,7 @@ import { createPinia } from 'pinia';
 import App from './App.vue';
 import router from './router';
 import { useSettingsStore } from './stores/settings';
+import './utils/legacy';
 
 import './assets/css/styles.css';
 import './assets/css/design-system.css';

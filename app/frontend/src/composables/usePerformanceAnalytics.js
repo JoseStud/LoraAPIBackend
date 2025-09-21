@@ -7,6 +7,8 @@
 
 import { ref, computed } from 'vue';
 
+import { formatDuration as formatDurationLabel } from '@/utils/format';
+
 export function usePerformanceAnalytics() {
   // Reactive state
   const timeRange = ref('24h');
@@ -233,20 +235,6 @@ export function usePerformanceAnalytics() {
   }
 
   // Utility functions
-  function formatDuration(seconds) {
-    if (seconds < 60) {
-      return `${seconds.toFixed(1)}s`;
-    } else if (seconds < 3600) {
-      const minutes = Math.floor(seconds / 60);
-      const remainingSeconds = Math.floor(seconds % 60);
-      return `${minutes}m ${remainingSeconds}s`;
-    } else {
-      const hours = Math.floor(seconds / 3600);
-      const remainingMinutes = Math.floor((seconds % 3600) / 60);
-      return `${hours}h ${remainingMinutes}m`;
-    }
-  }
-
   // Cleanup
   function cleanup() {
     if (refreshInterval.value) {
@@ -271,7 +259,7 @@ export function usePerformanceAnalytics() {
     // Methods
     loadAllData,
     toggleAutoRefresh,
-    formatDuration,
+    formatDuration: formatDurationLabel,
     cleanup
   };
 }

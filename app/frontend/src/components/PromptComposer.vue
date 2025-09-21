@@ -129,6 +129,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import { useAdapterListApi } from '@/composables/apiClients';
+import { copyToClipboard } from '@/utils/browser';
 
 const STORAGE_KEY = 'prompt-composer-composition';
 const lastSaved = ref(null);
@@ -137,7 +138,7 @@ const lastSaved = ref(null);
 const loras = ref([]);
 const searchTerm = ref('');
 const activeOnly = ref(false);
-const { data, error, isLoading, fetchData: loadLoras } = useAdapterListApi('/api/v1/adapters?per_page=200&page=1');
+const { data, error, isLoading, fetchData: loadLoras } = useAdapterListApi({ page: 1, perPage: 200 });
 
 // Composition
 const activeLoras = ref([]);
@@ -237,17 +238,15 @@ const updateFinal = () => {
 const copyPrompt = async () => {
   try {
     updateFinal();
-    if (navigator?.clipboard?.writeText) {
-      await navigator.clipboard.writeText(finalPrompt.value || '');
-    } else {
-      const ta = document.createElement('textarea');
-      ta.value = finalPrompt.value || '';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
+    const success = await copyToClipboard(finalPrompt.value || '');
+    if (!success && import.meta.env.DEV) {
+      console.warn('Failed to copy prompt to clipboard');
     }
-  } catch {}
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('Copy prompt failed', error);
+    }
+  }
 };
 
 const saveComposition = () => {

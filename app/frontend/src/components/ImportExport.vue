@@ -724,7 +724,10 @@
 
 <script>
 import { ref, reactive, computed, watch, onMounted } from 'vue';
-import { useApi } from '@/composables/useApi';
+
+import { getJson, postJson, requestBlob, requestJson, ensureData, getFilenameFromContentDisposition } from '@/utils/api';
+import { downloadFile } from '@/utils/browser';
+import { formatDateTime, formatFileSize as formatBytes } from '@/utils/format';
 
 export default {
   name: 'ImportExport',
@@ -835,23 +838,15 @@ export default {
     }, { deep: true });
     
     // Utility functions
-    const formatFileSize = (bytes) => {
-      if (bytes === 0) return '0 Bytes';
-      const k = 1024;
-      const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    };
-    
-    const formatDate = (dateString) => {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    };
+    const formatFileSize = (bytes) => formatBytes(typeof bytes === 'number' ? bytes : 0);
+
+    const formatDate = (dateString) => formatDateTime(dateString, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
     
     const showToastMessage = (message, type = 'info') => {
       toastMessage.value = message;
@@ -887,25 +882,22 @@ export default {
     // Export functions
     const updateEstimates = async () => {
       try {
-        const response = await fetch('/api/v1/export/estimate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'same-origin',
-          body: JSON.stringify(exportConfig)
-        });
-        
-        if (response.ok) {
-          const estimates = await response.json();
-          estimatedSize.value = estimates.size;
-          estimatedTime.value = estimates.time;
+        const estimates = ensureData(
+          await postJson('/api/v1/export/estimate', { ...exportConfig })
+        );
+
+        if (estimates && typeof estimates === 'object') {
+          const { size, time } = estimates;
+          if (typeof size === 'string') {
+            estimatedSize.value = size;
+          }
+          if (typeof time === 'string') {
+            estimatedTime.value = time;
+          }
         } else {
-          // Fallback to local calculation
           updateEstimatesLocal();
         }
       } catch (error) {
-        // Fallback to local calculation
         updateEstimatesLocal();
       }
     };
@@ -1006,71 +998,47 @@ export default {
         showProgress.value = true;
         progressValue.value = 0;
         progressMessages.value = [];
-        
+
         updateProgressDisplay({
           value: 10,
           step: 'Preparing export...',
           message: 'Validating configuration'
         });
-        
-        // Call the real export API
-        const response = await fetch('/api/v1/export', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'same-origin',
-          body: JSON.stringify(exportConfig)
-        });
-        
+
         updateProgressDisplay({
           value: 50,
           step: 'Generating export...',
           message: 'Creating archive'
         });
-        
-        if (!response.ok) {
-          throw new Error(`Export failed: ${response.status}`);
-        }
-        
+
+        const { blob, response } = await requestBlob('/api/v1/export', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ ...exportConfig })
+        });
+
         updateProgressDisplay({
           value: 90,
           step: 'Finalizing export...',
           message: 'Preparing download'
         });
-        
-        // Get the blob and trigger download
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        
-        // Extract filename from Content-Disposition header or use default
+
         const contentDisposition = response.headers.get('Content-Disposition');
-        let filename = `lora_export_${new Date().toISOString().slice(0, 10)}.${exportConfig.format}`;
-        
-        if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
-          if (filenameMatch) {
-            filename = filenameMatch[1];
-          }
-        }
-        
-        // Trigger download
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        
+        const fallbackName = `lora_export_${new Date().toISOString().slice(0, 10)}.${exportConfig.format}`;
+        const filename = getFilenameFromContentDisposition(contentDisposition) ?? fallbackName;
+
+        downloadFile(blob, filename);
+
         updateProgressDisplay({
           value: 100,
           step: 'Export completed',
           message: 'Download started'
         });
-        
+
         showToastMessage('Export completed successfully', 'success');
-        
+
       } catch (error) {
         showToastMessage(`Export failed: ${error.message}`, 'error');
       } finally {
@@ -1233,30 +1201,26 @@ export default {
           message: 'Sending files to server'
         });
         
-        // Call the real import API
-        const response = await fetch('/api/v1/import', {
-          method: 'POST',
-          credentials: 'same-origin',
-          body: formData
-          // Do not set Content-Type header manually for FormData
-        });
-        
+        const result = ensureData(
+          await requestJson('/api/v1/import', {
+            method: 'POST',
+            body: formData
+          })
+        );
+
         updateProgressDisplay({
           value: 70,
           step: 'Processing import...',
           message: 'Server is processing files'
         });
-        
-        if (!response.ok) {
-          throw new Error(`Import failed: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        
+
+        const processedFiles = result && typeof result === 'object' ? result.processed_files : undefined;
+        const totalFiles = result && typeof result === 'object' ? result.total_files : undefined;
+
         updateProgressDisplay({
           value: 100,
           step: 'Import completed',
-          message: `Processed ${result.processed_files} of ${result.total_files} files`
+          message: `Processed ${processedFiles ?? importFiles.value.length} of ${totalFiles ?? importFiles.value.length} files`
         });
         
         showToastMessage(`Import completed: ${result.processed_files} files processed`, 'success');
@@ -1274,59 +1238,48 @@ export default {
     // Backup functions
     const loadBackupHistory = async () => {
       try {
-        const response = await fetch('/api/v1/backups/history', {
-          credentials: 'same-origin'
-        });
-        
-        if (response.ok) {
-          backupHistory.value = await response.json();
+        const result = await getJson('/api/v1/backups/history');
+        const data = result.data;
+        if (Array.isArray(data)) {
+          backupHistory.value = data;
+        } else if (data && typeof data === 'object') {
+          const history = Array.isArray(data.history) ? data.history : [];
+          backupHistory.value = history;
+        } else {
+          backupHistory.value = [];
         }
       } catch (error) {
         console.error('Failed to load backup history:', error);
       }
     };
-    
+
     const createFullBackup = async () => {
       try {
-        const response = await fetch('/api/v1/backup/create', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'same-origin',
-          body: JSON.stringify({ backup_type: 'full' })
-        });
-        
-        if (response.ok) {
-          const result = await response.json();
-          showToastMessage(`Full backup initiated: ${result.backup_id}`, 'success');
-          await loadBackupHistory(); // Refresh history
-        } else {
-          throw new Error(`Backup failed: ${response.status}`);
-        }
+        const result = ensureData(
+          await postJson('/api/v1/backup/create', { backup_type: 'full' })
+        );
+        const backupId = result && typeof result === 'object' ? result.backup_id : null;
+        showToastMessage(
+          backupId ? `Full backup initiated: ${backupId}` : 'Full backup initiated',
+          'success'
+        );
+        await loadBackupHistory();
       } catch (error) {
         showToastMessage(`Backup failed: ${error.message}`, 'error');
       }
     };
-    
+
     const createQuickBackup = async () => {
       try {
-        const response = await fetch('/api/v1/backup/create', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'same-origin',
-          body: JSON.stringify({ backup_type: 'quick' })
-        });
-        
-        if (response.ok) {
-          const result = await response.json();
-          showToastMessage(`Quick backup initiated: ${result.backup_id}`, 'success');
-          await loadBackupHistory(); // Refresh history
-        } else {
-          throw new Error(`Backup failed: ${response.status}`);
-        }
+        const result = ensureData(
+          await postJson('/api/v1/backup/create', { backup_type: 'quick' })
+        );
+        const backupId = result && typeof result === 'object' ? result.backup_id : null;
+        showToastMessage(
+          backupId ? `Quick backup initiated: ${backupId}` : 'Quick backup initiated',
+          'success'
+        );
+        await loadBackupHistory();
       } catch (error) {
         showToastMessage(`Backup failed: ${error.message}`, 'error');
       }

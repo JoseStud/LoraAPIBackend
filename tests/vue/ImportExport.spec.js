@@ -5,16 +5,6 @@ import ImportExport from '../../app/frontend/src/components/ImportExport.vue';
 // Mock fetch globally for tests
 global.fetch = vi.fn();
 
-// Mock the useApi composable
-vi.mock('../../app/frontend/src/composables/useApi.ts', () => ({
-  useApi: () => ({
-    data: { value: null },
-    error: { value: null },
-    isLoading: { value: false },
-    fetchData: vi.fn()
-  })
-}));
-
 describe('ImportExport.vue', () => {
   let wrapper;
 
@@ -93,12 +83,16 @@ describe('ImportExport.vue', () => {
     expect(wrapper.vm.activeTab).toBe('migration');
   });
 
-  it('calculates export estimates correctly', () => {
+  it('calculates export estimates correctly', async () => {
     // Enable some export options
     wrapper.vm.exportConfig.loras = true;
     wrapper.vm.exportConfig.lora_files = true;
     wrapper.vm.exportConfig.generations = true;
     wrapper.vm.exportConfig.generation_range = 'all';
+
+    // Allow async estimate calculation to complete
+    await new Promise(resolve => setTimeout(resolve, 50));
+    await wrapper.vm.$nextTick();
 
     // The estimates should be calculated
     expect(wrapper.vm.estimatedSize).not.toBe('0 MB');

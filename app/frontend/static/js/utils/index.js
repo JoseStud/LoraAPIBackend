@@ -1,126 +1,65 @@
 /**
- * Shared JavaScript Utilities - Main Export
- * 
- * This file re-exports all utility functions from their respective modules
- * for easy importing and backward compatibility.
+ * @deprecated Legacy utilities bundle. Use app/frontend/src/utils instead.
  */
+const legacy = window.LegacyUtils ?? {};
 
-// Import all utilities from specialized modules
-export { 
-    fetchData, 
-    postData, 
-    putData, 
-    deleteData, 
-    uploadFile 
-} from './api.js';
+export const {
+  // API utilities
+  fetchData = () => { throw new Error('Legacy fetchData unavailable'); },
+  postData = () => { throw new Error('Legacy postData unavailable'); },
+  putData = () => { throw new Error('Legacy putData unavailable'); },
+  patchData = () => { throw new Error('Legacy patchData unavailable'); },
+  deleteData = () => { throw new Error('Legacy deleteData unavailable'); },
+  uploadFile = () => { throw new Error('Legacy uploadFile unavailable'); },
+  requestBlob = () => { throw new Error('Legacy requestBlob unavailable'); },
+  requestJson = () => { throw new Error('Legacy requestJson unavailable'); },
 
-export { 
-    showElement, 
-    hideElement, 
-    toggleElement, 
-    isElementVisible, 
-    scrollToElement, 
-    addClass, 
-    removeClass, 
-    toggleClass, 
-    getDataAttribute, 
-    setDataAttribute 
-} from './dom.js';
+  // DOM utilities
+  showElement,
+  hideElement,
+  toggleElement,
+  isElementVisible,
+  scrollToElement,
+  addClass,
+  removeClass,
+  toggleClass,
+  getDataAttribute,
+  setDataAttribute,
 
-export { 
-    formatFileSize, 
-    formatDuration, 
-    formatRelativeTime, 
-    formatNumber, 
-    formatPercentage, 
-    truncateText, 
-    escapeHtml, 
-    formatDate, 
-    formatDateTime 
-} from './formatters.js';
+  // Formatters
+  formatFileSize,
+  formatDuration,
+  formatDurationFromMilliseconds,
+  formatElapsedTime,
+  formatRelativeTime,
+  formatNumber,
+  formatPercentage,
+  truncateText,
+  escapeHtml,
+  formatDate,
+  formatDateTime,
 
-export { 
-    delay, 
-    debounce, 
-    throttle, 
-    retryWithBackoff, 
-    withTimeout, 
-    processBatches, 
-    simulateProgress 
-} from './async.js';
+  // Async utilities
+  delay,
+  debounce,
+  throttle,
+  retryWithBackoff,
+  withTimeout,
+  processBatches,
+  simulateProgress,
 
-export { 
-    generateUUID, 
-    copyToClipboard, 
-    downloadFile, 
-    validateFile, 
-    supportsFeature, 
-    getBrowserInfo, 
-    isMobile, 
-    getDevicePixelRatio, 
-    prefersDarkMode, 
-    prefersReducedMotion 
-} from './browser.js';
+  // Browser utilities
+  generateUUID,
+  copyToClipboard,
+  downloadFile,
+  validateFile,
+  supportsFeature,
+  getBrowserInfo,
+  isMobile,
+  getDevicePixelRatio,
+  prefersDarkMode,
+  prefersReducedMotion,
+} = legacy;
 
-// Import functions for the Utils object
-import { fetchData, postData, putData, deleteData, uploadFile } from './api.js';
-import { showElement, hideElement, toggleElement, isElementVisible, scrollToElement, addClass, removeClass, toggleClass, getDataAttribute, setDataAttribute } from './dom.js';
-import { formatFileSize, formatDuration, formatRelativeTime, formatNumber, formatPercentage, truncateText, escapeHtml, formatDate, formatDateTime } from './formatters.js';
-import { delay, debounce, throttle, retryWithBackoff, withTimeout, processBatches, simulateProgress } from './async.js';
-import { generateUUID, copyToClipboard, downloadFile, validateFile, supportsFeature, getBrowserInfo, isMobile, getDevicePixelRatio, prefersDarkMode, prefersReducedMotion } from './browser.js';
-
-// Legacy Utils object for backward compatibility
-const Utils = {
-    // API utilities
-    fetchData,
-    postData,
-    putData,
-    deleteData,
-    uploadFile,
-    
-    // DOM utilities
-    showElement,
-    hideElement,
-    toggleElement,
-    isElementVisible,
-    scrollToElement,
-    addClass,
-    removeClass,
-    toggleClass,
-    getDataAttribute,
-    setDataAttribute,
-    
-    // Formatters
-    formatFileSize,
-    formatDuration,
-    formatRelativeTime,
-    formatNumber,
-    formatPercentage,
-    truncateText,
-    escapeHtml,
-    formatDate,
-    formatDateTime,
-    
-    // Async utilities
-    delay,
-    debounce,
-    throttle,
-    retryWithBackoff,
-    withTimeout,
-    processBatches,
-    simulateProgress,
-    
-    // Browser utilities
-    generateUUID,
-    copyToClipboard,
-    downloadFile,
-    validateFile,
-    supportsFeature,
-    getBrowserInfo,
-    isMobile,
-    getDevicePixelRatio,
-    prefersDarkMode,
-    prefersReducedMotion
-};
-
+const Utils = legacy;
 export default Utils;

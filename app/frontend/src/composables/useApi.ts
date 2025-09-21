@@ -1,209 +1,180 @@
-import { ref, unref } from 'vue';
-import type { MaybeRefOrGetter, Ref } from 'vue';
+import { MaybeRefOrGetter, Ref, ref, unref } from 'vue';
 
-import type { ApiResult, ApiResponseMeta, FetchDataOptions, UseApiConfig } from '@/types/api';
-import { ApiError } from '@/types/api';
+export interface ApiResponseMeta {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  headers?: Headers;
+  url?: string;
+}
 
-const parseJsonOrText = async <TPayload>(response: Response): Promise<TPayload> => {
-  const contentType = response.headers?.get?.('content-type')?.toLowerCase() ?? '';
-  if (contentType.includes('json')) {
-    return (await response.json()) as TPayload;
-  }
-  const text = await response.text();
-  return text as unknown as TPayload;
-};
+export interface ApiErrorInit<TError> {
+  message: string;
+  status: number;
+  statusText: string;
+  payload: TError | null;
+  meta: ApiResponseMeta;
+  response: Response;
+}
 
-const extractDetailString = (payload: unknown): string | undefined => {
-  if (payload == null) {
-    return undefined;
-  }
-  if (typeof payload === 'string') {
-    const trimmed = payload.trim();
-    return trimmed.length > 0 ? trimmed : undefined;
-  }
-  if (Array.isArray(payload)) {
-    for (const entry of payload) {
-      const extracted = extractDetailString(entry);
-      if (extracted) {
-        return extracted;
-      }
-    }
-    return undefined;
-  }
-  if (typeof payload === 'object') {
-    const record = payload as Record<string, unknown>;
-    const detailLike = record.detail ?? record.message ?? record.error ?? record.errors;
-    if (typeof detailLike === 'string') {
-      const trimmed = detailLike.trim();
-      return trimmed.length > 0 ? trimmed : undefined;
-    }
-    if (Array.isArray(detailLike)) {
-      return extractDetailString(detailLike);
-    }
-  }
-  return undefined;
-};
+export class ApiError<TError = unknown> extends Error {
+  public readonly status: number;
 
-const deriveErrorMessage = (payload: unknown, response: Response): string => {
-  const extracted = extractDetailString(payload);
-  if (extracted) {
-    return extracted;
-  }
-  const statusText = response.statusText?.trim?.();
-  if (statusText) {
-    return statusText;
-  }
-  return `Request failed with status ${response.status}`;
-};
+  public readonly statusText: string;
 
-const createMetaFromResponse = (response: Response): ApiResponseMeta => ({
-  ok: response.ok,
-  status: response.status,
-  statusText: response.statusText ?? '',
-  url: response.url ?? '',
-  headers: response.headers,
-});
+  public readonly payload: TError | null;
 
-const isFetchOptions = <TData, TError>(value: unknown): value is FetchDataOptions<TData, TError> => {
-  if (!value || typeof value !== 'object') {
-    return false;
+  public readonly meta: ApiResponseMeta;
+
+  public readonly response: Response;
+
+  constructor(init: ApiErrorInit<TError>) {
+    super(init.message);
+    this.name = 'ApiError';
+    this.status = init.status;
+    this.statusText = init.statusText;
+    this.payload = init.payload;
+    this.meta = init.meta;
+    this.response = init.response;
+    Object.setPrototypeOf(this, new.target.prototype);
   }
-  return 'parseResponse' in value || 'parseError' in value || 'init' in value;
-};
+}
 
-const normalizeOptions = <TData, TError>(
-  arg?: RequestInit | FetchDataOptions<TData, TError>,
-): FetchDataOptions<TData, TError> => {
-  if (!arg) {
-    return {};
-  }
-  if (isFetchOptions<TData, TError>(arg)) {
-    return arg;
-  }
-  return { init: arg };
-};
-
-const resolveUrlValue = (url: MaybeRefOrGetter<string>): string => {
-  try {
-    const resolved = typeof url === 'function' ? (url as () => string)() : unref(url);
-    return typeof resolved === 'string' ? resolved : '';
-  } catch (err) {
-    if (import.meta.env.DEV) {
-      console.warn('Failed to resolve API URL', err);
-    }
-    return '';
-  }
-};
-
-const fallbackMeta = (url: string, overrides: Partial<ApiResponseMeta> = {}): ApiResponseMeta => ({
-  ok: overrides.ok ?? false,
-  status: overrides.status ?? 0,
-  statusText: overrides.statusText ?? '',
-  url: overrides.url ?? url,
-  headers: overrides.headers ?? new Headers(),
-});
-
-/**
- * Typed wrapper around the Fetch API that exposes reactive state and helpers.
- *
- * @example Basic JSON usage
- * ```ts
- * import type { AdapterListResponse } from '@/types';
- *
- * const { data, fetchData } = useApi<AdapterListResponse>('/api/v1/adapters');
- * await fetchData();
- * console.log(data.value?.items.length);
- * ```
- *
- * @example Custom parser for non-JSON payloads
- * ```ts
- * const { fetchData } = useApi<Blob>('/api/v1/reports/latest', {}, {
- *   parseResponse: (response) => response.blob(),
- * });
- * const reportBlob = await fetchData();
- * ```
- */
-export function useApi<TData, TError = unknown>(
+export function useApi<T = unknown, TError = unknown>(
   url: MaybeRefOrGetter<string>,
   defaultOptions: RequestInit = {},
-  config: UseApiConfig<TData, TError> = {},
-): UseApiReturn<TData, TError> {
-  const result = ref<ApiResult<TData, TError> | null>(null);
+) {
+  const data = ref<T | null>(null) as Ref<T | null>;
+  const error = ref<ApiError<TError> | unknown>(null);
   const isLoading = ref(false);
-  const data = ref<TData | null>(null);
-  const error = ref<ApiError<TError> | null>(null);
-  const meta = ref<ApiResponseMeta | null>(null);
+  const lastResponse = ref<ApiResponseMeta | null>(null);
 
-  const applyState = (patch: Partial<ApiResult<TData, TError>>) => {
-    const current: ApiResult<TData, TError> = {
-      data: data.value,
-      error: error.value,
-      meta: meta.value,
-    };
-
-    const dataValue =
-      Object.prototype.hasOwnProperty.call(patch, 'data')
-        ? ((patch.data ?? null) as TData | null)
-        : current.data ?? null;
-    const errorValue =
-      Object.prototype.hasOwnProperty.call(patch, 'error')
-        ? ((patch.error ?? null) as ApiError<TError> | null)
-        : current.error ?? null;
-    const metaValue =
-      Object.prototype.hasOwnProperty.call(patch, 'meta')
-        ? ((patch.meta ?? null) as ApiResponseMeta | null)
-        : current.meta ?? null;
-
-    data.value = dataValue;
-    error.value = errorValue;
-    meta.value = metaValue;
-    result.value = {
-      data: data.value,
-      error: error.value,
-      meta: meta.value,
-    };
+  const applyState = ({
+    data: nextData,
+    error: nextError,
+    meta,
+  }: {
+    data: T | null;
+    error: ApiError<TError> | unknown | null;
+    meta: ApiResponseMeta;
+  }) => {
+    data.value = nextData;
+    error.value = nextError;
+    lastResponse.value = meta;
   };
 
-  const fetchData = async (
-    arg?: RequestInit | FetchDataOptions<TData, TError>,
-  ): Promise<TData> => {
-    const targetUrl = resolveUrlValue(url);
+  const readResponsePayload = async (response: Response): Promise<unknown> => {
+    const contentType = typeof response.headers?.get === 'function'
+      ? response.headers.get('content-type') ?? ''
+      : '';
+    const canParseJson = typeof response.json === 'function';
+    const canReadText = typeof response.text === 'function';
+
+    if (contentType.includes('application/json') || (!contentType && canParseJson)) {
+      try {
+        return await response.json();
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn('Failed to parse JSON response', err);
+        }
+        return null;
+      }
+    }
+
+    if (canReadText) {
+      try {
+        return await response.text();
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn('Failed to read text response', err);
+        }
+        return null;
+      }
+    }
+
+    return null;
+  };
+
+  const deriveErrorMessage = (payload: unknown, response: Response): string => {
+    if (typeof payload === 'string' && payload.trim()) {
+      return payload;
+    }
+
+    if (payload && typeof payload === 'object') {
+      const record = payload as Record<string, unknown>;
+      const detail = record.detail;
+      const message = record.message;
+      const errors = record.errors;
+
+      if (typeof detail === 'string' && detail.trim()) {
+        return detail;
+      }
+
+      if (Array.isArray(detail)) {
+        const first = detail.find((value) => typeof value === 'string' && value.trim());
+        if (typeof first === 'string') {
+          return first;
+        }
+      }
+
+      if (typeof message === 'string' && message.trim()) {
+        return message;
+      }
+
+      if (typeof errors === 'string' && errors.trim()) {
+        return errors;
+      }
+
+      if (Array.isArray(errors)) {
+        const firstError = errors.find((value) => typeof value === 'string' && value.trim());
+        if (typeof firstError === 'string') {
+          return firstError;
+        }
+      }
+    }
+
+    return response.statusText || `Request failed with status ${response.status}`;
+  };
+
+  const resolveUrl = (): string => {
+    try {
+      const resolved = typeof url === 'function' ? (url as () => string)() : unref(url);
+      return typeof resolved === 'string' ? resolved : '';
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.warn('Failed to resolve API URL', err);
+      }
+      return '';
+    }
+  };
+
+  const fetchData = async (init: RequestInit = {}) => {
+    const targetUrl = resolveUrl();
     if (!targetUrl) {
       throw new Error('Invalid API URL');
     }
 
     isLoading.value = true;
-    applyState({ error: null });
-
-    const options = normalizeOptions(arg);
-    const parseResponse = options.parseResponse ?? config.parseResponse ?? ((response: Response) => parseJsonOrText<TData>(response));
-    const parseError = options.parseError ?? config.parseError ?? ((response: Response) => parseJsonOrText<TError>(response));
+    error.value = null;
 
     try {
-      const response = await fetch(targetUrl, {
-        credentials: 'same-origin',
-        ...defaultOptions,
-        ...options.init,
-      });
+      const response = await fetch(targetUrl, { credentials: 'same-origin', ...defaultOptions, ...init });
+      const metaInfo: ApiResponseMeta = {
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+        url: response.url,
+      };
 
-      const metaInfo = createMetaFromResponse(response);
-      applyState({ meta: metaInfo });
+      const payload = await readResponsePayload(response);
 
       if (!response.ok) {
-        let payload: TError | undefined;
-        try {
-          payload = await parseError(response);
-        } catch (parseErr) {
-          if (import.meta.env.DEV) {
-            console.warn('Failed to parse API error payload', parseErr);
-          }
-        }
-
         const apiError = new ApiError<TError>({
           message: deriveErrorMessage(payload, response),
           status: response.status,
           statusText: response.statusText,
-          payload,
+          payload: (payload as TError) ?? null,
           meta: metaInfo,
           response,
         });
@@ -211,57 +182,25 @@ export function useApi<TData, TError = unknown>(
         throw apiError;
       }
 
-      const parsed = await parseResponse(response);
-      applyState({ data: parsed, error: null });
-      return parsed;
+      applyState({ data: (payload as T | null) ?? null, error: null, meta: metaInfo });
+      return data.value;
     } catch (err) {
-      if (err instanceof ApiError) {
-        if (!meta.value) {
-          applyState({ meta: err.meta });
-        }
-        applyState({ error: err, data: null });
-        throw err;
+      if (!(err instanceof ApiError)) {
+        const fallbackMeta: ApiResponseMeta = {
+          ok: false,
+          status: err instanceof Response ? err.status : 0,
+          statusText: err instanceof Response ? err.statusText ?? '' : '',
+          headers: err instanceof Response ? err.headers : undefined,
+        };
+        applyState({ data: null, error: err, meta: fallbackMeta });
       }
-
-      const responseLike = err instanceof Response ? err : undefined;
-      const metaInfo = responseLike
-        ? createMetaFromResponse(responseLike)
-        : meta.value ?? fallbackMeta(targetUrl);
-
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      const apiError = new ApiError<TError>({
-        message: message || 'Network error',
-        status: metaInfo.status,
-        statusText: metaInfo.statusText,
-        meta: metaInfo,
-        response: responseLike,
-        cause: err instanceof Error ? err : undefined,
-      });
-
-      applyState({ meta: metaInfo, error: apiError, data: null });
-      throw apiError;
+      throw err;
     } finally {
       isLoading.value = false;
     }
   };
 
-  return {
-    data,
-    error,
-    isLoading,
-    fetchData,
-    meta,
-    lastResponse: meta,
-    result,
-  } as UseApiReturn<TData, TError>;
+  return { data, error, isLoading, fetchData, lastResponse };
 }
 
-export interface UseApiReturn<TData, TError = unknown> {
-  data: Ref<TData | null>;
-  error: Ref<ApiError<TError> | null>;
-  isLoading: Ref<boolean>;
-  fetchData: (arg?: RequestInit | FetchDataOptions<TData, TError>) => Promise<TData>;
-  meta: Ref<ApiResponseMeta | null>;
-  lastResponse: Ref<ApiResponseMeta | null>;
-  result: Ref<ApiResult<TData, TError> | null>;
-}
+export type UseApiReturn<T, TError = unknown> = ReturnType<typeof useApi<T, TError>>;
