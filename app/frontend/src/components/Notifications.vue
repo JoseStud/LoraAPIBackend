@@ -42,7 +42,9 @@
 import { ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { NotificationType, useAppStore } from '@/stores/app';
+import { useAppStore } from '@/stores/app';
+
+import type { NotificationType } from '@/types';
 
 const appStore = useAppStore();
 const { notifications } = storeToRefs(appStore);

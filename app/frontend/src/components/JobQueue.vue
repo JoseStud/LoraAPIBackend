@@ -78,7 +78,9 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { GenerationJob, useAppStore } from '@/stores/app';
+import { useAppStore } from '@/stores/app';
+
+import type { GenerationJob } from '@/types';
 
 interface Props {
   title?: string;

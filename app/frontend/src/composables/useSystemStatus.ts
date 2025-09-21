@@ -1,7 +1,9 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { SystemStatusState, useAppStore } from '@/stores/app';
+import { useAppStore } from '@/stores/app';
+
+import type { SystemStatusState } from '@/types';
 import { useSettingsStore } from '@/stores/settings';
 
 const DEFAULT_STATUS: SystemStatusState = {

@@ -1,10 +1,6 @@
 import { defineStore } from 'pinia';
 
-export interface FrontendRuntimeSettings {
-  backendUrl: string;
-  backendApiKey?: string | null;
-  [key: string]: unknown;
-}
+import type { FrontendRuntimeSettings } from '@/types';
 
 interface SettingsState {
   settings: FrontendRuntimeSettings | null;
