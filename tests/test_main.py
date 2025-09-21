@@ -1,5 +1,4 @@
 """Tests for the HTTP API, using FastAPI's TestClient and pytest fixtures."""
-
 from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient
@@ -57,6 +56,39 @@ def test_adapter_lifecycle(client: TestClient, mock_storage: MagicMock):
     r = client.post(f"/api/v1/adapters/{aid}/deactivate")
     assert r.status_code == 200
     assert r.json()["adapter"]["active"] is False
+
+
+def test_create_adapters_allows_same_name_with_different_versions(
+    client: TestClient, mock_storage: MagicMock
+):
+    """Adapters may share a name as long as their versions differ."""
+
+    mock_storage.exists.return_value = True
+    import uuid
+
+    base_name = "dup-" + uuid.uuid4().hex
+
+    first = {
+        "name": base_name,
+        "version": "v1",
+        "file_path": "/fake/path",
+        "weight": 1.0,
+    }
+    r1 = client.post("/api/v1/adapters", json=first)
+    assert r1.status_code == 201
+
+    second = {**first, "version": "v2", "file_path": "/fake/path2"}
+    r2 = client.post("/api/v1/adapters", json=second)
+    assert r2.status_code == 201
+
+    duplicate = {**first, "file_path": "/fake/path3"}
+    r3 = client.post("/api/v1/adapters", json=duplicate)
+    assert r3.status_code == 400
+    body = r3.json()
+    assert (
+        body.get("detail") == "adapter with this name and version already exists"
+        or body.get("title") == "adapter with this name and version already exists"
+    )
 
 
 def test_deliveries_enqueue(client: TestClient, mock_storage: MagicMock):

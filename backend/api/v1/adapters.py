@@ -30,8 +30,15 @@ def create_adapter(
     # respected and the saved adapter is visible to subsequent requests.
     sess = service.db_session
     st = select(Adapter).where(Adapter.name == payload.name)
+    if payload.version is None:
+        st = st.where(Adapter.version.is_(None))
+    else:
+        st = st.where(Adapter.version == payload.version)
     if sess.exec(st).first():
-        raise HTTPException(status_code=400, detail="adapter name must be unique")
+        raise HTTPException(
+            status_code=400,
+            detail="adapter with this name and version already exists",
+        )
     a = service.save_adapter(payload)
     ra = a.model_dump()
     return {"adapter": ra}
