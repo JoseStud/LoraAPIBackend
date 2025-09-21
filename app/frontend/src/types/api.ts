@@ -7,29 +7,16 @@ export interface ApiResponseMeta {
   ok: boolean;
   status: number;
   statusText: string;
-  url: string;
-  headers: Headers;
+  headers?: Headers;
+  url?: string;
 }
 
-/** Function signature for transforming a fetch Response into typed data. */
-export type ResponseParser<T> = (response: Response) => Promise<T>;
-
-/** Optional configuration supplied when creating a useApi instance. */
-export interface UseApiConfig<TData, TError> {
-  parseResponse?: ResponseParser<TData>;
-  parseError?: ResponseParser<TError>;
-}
-
-/** Options accepted by fetchData for overriding request/parse behaviour. */
-export interface FetchDataOptions<TData, TError> extends UseApiConfig<TData, TError> {
-  init?: RequestInit;
-}
-
-interface ApiErrorInit<TPayload> {
+/** Internal constructor contract for {@link ApiError}. */
+export interface ApiErrorInit<TPayload> {
   message: string;
   status: number;
   statusText?: string;
-  payload?: TPayload;
+  payload?: TPayload | null;
   meta: ApiResponseMeta;
   response?: Response;
   cause?: unknown;
@@ -41,7 +28,7 @@ interface ApiErrorInit<TPayload> {
 export class ApiError<TPayload = unknown> extends Error {
   readonly status: number;
   readonly statusText: string;
-  readonly payload?: TPayload;
+  readonly payload: TPayload | null;
   readonly meta: ApiResponseMeta;
   readonly response?: Response;
 
@@ -50,15 +37,24 @@ export class ApiError<TPayload = unknown> extends Error {
     this.name = 'ApiError';
     this.status = init.status;
     this.statusText = init.statusText ?? '';
-    this.payload = init.payload;
+    this.payload = init.payload ?? null;
     this.meta = init.meta;
     this.response = init.response;
+    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
-/** Structured result object returned by API composables. */
-export interface ApiResult<TData = unknown, TError = unknown> {
+/**
+ * Minimal snapshot of the API composable state used in pure helpers.
+ */
+export interface ApiResultSnapshot<TData = unknown, TError = unknown> {
   data: TData | null;
-  error: ApiError<TError> | null;
+  error: ApiError<TError> | unknown | null;
   meta: ApiResponseMeta | null;
+}
+
+/** Structured result object returned by legacy helpers. */
+export interface ApiResult<TData = unknown> {
+  data: TData | null;
+  meta: ApiResponseMeta;
 }
