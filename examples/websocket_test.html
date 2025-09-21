@@ -173,7 +173,7 @@ curl -X POST http://localhost:8000/generation/compose-and-generate \<br>
             updateConnectionStatus('waiting', 'Connecting...');
             log('Attempting to connect to WebSocket...');
             
-            ws = new WebSocket('ws://localhost:8000/ws/progress');
+            ws = new WebSocket('ws://localhost:8000/api/v1/ws/progress');
             
             ws.onopen = function(event) {
                 updateConnectionStatus('connected', 'Connected');

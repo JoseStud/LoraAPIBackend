@@ -190,11 +190,12 @@ All endpoints are prefixed with `/api`.
 **GET /v1/generation/jobs/{job_id}** ✅ IMPLEMENTED
 - Purpose: retrieve generation job status and results
 
-### Real-time Monitoring (`/ws/progress`)
+### Real-time Monitoring (`/api/v1/ws/progress`)
 
-**WebSocket /ws/progress** ✅ IMPLEMENTED
+**WebSocket /api/v1/ws/progress** ✅ IMPLEMENTED
 - Purpose: real-time progress updates for generation jobs
 - Features: Live progress streaming, status updates, completion notifications
+- Notes: Direct backend deployments also expose `/v1/ws/progress` and a legacy compatibility route `/ws/progress`
 
 ### AI Recommendation System (`/v1/recommendations`)
 

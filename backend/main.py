@@ -115,7 +115,13 @@ def create_app() -> FastAPI:
     app.include_router(import_export.router, prefix="/v1", dependencies=[Depends(get_api_key)])
     app.include_router(dashboard.router, prefix="/v1")
     app.include_router(system.router, prefix="/v1")
-    app.include_router(websocket.router, prefix="/v1")  # Align WebSocket with API versioning
+    app.include_router(websocket.router, prefix="/v1")  # Canonical WebSocket path -> /api/v1/ws/progress
+    # Maintain backward compatibility for legacy clients that still connect to /ws/progress
+    app.add_api_websocket_route(
+        websocket.PROGRESS_WEBSOCKET_ROUTE,
+        websocket.websocket_progress_endpoint,
+        name="legacy-websocket-progress",
+    )
 
     # Note: Unversioned routes are intentionally not included; use /v1/*
 

@@ -5,6 +5,57 @@
 
 import { fetchData, postData, deleteData } from '../utils/api.js';
 
+const DEFAULT_BACKEND_BASE = '/api/v1';
+
+const normaliseBackendBase = (value) => {
+    if (typeof value !== 'string') {
+        return DEFAULT_BACKEND_BASE;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return DEFAULT_BACKEND_BASE;
+    }
+    return trimmed.replace(/\/+$/, '');
+};
+
+const resolveBackendBase = () => {
+    if (typeof window !== 'undefined' && typeof window.BACKEND_URL === 'string') {
+        const base = window.BACKEND_URL.trim();
+        if (base) {
+            return normaliseBackendBase(base);
+        }
+    }
+    return DEFAULT_BACKEND_BASE;
+};
+
+const buildWebSocketUrl = () => {
+    const backendBase = resolveBackendBase();
+
+    if (/^https?:\/\//i.test(backendBase)) {
+        try {
+            const url = new URL(backendBase);
+            url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+            const pathname = url.pathname.replace(/\/+$/, '');
+            url.pathname = `${pathname}/ws/progress`.replace(/\/+/g, '/');
+            url.hash = '';
+            url.search = '';
+            return url.toString();
+        } catch (error) {
+            console.error('Failed to parse backend URL for WebSocket:', error);
+        }
+    }
+
+    const basePath = backendBase.startsWith('/') ? backendBase : `/${backendBase}`;
+    const normalizedPath = `${basePath.replace(/\/+$/, '')}/ws/progress`.replace(/\/+/g, '/');
+
+    if (typeof window === 'undefined') {
+        return normalizedPath;
+    }
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}${normalizedPath}`;
+};
+
 function generationStudio() {
     return {
         // Generation Parameters
@@ -57,9 +108,7 @@ function generationStudio() {
         // WebSocket Connection
         initWebSocket() {
             try {
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}/ws/progress`;
-                
+                const wsUrl = buildWebSocketUrl();
                 this.websocket = new WebSocket(wsUrl);
                 
                 this.websocket.onopen = () => {

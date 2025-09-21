@@ -97,7 +97,7 @@ async def submit_generation_request(api_url: str, api_key: str = None):
 
 async def test_generation_with_monitoring(host: str, port: int, api_key: str = None):
     """Test the complete generation workflow with WebSocket monitoring."""
-    websocket_url = f"ws://{host}:{port}/ws/progress"
+    websocket_url = f"ws://{host}:{port}/api/v1/ws/progress"
     api_url = f"http://{host}:{port}/compose/txt2img"
     
     print("🧪 Testing SDNext WebSocket Integration")

@@ -4,7 +4,7 @@
 
 ### 1. Complete SDNext Integration
 - **6 Generation Endpoints**: txt2img, img2img, inpaint, extras, controlnet, infinite
-- **Real-time Progress Monitoring**: WebSocket endpoint `/ws/progress`
+- **Real-time Progress Monitoring**: WebSocket endpoint `/api/v1/ws/progress` (with `/v1/ws/progress` available when addressing the backend directly)
 - **Modular Architecture**: Plugin-based delivery system with SDNext backend
 - **Async Processing**: Background job queue with RQ integration
 
@@ -50,7 +50,7 @@ python websocket_client_example.py                  # Python client
 
 - **FastAPI Backend**: http://localhost:8782
 - **SDNext WebUI**: http://localhost:7860
-- **WebSocket Progress**: ws://localhost:8782/ws/progress
+- **WebSocket Progress**: ws://localhost:8782/api/v1/ws/progress
 - **API Documentation**: http://localhost:8782/docs
 
 ## 📁 Key Files Created/Modified

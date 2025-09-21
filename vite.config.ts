@@ -16,7 +16,11 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       host: 'localhost',
       proxy: {
-        '/api': env.BACKEND_URL || 'http://localhost:8000',
+        '/api': {
+          target: env.BACKEND_URL || 'http://localhost:8000',
+          changeOrigin: true,
+          ws: true
+        },
         '/ws': {
           target: env.WEBSOCKET_URL || 'ws://localhost:8000',
           ws: true
