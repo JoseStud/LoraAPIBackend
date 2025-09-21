@@ -36,6 +36,14 @@ export interface GenerationJob {
   progress: number;
   message?: string;
   startTime: string;
+  created_at?: string;
+  current_step?: number;
+  total_steps?: number;
+  width?: number;
+  height?: number;
+  steps?: number;
+  cfg_scale?: number;
+  seed?: number | null;
   params?: Record<string, unknown> & {
     width?: number;
     height?: number;
@@ -46,6 +54,18 @@ export interface GenerationJob {
 
 export interface GenerationResult {
   id: string | number;
+  job_id?: string;
+  result_id?: string | number;
+  prompt?: string;
+  negative_prompt?: string | null;
+  image_url?: string | null;
+  thumbnail_url?: string | null;
+  width?: number;
+  height?: number;
+  steps?: number;
+  cfg_scale?: number;
+  seed?: number | null;
+  created_at?: string;
   [key: string]: unknown;
 }
 

@@ -2,6 +2,23 @@
  * Type definitions mirroring backend/schemas/generation.py.
  */
 
+import type { GenerationJob } from './app';
+import type { SystemStatusPayload } from './system';
+
+export interface GenerationFormState {
+  prompt: string;
+  negative_prompt: string;
+  steps: number;
+  sampler_name: string;
+  cfg_scale: number;
+  width: number;
+  height: number;
+  seed: number;
+  batch_size: number;
+  batch_count: number;
+  denoising_strength?: number | null;
+}
+
 export interface SDNextGenerationParams {
   prompt: string;
   negative_prompt?: string | null;
@@ -143,6 +160,17 @@ export interface GenerationDownloadMetadata {
   size: number;
 }
 
+export type GenerationRequestPayload = SDNextGenerationParams;
+
+export type GenerationStartResponse = SDNextGenerationResult;
+
+export interface GenerationCancelResponse {
+  success?: boolean;
+  status?: string;
+  message?: string | null;
+  [key: string]: unknown;
+}
+
 export interface ProgressUpdate {
   job_id: string;
   progress: number;
@@ -174,3 +202,52 @@ export interface GenerationComplete {
    */
   generation_info?: Record<string, unknown> | null;
 }
+
+export interface GenerationProgressMessage extends ProgressUpdate {
+  type: 'generation_progress';
+}
+
+export interface GenerationCompleteMessage extends GenerationComplete {
+  type: 'generation_complete';
+  result_id?: string | number;
+  prompt?: string;
+  image_url?: string | null;
+  width?: number;
+  height?: number;
+  steps?: number;
+  cfg_scale?: number;
+  seed?: number | null;
+  negative_prompt?: string | null;
+  created_at?: string;
+}
+
+export interface GenerationErrorMessage {
+  type: 'generation_error';
+  job_id: string;
+  error: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
+export interface GenerationQueueUpdateMessage {
+  type: 'queue_update';
+  jobs?: Partial<GenerationJob>[];
+  [key: string]: unknown;
+}
+
+export interface GenerationSystemStatusMessage extends SystemStatusPayload {
+  type: 'system_status';
+}
+
+export interface GenerationStartedMessage extends GenerationStarted {
+  type: 'generation_started';
+}
+
+export type WebSocketMessage =
+  | GenerationProgressMessage
+  | GenerationCompleteMessage
+  | GenerationErrorMessage
+  | GenerationQueueUpdateMessage
+  | GenerationSystemStatusMessage
+  | GenerationStartedMessage
+  | { type?: string; [key: string]: unknown };
