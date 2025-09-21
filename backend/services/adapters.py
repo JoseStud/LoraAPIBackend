@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import List, Optional, Sequence
 
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from backend.models import Adapter
@@ -218,48 +219,78 @@ class AdapterService:
             AdapterSearchResult describing the filtered items and pagination.
         """
 
-        query = select(Adapter)
+        base_query = select(Adapter)
+        filters = []
+
         if search:
-            query = query.where(Adapter.name.ilike(f"%{search}%"))
+            filters.append(Adapter.name.ilike(f"%{search}%"))
 
         if active_only:
-            query = query.where(Adapter.active)
+            filters.append(Adapter.active)
 
-        adapters: List[Adapter] = list(self.db_session.exec(query).all())
-
-        tag_filters = [tag.strip() for tag in (tags or []) if str(tag).strip()]
+        tag_filters = [str(tag).strip().lower() for tag in (tags or []) if str(tag).strip()]
         if tag_filters:
+            bind = self.db_session.get_bind()
+            dialect_name = bind.dialect.name if bind is not None else "sqlite"
+            if dialect_name == "postgresql":
+                tag_func = func.jsonb_array_elements_text
+            else:
+                tag_func = func.json_each
 
-            def has_matching_tags(adapter: Adapter) -> bool:
-                adapter_tags = adapter.tags if isinstance(adapter.tags, list) else []
-                adapter_tags_lower = [tag.lower() for tag in adapter_tags if isinstance(tag, str)]
-                return any(filter_tag.lower() in adapter_tags_lower for filter_tag in tag_filters)
+            tag_alias = tag_func(Adapter.tags).table_valued("value").alias("tag")
+            tag_exists = (
+                select(1)
+                .select_from(tag_alias)
+                .where(func.lower(tag_alias.c.value).in_(tag_filters))
+                .correlate(Adapter)
+                .exists()
+            )
+            filters.append(tag_exists)
 
-            adapters = [adapter for adapter in adapters if has_matching_tags(adapter)]
+        if filters:
+            base_query = base_query.where(*filters)
 
-        total_count = len(adapters)
+        count_query = select(func.count()).select_from(Adapter)
+        if filters:
+            count_query = count_query.where(*filters)
 
-        if sort == "name":
-            adapters.sort(key=lambda adapter: (adapter.name or "").lower())
-        elif sort == "created_at":
-            adapters.sort(key=lambda adapter: adapter.created_at or EPOCH, reverse=True)
-        elif sort == "updated_at":
-            adapters.sort(key=lambda adapter: adapter.updated_at or EPOCH, reverse=True)
-        elif sort == "file_size":
-            adapters.sort(key=lambda adapter: adapter.primary_file_size_kb or 0, reverse=True)
-        else:
-            adapters.sort(key=lambda adapter: (adapter.name or "").lower())
+        filtered_count = self.db_session.exec(count_query).one()
 
         per_page_value = max(per_page, 1)
-        offset = (page - 1) * per_page_value
-        items = adapters[offset : offset + per_page_value]
-        total_pages = (total_count + per_page_value - 1) // per_page_value if total_count else 0
+        page_value = max(page, 1)
+        offset = (page_value - 1) * per_page_value
+
+        sort_key = (sort or "name").lower()
+        name_sort = func.lower(func.coalesce(Adapter.name, ""))
+        if sort_key == "created_at":
+            order_clause = [
+                func.coalesce(Adapter.created_at, EPOCH).desc(),
+                name_sort,
+            ]
+        elif sort_key == "updated_at":
+            order_clause = [
+                func.coalesce(Adapter.updated_at, EPOCH).desc(),
+                name_sort,
+            ]
+        elif sort_key == "file_size":
+            order_clause = [func.coalesce(Adapter.primary_file_size_kb, 0).desc(), name_sort]
+        else:
+            order_clause = [name_sort]
+
+        page_query = (
+            base_query.order_by(*order_clause).offset(offset).limit(per_page_value)
+        )
+        items = list(self.db_session.exec(page_query).all())
+
+        total_pages = (
+            (filtered_count + per_page_value - 1) // per_page_value if filtered_count else 0
+        )
 
         return AdapterSearchResult(
             items=items,
-            total=total_count,
-            filtered=total_count,
-            page=page,
+            total=filtered_count,
+            filtered=filtered_count,
+            page=page_value,
             pages=total_pages,
             per_page=per_page_value,
         )
