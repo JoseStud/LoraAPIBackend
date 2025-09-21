@@ -82,12 +82,25 @@
   
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 
-const isOpen = ref(false);
+type NavIcon =
+  | 'dashboard'
+  | 'grid'
+  | 'spark'
+  | 'compose'
+  | 'wand'
+  | 'admin'
+  | 'bars';
 
-const items = [
+interface NavItem {
+  path: string;
+  label: string;
+  icon: NavIcon;
+}
+
+const NAV_ITEMS: ReadonlyArray<NavItem> = [
   { path: '/', label: 'Dashboard', icon: 'dashboard' },
   { path: '/loras', label: 'LoRAs', icon: 'grid' },
   { path: '/recommendations', label: 'Recommendations', icon: 'spark' },
@@ -98,25 +111,42 @@ const items = [
   { path: '/import-export', label: 'Import/Export', icon: 'grid' },
 ];
 
-const toggleMenu = () => { isOpen.value = !isOpen.value; };
-const closeMenu = () => { isOpen.value = false; };
+const isOpen = ref<boolean>(false);
+const items = NAV_ITEMS;
 
-const isActive = (path) => {
-  try {
-    return (window?.location?.pathname || '').replace(/\/+$/, '') === path;
-  } catch { return false; }
+const toggleMenu = (): void => {
+  isOpen.value = !isOpen.value;
 };
 
-const onKeydown = (e) => {
-  if (e.key === 'Escape') closeMenu();
+const closeMenu = (): void => {
+  isOpen.value = false;
 };
 
-onMounted(() => {
-  document.addEventListener('keydown', onKeydown);
+const isActive = (path: string): boolean => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const currentPath = window.location?.pathname ?? '';
+  return currentPath.replace(/\/+$/, '') === path;
+};
+
+const onKeydown = (event: KeyboardEvent): void => {
+  if (event.key === 'Escape') {
+    closeMenu();
+  }
+};
+
+onMounted((): void => {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('keydown', onKeydown);
+  }
 });
 
-onBeforeUnmount(() => {
-  document.removeEventListener('keydown', onKeydown);
+onBeforeUnmount((): void => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('keydown', onKeydown);
+  }
 });
 </script>
 
