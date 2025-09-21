@@ -3,6 +3,7 @@ import { nextTick } from 'vue';
 
 import JobQueue from '../../app/frontend/src/components/JobQueue.vue';
 import { useAppStore } from '../../app/frontend/src/stores/app';
+import { useSettingsStore } from '../../app/frontend/src/stores/settings';
 
 const flush = async () => {
   await Promise.resolve();
@@ -20,6 +21,8 @@ let addNotificationSpy;
 beforeEach(() => {
   appStore = useAppStore();
   appStore.$reset();
+  const settingsStore = useSettingsStore();
+  settingsStore.setSettings({ backendUrl: '/api/v1' });
   removeJobSpy = vi.spyOn(appStore, 'removeJob');
   updateJobSpy = vi.spyOn(appStore, 'updateJob');
   addResultSpy = vi.spyOn(appStore, 'addResult');

@@ -414,6 +414,9 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
+import { storeToRefs } from 'pinia';
+
+import { useSettingsStore } from '@/stores/settings';
 
 // State mirroring the Alpine.js implementation
 const data = ref([]);
@@ -449,8 +452,10 @@ const stats = reactive({
   total_size: 0
 });
 
-// Backend URL from window global or empty string
-const backendUrl = computed(() => window?.BACKEND_URL || '');
+// Runtime configuration
+const settingsStore = useSettingsStore();
+const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
+const apiBaseUrl = computed(() => configuredBackendUrl.value || '/api/v1');
 
 // Debounced filter application
 let debounceTimeout = null;
@@ -472,7 +477,7 @@ const loadResults = async () => {
       page_size: pageSize.value
     });
     
-    const response = await fetch(`${backendUrl.value}/results?${params}`, {
+    const response = await fetch(`${apiBaseUrl.value}/results?${params}`, {
       credentials: 'same-origin'
     });
     
@@ -608,7 +613,7 @@ const showImageModal = (result) => {
 
 const setRating = async (result, rating) => {
   try {
-    const response = await fetch(`${backendUrl.value}/results/${result.id}/rating`, {
+    const response = await fetch(`${apiBaseUrl.value}/results/${result.id}/rating`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -634,7 +639,7 @@ const setRating = async (result, rating) => {
 
 const toggleFavorite = async (result) => {
   try {
-    const response = await fetch(`${backendUrl.value}/results/${result.id}/favorite`, {
+    const response = await fetch(`${apiBaseUrl.value}/results/${result.id}/favorite`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -706,7 +711,7 @@ const deleteResult = async (resultId) => {
   }
   
   try {
-    const response = await fetch(`${backendUrl.value}/results/${resultId}`, {
+    const response = await fetch(`${apiBaseUrl.value}/results/${resultId}`, {
       method: 'DELETE'
     });
     
@@ -735,7 +740,7 @@ const deleteSelected = async () => {
   }
   
   try {
-    const response = await fetch(`${backendUrl.value}/results/bulk-delete`, {
+    const response = await fetch(`${apiBaseUrl.value}/results/bulk-delete`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -764,7 +769,7 @@ const favoriteSelected = async () => {
   if (selectedItems.value.length === 0) return;
   
   try {
-    const response = await fetch(`${backendUrl.value}/results/bulk-favorite`, {
+    const response = await fetch(`${apiBaseUrl.value}/results/bulk-favorite`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -799,7 +804,7 @@ const exportSelected = async () => {
   if (selectedItems.value.length === 0) return;
   
   try {
-    const response = await fetch(`${backendUrl.value}/results/export`, {
+    const response = await fetch(`${apiBaseUrl.value}/results/export`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

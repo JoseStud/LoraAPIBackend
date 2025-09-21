@@ -1,19 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import SystemStatusPanel from '../../app/frontend/src/components/SystemStatusPanel.vue';
+import { useSettingsStore } from '../../app/frontend/src/stores/settings';
 
 // Mock the global fetch function
 global.fetch = vi.fn();
 
-// Mock window.BACKEND_URL
-Object.defineProperty(window, 'BACKEND_URL', {
-  value: 'http://localhost:8000',
-  writable: true
-});
-
 describe('SystemStatusPanel.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    const settingsStore = useSettingsStore();
+    settingsStore.setSettings({ backendUrl: '/api/v1' });
   });
 
   it('renders basic structure correctly', () => {
