@@ -199,12 +199,12 @@
               
               <!-- Rating Badge -->
               <div class="absolute top-2 right-2">
-                <div v-show="result.rating > 0" 
+                <div v-show="(result.rating ?? 0) > 0"
                      class="bg-black bg-opacity-70 text-white px-2 py-1 rounded-full text-xs flex items-center space-x-1">
                   <svg class="w-3 h-3 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
                   </svg>
-                  <span>{{ result.rating }}</span>
+                  <span>{{ result.rating ?? 0 }}</span>
                 </div>
               </div>
             </div>
@@ -237,10 +237,10 @@
                 
                 <!-- Star Rating -->
                 <div class="flex space-x-1">
-                  <button v-for="i in 5" :key="i" 
-                          @click="setRating(result, i)" 
+                  <button v-for="i in 5" :key="i"
+                          @click="setRating(result, i)"
                           class="text-gray-300 hover:text-yellow-400"
-                          :class="{ 'text-yellow-400': i <= result.rating }">
+                          :class="{ 'text-yellow-400': i <= (result.rating ?? 0) }">
                     <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
                     </svg>
@@ -281,10 +281,10 @@
                 
                 <!-- Rating -->
                 <div class="flex space-x-1">
-                  <button v-for="i in 5" :key="i" 
-                          @click="setRating(result, i)" 
+                  <button v-for="i in 5" :key="i"
+                          @click="setRating(result, i)"
                           class="text-gray-300 hover:text-yellow-400"
-                          :class="{ 'text-yellow-400': i <= result.rating }">
+                          :class="{ 'text-yellow-400': i <= (result.rating ?? 0) }">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
                     </svg>
@@ -412,28 +412,45 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { deleteRequest, getJson, putJson, requestBlob } from '@/utils/api';
 import { debounce } from '@/utils/async';
 import { downloadFile } from '@/utils/browser';
 import { formatFileSize as formatBytes } from '@/utils/format';
 import { useSettingsStore } from '@/stores/settings';
+import {
+  bulkDeleteGenerations,
+  bulkFavoriteGenerations,
+  deleteGeneration,
+  downloadGenerationImage,
+  exportGenerations,
+  fetchGenerationHistory,
+  updateGenerationFavorite,
+  updateGenerationRating,
+} from '@/services/historyService';
+import type { GenerationHistoryEntry } from '@/types';
 
 // State mirroring the Alpine.js implementation
-const data = ref([]);
+interface HistoryStats {
+  total_results: number;
+  avg_rating: number;
+  total_favorites: number;
+  total_size: number;
+}
+
+const data = ref<GenerationHistoryEntry[]>([]);
 const isLoading = ref(false);
-const error = ref(null);
+const error = ref<string | null>(null);
 const hasMore = ref(true);
 const currentPage = ref(1);
 const pageSize = ref(50);
 const isInitialized = ref(false);
 
-const filteredResults = ref([]);
-const selectedItems = ref([]);
-const selectedResult = ref(null);
+const filteredResults = ref<GenerationHistoryEntry[]>([]);
+const selectedItems = ref<Array<string | number>>([]);
+const selectedResult = ref<GenerationHistoryEntry | null>(null);
 
 // View state
 const viewMode = ref('grid');
@@ -449,7 +466,7 @@ const ratingFilter = ref(0);
 const dimensionFilter = ref('all');
 
 // Statistics
-const stats = reactive({
+const stats = reactive<HistoryStats>({
   total_results: 0,
   avg_rating: 0,
   total_favorites: 0,
@@ -467,32 +484,26 @@ const loadResults = async () => {
   error.value = null;
 
   try {
-    const params = new URLSearchParams({
-      page: String(currentPage.value),
-      page_size: String(pageSize.value)
+    const payload = await fetchGenerationHistory(apiBaseUrl.value, {
+      page: currentPage.value,
+      page_size: pageSize.value
     });
 
-    const { data: payload } = await getJson(
-      `${apiBaseUrl.value}/results?${params.toString()}`
-    );
-
-    let resultsArray = [];
+    let resultsArray: GenerationHistoryEntry[] = [];
     if (Array.isArray(payload)) {
       resultsArray = payload;
-    } else if (payload && typeof payload === 'object' && Array.isArray(payload.results)) {
-      resultsArray = payload.results;
+      hasMore.value = payload.length >= pageSize.value;
+    } else if (payload && typeof payload === 'object') {
+      resultsArray = Array.isArray(payload.results) ? payload.results : [];
+      hasMore.value = Boolean(payload.has_more);
+    } else {
+      hasMore.value = false;
     }
 
     if (currentPage.value === 1) {
       data.value = resultsArray;
     } else {
-      data.value.push(...resultsArray);
-    }
-
-    if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
-      hasMore.value = Boolean(payload.has_more);
-    } else {
-      hasMore.value = false;
+      data.value = [...data.value, ...resultsArray];
     }
     applyFilters();
 
@@ -562,13 +573,13 @@ const applyFilters = () => {
 
 const debouncedApplyFilters = debounce(applyFilters, 300);
 
-const sortResults = (results) => {
+const sortResults = (results: GenerationHistoryEntry[]) => {
   switch (sortBy.value) {
     case 'created_at':
-      results.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       break;
     case 'created_at_asc':
-      results.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      results.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       break;
     case 'prompt':
       results.sort((a, b) => a.prompt.localeCompare(b.prompt));
@@ -608,14 +619,14 @@ const clearFilters = () => {
   applyFilters();
 };
 
-const showImageModal = (result) => {
+const showImageModal = (result: GenerationHistoryEntry) => {
   selectedResult.value = result;
   showModal.value = true;
 };
 
-const setRating = async (result, rating) => {
+const setRating = async (result: GenerationHistoryEntry, rating: number) => {
   try {
-    await putJson(`${apiBaseUrl.value}/results/${result.id}/rating`, { rating });
+    await updateGenerationRating(apiBaseUrl.value, result.id, { rating });
 
     // Update local data
     result.rating = rating;
@@ -629,9 +640,9 @@ const setRating = async (result, rating) => {
   }
 };
 
-const toggleFavorite = async (result) => {
+const toggleFavorite = async (result: GenerationHistoryEntry) => {
   try {
-    await putJson(`${apiBaseUrl.value}/results/${result.id}/favorite`, { is_favorite: !result.is_favorite });
+    await updateGenerationFavorite(apiBaseUrl.value, result.id, { is_favorite: !result.is_favorite });
 
     // Update local data
     result.is_favorite = !result.is_favorite;
@@ -646,7 +657,7 @@ const toggleFavorite = async (result) => {
   }
 };
 
-const reuseParameters = (result) => {
+const reuseParameters = (result: GenerationHistoryEntry) => {
   // Store parameters in localStorage for the compose page
   const parameters = {
     prompt: result.prompt,
@@ -665,10 +676,10 @@ const reuseParameters = (result) => {
   window.location.href = '/compose';
 };
 
-const downloadImage = async (result) => {
+const downloadImage = async (result: GenerationHistoryEntry) => {
   try {
-    const { blob } = await requestBlob(result.image_url);
-    downloadFile(blob, `generation-${result.id}.png`);
+    const download = await downloadGenerationImage(result.image_url, `generation-${result.id}.png`);
+    downloadFile(download.blob, download.filename);
 
     showToastMessage('Download started');
 
@@ -678,13 +689,13 @@ const downloadImage = async (result) => {
   }
 };
 
-const deleteResult = async (resultId) => {
+const deleteResult = async (resultId: string | number) => {
   if (!confirm('Are you sure you want to delete this image?')) {
     return;
   }
 
   try {
-    await deleteRequest(`${apiBaseUrl.value}/results/${resultId}`);
+    await deleteGeneration(apiBaseUrl.value, resultId);
 
     // Remove from local data
     data.value = data.value.filter(r => r.id !== resultId);
@@ -700,17 +711,14 @@ const deleteResult = async (resultId) => {
 
 const deleteSelected = async () => {
   if (selectedItems.value.length === 0) return;
-  
+
   const count = selectedItems.value.length;
   if (!confirm(`Are you sure you want to delete ${count} selected images?`)) {
     return;
   }
-  
+
   try {
-    await deleteRequest(`${apiBaseUrl.value}/results/bulk-delete`, {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: selectedItems.value })
-    });
+    await bulkDeleteGenerations(apiBaseUrl.value, { ids: selectedItems.value });
 
     // Remove from local data
     data.value = data.value.filter(r => !selectedItems.value.includes(r.id));
@@ -727,9 +735,9 @@ const deleteSelected = async () => {
 
 const favoriteSelected = async () => {
   if (selectedItems.value.length === 0) return;
-  
+
   try {
-    await putJson(`${apiBaseUrl.value}/results/bulk-favorite`, {
+    await bulkFavoriteGenerations(apiBaseUrl.value, {
       ids: selectedItems.value,
       is_favorite: true
     });
@@ -752,17 +760,10 @@ const favoriteSelected = async () => {
 
 const exportSelected = async () => {
   if (selectedItems.value.length === 0) return;
-  
-  try {
-    const { blob } = await requestBlob(`${apiBaseUrl.value}/results/export`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ ids: selectedItems.value })
-    });
 
-    downloadFile(blob, `generation-export-${Date.now()}.zip`);
+  try {
+    const download = await exportGenerations(apiBaseUrl.value, { ids: selectedItems.value });
+    downloadFile(download.blob, download.filename);
 
     showToastMessage('Export started');
 
@@ -783,10 +784,10 @@ const loadMore = async () => {
   await loadResults();
 };
 
-const formatDate = (dateString) => {
+const formatDate = (dateString: string) => {
   const date = new Date(dateString);
   const now = new Date();
-  const diffTime = Math.abs(now - date);
+  const diffTime = Math.abs(now.getTime() - date.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   
   if (diffDays === 1) {
@@ -800,9 +801,9 @@ const formatDate = (dateString) => {
   }
 };
 
-const formatFileSize = (bytes) => formatBytes(typeof bytes === 'number' ? bytes : 0);
+const formatFileSize = (bytes: number) => formatBytes(Number.isFinite(bytes) ? bytes : 0);
 
-const showToastMessage = (message, type = 'success') => {
+const showToastMessage = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
   toastMessage.value = message;
   showToast.value = true;
   
@@ -812,7 +813,7 @@ const showToastMessage = (message, type = 'success') => {
 };
 
 // Handle keyboard shortcuts
-const handleKeydown = (event) => {
+const handleKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Escape') {
     if (showModal.value) {
       showModal.value = false;

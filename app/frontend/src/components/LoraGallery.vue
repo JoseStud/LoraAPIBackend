@@ -206,28 +206,74 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import { useApi } from '@/composables/useApi';
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue';
+import { storeToRefs } from 'pinia';
+
 import LoraCard from './LoraCard.vue';
+import { useSettingsStore } from '@/stores/settings';
+import {
+  fetchAdapterTags,
+  fetchAdapters,
+  performBulkLoraAction,
+} from '@/services/loraService';
+import type {
+  AdapterRead,
+  LoraBulkAction,
+  LoraGalleryFilters,
+  LoraGallerySelectionState,
+  LoraGallerySortOption,
+} from '@/types';
+
+type WindowWithExtras = Window & {
+  htmx?: {
+    trigger: (target: Element | Document, event: string, detail?: unknown) => void;
+  };
+  DevLogger?: {
+    error?: (...args: unknown[]) => void;
+  };
+};
+
+interface LoraUpdateDetail {
+  id: string;
+  type: string;
+  weight?: number;
+  active?: boolean;
+}
+
+interface LoraDeleteDetail {
+  id: string;
+}
+
+interface LoraErrorDetail {
+  id: string;
+  error: string;
+  type: string;
+}
 
 // State
 const isInitialized = ref(false);
 const isLoading = ref(false);
-const loras = ref([]);
-const selectedLoras = ref([]);
+const loras = ref<AdapterRead[]>([]);
+const selectedLoras = ref<string[]>([]);
 const viewMode = ref('grid');
 const bulkMode = ref(false);
 const searchTerm = ref('');
-const availableTags = ref([]);
+const availableTags = ref<string[]>([]);
 const showAllTags = ref(false);
 
 // Filters
-const filters = ref({
+const filters = ref<LoraGalleryFilters>({
   activeOnly: false,
-  tags: []
+  tags: [],
+  sort: 'name_asc'
 });
-const sortBy = ref('name_asc');
+const sortBy = ref<LoraGallerySortOption>('name_asc');
+
+const settingsStore = useSettingsStore();
+const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
+const apiBaseUrl = computed(() => configuredBackendUrl.value || '/api/v1');
+const windowExtras = window as WindowWithExtras;
 
 // Computed
 const allSelected = computed(() => {
@@ -266,11 +312,14 @@ const filteredLoras = computed(() => {
       case 'name_desc':
         return b.name.localeCompare(a.name);
       case 'created_at_desc':
-        return new Date(b.created_at) - new Date(a.created_at);
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       case 'created_at_asc':
-        return new Date(a.created_at) - new Date(b.created_at);
-      case 'last_updated_desc':
-        return new Date(b.last_updated || b.created_at) - new Date(a.last_updated || a.created_at);
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      case 'last_updated_desc': {
+        const bDate = new Date(b.last_updated ?? b.updated_at ?? b.created_at);
+        const aDate = new Date(a.last_updated ?? a.updated_at ?? a.created_at);
+        return bDate.getTime() - aDate.getTime();
+      }
       default:
         return 0;
     }
@@ -283,15 +332,10 @@ const filteredLoras = computed(() => {
 const loadLoraData = async () => {
   isLoading.value = true;
   try {
-    // Use relative API path to avoid duplicating /v1 from BACKEND_URL
-    const url = '/api/v1/adapters?per_page=100';
-    const response = await fetch(url, { credentials: 'same-origin' });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    loras.value = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
+    loras.value = await fetchAdapters(apiBaseUrl.value, { perPage: 100 });
   } catch (error) {
-    if (window.DevLogger && window.DevLogger.error) {
-      window.DevLogger.error('Error loading LoRA data:', error);
+    if (windowExtras.DevLogger?.error) {
+      windowExtras.DevLogger.error('Error loading LoRA data:', error);
     }
     loras.value = [];
   } finally {
@@ -301,29 +345,26 @@ const loadLoraData = async () => {
 
 const fetchAvailableTags = async () => {
   try {
-    // Endpoint may not be implemented yet; handled gracefully on error
-    const url = '/api/v1/adapters/tags';
-    const response = await fetch(url, { credentials: 'same-origin' });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    availableTags.value = data.tags || [];
+    availableTags.value = await fetchAdapterTags(apiBaseUrl.value);
   } catch (error) {
-    if (window.DevLogger && window.DevLogger.error) {
-      window.DevLogger.error('Error fetching tags:', error);
+    if (windowExtras.DevLogger?.error) {
+      windowExtras.DevLogger.error('Error fetching tags:', error);
     }
     availableTags.value = [];
   }
 };
 
-const setViewMode = (mode) => {
+const setViewMode = (mode: LoraGallerySelectionState['viewMode']) => {
   viewMode.value = mode;
   localStorage.setItem('loraViewMode', mode);
 };
 
 const debounceSearch = (() => {
-  let timeoutId;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
   return () => {
-    clearTimeout(timeoutId);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
     timeoutId = setTimeout(() => {
       // No-op: Vue's reactivity automatically updates filteredLoras when searchTerm changes
       // This debounce prevents excessive re-renders during typing
@@ -346,7 +387,7 @@ const clearFilters = () => {
   sortBy.value = 'name_asc';
 };
 
-const handleSelectionChange = (loraId) => {
+const handleSelectionChange = (loraId: string) => {
   const index = selectedLoras.value.indexOf(loraId);
   if (index === -1) {
     selectedLoras.value.push(loraId);
@@ -363,10 +404,10 @@ const toggleSelectAll = () => {
   }
 };
 
-const performBulkAction = async (action) => {
+const performBulkAction = async (action: LoraBulkAction) => {
   if (selectedLoras.value.length === 0) {
-    if (typeof window.htmx !== 'undefined') {
-      window.htmx.trigger(document.body, 'show-notification', {
+    if (windowExtras.htmx) {
+      windowExtras.htmx.trigger(document.body, 'show-notification', {
         detail: { message: 'No LoRAs selected.', type: 'warning' }
       });
     }
@@ -382,45 +423,34 @@ const performBulkAction = async (action) => {
   const count = selectedLoras.value.length;
 
   try {
-    const url = '/api/v1/adapters/bulk';
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        action: action,
-        lora_ids: selectedLoras.value
-      })
+    await performBulkLoraAction(apiBaseUrl.value, {
+      action,
+      lora_ids: selectedLoras.value
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
 
     // Reload data and clear selection
     await loadLoraData();
     selectedLoras.value = [];
 
-    if (typeof window.htmx !== 'undefined') {
-      window.htmx.trigger(document.body, 'show-notification', {
+    if (windowExtras.htmx) {
+      windowExtras.htmx.trigger(document.body, 'show-notification', {
         detail: { message: `Successfully ${action}d ${count} LoRA(s).`, type: 'success' }
       });
     }
   } catch (error) {
-    if (window.DevLogger && window.DevLogger.error) {
-      window.DevLogger.error(`Error performing bulk ${action}:`, error);
+    if (windowExtras.DevLogger?.error) {
+      windowExtras.DevLogger.error(`Error performing bulk ${action}:`, error);
     }
-    
-    if (typeof window.htmx !== 'undefined') {
-      window.htmx.trigger(document.body, 'show-notification', {
+
+    if (windowExtras.htmx) {
+      windowExtras.htmx.trigger(document.body, 'show-notification', {
         detail: { message: `Error performing bulk ${action}.`, type: 'error' }
       });
     }
   }
 };
 
-const handleLoraUpdate = (detail) => {
+const handleLoraUpdate = (detail: LoraUpdateDetail) => {
   const { id, type } = detail;
   
   // Find and update the LoRA in our local state
@@ -434,7 +464,7 @@ const handleLoraUpdate = (detail) => {
   }
 };
 
-const handleLoraDelete = (detail) => {
+const handleLoraDelete = (detail: LoraDeleteDetail) => {
   const { id } = detail;
   
   // Remove the LoRA from our local state
@@ -450,15 +480,15 @@ const handleLoraDelete = (detail) => {
   }
 };
 
-const handleLoraError = (detail) => {
+const handleLoraError = (detail: LoraErrorDetail) => {
   const { id, error, type } = detail;
-  
-  if (window.DevLogger && window.DevLogger.error) {
-    window.DevLogger.error(`LoRA ${id} error (${type}):`, error);
+
+  if (windowExtras.DevLogger?.error) {
+    windowExtras.DevLogger.error(`LoRA ${id} error (${type}):`, error);
   }
-  
-  if (typeof window.htmx !== 'undefined') {
-    window.htmx.trigger(document.body, 'show-notification', {
+
+  if (windowExtras.htmx) {
+    windowExtras.htmx.trigger(document.body, 'show-notification', {
       detail: { message: error, type: 'error' }
     });
   }
