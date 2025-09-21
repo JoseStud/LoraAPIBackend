@@ -279,8 +279,8 @@
                   
                   <!-- Job Details -->
                   <div class="flex justify-between text-xs text-gray-500">
-                    <span>{{ job.width }}×{{ job.height }} • {{ job.steps }} steps</span>
-                    <span>{{ formatTime(job.created_at) }}</span>
+                    <span>{{ job.width ?? '—' }}×{{ job.height ?? '—' }} • {{ job.steps ?? '—' }} steps</span>
+                    <span>{{ formatTime(job.created_at ?? job.startTime) }}</span>
                   </div>
                 </div>
               </div>
@@ -360,7 +360,7 @@
                 <!-- Result Info -->
                 <div class="p-3">
                   <div class="text-sm text-gray-900 mb-1 line-clamp-2">
-                    {{ result.prompt }}
+                    {{ result.prompt ?? 'Untitled Generation' }}
                   </div>
                   <div class="flex items-center justify-between text-xs text-gray-500">
                     <span>{{ formatTime(result.created_at) }}</span>
@@ -394,8 +394,8 @@
           </div>
           
           <!-- Image Modal -->
-          <div 
-            v-if="showModal && selectedResult" 
+          <div
+            v-if="showModal && selectedResult"
             class="fixed inset-0 z-50 overflow-y-auto"
             @click.self="hideImageModal"
           >
@@ -403,19 +403,23 @@
               <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="hideImageModal"></div>
               
               <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <img 
-                  :src="selectedResult.image_url" 
-                  :alt="selectedResult.prompt"
+                <img
+                  v-if="selectedResult?.image_url"
+                  :src="selectedResult.image_url"
+                  :alt="selectedResult?.prompt ?? 'Generated image'"
                   class="w-full"
                 >
                 <div class="p-4">
                   <h3 class="text-lg font-medium text-gray-900 mb-2">Generation Details</h3>
                   <div class="space-y-1 text-sm text-gray-600">
-                    <div><strong>Prompt:</strong> {{ selectedResult.prompt }}</div>
-                    <div><strong>Size:</strong> {{ selectedResult.width }}×{{ selectedResult.height }}</div>
-                    <div><strong>Steps:</strong> {{ selectedResult.steps }}</div>
-                    <div><strong>CFG Scale:</strong> {{ selectedResult.cfg_scale }}</div>
-                    <div><strong>Seed:</strong> {{ selectedResult.seed }}</div>
+                    <div><strong>Prompt:</strong> {{ selectedResult?.prompt ?? 'Unknown prompt' }}</div>
+                    <div>
+                      <strong>Size:</strong>
+                      {{ selectedResult?.width ?? '—' }}×{{ selectedResult?.height ?? '—' }}
+                    </div>
+                    <div><strong>Steps:</strong> {{ selectedResult?.steps ?? '—' }}</div>
+                    <div><strong>CFG Scale:</strong> {{ selectedResult?.cfg_scale ?? '—' }}</div>
+                    <div><strong>Seed:</strong> {{ selectedResult?.seed ?? '—' }}</div>
                   </div>
                 </div>
               </div>
@@ -428,41 +432,86 @@
   </div>
 </template>
 
-<script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, onUnmounted, ref, watch, type ComputedRef } from 'vue'
 import { storeToRefs } from 'pinia'
 
 import { useActiveJobsApi, useRecentResultsApi, useSystemStatusApi } from '@/composables/apiClients'
+import {
+  cancelGenerationJob,
+  deleteGenerationResult,
+  startGeneration as startGenerationRequest,
+  toGenerationRequestPayload,
+} from '@/services/generationService'
 import { useAppStore } from '@/stores/app'
+import type {
+  GenerationCompleteMessage,
+  GenerationErrorMessage,
+  GenerationFormState,
+  GenerationJob,
+  GenerationProgressMessage,
+  GenerationResult,
+  NotificationType,
+  ProgressUpdate,
+  SystemStatusPayload,
+  SystemStatusState,
+  WebSocketMessage,
+} from '@/types'
 
-// Reactive state
 const appStore = useAppStore()
 const { activeJobs, recentResults } = storeToRefs(appStore)
 
-const params = ref({
+const params = ref<GenerationFormState>({
   prompt: '',
   negative_prompt: '',
+  steps: 20,
+  sampler_name: 'DPM++ 2M',
+  cfg_scale: 7.0,
   width: 512,
   height: 512,
-  steps: 20,
-  cfg_scale: 7.0,
   seed: -1,
+  batch_size: 1,
   batch_count: 1,
-  batch_size: 1
+  denoising_strength: null,
 })
 
-const systemStatus = ref({})
+const systemStatus = ref<SystemStatusState>({ ...appStore.systemStatus })
 const isGenerating = ref(false)
 const showHistory = ref(false)
 const showModal = ref(false)
-const selectedResult = ref(null)
+const selectedResult = ref<GenerationResult | null>(null)
 
-// WebSocket and polling
-const websocket = ref(null)
-const pollInterval = ref(null)
-const isConnected = ref(false)
+const websocket = ref<WebSocket | null>(null)
+const pollInterval = ref<number | null>(null)
+const isConnected = computed<boolean>(() => websocket.value?.readyState === WebSocket.OPEN)
 
-// API composables
+const parseTimestamp = (value?: string): number => {
+  if (!value) {
+    return 0
+  }
+  const timestamp = Date.parse(value)
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
+const normalizeProgress = (value?: number | null): number => {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return 0
+  }
+  return value <= 1 ? Math.round(value * 100) : Math.round(value)
+}
+
+const isGenerationProgressMessage = (
+  message: WebSocketMessage,
+): message is GenerationProgressMessage => message.type === 'generation_progress'
+
+const isGenerationCompleteMessage = (
+  message: WebSocketMessage,
+): message is GenerationCompleteMessage => message.type === 'generation_complete'
+
+const isGenerationErrorMessage = (
+  message: WebSocketMessage,
+): message is GenerationErrorMessage => message.type === 'generation_error'
+
 const { fetchData: loadSystemStatus } = useSystemStatusApi()
 const { fetchData: loadActiveJobsData } = useActiveJobsApi()
 const { fetchData: loadRecentResultsData } = useRecentResultsApi(() => {
@@ -470,65 +519,47 @@ const { fetchData: loadRecentResultsData } = useRecentResultsApi(() => {
   return `/api/v1/generation/results?limit=${limit}`
 })
 
-// Computed properties
-const sortedActiveJobs = computed(() => {
+const sortedActiveJobs: ComputedRef<GenerationJob[]> = computed(() => {
+  const statusPriority: Record<string, number> = {
+    processing: 0,
+    queued: 1,
+    completed: 2,
+    failed: 3,
+  }
+
   return [...activeJobs.value].sort((a, b) => {
-    // Sort by status priority, then by creation time
-    const statusPriority = { 'processing': 0, 'queued': 1, 'completed': 2, 'failed': 3 }
     const aPriority = statusPriority[a.status] ?? 4
     const bPriority = statusPriority[b.status] ?? 4
-    
+
     if (aPriority !== bPriority) {
       return aPriority - bPriority
     }
-    
-    return new Date(b.created_at) - new Date(a.created_at)
+
+    const aCreated = parseTimestamp(a.created_at ?? a.startTime)
+    const bCreated = parseTimestamp(b.created_at ?? b.startTime)
+
+    return bCreated - aCreated
   })
 })
 
-// Lifecycle hooks
-onMounted(async () => {
-  console.log('Initializing Generation Studio Vue component...')
-  
-  // Load initial data
-  await Promise.all([
-    loadSystemStatusData(),
-    loadActiveJobsDataFn(),
-    loadRecentResultsDataFn()
-  ])
-  
-  // Initialize WebSocket connection
-  initWebSocket()
-  
-  // Start polling as fallback
-  startPolling()
-  
-  // Load parameters from URL or localStorage
-  loadSavedParams()
-})
-
-onUnmounted(() => {
-  cleanup()
-})
-
-// Watch for history toggle to reload results
-watch(showHistory, () => {
-  loadRecentResultsDataFn()
-})
-
-// Methods
-const loadSystemStatusData = async () => {
+const loadSystemStatusData = async (): Promise<void> => {
   try {
     const result = await loadSystemStatus()
     if (result) {
-      systemStatus.value = result
+      const payload = result as SystemStatusPayload
+      const { metrics: _metrics, message: _message, updated_at: _updatedAt, ...status } = payload
+      systemStatus.value = {
+        ...systemStatus.value,
+        ...(status as Partial<SystemStatusState>),
+      }
+      appStore.updateSystemStatus(status as Partial<SystemStatusState>)
     }
   } catch (error) {
     console.error('Failed to load system status:', error)
   }
 }
 
-const loadActiveJobsDataFn = async () => {
+const loadActiveJobsDataFn = async (): Promise<void> => {
   try {
     const result = await loadActiveJobsData()
     if (Array.isArray(result)) {
@@ -539,7 +570,7 @@ const loadActiveJobsDataFn = async () => {
   }
 }
 
-const loadRecentResultsDataFn = async () => {
+const loadRecentResultsDataFn = async (): Promise<void> => {
   try {
     const result = await loadRecentResultsData()
     if (Array.isArray(result)) {
@@ -550,35 +581,42 @@ const loadRecentResultsDataFn = async () => {
   }
 }
 
-const initWebSocket = () => {
+const initWebSocket = (): void => {
   try {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const wsUrl = `${protocol}//${window.location.host}/v1/ws/progress`
-    
-    websocket.value = new WebSocket(wsUrl)
-    
-    websocket.value.onopen = () => {
+
+    if (websocket.value) {
+      websocket.value.close()
+    }
+
+    const connection = new WebSocket(wsUrl)
+    websocket.value = connection
+
+    connection.onopen = () => {
       console.log('WebSocket connected for generation updates')
-      isConnected.value = true
     }
-    
-    websocket.value.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      handleWebSocketMessage(data)
+
+    connection.onmessage = (event: MessageEvent<string>) => {
+      try {
+        const data = JSON.parse(event.data) as WebSocketMessage
+        handleWebSocketMessage(data)
+      } catch (error) {
+        console.error('Failed to parse WebSocket message:', error)
+      }
     }
-    
-    websocket.value.onclose = () => {
+
+    connection.onclose = () => {
       console.log('WebSocket disconnected')
-      isConnected.value = false
-      // Reconnect after 5 seconds
-      setTimeout(() => {
-        if (!websocket.value || websocket.value.readyState === WebSocket.CLOSED) {
+      websocket.value = null
+      window.setTimeout(() => {
+        if (!websocket.value) {
           initWebSocket()
         }
       }, 5000)
     }
-    
-    websocket.value.onerror = (error) => {
+
+    connection.onerror = (error) => {
       console.error('WebSocket error:', error)
     }
   } catch (error) {
@@ -586,30 +624,54 @@ const initWebSocket = () => {
   }
 }
 
-const handleWebSocketMessage = (data) => {
+const handleWebSocketMessage = (data: WebSocketMessage): void => {
+  if (!data || typeof data !== 'object' || !('type' in data)) {
+    return
+  }
+
   switch (data.type) {
     case 'generation_progress':
-      updateJobProgress(data.job_id, data.progress, data.status)
+      if (isGenerationProgressMessage(data)) {
+        updateJobProgress(data)
+      }
       break
     case 'generation_complete':
-      handleGenerationComplete(data)
+      if (isGenerationCompleteMessage(data)) {
+        handleGenerationComplete(data)
+      }
       break
     case 'generation_error':
-      handleGenerationError(data)
+      if (isGenerationErrorMessage(data)) {
+        handleGenerationError(data)
+      }
       break
     case 'queue_update':
-      appStore.setActiveJobs(data.jobs || [])
+      if (Array.isArray(data.jobs)) {
+        appStore.setActiveJobs(data.jobs)
+      }
       break
-    case 'system_status':
-      systemStatus.value = { ...systemStatus.value, ...data }
+    case 'system_status': {
+      const { metrics: _metrics, message: _message, updated_at: _updatedAt, type: _type, ...status } = data
+      systemStatus.value = {
+        ...systemStatus.value,
+        ...(status as Partial<SystemStatusState>),
+      }
+      appStore.updateSystemStatus(status as Partial<SystemStatusState>)
+      break
+    }
+    case 'generation_started':
+      console.log('Generation job started', data.job_id)
       break
     default:
-      console.log('Unknown WebSocket message type:', data.type)
+      console.log('Unknown WebSocket message type:', (data as { type?: string }).type)
   }
 }
 
-const startPolling = () => {
-  pollInterval.value = setInterval(async () => {
+const startPolling = (): void => {
+  if (pollInterval.value) {
+    return
+  }
+  pollInterval.value = window.setInterval(async () => {
     if (activeJobs.value.length > 0) {
       await loadActiveJobsDataFn()
     }
@@ -617,56 +679,47 @@ const startPolling = () => {
   }, 2000)
 }
 
-const stopPolling = () => {
-  if (pollInterval.value) {
-    clearInterval(pollInterval.value)
+const stopPolling = (): void => {
+  if (pollInterval.value != null) {
+    window.clearInterval(pollInterval.value)
     pollInterval.value = null
   }
 }
 
-const startGeneration = async () => {
-  if (!params.value.prompt.trim()) {
+const startGeneration = async (): Promise<void> => {
+  const trimmedPrompt = params.value.prompt.trim()
+  if (!trimmedPrompt) {
     showToast('Please enter a prompt', 'error')
     return
   }
-  
+
   isGenerating.value = true
-  
+
   try {
-    const response = await fetch('/api/v1/generation/generate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(params.value),
-    })
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    
-    const result = await response.json()
-    
-    if (result.job_id) {
-      // Add job to active jobs list
-      const newJob = {
-        id: result.job_id,
-        prompt: params.value.prompt,
-        width: params.value.width,
-        height: params.value.height,
-        steps: params.value.steps,
-        status: 'queued',
-        progress: 0,
-        current_step: 0,
-        total_steps: params.value.steps,
-        created_at: new Date().toISOString()
+    params.value.prompt = trimmedPrompt
+    const payload = toGenerationRequestPayload({ ...params.value, prompt: trimmedPrompt })
+    const response = await startGenerationRequest(payload)
+
+    if (response.job_id) {
+      const createdAt = new Date().toISOString()
+      const newJob: GenerationJob = {
+        id: response.job_id,
+        prompt: payload.prompt,
+        status: response.status as GenerationJob['status'],
+        progress: normalizeProgress(response.progress),
+        startTime: createdAt,
+        created_at: createdAt,
+        width: payload.width,
+        height: payload.height,
+        steps: payload.steps,
+        total_steps: payload.steps,
+        cfg_scale: payload.cfg_scale,
+        seed: payload.seed,
       }
-      
-      activeJobs.value.unshift(newJob)
+
+      appStore.addJob(newJob)
       showToast('Generation started successfully', 'success')
-      
-      // Save parameters to localStorage
-      saveParams()
+      saveParams(params.value)
     }
   } catch (error) {
     console.error('Error starting generation:', error)
@@ -676,13 +729,10 @@ const startGeneration = async () => {
   }
 }
 
-const cancelJob = async (jobId) => {
+const cancelJob = async (jobId: string): Promise<void> => {
   try {
-    await fetch(`/api/v1/generation/jobs/${jobId}/cancel`, {
-      method: 'POST'
-    })
-    
-    activeJobs.value = activeJobs.value.filter(job => job.id !== jobId)
+    await cancelGenerationJob(jobId)
+    appStore.removeJob(jobId)
     showToast('Generation cancelled', 'success')
   } catch (error) {
     console.error('Error cancelling job:', error)
@@ -690,94 +740,112 @@ const cancelJob = async (jobId) => {
   }
 }
 
-const clearQueue = () => {
-  if (activeJobs.value.length === 0) return
-  
-  if (confirm('Are you sure you want to clear the entire generation queue?')) {
-    activeJobs.value.forEach(job => {
-      if (job.status === 'queued') {
-        cancelJob(job.id)
-      }
-    })
+const clearQueue = async (): Promise<void> => {
+  if (activeJobs.value.length === 0) {
+    return
+  }
+
+  if (!window.confirm('Are you sure you want to clear the entire generation queue?')) {
+    return
+  }
+
+  const cancellableJobs = activeJobs.value.filter((job) => canCancelJob(job))
+  await Promise.allSettled(cancellableJobs.map((job) => cancelJob(job.id)))
+}
+
+const updateJobProgress = (update: ProgressUpdate): void => {
+  const job = activeJobs.value.find((item) => item.id === update.job_id)
+  if (!job) {
+    return
+  }
+
+  job.progress = normalizeProgress(update.progress)
+  job.status = update.status as GenerationJob['status']
+
+  if (typeof update.current_step === 'number') {
+    job.current_step = update.current_step
+  }
+
+  if (typeof update.total_steps === 'number') {
+    job.total_steps = update.total_steps
   }
 }
 
-const updateJobProgress = (jobId, progress, status) => {
-  const job = activeJobs.value.find(j => j.id === jobId)
-  if (job) {
-    job.progress = progress
-    job.status = status
-    
-    if (status === 'processing' && progress < 100) {
-      job.current_step = Math.floor((progress / 100) * job.total_steps)
-    }
-  }
-}
+const handleGenerationComplete = (data: Extract<WebSocketMessage, { type: 'generation_complete' }>): void => {
+  appStore.removeJob(data.job_id)
 
-const handleGenerationComplete = (data) => {
-  // Remove from active jobs
-  activeJobs.value = activeJobs.value.filter(job => job.id !== data.job_id)
-  
-  // Add to recent results
-  appStore.addResult({
-    id: data.result_id,
+  const createdAt = data.created_at ?? new Date().toISOString()
+  const imageUrl = data.image_url ?? (Array.isArray(data.images) ? data.images[0] ?? null : null)
+
+  const result: GenerationResult = {
+    id: data.result_id ?? data.job_id,
     job_id: data.job_id,
+    result_id: data.result_id,
     prompt: data.prompt,
-    image_url: data.image_url,
+    negative_prompt: data.negative_prompt,
+    image_url: imageUrl,
     width: data.width,
     height: data.height,
     steps: data.steps,
     cfg_scale: data.cfg_scale,
-    seed: data.seed,
-    created_at: new Date().toLocaleString()
-  })
-  
+    seed: data.seed ?? null,
+    created_at: createdAt,
+  }
+
+  appStore.addResult(result)
   showToast('Generation completed successfully', 'success')
 }
 
-const handleGenerationError = (data) => {
-  // Remove from active jobs
-  activeJobs.value = activeJobs.value.filter(job => job.id !== data.job_id)
-  
+const handleGenerationError = (data: Extract<WebSocketMessage, { type: 'generation_error' }>): void => {
+  appStore.removeJob(data.job_id)
   showToast(`Generation failed: ${data.error}`, 'error')
 }
 
-const showImageModal = (result) => {
+const showImageModal = (result: GenerationResult | null): void => {
+  if (!result) {
+    return
+  }
   selectedResult.value = result
   showModal.value = true
 }
 
-const hideImageModal = () => {
+const hideImageModal = (): void => {
   showModal.value = false
   selectedResult.value = null
 }
 
-const reuseParameters = (result) => {
-  params.value.prompt = result.prompt
-  params.value.negative_prompt = result.negative_prompt || ''
-  params.value.width = result.width
-  params.value.height = result.height
-  params.value.steps = result.steps
-  params.value.cfg_scale = result.cfg_scale
-  params.value.seed = result.seed
-  
+const reuseParameters = (result: GenerationResult): void => {
+  if (typeof result.prompt === 'string') {
+    params.value.prompt = result.prompt
+  }
+  params.value.negative_prompt = typeof result.negative_prompt === 'string' ? result.negative_prompt : ''
+  if (typeof result.width === 'number') {
+    params.value.width = result.width
+  }
+  if (typeof result.height === 'number') {
+    params.value.height = result.height
+  }
+  if (typeof result.steps === 'number') {
+    params.value.steps = result.steps
+  }
+  if (typeof result.cfg_scale === 'number') {
+    params.value.cfg_scale = result.cfg_scale
+  }
+  if (typeof result.seed === 'number') {
+    params.value.seed = result.seed
+  }
+
   showToast('Parameters loaded from result', 'success')
 }
 
-const deleteResult = async (resultId) => {
-  if (!confirm('Are you sure you want to delete this result?')) return
-  
+const deleteResult = async (resultId: string | number): Promise<void> => {
+  if (!window.confirm('Are you sure you want to delete this result?')) {
+    return
+  }
+
   try {
-    const response = await fetch(`/api/v1/generation/results/${resultId}`, {
-      method: 'DELETE',
-      credentials: 'same-origin'
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to delete result')
-    }
-
-    const filtered = recentResults.value.filter(r => r.id !== resultId)
+    await deleteGenerationResult(resultId)
+    const filtered = recentResults.value.filter((result) => result.id !== resultId)
     appStore.setRecentResults(filtered)
     showToast('Result deleted', 'success')
   } catch (error) {
@@ -786,12 +854,12 @@ const deleteResult = async (resultId) => {
   }
 }
 
-const refreshResults = async () => {
+const refreshResults = async (): Promise<void> => {
   await loadRecentResultsDataFn()
   showToast('Results refreshed', 'success')
 }
 
-const loadFromComposer = () => {
+const loadFromComposer = (): void => {
   try {
     const composerData = localStorage.getItem('composerPrompt')
     if (composerData) {
@@ -805,8 +873,8 @@ const loadFromComposer = () => {
   }
 }
 
-const useRandomPrompt = () => {
-  const randomPrompts = [
+const useRandomPrompt = (): void => {
+  const randomPrompts: readonly string[] = [
     'a beautiful anime girl with long flowing hair',
     'a majestic dragon soaring through cloudy skies',
     'a cyberpunk cityscape with neon lights',
@@ -814,28 +882,30 @@ const useRandomPrompt = () => {
     'a cute robot in a futuristic laboratory',
     'a magical forest with glowing mushrooms',
     'a space station orbiting a distant planet',
-    'a steampunk airship flying over Victorian city'
+    'a steampunk airship flying over Victorian city',
   ]
-  
-  params.value.prompt = randomPrompts[Math.floor(Math.random() * randomPrompts.length)]
+
+  const index = Math.floor(Math.random() * randomPrompts.length)
+  params.value.prompt = randomPrompts[index]
   showToast('Random prompt generated', 'success')
 }
 
-const savePreset = () => {
-  const presetName = prompt('Enter a name for this preset:')
-  if (!presetName) return
-  
+const savePreset = (): void => {
+  const presetName = window.prompt('Enter a name for this preset:')
+  if (!presetName) {
+    return
+  }
+
   const preset = {
     name: presetName,
     params: { ...params.value },
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
   }
-  
+
   try {
-    const savedPresets = JSON.parse(localStorage.getItem('generationPresets') || '[]')
+    const savedPresets = JSON.parse(localStorage.getItem('generationPresets') ?? '[]') as unknown[]
     savedPresets.push(preset)
     localStorage.setItem('generationPresets', JSON.stringify(savedPresets))
-    
     showToast(`Preset "${presetName}" saved`, 'success')
   } catch (error) {
     console.error('Failed to save preset:', error)
@@ -843,18 +913,17 @@ const savePreset = () => {
   }
 }
 
-const loadSavedParams = () => {
+const loadSavedParams = (): void => {
   try {
-    // Load from URL parameters first
     const urlParams = new URLSearchParams(window.location.search)
-    if (urlParams.has('prompt')) {
-      params.value.prompt = urlParams.get('prompt')
+    const prompt = urlParams.get('prompt')
+    if (typeof prompt === 'string') {
+      params.value.prompt = prompt
     }
-    
-    // Then load saved parameters from localStorage
+
     const saved = localStorage.getItem('generation_params')
     if (saved) {
-      const parsed = JSON.parse(saved)
+      const parsed = JSON.parse(saved) as Partial<GenerationFormState>
       Object.assign(params.value, parsed)
     }
   } catch (error) {
@@ -862,30 +931,32 @@ const loadSavedParams = () => {
   }
 }
 
-const saveParams = () => {
+const saveParams = (value: GenerationFormState = params.value): void => {
   try {
-    localStorage.setItem('generation_params', JSON.stringify(params.value))
+    localStorage.setItem('generation_params', JSON.stringify(value))
   } catch (error) {
     console.error('Error saving parameters:', error)
   }
 }
 
-const cleanup = () => {
+const cleanup = (): void => {
   if (websocket.value) {
     websocket.value.close()
+    websocket.value = null
   }
   stopPolling()
 }
 
-// Utility functions
-const formatTime = (dateString) => {
-  if (!dateString) return 'Unknown'
-  
+const formatTime = (dateString?: string): string => {
+  if (!dateString) {
+    return 'Unknown'
+  }
+
   try {
     const date = new Date(dateString)
     const now = new Date()
-    const diff = Math.floor((now - date) / 1000)
-    
+    const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
+
     if (diff < 60) return `${diff}s ago`
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
@@ -895,7 +966,7 @@ const formatTime = (dateString) => {
   }
 }
 
-const getJobStatusClasses = (status) => {
+const getJobStatusClasses = (status: GenerationJob['status']): string => {
   switch (status) {
     case 'processing':
       return 'bg-blue-100 text-blue-800'
@@ -910,7 +981,7 @@ const getJobStatusClasses = (status) => {
   }
 }
 
-const getJobStatusText = (status) => {
+const getJobStatusText = (status: GenerationJob['status']): string => {
   switch (status) {
     case 'processing':
       return 'Processing'
@@ -925,11 +996,11 @@ const getJobStatusText = (status) => {
   }
 }
 
-const canCancelJob = (job) => {
+const canCancelJob = (job: GenerationJob): boolean => {
   return job.status === 'queued' || job.status === 'processing'
 }
 
-const getSystemStatusClasses = (status) => {
+const getSystemStatusClasses = (status?: string): string => {
   switch (status) {
     case 'healthy':
       return 'text-green-600'
@@ -942,13 +1013,38 @@ const getSystemStatusClasses = (status) => {
   }
 }
 
-const showToast = (message, type = 'success') => {
+const showToast = (message: string, type: NotificationType = 'success'): void => {
   console.log(`[${type.toUpperCase()}] ${message}`)
   appStore.addNotification(message, type)
 }
 
-// Auto-save parameters on change
-watch(params, () => {
-  saveParams()
+watch(showHistory, () => {
+  void loadRecentResultsDataFn()
+})
+
+watch(params, (newParams) => {
+  saveParams(newParams)
 }, { deep: true })
+
+watch(isConnected, (connected) => {
+  console.log('WebSocket connection state changed:', connected)
+})
+
+onMounted(async () => {
+  console.log('Initializing Generation Studio Vue component...')
+
+  await Promise.all([
+    loadSystemStatusData(),
+    loadActiveJobsDataFn(),
+    loadRecentResultsDataFn(),
+  ])
+
+  initWebSocket()
+  startPolling()
+  loadSavedParams()
+})
+
+onUnmounted(() => {
+  cleanup()
+})
 </script>
