@@ -5,8 +5,8 @@
 This project follows a modern, decoupled architecture with a distinct backend API and a separate frontend application.
 
 -   **Backend**: A self-contained FastAPI application located in the `backend/` directory. It handles all business logic, database interactions, and serves the API.
--   **Frontend**: A Vite-powered single-page application located in `app/frontend/`. It's built with Alpine.js and Tailwind CSS.
--   **Main Entrypoint**: The `app/main.py` file acts as a wrapper that serves the frontend and mounts the backend API under the versioned `/v1` path.
+-   **Frontend**: A Vite-powered Vue 3 single-page application in `app/frontend/src/` with a compatibility layer that continues to expose utilities to the remaining Alpine.js modules under `app/frontend/static/js/`. The previously referenced `templates/` directory has been removed in favor of the SPA shell served from `index.html`.
+-   **Main Entrypoint**: The `app/main.py` file acts as a wrapper that serves the SPA shell and mounts the backend API under the versioned `/v1` path.
 
 ---
 
@@ -15,14 +15,12 @@ This project follows a modern, decoupled architecture with a distinct backend AP
 ```
 .
 ├── app/              # Main application wrapper and frontend
-│   ├── frontend/     # All frontend assets (served by Vite/FastAPI)
-│   │   ├── static/
-│   │   │   ├── js/
-│   │   │   │   ├── components/ # Modular Alpine.js components
-│   │   │   │   ├── services/   # API communication
-│   │   │   │   └── utils/      # Shared utilities
-│   │   │   └── css/
-│   │   └── templates/      # Jinja2 HTML templates
+│   ├── frontend/
+│   │   ├── src/      # Vue SPA source (components, composables, router, stores)
+│   │   ├── static/   # Legacy Alpine.js modules and supporting assets
+│   │   ├── public/   # Static assets copied verbatim by Vite
+│   │   ├── index.html  # SPA entrypoint served by FastAPI
+│   │   └── utils/    # Shared helpers, including the legacy bridge
 │   └── main.py       # Main FastAPI entrypoint to serve frontend & mount backend
 │
 ├── backend/          # Self-contained backend FastAPI application
@@ -57,11 +55,13 @@ This project follows a modern, decoupled architecture with a distinct backend AP
 ### Frontend (`app/frontend/`)
 
 -   **Build Tool**: Vite for fast development and optimized builds.
--   **Framework**: Vue 3 SPA with Pinia for global state management.
--   **Styling**: Tailwind CSS for utility-first styling.
+-   **Frameworks**: Vue 3 SPA with Pinia for global state management, plus legacy Alpine.js controllers that remain in production under `static/js/`.
+-   **Styling**: Tailwind CSS for utility-first styling shared across both frameworks.
 -   **Entrypoint (`src/main.ts`)**: Boots Vue Router, Pinia, and global styles for the application.
+-   **Compatibility Layer (`src/utils/legacy.ts`)**: Exposes Vue-era utilities to Alpine modules until the migration completes.
 -   **Components (`src/components/`)**: Vue single-file components covering dashboard widgets, tools, and layout.
 -   **Composables (`src/composables/`)**: Shared logic for API access, notifications, and system status polling.
+-   **Legacy Modules (`static/js/`)**: Alpine components, services, and utilities that still power system administration, prompt composition, and generation studio views.
 
 ---
 
@@ -113,13 +113,14 @@ The project has a comprehensive testing suite.
     ```
 -   Tests are located in `tests/integration` and `tests/unit`. They use an in-memory SQLite database and mock external services.
 
-### Frontend Testing (Jest & Playwright)
+### Frontend Testing (Jest, Vitest & Playwright)
 
 -   **Run all frontend tests:**
     ```bash
     npm test
     ```
--   **Unit Tests (`tests/unit/js/`)**: Use Jest to test individual Alpine.js components.
+-   **Alpine Unit Tests (`tests/unit/js/`)**: Use Jest with the helpers in `tests/utils/test-helpers.js` to mock Alpine.js, HTMX, and other browser APIs.
+-   **Vue Unit Tests (`npm run test:unit:vue`)**: Use Vitest for Vue single-file components.
 -   **End-to-End Tests (`tests/e2e/`)**: Use Playwright to simulate user interactions in a real browser.
 
 ---
