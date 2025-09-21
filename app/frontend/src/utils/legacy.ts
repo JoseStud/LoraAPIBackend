@@ -168,6 +168,7 @@ const legacyAsync = {
   throttle,
   retryWithBackoff,
   withTimeout,
+  processBatches: processInBatches,
   processInBatches,
   simulateProgress,
 };
