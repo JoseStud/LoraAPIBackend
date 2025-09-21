@@ -7,25 +7,23 @@ from active adapters and optionally schedules a delivery.
 import asyncio
 
 from fastapi import APIRouter, BackgroundTasks, Depends
-from sqlmodel import Session
 
-from backend.core.database import get_session, get_session_context
+from backend.core.database import get_session_context
+from backend.core.dependencies import get_service_container
 from backend.delivery import get_delivery_backend, get_generation_backend
 from backend.schemas import ComposeRequest, ComposeResponse, SDNextGenerationParams
-from backend.services import create_service_container
+from backend.services import ServiceContainer
 
 router = APIRouter()
 
 
 @router.post("/compose", response_model=ComposeResponse)
 async def compose(
-    req: ComposeRequest, 
+    req: ComposeRequest,
     background_tasks: BackgroundTasks,
-    session: Session = Depends(get_session),
+    services: ServiceContainer = Depends(get_service_container),
 ):
     """Compose a prompt from active adapters and optionally schedule delivery."""
-    services = create_service_container(session)
-    
     # Get active adapters
     adapters = services.adapters.list_active_ordered()
     
@@ -90,14 +88,14 @@ async def _deliver_http_async(prompt: str, params: dict, job_id: str) -> None:
 
         # Update job status
         with get_session_context() as session:
-            services = create_service_container(session)
+            services = ServiceContainer(session)
             if result.get("status") in (200, "ok"):
                 services.deliveries.update_job_status(job_id, "succeeded", result)
             else:
                 services.deliveries.update_job_status(job_id, "failed", result)
     except Exception as exc:  # pragma: no cover - background logging path
         with get_session_context() as session:
-            services = create_service_container(session)
+            services = ServiceContainer(session)
             services.deliveries.update_job_status(
                 job_id,
                 "failed",
@@ -117,14 +115,14 @@ async def _deliver_cli_async(prompt: str, params: dict, job_id: str) -> None:
 
         # Update job status
         with get_session_context() as session:
-            services = create_service_container(session)
+            services = ServiceContainer(session)
             if result.get("status") == "ok":
                 services.deliveries.update_job_status(job_id, "succeeded", result)
             else:
                 services.deliveries.update_job_status(job_id, "failed", result)
     except Exception as exc:  # pragma: no cover - background logging path
         with get_session_context() as session:
-            services = create_service_container(session)
+            services = ServiceContainer(session)
             services.deliveries.update_job_status(
                 job_id,
                 "failed",
@@ -160,7 +158,7 @@ async def _deliver_sdnext_async(prompt: str, params: dict, job_id: str) -> None:
 
         # Update job status
         with get_session_context() as session:
-            services = create_service_container(session)
+            services = ServiceContainer(session)
             if result.status == "completed":
                 services.deliveries.update_job_status(
                     job_id,
@@ -175,7 +173,7 @@ async def _deliver_sdnext_async(prompt: str, params: dict, job_id: str) -> None:
                 )
     except Exception as exc:  # pragma: no cover - background logging path
         with get_session_context() as session:
-            services = create_service_container(session)
+            services = ServiceContainer(session)
             services.deliveries.update_job_status(
                 job_id,
                 "failed",

@@ -1,10 +1,9 @@
 """WebSocket router for real-time progress monitoring."""
 
 from fastapi import APIRouter, Depends, WebSocket
-from sqlmodel import Session
 
-from backend.core.database import get_session
-from backend.services import create_service_container
+from backend.core.dependencies import get_service_container
+from backend.services import ServiceContainer
 
 router = APIRouter()
 
@@ -12,7 +11,7 @@ router = APIRouter()
 @router.websocket("/ws/progress")
 async def websocket_progress_endpoint(
     websocket: WebSocket,
-    db: Session = Depends(get_session),
+    container: ServiceContainer = Depends(get_service_container),
 ):
     """WebSocket endpoint for real-time generation progress monitoring.
     
@@ -44,5 +43,4 @@ async def websocket_progress_endpoint(
     }
     ```
     """
-    container = create_service_container(db)
     await container.websocket.handle_connection(websocket)

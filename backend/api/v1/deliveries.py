@@ -4,9 +4,9 @@ import asyncio
 import os
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from sqlmodel import Session
 
-from backend.core.database import get_session, get_session_context
+from backend.core.database import get_session_context
+from backend.core.dependencies import get_service_container
 from backend.delivery import get_delivery_backend, get_generation_backend
 from backend.schemas import (
     DeliveryCreate,
@@ -15,7 +15,7 @@ from backend.schemas import (
     DeliveryWrapper,
     SDNextGenerationParams,
 )
-from backend.services import create_service_container
+from backend.services import ServiceContainer
 
 router = APIRouter()
 
@@ -26,10 +26,9 @@ REDIS_URL = os.getenv("REDIS_URL", None)
 async def create_delivery(
     delivery: DeliveryCreate,
     background_tasks: BackgroundTasks,
-    session: Session = Depends(get_session),
+    services: ServiceContainer = Depends(get_service_container),
 ):
     """Create a delivery job and either enqueue it or schedule a background task."""
-    services = create_service_container(session)
     dj = services.deliveries.create_job(delivery.prompt, delivery.mode, delivery.params or {})
     
     if REDIS_URL:
@@ -60,9 +59,11 @@ async def create_delivery(
 
 
 @router.get("/deliveries/{delivery_id}", response_model=DeliveryWrapper)
-def get_delivery(delivery_id: str, session: Session = Depends(get_session)):
+def get_delivery(
+    delivery_id: str,
+    services: ServiceContainer = Depends(get_service_container),
+):
     """Return the delivery job state for `delivery_id`."""
-    services = create_service_container(session)
     dj = services.deliveries.get_job(delivery_id)
     
     if not dj:
@@ -92,7 +93,7 @@ def _process_delivery_fallback(job_id: str, prompt: str, mode: str, params: dict
 async def _process_delivery_fallback_async(job_id: str, prompt: str, mode: str, params: dict) -> None:
     try:
         with get_session_context() as session:
-            services = create_service_container(session)
+            services = ServiceContainer(session)
             services.deliveries.update_job_status(job_id, "running")
 
         # Process based on mode
@@ -126,7 +127,7 @@ async def _process_delivery_fallback_async(job_id: str, prompt: str, mode: str, 
 
         # Update job with result
         with get_session_context() as session:
-            services = create_service_container(session)
+            services = ServiceContainer(session)
             if result.get("status") in ("ok", "completed", 200):
                 services.deliveries.update_job_status(job_id, "succeeded", result)
             else:
@@ -134,7 +135,7 @@ async def _process_delivery_fallback_async(job_id: str, prompt: str, mode: str, 
 
     except Exception as exc:  # pragma: no cover - background logging path
         with get_session_context() as session:
-            services = create_service_container(session)
+            services = ServiceContainer(session)
             services.deliveries.update_job_status(
                 job_id,
                 "failed",

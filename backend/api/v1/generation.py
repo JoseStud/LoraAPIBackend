@@ -5,9 +5,9 @@ import json
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from sqlmodel import Session
 
-from backend.core.database import get_session, get_session_context
+from backend.core.database import get_session_context
+from backend.core.dependencies import get_service_container
 from backend.delivery import get_generation_backend
 from backend.schemas import (
     ComposeRequest,
@@ -21,7 +21,7 @@ from backend.schemas import (
     SDNextGenerationParams,
     SDNextGenerationResult,
 )
-from backend.services import create_service_container
+from backend.services import ServiceContainer
 
 ACTIVE_JOB_STATUSES = {"pending", "running"}
 CANCELLABLE_STATUSES = {"pending", "running"}
@@ -44,7 +44,7 @@ async def generate_image(
     mode: str = "immediate",
     save_images: bool = True,
     return_format: str = "base64",
-    session: Session = Depends(get_session),
+    services: ServiceContainer = Depends(get_service_container),
 ):
     """Generate an image using the specified backend.
     
@@ -54,11 +54,8 @@ async def generate_image(
         mode: Generation mode ("immediate" or "deferred")
         save_images: Whether to save generated images
         return_format: Return format ("base64", "file_path", "url")
-        session: Database session
 
     """
-    services = create_service_container(session)
-    
     # Validate parameters
     warnings = await services.generation.validate_generation_params(generation_params)
     if warnings:
@@ -119,14 +116,12 @@ async def compose_and_generate(
     mode: str = "immediate",
     save_images: bool = True,
     return_format: str = "base64",
-    session: Session = Depends(get_session),
+    services: ServiceContainer = Depends(get_service_container),
 ):
     """Compose LoRA prompt and immediately generate images.
     
     This endpoint combines the compose and generate operations for convenience.
     """
-    services = create_service_container(session)
-    
     # Step 1: Get active adapters and compose prompt
     active_adapters = services.adapters.list_active_ordered()
     
@@ -193,14 +188,12 @@ async def queue_generation_job(
     save_images: bool = True,
     return_format: str = "base64",
     background_tasks: BackgroundTasks = BackgroundTasks(),
-    session: Session = Depends(get_session),
+    services: ServiceContainer = Depends(get_service_container),
 ):
     """Queue a generation job for background processing.
     
     This creates a delivery job that will be processed by a worker.
     """
-    services = create_service_container(session)
-    
     # Prepare delivery parameters
     delivery_params = {
         "generation_params": generation_params.model_dump(),
@@ -243,11 +236,9 @@ async def queue_generation_job(
 @router.get("/jobs/active", response_model=List[GenerationJobStatus])
 async def list_active_generation_jobs(
     limit: int = Query(50, ge=1, le=200),
-    session: Session = Depends(get_session),
+    services: ServiceContainer = Depends(get_service_container),
 ):
     """Return active generation jobs for frontend queues."""
-
-    services = create_service_container(session)
 
     jobs_by_id = {}
     for status in ACTIVE_JOB_STATUSES:
@@ -319,11 +310,9 @@ async def list_active_generation_jobs(
 @router.get("/jobs/{job_id}", response_model=DeliveryWrapper)
 async def get_generation_job(
     job_id: str,
-    session: Session = Depends(get_session),
+    services: ServiceContainer = Depends(get_service_container),
 ):
     """Get generation job status and results."""
-    services = create_service_container(session)
-
     job = services.deliveries.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -347,11 +336,9 @@ async def get_generation_job(
 @router.post("/jobs/{job_id}/cancel", response_model=GenerationCancelResponse)
 async def cancel_generation_job(
     job_id: str,
-    session: Session = Depends(get_session),
+    services: ServiceContainer = Depends(get_service_container),
 ):
     """Cancel an active generation job."""
-
-    services = create_service_container(session)
     job = services.deliveries.get_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -369,11 +356,9 @@ async def cancel_generation_job(
 async def list_generation_results(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    session: Session = Depends(get_session),
+    services: ServiceContainer = Depends(get_service_container),
 ):
     """Return recent completed generation results."""
-
-    services = create_service_container(session)
     jobs = services.deliveries.list_jobs(status="succeeded", limit=limit, offset=offset)
 
     results: List[GenerationResultSummary] = []
@@ -441,7 +426,7 @@ def _process_generation_job(job_id: str, params: Dict) -> None:
 
 async def _process_generation_job_async(job_id: str, params: Dict) -> None:
     with get_session_context() as session:
-        services = create_service_container(session)
+        services = ServiceContainer(session)
 
         # Update job status to running
         services.deliveries.update_job_status(job_id, "running")
