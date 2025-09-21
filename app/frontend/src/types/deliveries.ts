@@ -2,6 +2,8 @@
  * Type definitions mirroring backend/schemas/deliveries.py.
  */
 
+import type { ComposeDeliverySDNext } from './generation';
+
 export interface ComposeDeliveryHTTP {
   host: string;
   port?: number | null;
@@ -16,6 +18,7 @@ export interface ComposeDelivery {
   mode: string;
   http?: ComposeDeliveryHTTP | null;
   cli?: ComposeDeliveryCLI | null;
+  sdnext?: ComposeDeliverySDNext | null;
 }
 
 export interface ComposeDeliveryInfo {

@@ -68,9 +68,9 @@ __all__ = [
     "DeliveryRead",
     "DeliveryWrapper",
     "DeliveryCreateResponse",
+    "ComposeDeliverySDNext",
     # Generation
     "SDNextGenerationParams",
-    "ComposeDeliverySDNext",
     "SDNextDeliveryParams",
     "SDNextGenerationResult",
     "ProgressUpdate",
