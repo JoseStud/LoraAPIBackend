@@ -1,6 +1,8 @@
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
-import PromptComposer from '../../app/frontend/static/vue/PromptComposer.vue';
+
+import PromptComposer from '../../app/frontend/src/components/PromptComposer.vue';
+import { useAppStore } from '../../app/frontend/src/stores/app';
 
 const flush = async () => {
   await Promise.resolve();
@@ -11,23 +13,28 @@ const flush = async () => {
 
 describe('PromptComposer.vue', () => {
   beforeEach(() => {
+    useAppStore().$reset();
+    const jsonResponse = (payload) => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => payload,
+      text: async () => JSON.stringify(payload),
+    });
+
     // Simple fetch stub for LoRAs and generate endpoint
     global.fetch = vi.fn(async (input, init) => {
       const url = typeof input === 'string' ? input : input?.url || '';
       if (url.includes('/api/v1/adapters')) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ items: [
-            { id: '1', name: 'LoraOne', description: 'First', active: true },
-            { id: '2', name: 'LoraTwo', description: 'Second', active: false },
-          ] }),
-        };
+        return jsonResponse({ items: [
+          { id: '1', name: 'LoraOne', description: 'First', active: true },
+          { id: '2', name: 'LoraTwo', description: 'Second', active: false },
+        ] });
       }
       if (url.endsWith('/generate')) {
-        return { ok: true, status: 200, json: async () => ({ ok: true }) };
+        return jsonResponse({ ok: true });
       }
-      return { ok: true, status: 200, json: async () => ({}) };
+      return jsonResponse({});
     });
 
     // Basic clipboard mock

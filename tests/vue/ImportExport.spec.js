@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
-import ImportExport from '../../app/frontend/static/vue/ImportExport.vue';
+import ImportExport from '../../app/frontend/src/components/ImportExport.vue';
 
 // Mock fetch globally for tests
 global.fetch = vi.fn();
 
 // Mock the useApi composable
-vi.mock('../../app/frontend/static/vue/composables/useApi.js', () => ({
+vi.mock('../../app/frontend/src/composables/useApi.ts', () => ({
   useApi: () => ({
     data: { value: null },
     error: { value: null },

@@ -429,10 +429,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useApi } from './composables/useApi.js'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+
+import { useApi } from '@/composables/useApi'
+import { useAppStore } from '@/stores/app'
 
 // Reactive state
+const appStore = useAppStore()
+const { activeJobs, recentResults } = storeToRefs(appStore)
+
 const params = ref({
   prompt: '',
   negative_prompt: '',
@@ -445,8 +451,6 @@ const params = ref({
   batch_size: 1
 })
 
-const activeJobs = ref([])
-const recentResults = ref([])
 const systemStatus = ref({})
 const isGenerating = ref(false)
 const showHistory = ref(false)
@@ -528,7 +532,7 @@ const loadActiveJobsDataFn = async () => {
   try {
     const result = await loadActiveJobsData()
     if (Array.isArray(result)) {
-      activeJobs.value = result
+      appStore.setActiveJobs(result)
     }
   } catch (error) {
     console.error('Failed to load active jobs:', error)
@@ -539,7 +543,7 @@ const loadRecentResultsDataFn = async () => {
   try {
     const result = await loadRecentResultsData()
     if (Array.isArray(result)) {
-      recentResults.value = result
+      appStore.setRecentResults(result)
     }
   } catch (error) {
     console.error('Failed to load recent results:', error)
@@ -594,7 +598,7 @@ const handleWebSocketMessage = (data) => {
       handleGenerationError(data)
       break
     case 'queue_update':
-      activeJobs.value = data.jobs || []
+      appStore.setActiveJobs(data.jobs || [])
       break
     case 'system_status':
       systemStatus.value = { ...systemStatus.value, ...data }
@@ -715,7 +719,7 @@ const handleGenerationComplete = (data) => {
   activeJobs.value = activeJobs.value.filter(job => job.id !== data.job_id)
   
   // Add to recent results
-  recentResults.value.unshift({
+  appStore.addResult({
     id: data.result_id,
     job_id: data.job_id,
     prompt: data.prompt,
@@ -764,11 +768,17 @@ const deleteResult = async (resultId) => {
   if (!confirm('Are you sure you want to delete this result?')) return
   
   try {
-    await fetch(`/api/v1/generation/results/${resultId}`, {
-      method: 'DELETE'
+    const response = await fetch(`/api/v1/generation/results/${resultId}`, {
+      method: 'DELETE',
+      credentials: 'same-origin'
     })
-    
-    recentResults.value = recentResults.value.filter(r => r.id !== resultId)
+
+    if (!response.ok) {
+      throw new Error('Failed to delete result')
+    }
+
+    const filtered = recentResults.value.filter(r => r.id !== resultId)
+    appStore.setRecentResults(filtered)
     showToast('Result deleted', 'success')
   } catch (error) {
     console.error('Error deleting result:', error)
@@ -933,16 +943,8 @@ const getSystemStatusClasses = (status) => {
 }
 
 const showToast = (message, type = 'success') => {
-  // For now, use console.log - in a real app this would integrate with a toast system
   console.log(`[${type.toUpperCase()}] ${message}`)
-  
-  // Try to use global Alpine store if available
-  if (window.Alpine && window.Alpine.store) {
-    const store = window.Alpine.store('app')
-    if (store && store.addNotification) {
-      store.addNotification(message, type)
-    }
-  }
+  appStore.addNotification(message, type)
 }
 
 // Auto-save parameters on change

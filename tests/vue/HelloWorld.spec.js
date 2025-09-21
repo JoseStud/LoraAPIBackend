@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import HelloWorld from '../../app/frontend/static/vue/HelloWorld.vue';
+import HelloWorld from '../../app/frontend/src/components/HelloWorld.vue';
 
 describe('HelloWorld.vue', () => {
   it('renders greeting and message', () => {

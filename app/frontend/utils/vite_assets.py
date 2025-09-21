@@ -46,7 +46,7 @@ def vite_asset(path: str) -> str:
     In production, it uses the manifest file to get the hashed filename.
     
     Args:
-        path: The asset path relative to the static directory (e.g., 'js/main.js')
+        path: The asset path relative to the static directory (e.g., 'src/main.ts')
     
     Returns:
         The complete URL for the asset
@@ -69,7 +69,7 @@ def vite_asset_css(js_path: str) -> Optional[str]:
     """Get the corresponding CSS file for a JavaScript entry point.
     
     Args:
-        js_path: The JavaScript asset path (e.g., 'js/main.js')
+        js_path: The JavaScript asset path (e.g., 'src/main.ts')
     
     Returns:
         The CSS file URL if it exists, None otherwise

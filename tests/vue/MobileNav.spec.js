@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
-import MobileNav from '../../app/frontend/static/vue/MobileNav.vue';
+import MobileNav from '../../app/frontend/src/components/MobileNav.vue';
 
 const flush = async () => {
   await Promise.resolve();

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
-import LoraGallery from '../../app/frontend/static/vue/LoraGallery.vue';
-import LoraCard from '../../app/frontend/static/vue/LoraCard.vue';
+import LoraGallery from '../../app/frontend/src/components/LoraGallery.vue';
+import LoraCard from '../../app/frontend/src/components/LoraCard.vue';
 
 // Mock the useApi composable
-vi.mock('../../app/frontend/static/vue/composables/useApi.js', () => ({
+vi.mock('../../app/frontend/src/composables/useApi.ts', () => ({
   useApi: vi.fn(() => ({
     data: { value: null },
     error: { value: null },

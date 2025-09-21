@@ -12,34 +12,12 @@ const IMAGES_CACHE = 'lora-manager-images-v2.1.0';
 const STATIC_ASSETS = [
     '/',
     '/loras',
-    '/recommendations', 
+    '/recommendations',
     '/compose',
     '/generate',
     '/admin',
     '/analytics',
     '/import-export',
-    
-    // CSS files
-    '/static/css/styles.css',
-    '/static/css/components.css',
-    '/static/css/mobile.css',
-    
-    // JavaScript files
-    '/static/js/common.js',
-    '/static/js/alpine-config.js',
-    '/static/js/htmx-config.js',
-    '/static/js/main.js',
-    '/static/js/components/system-admin.js',
-    '/static/js/components/performance-analytics.js',
-    '/static/js/components/import-export.js',
-    
-    // External libraries (CDN fallbacks)
-    'https://cdn.tailwindcss.com',
-    'https://unpkg.com/htmx.org@1.9.6',
-    'https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js',
-    'https://cdn.jsdelivr.net/npm/chart.js',
-    
-    // Images and icons (use svg logo as single icon)
     '/static/images/logo.svg',
     '/static/manifest.json'
 ];

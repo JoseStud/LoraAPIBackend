@@ -1,6 +1,13 @@
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
-import Notifications from '../../app/frontend/static/vue/Notifications.vue';
+
+import Notifications from '../../app/frontend/src/components/Notifications.vue';
+import { useAppStore } from '../../app/frontend/src/stores/app';
+
+beforeEach(() => {
+  const store = useAppStore();
+  store.$reset();
+});
 
 describe('Notifications.vue', () => {
   it('renders empty notifications container initially', async () => {
@@ -18,8 +25,8 @@ describe('Notifications.vue', () => {
     const wrapper = mount(Notifications);
     await nextTick();
 
-    // Add a notification directly using the component's exposed method
-    wrapper.vm.addNotification('Test message', 'success');
+    const store = useAppStore();
+    store.addNotification('Test message', 'success', 0);
     await nextTick();
 
     const notifications = wrapper.findAll('[role="alert"]');
@@ -34,8 +41,9 @@ describe('Notifications.vue', () => {
     const wrapper = mount(Notifications);
     await nextTick();
 
-    wrapper.vm.addNotification('Success message', 'success');
-    wrapper.vm.addNotification('Error message', 'error');
+    const store = useAppStore();
+    store.addNotification('Success message', 'success', 0);
+    store.addNotification('Error message', 'error', 0);
     await nextTick();
 
     const notifications = wrapper.findAll('[role="alert"]');
@@ -51,7 +59,8 @@ describe('Notifications.vue', () => {
     const wrapper = mount(Notifications);
     await nextTick();
 
-    wrapper.vm.addNotification('Test message', 'info');
+    const store = useAppStore();
+    store.addNotification('Test message', 'info', 0);
     await nextTick();
 
     expect(wrapper.findAll('[role="alert"]')).toHaveLength(1);
@@ -69,7 +78,8 @@ describe('Notifications.vue', () => {
     const wrapper = mount(Notifications);
     await nextTick();
 
-    wrapper.vm.addNotification('Accessible message', 'warning');
+    const store = useAppStore();
+    store.addNotification('Accessible message', 'warning', 0);
     await nextTick();
 
     const notification = wrapper.find('[role="alert"]');

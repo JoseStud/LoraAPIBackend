@@ -3,8 +3,8 @@
   "version": "2.1.0",
   "description": "Frontend assets for LoRA Manager - AI-Powered LoRA Management System",
   "scripts": {
-    "build:css": "tailwindcss -i ./app/frontend/static/css/input.css -o ./app/frontend/static/css/styles.css --minify",
-    "watch:css": "tailwindcss -i ./app/frontend/static/css/input.css -o ./app/frontend/static/css/styles.css --watch",
+    "build:css": "tailwindcss -i ./app/frontend/static/css/input.css -o ./app/frontend/src/assets/css/styles.css --minify",
+    "watch:css": "tailwindcss -i ./app/frontend/static/css/input.css -o ./app/frontend/src/assets/css/styles.css --watch",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
@@ -56,7 +56,9 @@
   "dependencies": {
     "vue": "^3.5.0",
     "chart.js": "^4.4.0",
-    "htmx.org": "^2.0.7"
+    "htmx.org": "^2.0.7",
+    "pinia": "^2.1.7",
+    "vue-router": "^4.4.5"
   },
   "keywords": [
     "lora",

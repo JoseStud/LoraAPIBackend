@@ -3,10 +3,12 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import GenerationStudio from '../../app/frontend/static/vue/GenerationStudio.vue'
+
+import GenerationStudio from '../../app/frontend/src/components/GenerationStudio.vue'
+import { useAppStore } from '../../app/frontend/src/stores/app'
 
 // Mock the API
-vi.mock('../../app/frontend/static/vue/composables/useApi.js', () => ({
+vi.mock('../../app/frontend/src/composables/useApi.ts', () => ({
   useApi: vi.fn(() => ({
     fetchData: vi.fn().mockResolvedValue(null),
     data: { value: null },
@@ -49,9 +51,12 @@ global.fetch = vi.fn()
 
 describe('GenerationStudio.vue', () => {
   let wrapper
+  let appStore
 
   beforeEach(() => {
     vi.clearAllMocks()
+    appStore = useAppStore()
+    appStore.$reset()
     localStorageMock.getItem.mockReturnValue(null)
     fetch.mockResolvedValue({
       ok: true,

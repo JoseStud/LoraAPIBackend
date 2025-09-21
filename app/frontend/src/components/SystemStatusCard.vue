@@ -52,18 +52,20 @@
   <SystemStatusCardSkeleton v-else />
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import useSystemStatus from './composables/useSystemStatus.js';
+
+import useSystemStatus from '@/composables/useSystemStatus';
 import SystemStatusCardDetailed from './SystemStatusCardDetailed.vue';
 import SystemStatusCardSimple from './SystemStatusCardSimple.vue';
 import SystemStatusCardSkeleton from './SystemStatusCardSkeleton.vue';
 
-const props = defineProps({
-  variant: {
-    type: String,
-    default: 'simple',
-  },
+interface Props {
+  variant?: 'simple' | 'detailed';
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  variant: 'simple',
 });
 
 const {

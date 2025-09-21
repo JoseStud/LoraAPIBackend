@@ -1,3 +1,4 @@
+import { resolve } from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import vue from '@vitejs/plugin-vue';
 
@@ -9,7 +10,7 @@ export default defineConfig(({ mode }) => {
     return {
         plugins: [vue()],
         // Where Vite will look for your source files
-        root: './app/frontend/static/',
+        root: './app/frontend',
 
         // Configuration for the development server
         server: {
@@ -28,7 +29,7 @@ export default defineConfig(({ mode }) => {
     // Configuration for the build process
     build: {
         // Where Vite will put the built files
-        outDir: '../../../dist/static',
+        outDir: '../../dist/static',
 
         // Generates a manifest.json file, which is key for backend integration
         manifest: true,
@@ -36,27 +37,16 @@ export default defineConfig(({ mode }) => {
         // Clears the output directory on each build
         emptyOutDir: true,
 
-        // Adjusts asset paths for backend rendering
         rollupOptions: {
             input: {
-                // This is your main JS entry point
-                main: './app/frontend/static/js/main.js'
-            },
-            // Suppress eval warnings for HTMX - this is safe as HTMX uses eval for template processing
-            onwarn(warning, warn) {
-                // Suppress eval warnings from HTMX
-                if (warning.code === 'EVAL' && warning.id && warning.id.includes('htmx')) {
-                    return;
-                }
-                warn(warning);
+                main: resolve(__dirname, 'app/frontend/src/main.ts')
             }
         }
     },
 
-    // Configure module resolution to use the standard HTMX build
     resolve: {
         alias: {
-            'htmx.org': 'htmx.org/dist/htmx.min.js'
+            '@': resolve(__dirname, 'app/frontend/src')
         }
     },
 
@@ -67,7 +57,7 @@ export default defineConfig(({ mode }) => {
 
         // Optimize dependencies for development
         optimizeDeps: {
-            include: ['alpinejs', 'htmx.org', 'chart.js/auto', 'vue']
+            include: ['chart.js/auto', 'pinia', 'vue']
         }
     };
 });
