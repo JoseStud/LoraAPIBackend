@@ -4,12 +4,11 @@
  * Manages data fetching and state for performance analytics dashboards.
  */
 
-import { computed, ref } from 'vue';
-import { storeToRefs } from 'pinia';
+import { ref } from 'vue';
 
 import { fetchTopAdapters } from '@/services/loraService';
 import { fetchDashboardStats } from '@/services/systemService';
-import { useSettingsStore } from '@/stores/settings';
+import { useBackendBase } from '@/utils/backend';
 import { formatDuration as formatDurationLabel } from '@/utils/format';
 
 import type {
@@ -148,10 +147,7 @@ const generateMockChartData = (
 };
 
 export function usePerformanceAnalytics() {
-  const settingsStore = useSettingsStore();
-  const { backendUrl } = storeToRefs(settingsStore);
-
-  const backendBase = computed<string>(() => backendUrl.value || '/api/v1');
+  const backendBase = useBackendBase();
 
   const timeRange = ref<PerformanceTimeRange>('24h');
   const autoRefresh = ref<boolean>(false);

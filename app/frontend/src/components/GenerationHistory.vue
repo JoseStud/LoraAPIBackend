@@ -414,12 +414,10 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch, type Ref } from 'vue';
-import { storeToRefs } from 'pinia';
 
 import { debounce } from '@/utils/async';
 import { downloadFile } from '@/utils/browser';
 import { formatFileSize as formatBytes } from '@/utils/format';
-import { useSettingsStore } from '@/stores/settings';
 import {
   deleteResult as deleteHistoryResult,
   deleteResults as deleteHistoryResults,
@@ -430,6 +428,7 @@ import {
   listResults as listHistoryResults,
   rateResult as rateHistoryResult,
 } from '@/services/historyService';
+import { useBackendBase } from '@/utils/backend';
 import type { ListResultsOutput } from '@/services/historyService';
 import type {
   GenerationHistoryResult,
@@ -478,9 +477,7 @@ const stats = reactive<GenerationHistoryStats>({
 });
 
 // Runtime configuration
-const settingsStore = useSettingsStore();
-const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
-const apiBaseUrl = computed(() => configuredBackendUrl.value || '/api/v1');
+const apiBaseUrl = useBackendBase();
 
 // Methods - mirrors Alpine.js implementation
 const loadResults = async (): Promise<void> => {

@@ -4,9 +4,9 @@ import { storeToRefs } from 'pinia';
 import { ApiError } from '@/composables/useApi';
 import { fetchSystemStatus } from '@/services/systemService';
 import { useAppStore } from '@/stores/app';
+import { useBackendBase } from '@/utils/backend';
 
 import type { SystemStatusState } from '@/types';
-import { useSettingsStore } from '@/stores/settings';
 
 const DEFAULT_STATUS: SystemStatusState = {
   gpu_status: 'Loading…',
@@ -95,11 +95,8 @@ export const useSystemStatus = (options: UseSystemStatusOptions = {}) => {
   const pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
 
   const appStore = useAppStore();
-  const settingsStore = useSettingsStore();
   const { systemStatus } = storeToRefs(appStore);
-  const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
-
-  const backendBase = computed<string>(() => configuredBackendUrl.value || '/api/v1');
+  const backendBase = useBackendBase();
 
   const apiAvailable = ref<boolean>(true);
   const isReady = ref<boolean>(false);

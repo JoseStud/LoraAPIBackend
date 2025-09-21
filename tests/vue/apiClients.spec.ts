@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  useActiveJobsApi,
   useAdapterListApi,
   useDashboardStatsApi,
   useSystemStatusApi,
@@ -72,6 +73,22 @@ describe('apiClients composables', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       'https://status.example/api/system/status',
+      expect.objectContaining({ credentials: 'same-origin' }),
+    );
+  });
+
+  it('resolves active job polling against a remote backend host', async () => {
+    const settingsStore = useSettingsStore();
+    settingsStore.setSettings({ backendUrl: 'https://remote.example/internal/api/' });
+
+    const fetchMock = vi.fn().mockResolvedValue(createJsonResponse([]));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { fetchData } = useActiveJobsApi();
+    await fetchData();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://remote.example/internal/api/generation/jobs/active',
       expect.objectContaining({ credentials: 'same-origin' }),
     );
   });

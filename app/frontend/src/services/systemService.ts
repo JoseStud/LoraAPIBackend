@@ -1,7 +1,7 @@
-import { unref } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
 
 import { useApi } from '@/composables/useApi';
+import { createBackendUrlGetter } from '@/utils/backend';
 
 import type {
   DashboardStatsSummary,
@@ -10,29 +10,19 @@ import type {
   SystemStatusPayload,
 } from '@/types';
 
-const DEFAULT_BASE = '/api/v1';
-
-const sanitizeBaseUrl = (value?: string): string => {
-  if (!value) {
-    return DEFAULT_BASE;
-  }
-  return value.replace(/\/+$/, '') || DEFAULT_BASE;
-};
-
-const resolveBase = (baseUrl: MaybeRefOrGetter<string>) => {
-  const raw = typeof baseUrl === 'function' ? (baseUrl as () => string)() : unref(baseUrl);
-  return sanitizeBaseUrl(raw);
-};
-
-export const useSystemStatusApi = (baseUrl: MaybeRefOrGetter<string> = DEFAULT_BASE) =>
+export const useSystemStatusApi = (
+  baseUrl?: MaybeRefOrGetter<string | null>,
+) =>
   useApi<SystemStatusPayload>(
-    () => `${resolveBase(baseUrl)}/system/status`,
+    createBackendUrlGetter('/system/status', baseUrl),
     { credentials: 'same-origin' },
   );
 
-export const useDashboardStatsApi = (baseUrl: MaybeRefOrGetter<string> = DEFAULT_BASE) =>
+export const useDashboardStatsApi = (
+  baseUrl?: MaybeRefOrGetter<string | null>,
+) =>
   useApi<DashboardStatsSummary>(
-    () => `${resolveBase(baseUrl)}/dashboard/stats`,
+    createBackendUrlGetter('/dashboard/stats', baseUrl),
     { credentials: 'same-origin' },
   );
 
@@ -48,18 +38,16 @@ export const loadFrontendSettings = async (): Promise<FrontendRuntimeSettings | 
 };
 
 export const fetchDashboardStats = async (
-  baseUrl: string,
+  baseUrl?: string | null,
 ): Promise<DashboardStatsSummary | null> => {
-  const base = sanitizeBaseUrl(baseUrl);
-  const api = useDashboardStatsApi(base);
+  const api = useDashboardStatsApi(baseUrl);
   return api.fetchData();
 };
 
 export const fetchSystemStatus = async (
-  baseUrl: string,
+  baseUrl?: string | null,
 ): Promise<SystemStatusPayload | null> => {
-  const base = sanitizeBaseUrl(baseUrl);
-  const api = useSystemStatusApi(base);
+  const api = useSystemStatusApi(baseUrl);
   return api.fetchData();
 };
 
