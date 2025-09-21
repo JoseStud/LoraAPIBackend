@@ -198,7 +198,7 @@ describe('JobQueue.vue', () => {
       credentials: 'same-origin'
     });
     expect(removeJobSpy).toHaveBeenCalledWith('job1');
-    expect(addNotificationSpy).toHaveBeenCalledWith('Job cancelled', 'info');
+    expect(addNotificationSpy).toHaveBeenCalledWith('Job cancelled', 'info', expect.any(Number));
 
     wrapper.unmount();
   });

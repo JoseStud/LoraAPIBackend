@@ -69,17 +69,17 @@ Always follow these instructions first and fallback to search or bash commands o
   ```
   Takes approximately 2-3 seconds. NEVER CANCEL. Some tests may fail due to missing ML dependencies (torch, sentence-transformers) - this is expected in basic environments.
 
-- **Vue component tests** (always work):
-  ```bash
-  npm run test:unit:vue
-  ```
-  Takes approximately 3 seconds. NEVER CANCEL. Set timeout to 10+ seconds.
-
-- **JavaScript unit tests** (some syntax issues exist):
+- **Vue component & integration tests** (always work):
   ```bash
   npm run test:unit
   ```
-  Takes approximately 10 seconds. NEVER CANCEL. Set timeout to 20+ seconds. Some tests fail due to parsing issues - this is a known limitation.
+  Takes approximately 3 seconds. NEVER CANCEL. Set timeout to 10+ seconds.
+
+- **API helper smoke tests**:
+  ```bash
+  npm run test:integration
+  ```
+  Takes approximately 5 seconds. NEVER CANCEL. Set timeout to 15+ seconds.
 
 ### Code Quality
 
@@ -111,7 +111,7 @@ Always follow these instructions first and fallback to search or bash commands o
 - **ALWAYS** manually test the application after making changes by running `npm run dev:full` and accessing http://localhost:8000
 - **ALWAYS** test the API health endpoint: `curl http://localhost:8000/api/health` should return `{"status":"ok"}`
 - **ALWAYS** run Python tests with `pytest tests/test_main.py tests/test_services.py -v` before committing
-- **ALWAYS** run Vue tests with `npm run test:unit:vue` before committing
+- **ALWAYS** run Vue tests with `npm run test:unit` before committing
 - **CRITICAL HTMX FIX**: If you encounter HTMX import errors in Vite build, use `import 'htmx.org';` NOT `import htmx from 'htmx.org';`
 
 ## Architecture Understanding

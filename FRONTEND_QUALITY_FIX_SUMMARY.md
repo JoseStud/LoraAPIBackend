@@ -33,4 +33,4 @@
 ## Validation
 - ✅ `pnpm run type-check`
 - ✅ `pnpm run lint`
-- ✅ `pnpm run test:unit:vue`
+- ✅ `pnpm run test:unit`

@@ -11,7 +11,7 @@ describe('ImportExport.vue', () => {
   beforeEach(() => {
     // Reset fetch mock
     fetch.mockClear();
-    
+
     // Mock fetch responses for different endpoints
     fetch.mockImplementation((url) => {
       if (url.includes('/api/v1/export/estimate')) {
@@ -22,7 +22,12 @@ describe('ImportExport.vue', () => {
       } else if (url.includes('/api/v1/backups/history')) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve([])
+          json: () => Promise.resolve({ history: [] })
+        });
+      } else if (url.includes('/api/v1/backup/create')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ backup_id: 'backup-123' })
         });
       } else if (url.includes('/api/v1/export')) {
         return Promise.resolve({
@@ -337,5 +342,54 @@ describe('ImportExport.vue', () => {
     wrapper.vm.activeTab = 'export';
     wrapper.vm.viewHistory();
     expect(wrapper.vm.activeTab).toBe('backup');
+  });
+
+  it('creates a full backup and refreshes history', async () => {
+    await wrapper.vm.createFullBackup();
+    await wrapper.vm.$nextTick();
+
+    const backupCall = fetch.mock.calls.find(([url]) => url.includes('/api/v1/backup/create'));
+    expect(backupCall).toBeTruthy();
+    expect(backupCall?.[1]?.body).toContain('"backup_type":"full"');
+
+    expect(wrapper.vm.toastType).toBe('success');
+    expect(wrapper.vm.toastMessage).toContain('Full backup initiated');
+  });
+
+  it('creates a quick backup and refreshes history', async () => {
+    await wrapper.vm.createQuickBackup();
+    await wrapper.vm.$nextTick();
+
+    const backupCall = fetch.mock.calls.find(([url, options]) => {
+      return url.includes('/api/v1/backup/create') && options?.body?.includes('"backup_type":"quick"');
+    });
+
+    expect(backupCall).toBeTruthy();
+    expect(wrapper.vm.toastType).toBe('success');
+    expect(wrapper.vm.toastMessage).toContain('Quick backup initiated');
+  });
+
+  it('surfaces informational toasts for backup utilities', () => {
+    wrapper.vm.scheduleBackup();
+    expect(wrapper.vm.toastType).toBe('info');
+    expect(wrapper.vm.toastMessage).toBe('Schedule backup functionality coming soon');
+
+    wrapper.vm.downloadBackup('backup-123');
+    expect(wrapper.vm.toastMessage).toBe('Download backup backup-123 functionality coming soon');
+
+    wrapper.vm.restoreBackup('backup-123');
+    expect(wrapper.vm.toastMessage).toBe('Restore backup backup-123 functionality coming soon');
+
+    wrapper.vm.deleteBackup('backup-123');
+    expect(wrapper.vm.toastMessage).toBe('Delete backup backup-123 functionality coming soon');
+  });
+
+  it('announces upcoming migration flows', () => {
+    wrapper.vm.startVersionMigration();
+    expect(wrapper.vm.toastType).toBe('info');
+    expect(wrapper.vm.toastMessage).toBe('Version migration functionality coming soon');
+
+    wrapper.vm.startPlatformMigration();
+    expect(wrapper.vm.toastMessage).toBe('Platform migration functionality coming soon');
   });
 });

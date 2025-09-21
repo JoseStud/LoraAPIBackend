@@ -13,7 +13,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./tests/setup/vitest.setup.js'],
-    include: ['tests/vue/**/*.spec.{js,ts}'],
+    include: [
+      'tests/vue/**/*.spec.{js,ts}',
+      'tests/integration/**/*.test.js',
+    ],
     css: false,
   },
 });

@@ -7,7 +7,7 @@ This document provides an overview of the testing strategy, setup, and execution
 We employ a multi-layered testing strategy to ensure code quality, prevent regressions, and validate functionality from the lowest-level units to high-level user workflows.
 
 -   **Backend (Python/FastAPI)**: Tested with `pytest`.
--   **Frontend (Vue 3/TypeScript)**: Tested with `Jest` and `Vitest`.
+-   **Frontend (Vue 3/TypeScript)**: Tested with `Vitest`.
 -   **End-to-End (E2E)**: Tested with `Playwright`.
 
 ## 2. Test Structure
@@ -17,23 +17,31 @@ The `tests/` directory is organized by the type and scope of the tests:
 ```
 tests/
 ├── e2e/              # End-to-end tests (Playwright)
-│   └── lora-manager.spec.js
-├── integration/      # Backend integration tests (Pytest)
+│   ├── homepage.spec.js
+│   ├── lora-manager.spec.js
+│   └── workflows.spec.js
+├── integration/      # Backend (Pytest) and API (Vitest) integration suites
+│   ├── api.test.js
+│   ├── database.test.js
 │   └── test_main.py
-├── unit/             # Unit tests
+├── unit/             # Python unit tests
 │   ├── backend/      # Backend unit tests (Pytest)
 │   │   └── test_services.py
-│   ├── import-export.test.js    # Jest tests for SPA workflows
-│   ├── mobile-nav.test.js       # Jest navigation smoke tests
 │   └── test_frontend_structure.py # Python assertion of Vue SPA shell
+├── vue/              # Vitest suites for Vue components, stores, and services
+│   ├── ImportExport.spec.js
+│   ├── MobileNav.spec.js
+│   └── ...
+├── mocks/            # Shared Vitest mocks (fetch, WebSocket, etc.)
+│   └── api-mocks.js
+├── setup/            # Vitest global setup
+│   └── vitest.setup.js
 ├── conftest.py       # Pytest configuration and fixtures
-├── setup.js          # Jest global setup (mocks, etc.)
 └── playwright.config.js # Playwright configuration
 ```
 
--   **`unit/`**: Tests for individual functions, classes, or components in isolation.
-    -   Backend unit tests (`unit/backend/`) focus on service logic, using mocks for database and external API calls.
-    -   Frontend unit tests validate Vue components and SPA wiring using `jest-dom` utilities.
+-   **`unit/`**: Python tests for backend services and high-level SPA assertions.
+-   **`vue/`**: Vitest suites that exercise Vue components, composables, Pinia stores, and HTTP helpers.
 -   **`integration/`**: Backend tests that verify the interaction between different parts of the system, such as API endpoints and the database. These tests use a test-specific database instance.
 -   **`e2e/`**: High-level tests that simulate real user workflows in a browser. They use Playwright to interact with the application, ensuring that the frontend and backend work together correctly.
 
@@ -71,13 +79,16 @@ pytest tests/unit/backend/
 pytest -v
 ```
 
-### 3.3. Running Frontend Tests (Jest)
+### 3.3. Running Frontend Tests (Vitest)
 
-To run only the JavaScript tests for the frontend, use the `npm` script.
+Use the Vitest-powered scripts to exercise Vue SFCs, composables, and API helpers.
 
 ```bash
-# Run all frontend unit tests
+# Run all frontend unit + integration suites
 npm run test:unit
+
+# Run only the API integration specs
+npm run test:integration
 
 # Run in watch mode for active development
 npm run test:watch
@@ -100,5 +111,5 @@ npx playwright test --headed
 ## 4. Test Environment & Mocks
 
 -   **Backend**: `pytest` uses fixtures defined in `tests/conftest.py` to provide a test database session and a test client for making API requests.
--   **Frontend**: `Jest` uses the configuration in `tests/setup.js` to mock global browser objects like `fetch`, `localStorage`, and `WebSocket`, allowing components to be tested without a live browser or backend.
+-   **Frontend**: `Vitest` bootstraps `tests/setup/vitest.setup.js`, which wires Pinia, shared DOM matchers, and the API mocks in `tests/mocks/api-mocks.js` so Vue components run without a live backend.
 -   **E2E**: `Playwright` runs against a real browser instance (Chromium by default) and interacts with the application as a user would. The base URL and other parameters are configured in `playwright.config.js`.

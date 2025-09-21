@@ -39,7 +39,7 @@ The last Alpine.js admin and analytics islands now map directly to Vue single-fi
 ## Tests & Validation
 
 - Python regression tests in `tests/unit/test_frontend_structure.py` ensure the SPA shell exists, templates stay removed, and each view keeps its feature coverage.
-- Vitest runs against the Vue SFCs (`npm run test:unit:vue`).
+- Vitest runs against the Vue SFCs and helpers (`npm run test:unit`).
 - Jest remains available for DOM utility smoke tests but no longer depends on Alpine globals.
 
 ## Next Steps

@@ -1,3 +1,7 @@
+// @vitest-environment node
+
+import { vi } from 'vitest';
+
 /**
  * Integration Tests for Database Operations
  */
@@ -11,12 +15,12 @@ describe('Database Integration Tests', () => {
         // This would typically use a test database
         db = {
             // Mock database interface
-            query: jest.fn(),
-            insert: jest.fn(),
-            update: jest.fn(),
-            delete: jest.fn(),
-            transaction: jest.fn(),
-            close: jest.fn()
+            query: vi.fn(),
+            insert: vi.fn(),
+            update: vi.fn(),
+            delete: vi.fn(),
+            transaction: vi.fn(),
+            close: vi.fn()
         };
         
         testData = {
@@ -491,14 +495,14 @@ describe('Database Integration Tests', () => {
         
         test('should handle connection pooling', async () => {
             // Simulate multiple concurrent queries
-            const queries = Array.from({ length: 10 }, (_, i) => 
+            db.query.mockResolvedValue({ rows: [{ id: 'test-id' }] });
+
+            const queries = Array.from({ length: 10 }, () =>
                 db.query('SELECT id FROM loras LIMIT 1')
             );
-            
-            db.query.mockResolvedValue({ rows: [{ id: 'test-id' }] });
-            
+
             const results = await Promise.all(queries);
-            
+
             expect(results).toHaveLength(10);
             results.forEach(result => {
                 expect(result.rows[0].id).toBe('test-id');
