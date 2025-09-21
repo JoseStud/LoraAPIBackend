@@ -1,12 +1,29 @@
 """Adapter service for managing LoRA adapters."""
 
-from typing import List, Optional
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import List, Optional, Sequence
 
 from sqlmodel import Session, select
 
 from backend.models import Adapter
 from backend.schemas.adapters import AdapterCreate
 from backend.services.storage import get_storage_service
+
+
+EPOCH = datetime.fromtimestamp(0, tz=timezone.utc)
+
+
+@dataclass
+class AdapterSearchResult:
+    """Structured result returned when searching adapters."""
+
+    items: List[Adapter]
+    total: int
+    filtered: int
+    page: int
+    pages: int
+    per_page: int
 
 
 class AdapterService:
@@ -160,12 +177,12 @@ class AdapterService:
 
     def list_adapters(self, active_only: bool = False, limit: int = 100, offset: int = 0) -> List[Adapter]:
         """List adapters with optional filtering and pagination.
-        
+
         Args:
             active_only: If True, only return active adapters
             limit: Maximum number of adapters to return
             offset: Number of adapters to skip
-            
+
         Returns:
             List of Adapter instances
 
@@ -173,9 +190,79 @@ class AdapterService:
         q = select(Adapter)
         if active_only:
             q = q.where(Adapter.active)
-        
+
         q = q.offset(offset).limit(limit)
         return list(self.db_session.exec(q).all())
+
+    def search_adapters(
+        self,
+        *,
+        search: str = "",
+        active_only: bool = False,
+        tags: Optional[Sequence[str]] = None,
+        sort: str = "name",
+        page: int = 1,
+        per_page: int = 24,
+    ) -> AdapterSearchResult:
+        """Search adapters with filtering, sorting, and pagination rules.
+
+        Args:
+            search: Case-insensitive substring to match against adapter names.
+            active_only: When True, only return adapters marked active.
+            tags: Optional list of tag filters. Any match qualifies the adapter.
+            sort: Sort key ("name", "created_at", "updated_at", "file_size").
+            page: One-based page number to return.
+            per_page: Number of items to include per page.
+
+        Returns:
+            AdapterSearchResult describing the filtered items and pagination.
+        """
+
+        query = select(Adapter)
+        if search:
+            query = query.where(Adapter.name.ilike(f"%{search}%"))
+
+        if active_only:
+            query = query.where(Adapter.active)
+
+        adapters: List[Adapter] = list(self.db_session.exec(query).all())
+
+        tag_filters = [tag.strip() for tag in (tags or []) if str(tag).strip()]
+        if tag_filters:
+
+            def has_matching_tags(adapter: Adapter) -> bool:
+                adapter_tags = adapter.tags if isinstance(adapter.tags, list) else []
+                adapter_tags_lower = [tag.lower() for tag in adapter_tags if isinstance(tag, str)]
+                return any(filter_tag.lower() in adapter_tags_lower for filter_tag in tag_filters)
+
+            adapters = [adapter for adapter in adapters if has_matching_tags(adapter)]
+
+        total_count = len(adapters)
+
+        if sort == "name":
+            adapters.sort(key=lambda adapter: (adapter.name or "").lower())
+        elif sort == "created_at":
+            adapters.sort(key=lambda adapter: adapter.created_at or EPOCH, reverse=True)
+        elif sort == "updated_at":
+            adapters.sort(key=lambda adapter: adapter.updated_at or EPOCH, reverse=True)
+        elif sort == "file_size":
+            adapters.sort(key=lambda adapter: adapter.primary_file_size_kb or 0, reverse=True)
+        else:
+            adapters.sort(key=lambda adapter: (adapter.name or "").lower())
+
+        per_page_value = max(per_page, 1)
+        offset = (page - 1) * per_page_value
+        items = adapters[offset : offset + per_page_value]
+        total_pages = (total_count + per_page_value - 1) // per_page_value if total_count else 0
+
+        return AdapterSearchResult(
+            items=items,
+            total=total_count,
+            filtered=total_count,
+            page=page,
+            pages=total_pages,
+            per_page=per_page_value,
+        )
 
     def list_active_ordered(self) -> List[Adapter]:
         """Return active adapters ordered and deduplicated.
