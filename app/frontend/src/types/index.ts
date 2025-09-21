@@ -5,3 +5,4 @@ export * from './generation';
 export * from './recommendations';
 export * from './api';
 export * from './system';
+export * from './promptComposer';
