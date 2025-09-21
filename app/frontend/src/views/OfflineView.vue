@@ -89,7 +89,9 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
+import { useApi } from '@/composables/useApi';
 import OfflineFeatureCard from '@/components/OfflineFeatureCard.vue';
+import { createBackendUrlGetter } from '@/utils/backend';
 
 interface OfflineStatusSnapshot {
   cacheSize?: number;
@@ -98,6 +100,11 @@ interface OfflineStatusSnapshot {
 }
 
 const router = useRouter();
+
+const healthApi = useApi<Record<string, unknown>>(createBackendUrlGetter('/health'), {
+  cache: 'no-store',
+  credentials: 'same-origin',
+});
 
 const isInitialized = ref(false);
 const isOnline = ref(typeof navigator === 'undefined' ? true : navigator.onLine);
@@ -289,17 +296,14 @@ const checkConnection = async () => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
   try {
-    const response = await fetch('/api/v1/health', {
-      cache: 'no-store',
-      credentials: 'same-origin',
-      signal: controller.signal,
-    });
-    updateOnlineState(response.ok ? true : typeof navigator !== 'undefined' ? navigator.onLine : isOnline.value);
+    await healthApi.fetchData({ signal: controller.signal });
+    updateOnlineState(true);
   } catch (error) {
     if (import.meta.env.DEV) {
       console.warn('Connection check failed', error);
     }
-    updateOnlineState(typeof navigator !== 'undefined' ? navigator.onLine : false);
+    const navigatorOnline = typeof navigator !== 'undefined' ? navigator.onLine : isOnline.value;
+    updateOnlineState(navigatorOnline);
   } finally {
     clearTimeout(timeout);
     isChecking.value = false;

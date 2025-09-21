@@ -75,12 +75,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { storeToRefs } from 'pinia';
+import { computed } from 'vue';
 
-import { resolveBackendUrl } from '@/services/generationService';
-import { useAppStore } from '@/stores/app';
-import { useSettingsStore } from '@/stores/settings';
+import { useJobQueue } from '@/composables/useJobQueue';
 import { formatElapsedTime } from '@/utils/format';
 
 import type { GenerationJob } from '@/types';
@@ -107,18 +104,16 @@ const props = withDefaults(defineProps<Props>(), {
   showClearCompleted: false,
 });
 
-const appStore = useAppStore();
-const settingsStore = useSettingsStore();
-const { activeJobs } = storeToRefs(appStore);
-const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
-
-const buildBackendUrl = (path: string): string => resolveBackendUrl(path, configuredBackendUrl.value);
-
-const isReady = ref(false);
-const isPolling = ref(false);
-const apiAvailable = ref(true);
-const isCancelling = ref(false);
-const pollingTimer = ref<ReturnType<typeof setInterval> | null>(null);
+const {
+  jobs,
+  isReady,
+  isCancelling,
+  clearCompletedJobs,
+  cancelJob: cancelQueueJob,
+} = useJobQueue({
+  pollInterval: computed(() => props.pollingInterval),
+  disabled: computed(() => props.disabled),
+});
 
 const title = computed(() => props.title);
 const emptyStateTitle = computed(() => props.emptyStateTitle);
@@ -127,7 +122,6 @@ const cardClass = computed(() => props.cardClass);
 const showJobCount = computed(() => props.showJobCount);
 const showClearCompleted = computed(() => props.showClearCompleted);
 
-const jobs = computed(() => activeJobs.value);
 const hasJobs = computed(() => jobs.value.length > 0);
 const jobCountLabel = computed(() => `${jobs.value.length} active`);
 
@@ -174,161 +168,10 @@ const canCancelJob = (job: GenerationJob) => {
 };
 
 const handleClearCompleted = () => {
-  appStore.clearCompletedJobs();
-};
-
-const stopPolling = () => {
-  if (pollingTimer.value) {
-    clearInterval(pollingTimer.value);
-    pollingTimer.value = null;
-  }
-  isPolling.value = false;
-};
-
-const updateJobStatuses = async () => {
-  if (!apiAvailable.value) return;
-
-  try {
-    let response: Response | null = null;
-    try {
-      response = await fetch(buildBackendUrl('/generation/jobs/active'), {
-        credentials: 'same-origin',
-      });
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.info('[JobQueue] Generation jobs endpoint failed, falling back', error);
-      }
-    }
-
-    if (!response) {
-      response = await fetch(buildBackendUrl('/jobs/status'), {
-        credentials: 'same-origin',
-      });
-    }
-
-    if (response.ok) {
-      const apiJobs: Array<Record<string, unknown>> = await response.json();
-      apiJobs.forEach((apiJob) => {
-        const apiId = String(apiJob.id ?? apiJob.jobId ?? '');
-        if (!apiId) {
-          return;
-        }
-        const storeJob = jobs.value.find((job) => job.id === apiId || job.jobId === apiId);
-        const jobId = storeJob?.id ?? apiId;
-
-        const status = String(apiJob.status ?? storeJob?.status ?? 'running');
-        const progress = Number(apiJob.progress ?? storeJob?.progress ?? 0);
-        const message = typeof apiJob.message === 'string' ? apiJob.message : storeJob?.message;
-
-        appStore.updateJob(jobId, {
-          status,
-          progress: Number.isFinite(progress) ? progress : 0,
-          message,
-        });
-
-        if (status === 'completed' && apiJob.result) {
-          appStore.addResult(apiJob.result as Record<string, unknown> as any);
-          appStore.removeJob(jobId);
-          appStore.addNotification('Generation completed!', 'success');
-        } else if (status === 'failed') {
-          appStore.removeJob(jobId);
-          const errorMessage = typeof apiJob.error === 'string' ? apiJob.error : 'Unknown error';
-          appStore.addNotification(`Generation failed: ${errorMessage}`, 'error');
-        }
-      });
-    } else if (response.status === 404) {
-      apiAvailable.value = false;
-      stopPolling();
-    }
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.info('[JobQueue] Polling error:', error);
-    }
-  }
+  clearCompletedJobs();
 };
 
 const handleCancelJob = async (jobId: string) => {
-  if (isCancelling.value) {
-    return;
-  }
-
-  try {
-    isCancelling.value = true;
-    const job = jobs.value.find((item) => item.id === jobId);
-    if (!job) {
-      appStore.addNotification('Job not found', 'error');
-      return;
-    }
-
-    const backendJobId = job.jobId ?? job.id;
-    let response: Response | null = null;
-
-    try {
-      response = await fetch(buildBackendUrl(`/generation/jobs/${backendJobId}/cancel`), {
-        method: 'POST',
-        credentials: 'same-origin',
-      });
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.info('[JobQueue] Failed to cancel via generation endpoint, retrying legacy', error);
-      }
-    }
-
-    if (!response) {
-      response = await fetch(buildBackendUrl(`/jobs/${backendJobId}/cancel`), {
-        method: 'POST',
-        credentials: 'same-origin',
-      });
-    }
-
-    if (response.ok) {
-      appStore.removeJob(jobId);
-      appStore.addNotification('Job cancelled', 'info');
-    } else {
-      appStore.addNotification('Failed to cancel job', 'error');
-    }
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn('Failed to cancel job', error);
-    }
-    appStore.addNotification('Failed to cancel job', 'error');
-  } finally {
-    isCancelling.value = false;
-  }
+  await cancelQueueJob(jobId);
 };
-
-const startPolling = () => {
-  if (!apiAvailable.value || pollingTimer.value || props.disabled) {
-    return;
-  }
-
-  pollingTimer.value = setInterval(async () => {
-    if (isPolling.value) {
-      return;
-    }
-
-    if (!apiAvailable.value) {
-      stopPolling();
-      return;
-    }
-
-    try {
-      isPolling.value = true;
-      await updateJobStatuses();
-    } finally {
-      isPolling.value = false;
-    }
-  }, props.pollingInterval);
-};
-
-onMounted(() => {
-  isReady.value = true;
-  if (!props.disabled) {
-    startPolling();
-  }
-});
-
-onUnmounted(() => {
-  stopPolling();
-});
 </script>

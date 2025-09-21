@@ -68,3 +68,17 @@ export interface PerformanceAnalyticsCharts {
   loraUsage: LoraUsageSlice[];
   resourceUsage: ResourceUsagePoint[];
 }
+
+export interface AnalyticsExportOptions {
+  format: string;
+  loras?: boolean;
+  generations?: boolean;
+  [key: string]: unknown;
+}
+
+export interface AnalyticsExportResult {
+  blob: Blob;
+  filename: string;
+  contentType?: string | null;
+  size: number;
+}
