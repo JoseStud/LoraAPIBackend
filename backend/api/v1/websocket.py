@@ -1,4 +1,12 @@
-"""WebSocket router for real-time progress monitoring."""
+"""WebSocket router for real-time progress monitoring.
+
+The canonical client-facing path for this socket is ``/api/v1/ws/progress``
+when the backend is served through the main application (``app.main``). When
+connecting directly to the backend service without the ``/api`` mount, the
+route is available at ``/v1/ws/progress``. A legacy compatibility path without
+versioning is also provided by ``backend.main`` so older clients that still use
+``/ws/progress`` continue to function.
+"""
 
 from fastapi import APIRouter, Depends, WebSocket
 
@@ -8,7 +16,10 @@ from backend.services import ServiceContainer
 router = APIRouter()
 
 
-@router.websocket("/ws/progress")
+PROGRESS_WEBSOCKET_ROUTE = "/ws/progress"
+
+
+@router.websocket(PROGRESS_WEBSOCKET_ROUTE)
 async def websocket_progress_endpoint(
     websocket: WebSocket,
     container: ServiceContainer = Depends(get_service_container),

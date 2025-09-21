@@ -251,9 +251,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { storeToRefs } from 'pinia';
-
-import { useSettingsStore } from '@/stores/settings';
+import { useBackendBase } from '@/utils/backend';
 import {
   buildRecommendationsUrl,
   deleteLora as deleteLoraRequest,
@@ -297,9 +295,7 @@ const emit = defineEmits<{
 
 const windowExtras = window as WindowWithExtras;
 
-const settingsStore = useSettingsStore();
-const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
-const apiBaseUrl = computed(() => configuredBackendUrl.value || '/api/v1');
+const apiBaseUrl = useBackendBase();
 
 // Local state
 const showActions = ref(false);

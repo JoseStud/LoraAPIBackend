@@ -152,6 +152,16 @@ describe('resolveBackendUrl', () => {
 
     expect(resolveGenerationBaseUrl()).toBe('/prefixed/api')
   })
+
+  it('resolves an absolute backend base when the frontend origin differs', () => {
+    const store = useSettingsStore()
+    store.setSettings({ backendUrl: 'https://remote.example/api/v3/' })
+
+    expect(resolveGenerationBaseUrl()).toBe('https://remote.example/api/v3')
+    expect(resolveBackendUrl('/generation/jobs/active')).toBe(
+      'https://remote.example/api/v3/generation/jobs/active',
+    )
+  })
 })
 
 describe('generationService URL resolution', () => {

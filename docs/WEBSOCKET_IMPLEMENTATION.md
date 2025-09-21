@@ -29,12 +29,13 @@ The implementation consists of three main components:
     -   Handles incoming client messages (e.g., subscription requests).
 
 3.  **WebSocket Endpoint (`backend/api/v1/websocket.py`)**:
-    -   Exposes the `/ws/progress` endpoint (unversioned).
+    -   Exposes the canonical `/api/v1/ws/progress` endpoint (via the main app's `/api` mount).
+    -   Provides a `/ws/progress` compatibility route for legacy clients connecting directly to the backend service.
     -   Accepts new client connections and passes them to the `WebSocketService`.
 
 ### Message Flow
 
-1.  A client connects to the `ws://<host>/ws/progress` endpoint.
+1.  A client connects to the `ws://<host>/api/v1/ws/progress` endpoint (or `ws://<host>/v1/ws/progress` when bypassing the `/api` mount).
 2.  The client sends a `subscribe` message, specifying which job IDs to monitor (or `null` for all jobs).
     ```json
     {
@@ -57,7 +58,7 @@ Clients need to connect to the WebSocket and handle incoming messages.
 
 ```javascript
 // Example client-side JavaScript
-const ws = new WebSocket('ws://localhost:8000/ws/progress');
+const ws = new WebSocket('ws://localhost:8000/api/v1/ws/progress');
 
 ws.onopen = () => {
     console.log('WebSocket connected!');
@@ -109,7 +110,7 @@ The following Pydantic schemas are used for WebSocket communication (`backend/sc
 
 
 #### Message Flow
-1. Client connects to `/ws/progress`
+1. Client connects to `/api/v1/ws/progress` (or `/v1/ws/progress` when addressing the backend service directly)
 2. Client sends subscription request
 3. Server confirms subscription
 4. When generation job starts → `generation_started` message

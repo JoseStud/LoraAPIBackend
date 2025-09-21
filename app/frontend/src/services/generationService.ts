@@ -8,7 +8,6 @@ import type {
   SDNextGenerationParams,
   SDNextGenerationResult,
 } from '@/types';
-import { useSettingsStore } from '@/stores/settings';
 import {
   deleteRequest,
   ensureData,
@@ -17,6 +16,11 @@ import {
   requestBlob,
   requestJson,
 } from '@/utils/api';
+import {
+  resolveBackendBaseUrl,
+  resolveBackendUrl as resolveBackendUrlHelper,
+  trimLeadingSlash,
+} from '@/utils/backend';
 
 export type GenerationParamOverrides =
   & Pick<SDNextGenerationParams, 'prompt'>
@@ -26,83 +30,13 @@ export type GenerationRequestBody = SDNextGenerationParams & {
   loras?: CompositionEntry[];
 };
 
-const DEFAULT_BACKEND_BASE = '/api/v1';
+export const resolveGenerationBaseUrl = (baseOverride?: string | null): string =>
+  resolveBackendBaseUrl(baseOverride);
 
-const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
-
-const trimLeadingSlash = (value: string): string => value.replace(/^\/+/, '');
-
-const splitPathSuffix = (input: string): { pathname: string; suffix: string } => {
-  const match = input.match(/^([^?#]*)(.*)$/);
-  if (!match) {
-    return { pathname: input, suffix: '' };
-  }
-  return { pathname: match[1] ?? '', suffix: match[2] ?? '' };
-};
-
-const selectBackendBase = (override?: string | null): string => {
-  const overrideValue = typeof override === 'string' ? override.trim() : '';
-  if (overrideValue.length > 0) {
-    return overrideValue;
-  }
-
-  const settingsStore = useSettingsStore();
-  const configured = settingsStore.backendUrl.trim();
-  if (configured.length > 0) {
-    return configured;
-  }
-
-  return DEFAULT_BACKEND_BASE;
-};
-
-const normaliseBackendBase = (base: string): string => {
-  if (/^https?:\/\//i.test(base)) {
-    return trimTrailingSlash(base);
-  }
-
-  const withoutTrailing = trimTrailingSlash(base);
-  if (!withoutTrailing) {
-    return DEFAULT_BACKEND_BASE;
-  }
-
-  return withoutTrailing.startsWith('/') ? withoutTrailing : `/${withoutTrailing}`;
-};
-
-const joinBackendPath = (base: string, path: string): string => {
-  const { pathname, suffix } = splitPathSuffix(path);
-  const normalisedBase = trimTrailingSlash(base);
-  const normalisedPathname = trimLeadingSlash(pathname);
-
-  if (!normalisedPathname) {
-    return normalisedBase || DEFAULT_BACKEND_BASE;
-  }
-
-  if (!normalisedBase) {
-    return `/${normalisedPathname}${suffix}`;
-  }
-
-  const combined = /^https?:\/\//i.test(normalisedBase)
-    ? `${normalisedBase}/${normalisedPathname}`
-    : `${normalisedBase}/${normalisedPathname}`.replace(/^\/+/, '/');
-
-  return `${combined}${suffix}`;
-};
-
-export const resolveGenerationBaseUrl = (baseOverride?: string | null): string => {
-  const base = selectBackendBase(baseOverride);
-  return normaliseBackendBase(base);
-};
-
-export const resolveBackendUrl = (path = '', baseOverride?: string | null): string => {
-  const base = resolveGenerationBaseUrl(baseOverride);
-  if (!path) {
-    return base;
-  }
-  return joinBackendPath(base, path);
-};
+export { resolveBackendUrlHelper as resolveBackendUrl };
 
 const resolveGenerationRoute = (path: string, baseOverride?: string | null): string =>
-  resolveBackendUrl(`/generation/${trimLeadingSlash(path)}`, baseOverride);
+  resolveBackendUrlHelper(`/generation/${trimLeadingSlash(path)}`, baseOverride);
 
 export const createGenerationParams = (
   overrides: GenerationParamOverrides,
