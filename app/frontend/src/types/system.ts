@@ -4,6 +4,46 @@
 
 import type { SystemStatusState } from './app';
 
+export type StatusClassBinding = string | string[] | Record<string, boolean>;
+
+export type StatusLabel = string;
+
+export interface SystemStatusCardDetailedProps {
+  gpuStatusClass?: StatusClassBinding;
+  gpuStatusLabel?: StatusLabel;
+  queueJobsLabel?: string;
+  hasMemoryData?: boolean;
+  memoryUsage?: string;
+  memoryPercent?: number;
+  lastUpdatedLabel?: string;
+}
+
+export interface SystemStatusCardSimpleProps {
+  gpuStatusClass?: StatusClassBinding;
+  gpuStatusLabel?: StatusLabel;
+  queueLength?: number | string;
+  memoryUsage?: string;
+  statusIcon?: string;
+  statusLabel?: StatusLabel;
+}
+
+export type SystemStatusLevel = 'healthy' | 'warning' | 'error' | 'unknown';
+
+export interface SystemStatusOverview {
+  overall: SystemStatusLevel;
+  last_check: string;
+}
+
+export interface SystemResourceStatsSummary {
+  uptime: string;
+  active_workers: number;
+  total_workers: number;
+  database_size: number;
+  total_records: number;
+  gpu_memory_used: string;
+  gpu_memory_total: string;
+}
+
 export interface GpuTelemetry {
   id: string | number;
   name: string;

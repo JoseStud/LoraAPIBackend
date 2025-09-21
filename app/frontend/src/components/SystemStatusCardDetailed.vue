@@ -26,35 +26,24 @@
   </div>
 </template>
 
-<script setup>
-defineProps({
-  gpuStatusClass: {
-    type: [String, Object, Array],
-    default: '',
-  },
-  gpuStatusLabel: {
-    type: String,
-    default: 'Unknown',
-  },
-  queueJobsLabel: {
-    type: String,
-    default: '0 jobs',
-  },
-  hasMemoryData: {
-    type: Boolean,
-    default: false,
-  },
-  memoryUsage: {
-    type: String,
-    default: 'N/A',
-  },
-  memoryPercent: {
-    type: Number,
-    default: 0,
-  },
-  lastUpdatedLabel: {
-    type: String,
-    default: 'Never',
-  },
+<script setup lang="ts">
+import type { SystemStatusCardDetailedProps } from '@/types';
+
+const {
+  gpuStatusClass,
+  gpuStatusLabel,
+  queueJobsLabel,
+  hasMemoryData,
+  memoryUsage,
+  memoryPercent,
+  lastUpdatedLabel,
+} = withDefaults(defineProps<SystemStatusCardDetailedProps>(), {
+  gpuStatusClass: '',
+  gpuStatusLabel: 'Unknown',
+  queueJobsLabel: '0 jobs',
+  hasMemoryData: false,
+  memoryUsage: 'N/A',
+  memoryPercent: 0,
+  lastUpdatedLabel: 'Never',
 });
 </script>

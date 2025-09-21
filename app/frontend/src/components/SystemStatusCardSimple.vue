@@ -22,31 +22,22 @@
   </div>
 </template>
 
-<script setup>
-defineProps({
-  gpuStatusClass: {
-    type: [String, Object, Array],
-    default: '',
-  },
-  gpuStatusLabel: {
-    type: String,
-    default: 'Unknown',
-  },
-  queueLength: {
-    type: [Number, String],
-    default: 0,
-  },
-  memoryUsage: {
-    type: String,
-    default: 'N/A',
-  },
-  statusIcon: {
-    type: String,
-    default: '',
-  },
-  statusLabel: {
-    type: String,
-    default: 'Unknown',
-  },
+<script setup lang="ts">
+import type { SystemStatusCardSimpleProps } from '@/types';
+
+const {
+  gpuStatusClass,
+  gpuStatusLabel,
+  queueLength,
+  memoryUsage,
+  statusIcon,
+  statusLabel,
+} = withDefaults(defineProps<SystemStatusCardSimpleProps>(), {
+  gpuStatusClass: '',
+  gpuStatusLabel: 'Unknown',
+  queueLength: 0,
+  memoryUsage: 'N/A',
+  statusIcon: '',
+  statusLabel: 'Unknown',
 });
 </script>

@@ -13,12 +13,12 @@
           <div>
             <div class="flex justify-between text-sm mb-1">
               <span>CPU Usage</span>
-              <span>{{ systemMetrics.cpu_percent }}%</span>
+              <span>{{ systemMetrics.cpu_percent ?? 0 }}%</span>
             </div>
             <div class="w-full bg-gray-200 rounded-full h-2">
-              <div 
+              <div
                 class="bg-blue-600 h-2 rounded-full transition-all duration-500"
-                :style="`width: ${systemMetrics.cpu_percent}%`"
+                :style="`width: ${(systemMetrics.cpu_percent ?? 0)}%`"
               ></div>
             </div>
           </div>
@@ -27,12 +27,15 @@
           <div>
             <div class="flex justify-between text-sm mb-1">
               <span>Memory Usage</span>
-              <span>{{ systemMetrics.memory_percent }}% ({{ formatSize(systemMetrics.memory_used) }})</span>
+              <span>
+                {{ systemMetrics.memory_percent ?? 0 }}%
+                ({{ formatSize(systemMetrics.memory_used) }})
+              </span>
             </div>
             <div class="w-full bg-gray-200 rounded-full h-2">
-              <div 
+              <div
                 class="bg-green-600 h-2 rounded-full transition-all duration-500"
-                :style="`width: ${systemMetrics.memory_percent}%`"
+                :style="`width: ${(systemMetrics.memory_percent ?? 0)}%`"
               ></div>
             </div>
           </div>
@@ -41,12 +44,15 @@
           <div>
             <div class="flex justify-between text-sm mb-1">
               <span>Disk Usage</span>
-              <span>{{ systemMetrics.disk_percent }}% ({{ formatSize(systemMetrics.disk_used) }})</span>
+              <span>
+                {{ systemMetrics.disk_percent ?? 0 }}%
+                ({{ formatSize(systemMetrics.disk_used ?? 0) }})
+              </span>
             </div>
             <div class="w-full bg-gray-200 rounded-full h-2">
-              <div 
+              <div
                 class="bg-yellow-600 h-2 rounded-full transition-all duration-500"
-                :style="`width: ${systemMetrics.disk_percent}%`"
+                :style="`width: ${(systemMetrics.disk_percent ?? 0)}%`"
               ></div>
             </div>
           </div>
@@ -59,37 +65,37 @@
           <h3 class="text-lg font-semibold">GPU Status</h3>
         </div>
         <div class="card-body space-y-4">
-          <div v-if="systemMetrics.gpus && systemMetrics.gpus.length > 0">
+          <div v-if="systemMetrics.gpus.length > 0">
             <div v-for="gpu in systemMetrics.gpus" :key="gpu.id" class="space-y-2">
               <div class="flex justify-between text-sm mb-2">
                 <span>GPU {{ gpu.id }}: {{ gpu.name }}</span>
-                <span>{{ gpu.temperature }}°C</span>
+                <span>{{ gpu.temperature ?? 0 }}°C</span>
               </div>
-              
+
               <!-- GPU Memory -->
               <div class="mb-2">
                 <div class="flex justify-between text-xs mb-1">
                   <span>Memory</span>
-                  <span>{{ gpu.memory_percent }}%</span>
+                  <span>{{ gpu.memory_percent ?? 0 }}%</span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-1.5">
-                  <div 
+                  <div
                     class="bg-red-600 h-1.5 rounded-full transition-all duration-500"
-                    :style="`width: ${gpu.memory_percent}%`"
+                    :style="`width: ${(gpu.memory_percent ?? 0)}%`"
                   ></div>
                 </div>
               </div>
-              
+
               <!-- GPU Utilization -->
               <div>
                 <div class="flex justify-between text-xs mb-1">
                   <span>Utilization</span>
-                  <span>{{ gpu.utilization }}%</span>
+                  <span>{{ gpu.utilization ?? 0 }}%</span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-1.5">
-                  <div 
+                  <div
                     class="bg-purple-600 h-1.5 rounded-full transition-all duration-500"
-                    :style="`width: ${gpu.utilization}%`"
+                    :style="`width: ${(gpu.utilization ?? 0)}%`"
                   ></div>
                 </div>
               </div>
@@ -167,183 +173,257 @@
   </div>
 </template>
 
-<script setup>
-import { onMounted, onBeforeUnmount, ref, reactive } from 'vue';
-import { useDashboardStatsApi } from '@/composables/apiClients';
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { storeToRefs } from 'pinia';
 
-// Default states
-const systemStatus = reactive({
+import { useSettingsStore } from '@/stores/settings';
+import {
+  deriveMetricsFromDashboard,
+  emptyMetricsSnapshot,
+  fetchDashboardStats,
+} from '@/services/systemService';
+import type {
+  DashboardStatsSummary,
+  SystemMetricsSnapshot,
+  SystemResourceStatsSummary,
+  SystemStatusLevel,
+  SystemStatusOverview,
+} from '@/types';
+
+const settingsStore = useSettingsStore();
+const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
+const apiBaseUrl = computed(() => configuredBackendUrl.value || '/api/v1');
+
+const systemStatus = reactive<SystemStatusOverview>({
   overall: 'unknown',
-  last_check: new Date().toISOString()
+  last_check: new Date().toISOString(),
 });
 
-const systemStats = reactive({
-  uptime: '0d 0h 0m',
+const systemStats = reactive<SystemResourceStatsSummary>({
+  uptime: 'N/A',
   active_workers: 0,
   total_workers: 0,
   database_size: 0,
   total_records: 0,
-  gpu_memory_used: '0GB',
-  gpu_memory_total: '0GB'
+  gpu_memory_used: 'N/A',
+  gpu_memory_total: 'N/A',
 });
 
-const systemMetrics = reactive({
-  cpu_percent: 0,
-  memory_percent: 0,
-  memory_used: 0,
-  disk_percent: 0,
-  disk_used: 0,
-  gpus: []
+const systemMetrics = reactive<SystemMetricsSnapshot>({
+  ...emptyMetricsSnapshot(),
 });
 
-const errorMessage = ref(null);
-const updateInterval = ref(null);
+const dashboardSummary = ref<DashboardStatsSummary | null>(null);
+const errorMessage = ref<string | null>(null);
+const metricsInterval = ref<ReturnType<typeof setInterval> | null>(null);
+const statsInterval = ref<ReturnType<typeof setInterval> | null>(null);
 
-const {
-  data: dashboardData,
-  fetchData: fetchDashboardStats,
-  error: dashboardApiError,
-} = useDashboardStatsApi();
-
-// Utility functions
-const formatSize = (bytes) => {
-  if (bytes === 0) return '0 Bytes';
-  
+const formatSize = (bytes: number | null | undefined): string => {
+  if (!bytes || bytes <= 0) {
+    return '0 Bytes';
+  }
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
+  const value = bytes / k ** i;
+  return `${value.toFixed(2)} ${sizes[i]}`;
 };
 
-const getStatusIcon = (status) => {
-  switch ((status || '').toLowerCase()) {
-    case 'healthy': return '✅';
-    case 'warning': return '⚠️';
-    case 'error': return '❌';
-    default: return '❓';
+const getStatusIcon = (status: SystemStatusLevel): string => {
+  switch (status) {
+    case 'healthy':
+      return '✅';
+    case 'warning':
+      return '⚠️';
+    case 'error':
+      return '❌';
+    default:
+      return '❓';
   }
 };
 
-const getStatusClass = (status) => {
-  switch ((status || '').toLowerCase()) {
-    case 'healthy': return 'text-green-600';
-    case 'warning': return 'text-yellow-600';
-    case 'error': return 'text-red-600';
-    default: return 'text-gray-600';
+const getStatusClass = (status: SystemStatusLevel): string => {
+  switch (status) {
+    case 'healthy':
+      return 'text-green-600';
+    case 'warning':
+      return 'text-yellow-600';
+    case 'error':
+      return 'text-red-600';
+    default:
+      return 'text-gray-600';
   }
 };
 
-// API functions
-const loadSystemStatus = async () => {
+const normalizeStatus = (status?: string | null): SystemStatusLevel => {
+  if (!status) {
+    return 'unknown';
+  }
+  const value = status.toLowerCase();
+  if (value === 'healthy' || value === 'warning' || value === 'error') {
+    return value;
+  }
+  return 'unknown';
+};
+
+const refreshDashboardSummary = async (): Promise<DashboardStatsSummary | null> => {
+  const summary = await fetchDashboardStats(apiBaseUrl.value);
+  dashboardSummary.value = summary;
+  return summary;
+};
+
+const handleDashboardError = (err: unknown) => {
+  dashboardSummary.value = null;
+  errorMessage.value = err instanceof Error ? err.message : 'Failed to load dashboard stats';
+};
+
+const applyStatusFromSummary = (summary: DashboardStatsSummary | null): SystemStatusLevel => {
+  const status = normalizeStatus(summary?.system_health?.status);
+  systemStatus.overall = status;
+  systemStatus.last_check = new Date().toISOString();
+  return status;
+};
+
+const applyMetricsFromSummary = (
+  summary: DashboardStatsSummary | null,
+): SystemMetricsSnapshot => {
+  const metrics = deriveMetricsFromDashboard(summary);
+  Object.assign(systemMetrics, metrics);
+  return systemMetrics;
+};
+
+const formatDisplaySize = (value: number): string => (value > 0 ? formatSize(value) : 'N/A');
+
+const applyStatsFromSummary = (
+  summary: DashboardStatsSummary | null,
+  metrics: SystemMetricsSnapshot = systemMetrics,
+) => {
+  const stats = summary?.stats;
+  systemStats.uptime = 'N/A';
+  systemStats.active_workers = 0;
+  systemStats.total_workers = 0;
+  systemStats.database_size = 0;
+  systemStats.total_records = stats?.total_loras ?? 0;
+  systemStats.gpu_memory_used = formatDisplaySize(metrics.memory_used);
+  systemStats.gpu_memory_total = formatDisplaySize(metrics.memory_total);
+};
+
+type MetricStatus = Exclude<SystemStatusLevel, 'unknown'>;
+
+const evaluateMetricsSeverity = (): MetricStatus => {
+  const cpuPercent = systemMetrics.cpu_percent ?? 0;
+  const memoryPercent = systemMetrics.memory_percent ?? 0;
+  const diskPercent = systemMetrics.disk_percent ?? 0;
+  const gpus = systemMetrics.gpus ?? [];
+
+  const hasCriticalGpu = gpus.some(
+    (gpu) => (gpu.temperature ?? 0) > 85 || (gpu.memory_percent ?? 0) > 95,
+  );
+
+  if (cpuPercent > 90 || memoryPercent > 95 || diskPercent > 95 || hasCriticalGpu) {
+    return 'error';
+  }
+
+  const hasWarningGpu = gpus.some(
+    (gpu) => (gpu.temperature ?? 0) > 75 || (gpu.memory_percent ?? 0) > 85,
+  );
+
+  if (cpuPercent > 75 || memoryPercent > 85 || diskPercent > 85 || hasWarningGpu) {
+    return 'warning';
+  }
+
+  return 'healthy';
+};
+
+const mergeStatusLevels = (
+  base: SystemStatusLevel,
+  derived: MetricStatus,
+): SystemStatusLevel => {
+  if (derived === 'error' || base === 'error') {
+    return 'error';
+  }
+  if (derived === 'warning' || base === 'warning') {
+    return 'warning';
+  }
+  if (base === 'unknown') {
+    return 'unknown';
+  }
+  return 'healthy';
+};
+
+const updateSystemStatus = (baseStatus: SystemStatusLevel) => {
+  const derivedStatus = evaluateMetricsSeverity();
+  systemStatus.overall = mergeStatusLevels(baseStatus, derivedStatus);
+};
+
+const loadAllData = async () => {
   try {
-    const payload = await fetchDashboardStats();
-    const source = payload ?? dashboardData.value;
-    const systemHealth = source?.system_health ?? {};
-    const status = typeof systemHealth.status === 'string' ? systemHealth.status : 'healthy';
-    Object.assign(systemStatus, { overall: status, last_check: new Date().toISOString() });
+    const summary = await refreshDashboardSummary();
+    const metrics = applyMetricsFromSummary(summary);
+    applyStatsFromSummary(summary, metrics);
+    const baseStatus = applyStatusFromSummary(summary);
+    updateSystemStatus(baseStatus);
     errorMessage.value = null;
   } catch (err) {
-    Object.assign(systemStatus, { overall: 'healthy', last_check: new Date().toISOString() });
-    errorMessage.value = dashboardApiError.value?.message ?? null;
-  }
-};
-
-const loadSystemStats = async () => {
-  try {
-    const payload = await fetchDashboardStats();
-    const source = payload ?? dashboardData.value;
-    const stats = source?.stats ?? {};
-    Object.assign(systemStats, {
-      uptime: 'N/A',
-      active_workers: 0,
-      total_workers: 0,
-      database_size: 0,
-      total_records: stats.total_loras || 0,
-      gpu_memory_used: 'N/A',
-      gpu_memory_total: 'N/A'
-    });
-  } catch (err) {
-    Object.assign(systemStats, {
-      uptime: 'N/A',
-      active_workers: 0,
-      total_workers: 0,
-      database_size: 0,
-      total_records: 0,
-      gpu_memory_used: 'N/A',
-      gpu_memory_total: 'N/A'
-    });
+    handleDashboardError(err);
+    const metrics = applyMetricsFromSummary(null);
+    applyStatsFromSummary(null, metrics);
+    const baseStatus = applyStatusFromSummary(null);
+    updateSystemStatus(baseStatus);
   }
 };
 
 const loadSystemMetrics = async () => {
   try {
-    // No metrics endpoint; keep zeros and update status from dashboard
-    await loadSystemStatus();
-    Object.assign(systemMetrics, {
-      cpu_percent: 0,
-      memory_percent: 0,
-      memory_used: 0,
-      disk_percent: 0,
-      disk_used: 0,
-      gpus: []
-    });
-    updateSystemStatus();
+    const summary = await refreshDashboardSummary();
+    const metrics = applyMetricsFromSummary(summary);
+    applyStatsFromSummary(summary, metrics);
+    const baseStatus = applyStatusFromSummary(summary);
+    updateSystemStatus(baseStatus);
+    errorMessage.value = null;
   } catch (err) {
-    updateSystemStatus();
+    handleDashboardError(err);
+    const metrics = applyMetricsFromSummary(null);
+    const baseStatus = applyStatusFromSummary(null);
+    updateSystemStatus(baseStatus);
   }
 };
 
-const updateSystemStatus = () => {
-  const { cpu_percent, memory_percent, disk_percent, gpus } = systemMetrics;
-  
-  // Check for critical conditions
-  if (cpu_percent > 90 || memory_percent > 95 || disk_percent > 95) {
-    systemStatus.overall = 'error';
-    return;
+const loadSystemStats = async () => {
+  try {
+    const summary = await refreshDashboardSummary();
+    applyStatsFromSummary(summary);
+    const baseStatus = applyStatusFromSummary(summary);
+    updateSystemStatus(baseStatus);
+    errorMessage.value = null;
+  } catch (err) {
+    handleDashboardError(err);
+    applyStatsFromSummary(null);
+    const baseStatus = applyStatusFromSummary(null);
+    updateSystemStatus(baseStatus);
   }
-  
-  // Check GPU temperature and memory
-  const gpuIssues = gpus.some(gpu => gpu.temperature > 85 || gpu.memory_percent > 95);
-  if (gpuIssues) {
-    systemStatus.overall = 'error';
-    return;
-  }
-  
-  // Check for warning conditions
-  if (cpu_percent > 75 || memory_percent > 85 || disk_percent > 85) {
-    systemStatus.overall = 'warning';
-    return;
-  }
-  
-  // Check GPU warnings
-  const gpuWarnings = gpus.some(gpu => gpu.temperature > 75 || gpu.memory_percent > 85);
-  if (gpuWarnings) {
-    systemStatus.overall = 'warning';
-    return;
-  }
-  
-  systemStatus.overall = 'healthy';
-};
-
-const loadAllData = async () => {
-  await Promise.all([
-    loadSystemStatus(),
-    loadSystemStats(),
-    loadSystemMetrics()
-  ]);
 };
 
 const startRealTimeUpdates = () => {
-  // Update metrics every 5 seconds
-  updateInterval.value = setInterval(() => {
-    loadSystemMetrics();
+  metricsInterval.value = setInterval(() => {
+    void loadSystemMetrics();
   }, 5000);
-  
-  // Update stats every 30 seconds
-  setInterval(() => {
-    loadSystemStats();
+
+  statsInterval.value = setInterval(() => {
+    void loadSystemStats();
   }, 30000);
+};
+
+const stopRealTimeUpdates = () => {
+  if (metricsInterval.value) {
+    clearInterval(metricsInterval.value);
+    metricsInterval.value = null;
+  }
+  if (statsInterval.value) {
+    clearInterval(statsInterval.value);
+    statsInterval.value = null;
+  }
 };
 
 onMounted(async () => {
@@ -352,8 +432,6 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
-  if (updateInterval.value) {
-    clearInterval(updateInterval.value);
-  }
+  stopRealTimeUpdates();
 });
 </script>
