@@ -413,7 +413,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref, watch, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { debounce } from '@/utils/async';
@@ -421,26 +421,30 @@ import { downloadFile } from '@/utils/browser';
 import { formatFileSize as formatBytes } from '@/utils/format';
 import { useSettingsStore } from '@/stores/settings';
 import {
-  bulkDeleteGenerations,
-  bulkFavoriteGenerations,
-  deleteGeneration,
-  downloadGenerationImage,
-  exportGenerations,
-  fetchGenerationHistory,
-  updateGenerationFavorite,
-  updateGenerationRating,
+  deleteResult as deleteHistoryResult,
+  deleteResults as deleteHistoryResults,
+  downloadResult as downloadHistoryResult,
+  exportResults as exportHistoryResults,
+  favoriteResult as favoriteHistoryResult,
+  favoriteResults as favoriteHistoryResults,
+  listResults as listHistoryResults,
+  rateResult as rateHistoryResult,
 } from '@/services/historyService';
-import type { GenerationHistoryEntry } from '@/types';
+import type { ListResultsOutput } from '@/services/historyService';
+import type {
+  GenerationHistoryResult,
+  GenerationHistoryStats,
+} from '@/types';
 
 // State mirroring the Alpine.js implementation
-interface HistoryStats {
-  total_results: number;
-  avg_rating: number;
-  total_favorites: number;
-  total_size: number;
-}
+type ViewMode = 'grid' | 'list';
+type HistorySortOption = 'created_at' | 'created_at_asc' | 'prompt' | 'rating';
+type DateFilterOption = 'all' | 'today' | 'week' | 'month';
+type RatingFilterOption = 0 | 1 | 2 | 3 | 4 | 5;
+type DimensionFilterOption = 'all' | '512x512' | '768x768' | '1024x1024';
+type ToastType = 'success' | 'error' | 'info' | 'warning';
 
-const data = ref<GenerationHistoryEntry[]>([]);
+const data: Ref<GenerationHistoryResult[]> = ref([]);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 const hasMore = ref(true);
@@ -448,29 +452,29 @@ const currentPage = ref(1);
 const pageSize = ref(50);
 const isInitialized = ref(false);
 
-const filteredResults = ref<GenerationHistoryEntry[]>([]);
-const selectedItems = ref<Array<string | number>>([]);
-const selectedResult = ref<GenerationHistoryEntry | null>(null);
+const filteredResults: Ref<GenerationHistoryResult[]> = ref([]);
+const selectedItems = ref<Array<GenerationHistoryResult['id']>>([]);
+const selectedResult = ref<GenerationHistoryResult | null>(null);
 
 // View state
-const viewMode = ref('grid');
+const viewMode = ref<ViewMode>('grid');
 const showModal = ref(false);
 const showToast = ref(false);
 const toastMessage = ref('');
 
 // Filters
 const searchTerm = ref('');
-const sortBy = ref('created_at');
-const dateFilter = ref('all');
-const ratingFilter = ref(0);
-const dimensionFilter = ref('all');
+const sortBy = ref<HistorySortOption>('created_at');
+const dateFilter = ref<DateFilterOption>('all');
+const ratingFilter = ref<RatingFilterOption>(0);
+const dimensionFilter = ref<DimensionFilterOption>('all');
 
 // Statistics
-const stats = reactive<HistoryStats>({
+const stats = reactive<GenerationHistoryStats>({
   total_results: 0,
   avg_rating: 0,
   total_favorites: 0,
-  total_size: 0
+  total_size: 0,
 });
 
 // Runtime configuration
@@ -479,34 +483,38 @@ const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
 const apiBaseUrl = computed(() => configuredBackendUrl.value || '/api/v1');
 
 // Methods - mirrors Alpine.js implementation
-const loadResults = async () => {
+const loadResults = async (): Promise<void> => {
   isLoading.value = true;
   error.value = null;
 
   try {
-    const payload = await fetchGenerationHistory(apiBaseUrl.value, {
+    const response: ListResultsOutput = await listHistoryResults(apiBaseUrl.value, {
       page: currentPage.value,
-      page_size: pageSize.value
+      page_size: pageSize.value,
     });
 
-    let resultsArray: GenerationHistoryEntry[] = [];
-    if (Array.isArray(payload)) {
-      resultsArray = payload;
-      hasMore.value = payload.length >= pageSize.value;
-    } else if (payload && typeof payload === 'object') {
-      resultsArray = Array.isArray(payload.results) ? payload.results : [];
-      hasMore.value = Boolean(payload.has_more);
+    const results = response.results;
+    const pageInfo = response.response;
+
+    if (pageInfo) {
+      if (typeof pageInfo.has_more === 'boolean') {
+        hasMore.value = pageInfo.has_more;
+      } else if (typeof pageInfo.page === 'number' && typeof pageInfo.pages === 'number') {
+        hasMore.value = pageInfo.page < pageInfo.pages;
+      } else {
+        hasMore.value = results.length >= pageSize.value;
+      }
     } else {
-      hasMore.value = false;
+      hasMore.value = results.length >= pageSize.value;
     }
 
     if (currentPage.value === 1) {
-      data.value = resultsArray;
+      data.value = [...results];
     } else {
-      data.value = [...data.value, ...resultsArray];
+      data.value = [...data.value, ...results];
     }
-    applyFilters();
 
+    applyFilters();
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load results';
     showToastMessage('Failed to load results', 'error');
@@ -515,23 +523,24 @@ const loadResults = async () => {
   }
 };
 
-const applyFilters = () => {
+const applyFilters = (): void => {
   let filtered = [...data.value];
-  
-  // Search filter
+
   if (searchTerm.value.trim()) {
     const searchLower = searchTerm.value.toLowerCase();
-    filtered = filtered.filter(result => 
-      result.prompt.toLowerCase().includes(searchLower) ||
-      (result.negative_prompt && result.negative_prompt.toLowerCase().includes(searchLower))
-    );
+    filtered = filtered.filter((result) => {
+      const promptText = result.prompt.toLowerCase();
+      const negativeText = typeof result.negative_prompt === 'string'
+        ? result.negative_prompt.toLowerCase()
+        : '';
+      return promptText.includes(searchLower) || negativeText.includes(searchLower);
+    });
   }
-  
-  // Date filter
+
   if (dateFilter.value !== 'all') {
     const now = new Date();
     const filterDate = new Date();
-    
+
     switch (dateFilter.value) {
       case 'today':
         filterDate.setHours(0, 0, 0, 0);
@@ -542,38 +551,39 @@ const applyFilters = () => {
       case 'month':
         filterDate.setMonth(now.getMonth() - 1);
         break;
+      default:
+        break;
     }
-    
-    filtered = filtered.filter(result => 
-      new Date(result.created_at) >= filterDate
-    );
+
+    filtered = filtered.filter((result) => {
+      const createdAt = new Date(result.created_at);
+      return Number.isFinite(createdAt.getTime()) && createdAt >= filterDate;
+    });
   }
-  
-  // Rating filter
+
   if (ratingFilter.value > 0) {
-    filtered = filtered.filter(result => 
-      (result.rating || 0) >= ratingFilter.value
-    );
+    filtered = filtered.filter((result) => (result.rating ?? 0) >= ratingFilter.value);
   }
-  
-  // Dimension filter
+
   if (dimensionFilter.value !== 'all') {
-    const [width, height] = dimensionFilter.value.split('x').map(Number);
-    filtered = filtered.filter(result => 
-      result.width === width && result.height === height
-    );
+    const [widthText, heightText] = dimensionFilter.value.split('x');
+    const width = Number(widthText);
+    const height = Number(heightText);
+
+    if (Number.isFinite(width) && Number.isFinite(height)) {
+      filtered = filtered.filter((result) => result.width === width && result.height === height);
+    }
   }
-  
-  // Sort results
+
   sortResults(filtered);
-  
+
   filteredResults.value = filtered;
   calculateStats();
 };
 
-const debouncedApplyFilters = debounce(applyFilters, 300);
+const debouncedApplyFilters = debounce(() => applyFilters(), 300);
 
-const sortResults = (results: GenerationHistoryEntry[]) => {
+const sortResults = (results: GenerationHistoryResult[]): void => {
   switch (sortBy.value) {
     case 'created_at':
       results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -585,24 +595,21 @@ const sortResults = (results: GenerationHistoryEntry[]) => {
       results.sort((a, b) => a.prompt.localeCompare(b.prompt));
       break;
     case 'rating':
-      results.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      results.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
       break;
   }
 };
 
-const calculateStats = () => {
+const calculateStats = (): void => {
   stats.total_results = filteredResults.value.length;
-  
+
   if (filteredResults.value.length > 0) {
-    // Average rating
-    const totalRating = filteredResults.value.reduce((sum, result) => sum + (result.rating || 0), 0);
+    const totalRating = filteredResults.value.reduce((sum, result) => sum + (result.rating ?? 0), 0);
     stats.avg_rating = totalRating / filteredResults.value.length;
-    
-    // Total favorites
-    stats.total_favorites = filteredResults.value.filter(result => result.is_favorite).length;
-    
-    // Total size (mock calculation - would need actual file sizes)
-    stats.total_size = filteredResults.value.length * 2.5 * 1024 * 1024; // Assume 2.5MB per image
+
+    stats.total_favorites = filteredResults.value.filter((result) => Boolean(result.is_favorite)).length;
+
+    stats.total_size = filteredResults.value.length * 2.5 * 1024 * 1024;
   } else {
     stats.avg_rating = 0;
     stats.total_favorites = 0;
@@ -610,7 +617,7 @@ const calculateStats = () => {
   }
 };
 
-const clearFilters = () => {
+const clearFilters = (): void => {
   searchTerm.value = '';
   sortBy.value = 'created_at';
   dateFilter.value = 'all';
@@ -619,45 +626,44 @@ const clearFilters = () => {
   applyFilters();
 };
 
-const showImageModal = (result: GenerationHistoryEntry) => {
+const showImageModal = (result: GenerationHistoryResult): void => {
   selectedResult.value = result;
   showModal.value = true;
 };
 
-const setRating = async (result: GenerationHistoryEntry, rating: number) => {
+const setRating = async (result: GenerationHistoryResult, rating: number): Promise<void> => {
   try {
-    await updateGenerationRating(apiBaseUrl.value, result.id, { rating });
+    await rateHistoryResult(apiBaseUrl.value, result.id, rating);
 
-    // Update local data
     result.rating = rating;
     calculateStats();
 
     showToastMessage('Rating updated successfully');
-    
+
   } catch (error) {
     console.error('Error updating rating:', error);
     showToastMessage('Failed to update rating', 'error');
   }
 };
 
-const toggleFavorite = async (result: GenerationHistoryEntry) => {
+const toggleFavorite = async (result: GenerationHistoryResult): Promise<void> => {
   try {
-    await updateGenerationFavorite(apiBaseUrl.value, result.id, { is_favorite: !result.is_favorite });
+    const nextValue = !result.is_favorite;
+    await favoriteHistoryResult(apiBaseUrl.value, result.id, nextValue);
 
-    // Update local data
-    result.is_favorite = !result.is_favorite;
+    result.is_favorite = nextValue;
     calculateStats();
-    
-    const message = result.is_favorite ? 'Added to favorites' : 'Removed from favorites';
+
+    const message = nextValue ? 'Added to favorites' : 'Removed from favorites';
     showToastMessage(message);
-    
+
   } catch (error) {
     console.error('Error updating favorite:', error);
     showToastMessage('Failed to update favorite status', 'error');
   }
 };
 
-const reuseParameters = (result: GenerationHistoryEntry) => {
+const reuseParameters = (result: GenerationHistoryResult): void => {
   // Store parameters in localStorage for the compose page
   const parameters = {
     prompt: result.prompt,
@@ -676,9 +682,9 @@ const reuseParameters = (result: GenerationHistoryEntry) => {
   window.location.href = '/compose';
 };
 
-const downloadImage = async (result: GenerationHistoryEntry) => {
+const downloadImage = async (result: GenerationHistoryResult): Promise<void> => {
   try {
-    const download = await downloadGenerationImage(result.image_url, `generation-${result.id}.png`);
+    const download = await downloadHistoryResult(apiBaseUrl.value, result.id, `generation-${result.id}.png`);
     downloadFile(download.blob, download.filename);
 
     showToastMessage('Download started');
@@ -689,27 +695,26 @@ const downloadImage = async (result: GenerationHistoryEntry) => {
   }
 };
 
-const deleteResult = async (resultId: string | number) => {
+const deleteResult = async (resultId: GenerationHistoryResult['id']): Promise<void> => {
   if (!confirm('Are you sure you want to delete this image?')) {
     return;
   }
 
   try {
-    await deleteGeneration(apiBaseUrl.value, resultId);
+    await deleteHistoryResult(apiBaseUrl.value, resultId);
 
-    // Remove from local data
     data.value = data.value.filter(r => r.id !== resultId);
     applyFilters();
-    
+
     showToastMessage('Image deleted successfully');
-    
+
   } catch (error) {
     console.error('Error deleting result:', error);
     showToastMessage('Failed to delete image', 'error');
   }
 };
 
-const deleteSelected = async () => {
+const deleteSelected = async (): Promise<void> => {
   if (selectedItems.value.length === 0) return;
 
   const count = selectedItems.value.length;
@@ -718,13 +723,12 @@ const deleteSelected = async () => {
   }
 
   try {
-    await bulkDeleteGenerations(apiBaseUrl.value, { ids: selectedItems.value });
+    await deleteHistoryResults(apiBaseUrl.value, { ids: selectedItems.value });
 
-    // Remove from local data
     data.value = data.value.filter(r => !selectedItems.value.includes(r.id));
     selectedItems.value = [];
     applyFilters();
-    
+
     showToastMessage(`${count} images deleted successfully`);
     
   } catch (error) {
@@ -733,16 +737,15 @@ const deleteSelected = async () => {
   }
 };
 
-const favoriteSelected = async () => {
+const favoriteSelected = async (): Promise<void> => {
   if (selectedItems.value.length === 0) return;
 
   try {
-    await bulkFavoriteGenerations(apiBaseUrl.value, {
+    await favoriteHistoryResults(apiBaseUrl.value, {
       ids: selectedItems.value,
-      is_favorite: true
+      is_favorite: true,
     });
 
-    // Update local data
     data.value.forEach(result => {
       if (selectedItems.value.includes(result.id)) {
         result.is_favorite = true;
@@ -758,11 +761,11 @@ const favoriteSelected = async () => {
   }
 };
 
-const exportSelected = async () => {
+const exportSelected = async (): Promise<void> => {
   if (selectedItems.value.length === 0) return;
 
   try {
-    const download = await exportGenerations(apiBaseUrl.value, { ids: selectedItems.value });
+    const download = await exportHistoryResults(apiBaseUrl.value, { ids: selectedItems.value });
     downloadFile(download.blob, download.filename);
 
     showToastMessage('Export started');
@@ -773,23 +776,26 @@ const exportSelected = async () => {
   }
 };
 
-const clearSelection = () => {
+const clearSelection = (): void => {
   selectedItems.value = [];
 };
 
-const loadMore = async () => {
+const loadMore = async (): Promise<void> => {
   if (!hasMore.value || isLoading.value) return;
-  
+
   currentPage.value++;
   await loadResults();
 };
 
-const formatDate = (dateString: string) => {
+const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
+  if (!Number.isFinite(date.getTime())) {
+    return '';
+  }
   const now = new Date();
   const diffTime = Math.abs(now.getTime() - date.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
+
   if (diffDays === 1) {
     return 'Today';
   } else if (diffDays === 2) {
@@ -803,17 +809,17 @@ const formatDate = (dateString: string) => {
 
 const formatFileSize = (bytes: number) => formatBytes(Number.isFinite(bytes) ? bytes : 0);
 
-const showToastMessage = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
+const showToastMessage = (message: string, _type: ToastType = 'success'): void => {
   toastMessage.value = message;
   showToast.value = true;
-  
+
   setTimeout(() => {
     showToast.value = false;
   }, 3000);
 };
 
 // Handle keyboard shortcuts
-const handleKeydown = (event: KeyboardEvent) => {
+const handleKeydown = (event: KeyboardEvent): void => {
   if (event.key === 'Escape') {
     if (showModal.value) {
       showModal.value = false;
@@ -832,7 +838,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 onMounted(async () => {
   // Load view mode preference
   const savedViewMode = localStorage.getItem('history-view-mode');
-  if (savedViewMode) {
+  if (savedViewMode === 'grid' || savedViewMode === 'list') {
     viewMode.value = savedViewMode;
   }
   
@@ -853,7 +859,7 @@ onUnmounted(() => {
 });
 
 // Watch for view mode changes and save preference
-watch(viewMode, (newMode) => {
+watch(viewMode, (newMode: ViewMode) => {
   localStorage.setItem('history-view-mode', newMode);
 });
 </script>

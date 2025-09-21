@@ -75,7 +75,7 @@ export interface GenerationLoraReference {
   extra?: Record<string, unknown> | null;
 }
 
-export interface GenerationHistoryEntry {
+export interface GenerationHistoryResult {
   id: string | number;
   job_id?: string | null;
   prompt: string;
@@ -103,6 +103,8 @@ export interface GenerationHistoryEntry {
   [key: string]: unknown;
 }
 
+export type GenerationHistoryEntry = GenerationHistoryResult;
+
 export interface GenerationHistoryPageInfo {
   page?: number;
   page_size?: number;
@@ -113,11 +115,23 @@ export interface GenerationHistoryPageInfo {
   previous_page?: number | null;
 }
 
-export interface GenerationHistoryResponse extends GenerationHistoryPageInfo {
-  results: GenerationHistoryEntry[];
+export interface GenerationHistoryStats {
+  total_results: number;
+  avg_rating: number;
+  total_favorites: number;
+  total_size: number;
 }
 
-export type GenerationHistoryPayload = GenerationHistoryEntry[] | GenerationHistoryResponse;
+export interface GenerationHistoryResponse extends GenerationHistoryPageInfo {
+  results: GenerationHistoryResult[];
+  stats?: GenerationHistoryStats;
+}
+
+export type GenerationHistoryPayload = GenerationHistoryResult[] | GenerationHistoryResponse;
+
+export interface GenerationHistoryListResponse extends GenerationHistoryResponse {}
+
+export type GenerationHistoryListPayload = GenerationHistoryResult[] | GenerationHistoryListResponse;
 
 export interface GenerationHistoryQuery {
   page?: number;

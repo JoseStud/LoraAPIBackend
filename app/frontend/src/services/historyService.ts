@@ -2,24 +2,19 @@ import { computed, reactive, unref } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
 
 import { useApi } from '@/composables/useApi';
-import {
-  deleteRequest,
-  getFilenameFromContentDisposition,
-  getJson,
-  putJson,
-  requestBlob,
-} from '@/utils/api';
+import { getFilenameFromContentDisposition } from '@/utils/api';
 
 import type {
   GenerationBulkDeleteRequest,
   GenerationBulkFavoriteRequest,
   GenerationDownloadMetadata,
   GenerationExportRequest,
-  GenerationFavoriteUpdate,
-  GenerationHistoryEntry,
-  GenerationHistoryPayload,
+  GenerationHistoryListPayload,
+  GenerationHistoryListResponse,
   GenerationHistoryQuery,
-  GenerationHistoryResponse,
+  GenerationHistoryResult,
+  GenerationHistoryStats,
+  GenerationHistoryPayload,
   GenerationRatingUpdate,
 } from '@/types';
 
@@ -35,6 +30,53 @@ const sanitizeBaseUrl = (value?: string): string => {
 const resolveBaseUrl = (value: MaybeRefOrGetter<string>): string => {
   const raw = typeof value === 'function' ? (value as () => string)() : unref(value);
   return sanitizeBaseUrl(raw);
+};
+
+const buildEndpoint = (base: string, path: string): string => {
+  const suffix = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${suffix}`;
+};
+
+const toStats = (stats?: GenerationHistoryStats | null): GenerationHistoryStats => ({
+  total_results: stats?.total_results ?? 0,
+  avg_rating: stats?.avg_rating ?? 0,
+  total_favorites: stats?.total_favorites ?? 0,
+  total_size: stats?.total_size ?? 0,
+});
+
+export interface ListResultsOutput {
+  payload: GenerationHistoryListPayload | null;
+  results: GenerationHistoryResult[];
+  stats: GenerationHistoryStats;
+  response: GenerationHistoryListResponse | null;
+}
+
+const toListOutput = (payload: GenerationHistoryListPayload | null): ListResultsOutput => {
+  if (!payload) {
+    return {
+      payload: null,
+      results: [],
+      stats: toStats(),
+      response: null,
+    };
+  }
+
+  if (Array.isArray(payload)) {
+    return {
+      payload,
+      results: payload,
+      stats: toStats(),
+      response: null,
+    };
+  }
+
+  const response = payload ?? null;
+  return {
+    payload,
+    results: Array.isArray(payload.results) ? payload.results : [],
+    stats: toStats(payload.stats),
+    response,
+  };
 };
 
 export const buildHistoryQuery = (query: GenerationHistoryQuery = {}): string => {
@@ -76,15 +118,15 @@ export const buildHistoryQuery = (query: GenerationHistoryQuery = {}): string =>
     params.set('end_date', query.end_date);
   }
 
-  Array.from(Object.entries(query)).forEach(([key, value]) => {
+  for (const [key, value] of Object.entries(query)) {
     if (['page', 'page_size', 'search', 'sort', 'min_rating', 'width', 'height', 'start_date', 'end_date'].includes(key)) {
-      return;
+      continue;
     }
     if (value == null) {
-      return;
+      continue;
     }
     params.set(key, String(value));
-  });
+  }
 
   const search = params.toString();
   return search ? `?${search}` : '';
@@ -95,7 +137,7 @@ export const useGenerationHistoryApi = (
   initialQuery: GenerationHistoryQuery = {},
 ) => {
   const query = reactive<GenerationHistoryQuery>({ ...initialQuery });
-  const api = useApi<GenerationHistoryPayload>(
+  const api = useApi<GenerationHistoryListPayload>(
     () => {
       const base = resolveBaseUrl(baseUrl);
       const suffix = buildHistoryQuery(query);
@@ -107,18 +149,12 @@ export const useGenerationHistoryApi = (
   const fetchPage = async (overrides: GenerationHistoryQuery = {}) => {
     Object.assign(query, overrides);
     await api.fetchData();
-    return api.data.value;
+    return toListOutput(api.data.value);
   };
 
-  const results = computed<GenerationHistoryEntry[]>(() => {
-    const payload = api.data.value;
-    if (!payload) {
-      return [];
-    }
-    return Array.isArray(payload) ? payload : payload.results ?? [];
-  });
+  const results = computed<GenerationHistoryResult[]>(() => toListOutput(api.data.value).results);
 
-  const pageInfo = computed<GenerationHistoryResponse | null>(() => {
+  const pageInfo = computed<GenerationHistoryListResponse | null>(() => {
     const payload = api.data.value;
     if (!payload || Array.isArray(payload)) {
       return null;
@@ -135,75 +171,99 @@ export const useGenerationHistoryApi = (
   };
 };
 
-export const fetchGenerationHistory = async (
+export const listResults = async (
   baseUrl: string,
   query: GenerationHistoryQuery = {},
-): Promise<GenerationHistoryPayload | null> => {
+): Promise<ListResultsOutput> => {
   const base = sanitizeBaseUrl(baseUrl);
-  const { data } = await getJson<GenerationHistoryPayload>(
-    `${base}/results${buildHistoryQuery(query)}`,
-    { credentials: 'same-origin' },
-  );
-  return data;
+  const targetUrl = `${base}/results${buildHistoryQuery(query)}`;
+  const api = useApi<GenerationHistoryListPayload>(() => targetUrl, {
+    credentials: 'same-origin',
+  });
+  const payload = await api.fetchData();
+  return toListOutput(payload ?? null);
 };
 
-export const updateGenerationRating = async (
+export const rateResult = async (
   baseUrl: string,
-  resultId: string | number,
-  payload: GenerationRatingUpdate,
-) => {
+  resultId: GenerationHistoryResult['id'],
+  rating: number,
+): Promise<GenerationHistoryResult | null> => {
   const base = sanitizeBaseUrl(baseUrl);
-  await putJson<unknown, GenerationRatingUpdate>(
-    `${base}/results/${resultId}/rating`,
-    payload,
-    { credentials: 'same-origin' },
-  );
+  const api = useApi<GenerationHistoryResult | null>(() => buildEndpoint(base, `/results/${encodeURIComponent(String(resultId))}/rating`), {
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  const payload = await api.fetchData({
+    method: 'PUT',
+    body: JSON.stringify({ rating } satisfies GenerationRatingUpdate),
+  });
+  return payload ?? null;
 };
 
-export const updateGenerationFavorite = async (
+export const favoriteResult = async (
   baseUrl: string,
-  resultId: string | number,
-  payload: GenerationFavoriteUpdate,
-) => {
+  resultId: GenerationHistoryResult['id'],
+  isFavorite: boolean,
+): Promise<GenerationHistoryResult | null> => {
   const base = sanitizeBaseUrl(baseUrl);
-  await putJson<unknown, GenerationFavoriteUpdate>(
-    `${base}/results/${resultId}/favorite`,
-    payload,
-    { credentials: 'same-origin' },
-  );
+  const api = useApi<GenerationHistoryResult | null>(() => buildEndpoint(base, `/results/${encodeURIComponent(String(resultId))}/favorite`), {
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  const payload = await api.fetchData({
+    method: 'PUT',
+    body: JSON.stringify({ is_favorite: isFavorite }),
+  });
+  return payload ?? null;
 };
 
-export const bulkFavoriteGenerations = async (
+export const favoriteResults = async (
   baseUrl: string,
   payload: GenerationBulkFavoriteRequest,
-) => {
+): Promise<void> => {
   const base = sanitizeBaseUrl(baseUrl);
-  await putJson<unknown, GenerationBulkFavoriteRequest>(
-    `${base}/results/bulk-favorite`,
-    payload,
-    { credentials: 'same-origin' },
-  );
+  const api = useApi<void>(() => buildEndpoint(base, '/results/bulk-favorite'), {
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  await api.fetchData({
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
 };
 
-export const bulkDeleteGenerations = async (
+export const deleteResult = async (
+  baseUrl: string,
+  resultId: GenerationHistoryResult['id'],
+): Promise<void> => {
+  const base = sanitizeBaseUrl(baseUrl);
+  const api = useApi<void>(() => buildEndpoint(base, `/results/${encodeURIComponent(String(resultId))}`), {
+    credentials: 'same-origin',
+  });
+  await api.fetchData({ method: 'DELETE' });
+};
+
+export const deleteResults = async (
   baseUrl: string,
   payload: GenerationBulkDeleteRequest,
-) => {
+): Promise<void> => {
   const base = sanitizeBaseUrl(baseUrl);
-  await deleteRequest<unknown>(
-    `${base}/results/bulk-delete`,
-    {
-      credentials: 'same-origin',
-      body: JSON.stringify(payload),
-      headers: { 'Content-Type': 'application/json' },
-    },
-  );
-};
-
-export const deleteGeneration = async (baseUrl: string, resultId: string | number) => {
-  const base = sanitizeBaseUrl(baseUrl);
-  await deleteRequest<unknown>(`${base}/results/${resultId}`, {
+  const api = useApi<void>(() => buildEndpoint(base, '/results/bulk-delete'), {
     credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  await api.fetchData({
+    method: 'DELETE',
+    body: JSON.stringify(payload),
   });
 };
 
@@ -219,24 +279,47 @@ const toDownloadMetadata = (
   size: blob.size,
 });
 
-export const exportGenerations = async (
+export const exportResults = async (
   baseUrl: string,
   payload: GenerationExportRequest,
 ): Promise<GenerationDownloadMetadata> => {
   const base = sanitizeBaseUrl(baseUrl);
-  const { blob, response } = await requestBlob(`${base}/results/export`, {
+  const response = await fetch(buildEndpoint(base, '/results/export'), {
     method: 'POST',
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
+  if (!response.ok) {
+    const message = await response.text().catch(() => '');
+    throw new Error(message || `Export failed with status ${response.status}`);
+  }
+  const blob = await response.blob();
   return toDownloadMetadata(blob, response, `generation-export-${Date.now()}.zip`);
 };
 
-export const downloadGenerationImage = async (
-  url: string,
-  filename: string,
+export const downloadResult = async (
+  baseUrl: string,
+  resultId: GenerationHistoryResult['id'],
+  fallbackName = `generation-${resultId}.png`,
 ): Promise<GenerationDownloadMetadata> => {
-  const { blob, response } = await requestBlob(url, { credentials: 'same-origin' });
-  return toDownloadMetadata(blob, response, filename);
+  const base = sanitizeBaseUrl(baseUrl);
+  const response = await fetch(buildEndpoint(base, `/results/${encodeURIComponent(String(resultId))}/download`), {
+    method: 'GET',
+    credentials: 'same-origin',
+  });
+  if (!response.ok) {
+    const message = await response.text().catch(() => '');
+    throw new Error(message || `Download failed with status ${response.status}`);
+  }
+  const blob = await response.blob();
+  return toDownloadMetadata(blob, response, fallbackName);
+};
+
+export const fetchGenerationHistory = async (
+  baseUrl: string,
+  query: GenerationHistoryQuery = {},
+): Promise<GenerationHistoryPayload | null> => {
+  const result = await listResults(baseUrl, query);
+  return result.payload;
 };
