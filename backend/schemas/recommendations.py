@@ -1,9 +1,9 @@
 """Recommendation request/response schemas."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class RecommendationRequest(BaseModel):
@@ -71,7 +71,7 @@ class SimilarityRequest(BaseModel):
 
 class UserFeedbackRequest(BaseModel):
     """User feedback on recommendations."""
-    
+
     session_id: str
     recommended_lora_id: str
     feedback_type: str = Field(pattern="^(positive|negative|activated|ignored|dismissed)$")
@@ -81,11 +81,41 @@ class UserFeedbackRequest(BaseModel):
 
 class UserPreferenceRequest(BaseModel):
     """Request to update user preferences."""
-    
+
     preference_type: str = Field(pattern="^(archetype|style|technical|author|tag)$")
     preference_value: str
     confidence: float = Field(ge=0.0, le=1.0)
     explicit: bool = True
+
+
+class RecommendationFeedbackRead(BaseModel):
+    """Database-backed representation of recorded recommendation feedback."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    session_id: str
+    recommended_lora_id: str
+    feedback_type: str
+    feedback_reason: Optional[str] = None
+    implicit_signal: bool
+    created_at: datetime
+
+
+class UserPreferenceRead(BaseModel):
+    """Persisted user preference representation."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    preference_type: str
+    preference_value: str
+    confidence: float
+    learned_from: str
+    evidence_count: int
+    last_evidence_at: datetime
+    created_at: datetime
+    updated_at: datetime
 
 
 class RecommendationStats(BaseModel):
@@ -126,10 +156,23 @@ class BatchEmbeddingRequest(BaseModel):
 
 class BatchEmbeddingResponse(BaseModel):
     """Response for batch embedding computation."""
-    
+
     processed_count: int
     skipped_count: int
     error_count: int
     processing_time_seconds: float
     errors: List[Dict[str, str]] = Field(default_factory=list)
     completed_at: datetime
+
+
+class IndexRebuildResponse(BaseModel):
+    """Response returned when rebuilding the similarity index."""
+
+    status: Literal["rebuilt", "skipped", "empty"]
+    indexed_items: int
+    index_path: str
+    index_size_bytes: int = 0
+    processing_time_seconds: float
+    rebuilt_at: datetime
+    skipped: bool = False
+    skipped_reason: Optional[str] = None

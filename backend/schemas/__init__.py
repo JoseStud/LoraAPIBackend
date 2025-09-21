@@ -38,14 +38,17 @@ from .recommendations import (
     BatchEmbeddingRequest,
     BatchEmbeddingResponse,
     EmbeddingStatus,
+    IndexRebuildResponse,
     PromptRecommendationRequest,
     RecommendationItem,
     RecommendationRequest,
     RecommendationResponse,
     RecommendationStats,
     SimilarityRequest,
+    RecommendationFeedbackRead,
     UserFeedbackRequest,
     UserPreferenceRequest,
+    UserPreferenceRead,
 )
 
 __all__ = [
@@ -84,10 +87,13 @@ __all__ = [
     "SimilarityRequest",
     "UserFeedbackRequest",
     "UserPreferenceRequest",
+    "RecommendationFeedbackRead",
+    "UserPreferenceRead",
     "RecommendationStats",
     "EmbeddingStatus",
     "BatchEmbeddingRequest",
     "BatchEmbeddingResponse",
+    "IndexRebuildResponse",
     # Common
     "WebSocketMessage",
     "WebSocketSubscription",

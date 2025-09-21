@@ -1,23 +1,23 @@
 """HTTP routes for LoRA recommendations."""
 
-import asyncio
 from datetime import datetime, timezone
 from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel import Session
 
-from backend.core.database import get_session
 from backend.core.dependencies import get_recommendation_service
 from backend.schemas.recommendations import (
     BatchEmbeddingRequest,
     BatchEmbeddingResponse,
     EmbeddingStatus,
+    IndexRebuildResponse,
     PromptRecommendationRequest,
+    RecommendationFeedbackRead,
     RecommendationResponse,
     RecommendationStats,
     UserFeedbackRequest,
     UserPreferenceRequest,
+    UserPreferenceRead,
 )
 from backend.services.recommendations import RecommendationService
 
@@ -233,65 +233,56 @@ async def compute_single_embedding(
         raise HTTPException(status_code=500, detail=f"Embedding computation failed: {e}")
 
 
-@router.post("/recommendations/feedback")
+@router.post("/recommendations/feedback", response_model=RecommendationFeedbackRead)
 async def submit_recommendation_feedback(
     feedback: UserFeedbackRequest,
-    db_session: Session = Depends(get_session),
+    recommendation_service: RecommendationService = Depends(get_recommendation_service),
 ):
     """Submit user feedback on recommendations for learning.
-    
+
     Args:
         feedback: User feedback data
-        
+
     Returns:
-        Success confirmation
+        Stored feedback record
 
     """
     try:
-        # TODO: Implement feedback storage and learning
-        # For now, just validate the request
-        if feedback.feedback_type not in ['positive', 'negative', 'activated', 'ignored', 'dismissed']:
-            raise HTTPException(status_code=400, detail="Invalid feedback type")
-        
-        return {
-            "status": "success", 
-            "message": "Feedback recorded (implementation pending)",
-        }
-        
+        record = recommendation_service.record_feedback(feedback)
+        return RecommendationFeedbackRead.from_orm(record)
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Feedback submission failed: {e}")
 
 
-@router.post("/recommendations/preferences")
+@router.post("/recommendations/preferences", response_model=UserPreferenceRead)
 async def update_user_preferences(
     preference: UserPreferenceRequest,
-    db_session: Session = Depends(get_session),
+    recommendation_service: RecommendationService = Depends(get_recommendation_service),
 ):
     """Update user preferences for personalized recommendations.
-    
+
     Args:
         preference: User preference data
-        
+
     Returns:
-        Success confirmation
+        Persisted preference record
 
     """
     try:
-        # TODO: Implement preference storage and learning
-        # For now, just validate the request
-        if preference.preference_type not in ['archetype', 'style', 'technical', 'author', 'tag']:
-            raise HTTPException(status_code=400, detail="Invalid preference type")
-        
-        return {
-            "status": "success",
-            "message": "Preference updated (implementation pending)",
-        }
-        
+        preference_record = recommendation_service.update_user_preference(preference)
+        return UserPreferenceRead.from_orm(preference_record)
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Preference update failed: {e}")
 
 
-@router.post("/recommendations/index/rebuild")
+@router.post(
+    "/recommendations/index/rebuild",
+    response_model=IndexRebuildResponse,
+)
 async def rebuild_similarity_index(
     force: bool = Query(default=False),
     recommendation_service: RecommendationService = Depends(get_recommendation_service),
@@ -300,27 +291,15 @@ async def rebuild_similarity_index(
     
     Args:
         force: Force rebuild even if index exists
-        
+
     Returns:
         Rebuild status and timing
 
     """
     try:
-        start_time = datetime.now()
-        
-        # TODO: Implement index rebuilding
-        # This would trigger a full rebuild of the similarity index
-        await asyncio.sleep(0.1)  # Placeholder
-        
-        processing_time = (datetime.now() - start_time).total_seconds()
-        
-        return {
-            "status": "success",
-            "message": "Similarity index rebuilt",
-            "processing_time_seconds": processing_time,
-            "rebuilt_at": datetime.now(timezone.utc).isoformat(),
-        }
-        
+        result = await recommendation_service.rebuild_similarity_index(force=force)
+        return result
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Index rebuild failed: {e}")
 
