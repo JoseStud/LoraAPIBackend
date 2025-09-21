@@ -7,7 +7,7 @@ This document provides an overview of the testing strategy, setup, and execution
 We employ a multi-layered testing strategy to ensure code quality, prevent regressions, and validate functionality from the lowest-level units to high-level user workflows.
 
 -   **Backend (Python/FastAPI)**: Tested with `pytest`.
--   **Frontend (JavaScript/Alpine.js)**: Tested with `Jest`.
+-   **Frontend (Vue 3/TypeScript)**: Tested with `Jest` and `Vitest`.
 -   **End-to-End (E2E)**: Tested with `Playwright`.
 
 ## 2. Test Structure
@@ -23,8 +23,9 @@ tests/
 ├── unit/             # Unit tests
 │   ├── backend/      # Backend unit tests (Pytest)
 │   │   └── test_services.py
-│   └── js/           # Frontend unit tests (Jest)
-│       └── system-admin.test.js
+│   ├── import-export.test.js    # Jest tests for SPA workflows
+│   ├── mobile-nav.test.js       # Jest navigation smoke tests
+│   └── test_frontend_structure.py # Python assertion of Vue SPA shell
 ├── conftest.py       # Pytest configuration and fixtures
 ├── setup.js          # Jest global setup (mocks, etc.)
 └── playwright.config.js # Playwright configuration
@@ -32,7 +33,7 @@ tests/
 
 -   **`unit/`**: Tests for individual functions, classes, or components in isolation.
     -   Backend unit tests (`unit/backend/`) focus on service logic, using mocks for database and external API calls.
-    -   Frontend unit tests (`unit/js/`) focus on Alpine.js component logic, using `jest-dom` and mocks for browser APIs.
+    -   Frontend unit tests validate Vue components and SPA wiring using `jest-dom` utilities.
 -   **`integration/`**: Backend tests that verify the interaction between different parts of the system, such as API endpoints and the database. These tests use a test-specific database instance.
 -   **`e2e/`**: High-level tests that simulate real user workflows in a browser. They use Playwright to interact with the application, ensuring that the frontend and backend work together correctly.
 

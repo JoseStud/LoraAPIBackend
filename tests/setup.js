@@ -48,26 +48,6 @@ HTMLCanvasElement.prototype.getBoundingClientRect = jest.fn(() => ({
     right: 300
 }));
 
-// Mock Alpine.js for testing
-global.Alpine = {
-    data: jest.fn(),
-    store: jest.fn(),
-    start: jest.fn(),
-    $data: jest.fn(),
-    version: '3.13.3'
-};
-
-// Mock HTMX for testing
-global.htmx = {
-    process: jest.fn(),
-    ajax: jest.fn(),
-    trigger: jest.fn(),
-    remove: jest.fn(),
-    addClass: jest.fn(),
-    removeClass: jest.fn(),
-    find: jest.fn()
-};
-
 // Mock Chart.js for testing
 global.Chart = {
     register: jest.fn(),
@@ -182,17 +162,6 @@ global.testUtils = {
             element.setAttribute(key, value);
         });
         return element;
-    },
-    
-    // Create mock Alpine component
-    createMockAlpineComponent: (data = {}) => {
-        return {
-            ...data,
-            $el: global.testUtils.createMockElement(),
-            $watch: jest.fn(),
-            $nextTick: jest.fn((callback) => Promise.resolve().then(callback)),
-            $dispatch: jest.fn()
-        };
     },
     
     // Simulate user event
