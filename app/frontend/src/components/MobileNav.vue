@@ -1,6 +1,5 @@
 <template>
   <div class="mobile-nav-root">
-    <!-- Mobile Navigation Toggle -->
     <button
       class="mobile-nav-toggle lg:hidden touch-target"
       :class="{ 'mobile-safe-top': true }"
@@ -20,14 +19,8 @@
       <span class="sr-only">{{ isOpen ? 'Close menu' : 'Open menu' }}</span>
     </button>
 
-    <!-- Mobile Navigation Overlay -->
-    <div
-      v-show="isOpen"
-      @click="closeMenu"
-      class="mobile-nav-overlay"
-    />
+    <div v-show="isOpen" @click="closeMenu" class="mobile-nav-overlay" />
 
-    <!-- Mobile Navigation Menu -->
     <nav
       class="mobile-nav-menu"
       id="mobile-navigation"
@@ -38,11 +31,7 @@
     >
       <div class="mobile-nav-header mobile-safe-top">
         <h2 class="text-lg font-semibold text-white">LoRA Manager</h2>
-        <button
-          @click="closeMenu"
-          class="mobile-nav-close touch-target"
-          aria-label="Close navigation menu"
-        >
+        <button @click="closeMenu" class="mobile-nav-close touch-target" aria-label="Close navigation menu">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -50,49 +39,84 @@
       </div>
 
       <div class="mobile-nav-links">
-        <a
+        <RouterLink
           v-for="item in items"
           :key="item.path"
-          :href="item.path"
-          @click="closeMenu"
+          :to="item.path"
           class="mobile-nav-link"
-          :class="{ 'active': isActive(item.path) }"
+          :class="{ active: currentPath === item.path }"
+          @click="closeMenu"
         >
           <span class="inline-flex items-center">
             <svg class="w-5 h-5 mr-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path v-if="item.icon === 'dashboard'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M13 5v6a2 2 0 002 2h6" />
-              <path v-else-if="item.icon === 'grid'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h7v7H4V6zm9 0h7v7h-7V6zM4 15h7v7H4v-7zm9 0h7v7h-7v-7z" />
-              <path v-else-if="item.icon === 'spark'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3l7 7-7 7M13 5l6 6-6 6" />
-              <path v-else-if="item.icon === 'compose'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M15 3l6 6M8 13h4" />
-              <path v-else-if="item.icon === 'wand'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7l-1 4-4 1 1-4 4-1zM3 21l6-6" />
-              <path v-else-if="item.icon === 'admin'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 12c2.21 0 4-1.79 4-4S14.21 4 12 4 8 5.79 8 8s1.79 4 4 4z M4 20a8 8 0 0116 0" />
-              <path v-else-if="item.icon === 'bars'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6m8 0V9a2 2 0 012-2h2a2 2 0 012 2v10" />
+              <path
+                v-if="item.icon === 'dashboard'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3 12l2-2m0 0 7-7 7 7M13 5v6a2 2 0 0 0 2 2h6"
+              />
+              <path
+                v-else-if="item.icon === 'grid'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6h7v7H4V6zm9 0h7v7h-7V6zM4 15h7v7H4v-7zm9 0h7v7h-7v-7z"
+              />
+              <path
+                v-else-if="item.icon === 'spark'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 3l7 7-7 7m8-12 6 6-6 6"
+              />
+              <path
+                v-else-if="item.icon === 'compose'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5M15 3l6 6M8 13h4"
+              />
+              <path
+                v-else-if="item.icon === 'wand'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="m15 7-1 4-4 1 1-4 4-1ZM3 21l6-6"
+              />
+              <path
+                v-else-if="item.icon === 'admin'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zM4 20a8 8 0 0 1 16 0"
+              />
+              <path
+                v-else-if="item.icon === 'bars'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 19v-6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6m8 0V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v10"
+              />
               <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
             {{ item.label }}
           </span>
-        </a>
+        </RouterLink>
       </div>
 
-      <div class="p-4 border-t border-gray-200 mobile-safe-bottom">
-        <div class="text-xs text-gray-500">LoRA Manager v2.1</div>
+      <div class="mobile-safe-bottom border-t border-gray-200 p-4 text-xs text-gray-500">
+        LoRA Manager v2.1
       </div>
     </nav>
   </div>
-  
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { RouterLink, useRoute } from 'vue-router';
 
-type NavIcon =
-  | 'dashboard'
-  | 'grid'
-  | 'spark'
-  | 'compose'
-  | 'wand'
-  | 'admin'
-  | 'bars';
+type NavIcon = 'dashboard' | 'grid' | 'spark' | 'compose' | 'wand' | 'admin' | 'bars';
 
 interface NavItem {
   path: string;
@@ -100,7 +124,7 @@ interface NavItem {
   icon: NavIcon;
 }
 
-const NAV_ITEMS: ReadonlyArray<NavItem> = [
+const NAV_ITEMS: readonly NavItem[] = [
   { path: '/', label: 'Dashboard', icon: 'dashboard' },
   { path: '/loras', label: 'LoRAs', icon: 'grid' },
   { path: '/recommendations', label: 'Recommendations', icon: 'spark' },
@@ -111,39 +135,40 @@ const NAV_ITEMS: ReadonlyArray<NavItem> = [
   { path: '/import-export', label: 'Import/Export', icon: 'grid' },
 ];
 
-const isOpen = ref<boolean>(false);
+const isOpen = ref(false);
 const items = NAV_ITEMS;
+const route = useRoute();
 
-const toggleMenu = (): void => {
+const currentPath = computed(() => route.path.replace(/\/+$/, '') || '/');
+
+const toggleMenu = () => {
   isOpen.value = !isOpen.value;
 };
 
-const closeMenu = (): void => {
+const closeMenu = () => {
   isOpen.value = false;
 };
 
-const isActive = (path: string): boolean => {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  const currentPath = window.location?.pathname ?? '';
-  return currentPath.replace(/\/+$/, '') === path;
-};
-
-const onKeydown = (event: KeyboardEvent): void => {
+const onKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Escape') {
     closeMenu();
   }
 };
 
-onMounted((): void => {
+watch(
+  () => route.fullPath,
+  () => {
+    closeMenu();
+  }
+);
+
+onMounted(() => {
   if (typeof window !== 'undefined') {
     window.addEventListener('keydown', onKeydown);
   }
 });
 
-onBeforeUnmount((): void => {
+onBeforeUnmount(() => {
   if (typeof window !== 'undefined') {
     window.removeEventListener('keydown', onKeydown);
   }
@@ -151,5 +176,5 @@ onBeforeUnmount((): void => {
 </script>
 
 <style scoped>
-/* Rely on existing app styles; no overrides here */
+/* No component-scoped overrides required */
 </style>
