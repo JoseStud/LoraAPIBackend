@@ -6,7 +6,9 @@
 
 The project has successfully transitioned from the problematic **dual Alpine.js + Vue.js** hybrid to a modern **Vue 3 Islands** architecture:
 
-#### **Migration Achievements:**
+###### 🏗️ 2025 Architecture Review: Progress Update & Current Status
+
+Based on comprehensive code analysis and recent merge activity, the project shows **significant improvements** with several critical architectural issues now **RESOLVED**:Migration Achievements:**
 - ✅ **Vue 3 SPA Foundation**: Complete Vue 3 + Pinia + Vue Router setup with TypeScript support
 - ✅ **Alpine.js Removed**: No Alpine.js dependencies in package.json (successful dependency elimination)
 - ✅ **Modern Build Tooling**: Vite-based build with Vue plugin, optimized for production
@@ -321,42 +323,38 @@ export function useAdapterListApi(initialQuery: AdapterListQuery = { page: 1, pe
 
 Based on comprehensive code analysis, the project shows **significant improvements** since initial recommendations, with several key architectural patterns now properly implemented:
 
-### ✅ Architectural Strengths Identified
+### ✅ **Recently Completed Improvements**
 
-1. **Service Container Integration**: The `get_service_container` dependency is now widely used across routers (generation.py, compose.py), providing proper dependency injection and centralized service access.
+#### **🚨 CRITICAL FIXES COMPLETED:**
 
-2. **Delivery Service Abstraction**: The `DeliveryService.schedule_job` method effectively abstracts queue management, supporting both Redis and fallback backends through configurable queue backends.
+1. **✅ FIXED - Generation Queue FastAPI Integration** (PR #79)
+   - **Issue**: `/generation/queue-generation` used manual `BackgroundTasks()` default parameter
+   - **Resolution**: Now properly uses FastAPI dependency injection: `background_tasks: BackgroundTasks`
+   - **Impact**: Ensures all generation jobs use consistent queue backends and proper task lifecycle
 
-3. **Enhanced AdapterService**: The `search_adapters` method demonstrates sophisticated filtering with SQL-level optimizations, proper pagination, and cross-database compatibility for tag filtering.
+2. **✅ FIXED - Adapter Service Integration** (PR #77)
+   - **Issue**: Adapter routes used raw `Session` instead of `AdapterService` 
+   - **Resolution**: All routes now use `get_adapter_service` dependency injection
+   - **New Methods Added**: `get_all_tags()`, `bulk_adapter_action()`, `patch_adapter()`, `delete_adapter()`
+   - **Impact**: Centralized business logic, consistent validation, and proper transaction handling
 
-4. **Frontend URL Resolution**: The `resolveBackendUrl` function provides centralized backend URL management, though adoption across API clients is inconsistent.
+#### **🔄 PREVIOUSLY COMPLETED:**
 
-### 🔧 Key Risks & Improvement Areas
+3. **✅ AdapterService Search Optimization** (PR #76)
+   - **Status**: `search_adapters` with sophisticated SQL-level filtering and pagination already implemented
+   - **Features**: Cross-database tag filtering, proper sorting, accurate pagination counts
 
-#### **Risk 1: Generation Queue Bypass Pattern**
+4. **✅ Frontend URL Resolution Foundation** (PR #75, #73, #74)
+   - **Status**: `resolveBackendUrl` function implemented and partially adopted
+   - **Progress**: Core API clients migrated, some inconsistencies remain
 
-**Problem**: The `/generation/queue-generation` endpoint constructs a default `BackgroundTasks()` instance and bypasses the queue abstraction that `DeliveryService.schedule_job` provides, causing Redis-backed deployments to miss these jobs.
+### 🔧 **Remaining Key Risks & Areas for Improvement**
 
-**Current Problematic Code**:
-```python
-# backend/api/v1/generation.py (line 189)
-background_tasks: BackgroundTasks = BackgroundTasks(),  # Global default instance
-services: ServiceContainer = Depends(get_service_container),
+#### **Risk 1: Compose Endpoint Queue Logic Duplication** ⚡ **HIGH PRIORITY**
 
-# Uses DeliveryService correctly, but with manual BackgroundTasks
-job = services.deliveries.schedule_job(
-    prompt=generation_params.prompt,
-    mode="sdnext", 
-    params=delivery_params,
-    background_tasks=background_tasks,  # Should let FastAPI inject this
-)
-```
+**Problem**: The compose endpoint still reproduces delivery queue logic instead of using `DeliveryService.schedule_job`.
 
-#### **Risk 2: Compose Endpoint Queue Logic Duplication**
-
-**Problem**: The compose endpoint reproduces delivery queue logic by creating jobs and wiring three separate background helpers, duplicating the branching that `DeliveryService.schedule_job` already encapsulates.
-
-**Current Implementation**:
+**Current Implementation** (still problematic):
 ```python
 # backend/api/v1/compose.py (lines 40-65)
 # Duplicates queue logic instead of using DeliveryService.schedule_job
@@ -368,94 +366,92 @@ elif req.delivery.mode == "sdnext" and req.delivery.sdnext:
     background_tasks.add_task(_deliver_sdnext, ...)
 ```
 
-#### **Risk 3: Inconsistent Frontend URL Patterns**
+#### **Risk 2: Inconsistent Frontend URL Patterns** 🔥 **MEDIUM PRIORITY**
 
-**Problem**: Several Vue composables still hard-code paths despite `resolveBackendUrl` being available, creating maintenance burden when API structure changes.
+**Problem**: Mixed adoption of `resolveBackendUrl` - some components still hard-code `/api/v1` paths.
 
 **Mixed Patterns Found**:
 ```typescript
-// ✅ GOOD: app/frontend/src/composables/apiClients.ts (lines 58, 95-97)
+// ✅ GOOD: app/frontend/src/composables/apiClients.ts
 () => resolveBackendUrl(`/adapters${buildQueryString(query)}`)
 () => resolveBackendUrl('/dashboard/stats')
-() => resolveBackendUrl('/system/status')
 
-// ❌ INCONSISTENT: Some components may still use hard-coded paths
-// Need to audit all API client usage
+// ❌ INCONSISTENT: Some components still use hard-coded paths
+// Examples: ImportExport.vue, SystemStatusPanel.vue, LoraGallery.vue
 ```
 
-#### **Risk 4: Dashboard & Import/Export Mock Dependencies**
+#### **Risk 3: Dashboard & Import/Export Mock Dependencies** 📈 **MEDIUM PRIORITY**
 
 **Problem**: Dashboard endpoints return mostly mocked statistics, and import/export routes ship mock content, leaving actual data pipelines unimplemented.
 
 ### 📋 **Priority Implementation Tasks**
 
-## 🎯 Implementation Priority
+## 🎯 Updated Implementation Priority
 
-### 🚨 **Critical Priority (Queue Management)**
-1. **Fix Generation Queue FastAPI Integration**: Let FastAPI inject `BackgroundTasks` for `/generation/queue-generation`
-2. **Consolidate Compose Delivery Logic**: Route compose deliveries through `DeliveryService.schedule_job`
+### 🚨 **Critical Priority (1 Remaining)**
+1. **Consolidate Compose Delivery Logic**: Route compose deliveries through `DeliveryService.schedule_job` ⚡
 
 ### 🔥 **High Priority (Consistency & Maintenance)**  
-3. **Standardize Frontend URL Resolution**: Audit and migrate all API clients to use `resolveBackendUrl`
-4. **Complete Adapter Maintenance Service Integration**: Route remaining adapter operations through `AdapterService`
+2. **Complete Frontend URL Resolution**: Audit remaining hard-coded `/api/v1` references and migrate to `resolveBackendUrl`
 
 ### 📈 **Medium Priority (Feature Completion)**
-5. **Implement Live Dashboard Metrics**: Replace dashboard stubs with real queue, GPU, and import metrics
-6. **Build Real Import/Export Pipelines**: Implement actual data archival and progress tracking
+3. **Implement Live Dashboard Metrics**: Replace dashboard stubs with real queue, GPU, and import metrics
+4. **Build Real Import/Export Pipelines**: Implement actual data archival and progress tracking
 
 ### 🧪 **Low Priority (Testing & Ops)**
-7. **Expand Queue Backend Testing**: Add comprehensive tests for Redis vs fallback queue scenarios
-8. **Performance Optimization**: Review AdapterService in-memory tag filtering for large datasets
+5. **Expand Queue Backend Testing**: Add comprehensive tests for Redis vs fallback queue scenarios
+6. **Performance Optimization**: Review AdapterService performance with large datasets
 
-### Benefits of These Improvements
+### **Architecture Quality Status: 🟢 SIGNIFICANTLY IMPROVED**
 
-- **Queue Reliability**: Ensures all generation jobs use consistent queue backends
-- **Code Consistency**: Eliminates duplicate queue logic across endpoints  
-- **Frontend Maintainability**: Centralized URL management supports deployment flexibility
-- **Feature Completeness**: Real metrics and import/export enable production readiness
-- **Testability**: Better queue abstraction enables comprehensive testing strategies
+**Major Wins Achieved:**
+- ✅ **Queue Reliability**: Generation jobs now use consistent queue backend integration
+- ✅ **Service Layer Consistency**: All adapter operations centralized through AdapterService  
+- ✅ **Proper Dependency Injection**: FastAPI DI patterns properly implemented across API routes
+- ✅ **SQL-Level Optimization**: Adapter filtering and pagination handled efficiently in database layer
+
+**Remaining Work:**
+- 🔄 **1 Critical Issue**: Compose endpoint queue logic consolidation
+- 🔄 **Frontend Consistency**: Complete migration to centralized URL resolution
+- 🔄 **Feature Completion**: Real dashboard metrics and import/export functionality
 
 ## 🎯 Detailed Implementation Tasks
 
-### Task 1: Fix Generation Queue FastAPI Integration ⚡ **CRITICAL**
+### ✅ **COMPLETED TASKS**
 
-**File**: `backend/api/v1/generation.py`  
-**Issue**: Line 189 creates a default `BackgroundTasks()` instance instead of letting FastAPI inject it
+#### **Task 1: Fix Generation Queue FastAPI Integration** ✅ **COMPLETED** (PR #79)
 
-**Current Problematic Code**:
+**Issue**: Line 189 had a default `BackgroundTasks()` instance instead of letting FastAPI inject it
+
+**Solution Implemented**:
 ```python
 async def queue_generation_job(
     generation_params: SDNextGenerationParams,
+    background_tasks: BackgroundTasks,  # ✅ FastAPI now injects this
     backend: str = "sdnext",
     mode: str = "deferred",
     save_images: bool = True,
     return_format: str = "base64",
-    background_tasks: BackgroundTasks = BackgroundTasks(),  # ❌ Manual instantiation
     services: ServiceContainer = Depends(get_service_container),
 ):
 ```
 
-**Required Fix**:
-```python
-async def queue_generation_job(
-    generation_params: SDNextGenerationParams,
-    backend: str = "sdnext",
-    mode: str = "deferred",
-    save_images: bool = True,
-    return_format: str = "base64",
-    background_tasks: BackgroundTasks,  # ✅ Let FastAPI inject
-    services: ServiceContainer = Depends(get_service_container),
-):
-```
-
-**Implementation Steps**:
-1. Remove the `= BackgroundTasks()` default parameter
-2. Test that background tasks still work properly
-3. Verify Redis queue backend integration works
-
-**Validation**: Run generation queue tests to ensure proper task scheduling
+**Validation**: ✅ Generation jobs now use consistent queue backend integration
 
 ---
+
+#### **Task 4: Complete Adapter Maintenance Service Integration** ✅ **COMPLETED** (PR #77)
+
+**Issue**: Adapter routes used raw `Session` instead of `AdapterService`
+
+**Solution Implemented**:
+- ✅ All routes now use `get_adapter_service` dependency injection
+- ✅ Added `get_all_tags()`, `bulk_adapter_action()`, `patch_adapter()`, `delete_adapter()` methods
+- ✅ Centralized business logic, consistent validation, and proper transaction handling
+
+**Validation**: ✅ All adapter CRUD operations now use service layer
+
+### 🔄 **REMAINING TASKS**
 
 ### Task 2: Consolidate Compose Delivery Logic ⚡ **CRITICAL** 
 
@@ -532,46 +528,9 @@ if req.delivery:
 
 ---
 
-### Task 4: Complete Adapter Maintenance Service Integration 🔥 **HIGH PRIORITY**
-
-**File**: `backend/api/v1/adapters.py`  
-**Issue**: Several routes still use raw `Session` instead of `AdapterService`
-
-**Current Status**: 
-- ✅ `search_adapters` properly implemented in service layer with SQL optimization
-- ❌ Maintenance operations (tags, bulk actions, patching, deletion) still in router
-
-**Routes Needing Migration**:
-- PATCH `/adapters/{adapter_id}` - Move validation/update logic to service
-- DELETE `/adapters/{adapter_id}` - Move deletion logic to service  
-- POST `/adapters/{adapter_id}/activate` - Move activation logic to service
-- Bulk operations - Move to service layer
-
-**Implementation Steps**:
-1. Add methods to `AdapterService` for each maintenance operation
-2. Update router endpoints to use service methods
-3. Move business validation logic from router to service
-4. Update tests to verify service behavior
-
-**Sample Service Method**:
-```python
-def update_adapter(self, adapter_id: str, updates: AdapterUpdate) -> Adapter:
-    """Update adapter with validation and business rules."""
-    adapter = self.get_adapter_by_id(adapter_id)
-    if not adapter:
-        raise HTTPException(status_code=404, detail="Adapter not found")
-    
-    # Apply business validation here
-    # Update fields
-    # Save to database
-    return adapter
-```
-
-**Validation**: Run adapter CRUD tests to ensure service integration works
-
 ---
 
-### Task 5: Implement Live Dashboard Metrics 📈 **MEDIUM PRIORITY**
+### Task 4: Implement Live Dashboard Metrics 📈 **MEDIUM PRIORITY**
 
 **File**: `backend/api/v1/dashboard.py`  
 **Issue**: Returns mostly mocked statistics instead of real system metrics
@@ -611,7 +570,7 @@ def get_dashboard_stats(services: ServiceContainer = Depends(get_service_contain
 
 ---
 
-### Task 6: Build Real Import/Export Pipelines 📈 **MEDIUM PRIORITY**
+### Task 5: Build Real Import/Export Pipelines 📈 **MEDIUM PRIORITY**
 
 **Files**: `backend/api/v1/adapters.py` (import/export endpoints)  
 **Issue**: Routes return mock ZIP content instead of real archival functionality
@@ -655,7 +614,7 @@ async def export_adapters():
 
 ---
 
-### Task 7: Expand Queue Backend Testing 🧪 **LOW PRIORITY**
+### Task 6: Expand Queue Backend Testing 🧪 **LOW PRIORITY**
 
 **Files**: `tests/` directory  
 **Issue**: Limited test coverage for Redis vs fallback queue scenarios
@@ -677,7 +636,7 @@ async def export_adapters():
 
 ---
 
-### Task 8: Performance Optimization 🧪 **LOW PRIORITY**
+### Task 7: Performance Optimization 🧪 **LOW PRIORITY**
 
 **File**: `backend/services/adapters.py`  
 **Issue**: May need optimization for large adapter datasets
