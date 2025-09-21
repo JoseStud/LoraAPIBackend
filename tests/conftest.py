@@ -70,6 +70,10 @@ def db_session_fixture():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+    from backend.core import database as core_database
+
+    original_engine = core_database.ENGINE
+    core_database.ENGINE = engine
     SQLModel.metadata.create_all(engine)
     # Ensure tests enforce the same uniqueness we add via Alembic
     # Create a unique index on (name, version) for the adapter table so
@@ -79,8 +83,11 @@ def db_session_fixture():
             "CREATE UNIQUE INDEX IF NOT EXISTS ux_adapter_name_version "
             "ON adapter (name, version)",
         )
-    with Session(engine) as session:
-        yield session
+    try:
+        with Session(engine) as session:
+            yield session
+    finally:
+        core_database.ENGINE = original_engine
 
 
 @pytest.fixture

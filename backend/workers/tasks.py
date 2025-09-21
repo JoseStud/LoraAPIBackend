@@ -4,7 +4,6 @@ This module integrates with RQ (Redis Queue) and updates DeliveryJob
 records in the database as the worker processes jobs.
 """
 
-import asyncio
 import json
 import logging
 import os
@@ -30,9 +29,9 @@ except Exception:
 
 
 from backend.core.database import get_session_context
-from backend.delivery import get_delivery_backend, get_generation_backend
-from backend.schemas import SDNextGenerationParams
 from backend.services import create_service_container
+from backend.services.deliveries import process_delivery_job
+from backend.services.queue import RedisQueueBackend
 
 # Basic structured-ish logger for worker events
 logger = logging.getLogger("lora.tasks")
@@ -44,8 +43,8 @@ if not logger.handlers:
 logger.setLevel(logging.INFO)
 
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-redis_conn = Redis.from_url(redis_url)
-q = Queue("default", connection=redis_conn)
+queue_backend = RedisQueueBackend(redis_url)
+q = queue_backend.queue
 
 
 def enqueue_delivery(prompt: str, mode: str, params: dict, max_retries: int = 3):
@@ -60,7 +59,7 @@ def enqueue_delivery(prompt: str, mode: str, params: dict, max_retries: int = 3)
     
     intervals = [2**i for i in range(max_retries)] if max_retries > 0 else []
     retry = Retry(max=max_retries, interval=intervals) if max_retries > 0 else None
-    job = q.enqueue(process_delivery, dj.id, retry=retry)
+    job = queue_backend.enqueue_delivery(dj.id, retry=retry)
     logger.info(
         json.dumps(
             {
@@ -82,67 +81,32 @@ def process_delivery(delivery_id: str):
     can perform retries according to the configured policy.
     """
     logger.info(json.dumps({"event": "start", "delivery_id": delivery_id}))
-    
-    # Set job to running
+
     with get_session_context() as sess:
         services = create_service_container(sess)
-        dj = services.deliveries.get_job(delivery_id)
-        if not dj:
+        if services.deliveries.get_job(delivery_id) is None:
             logger.warning(json.dumps({"event": "missing", "delivery_id": delivery_id}))
             return
-        
-        services.deliveries.update_job_status(delivery_id, "running")
 
     try:
-        # Get job parameters
-        with get_session_context() as sess:
-            services = create_service_container(sess)
-            dj = services.deliveries.get_job(delivery_id)
-            params = services.deliveries.get_job_params(dj)
-
-        # Process delivery based on mode
-        if dj.mode == "http":
-            result = asyncio.run(_process_http_delivery(dj.prompt, params))
-        elif dj.mode == "cli":
-            result = asyncio.run(_process_cli_delivery(dj.prompt, params))
-        elif dj.mode == "sdnext":
-            result = asyncio.run(_process_sdnext_delivery(dj.prompt, params))
-        else:
-            result = {"status": "error", "detail": f"unknown mode: {dj.mode}"}
-
-        # Update job with success
-        with get_session_context() as sess:
-            services = create_service_container(sess)
-            services.deliveries.update_job_status(delivery_id, "succeeded", result)
-
-        logger.info(json.dumps({"event": "succeeded", "delivery_id": delivery_id}))
-        
-    except Exception as exc:
-        # Check RQ job for remaining retries if available
         try:
             job = get_current_job()
             retries_left = getattr(job, "retries_left", None)
-        except Exception:
+        except Exception:  # pragma: no cover - defensive branch
             retries_left = None
 
-        # Update job with error
-        with get_session_context() as sess:
-            services = create_service_container(sess)
-            error_result = {"error": str(exc)}
-            
-            if retries_left is None or retries_left <= 0:
-                services.deliveries.update_job_status(
-                    delivery_id, 
-                    "failed", 
-                    error_result,
-                )
-            else:
-                error_result["retries_left"] = retries_left
-                services.deliveries.update_job_status(
-                    delivery_id, 
-                    "retrying", 
-                    error_result,
-                )
+        process_delivery_job(
+            delivery_id,
+            retries_left=retries_left,
+            raise_on_error=True,
+        )
+        logger.info(json.dumps({"event": "succeeded", "delivery_id": delivery_id}))
+    except Exception as exc:
+        try:
+            job = get_current_job()
+            retries_left = getattr(job, "retries_left", None)
+        except Exception:  # pragma: no cover - defensive branch
+            retries_left = None
 
         logger.error(
             json.dumps(
@@ -155,43 +119,6 @@ def process_delivery(delivery_id: str):
             ),
         )
         raise
-
-
-async def _process_http_delivery(prompt: str, params: dict) -> dict:
-    """Process HTTP delivery."""
-    backend = get_delivery_backend("http")
-    return await backend.deliver(prompt, params)
-
-
-async def _process_cli_delivery(prompt: str, params: dict) -> dict:
-    """Process CLI delivery."""
-    backend = get_delivery_backend("cli")
-    return await backend.deliver(prompt, params)
-
-
-async def _process_sdnext_delivery(prompt: str, params: dict) -> dict:
-    """Process SDNext generation delivery."""
-    backend = get_generation_backend("sdnext")
-    
-    # Extract generation parameters
-    gen_params_dict = params.get("generation_params", {})
-    gen_params_dict["prompt"] = prompt  # Use the delivery prompt
-    
-    try:
-        gen_params = SDNextGenerationParams(**gen_params_dict)
-    except Exception as exc:
-        return {"status": "failed", "error": f"Invalid generation parameters: {exc}"}
-    
-    # Prepare full parameters for generation
-    full_params = {
-        "generation_params": gen_params.model_dump(),
-        "mode": params.get("mode", "immediate"),
-        "save_images": params.get("save_images", True),
-        "return_format": params.get("return_format", "base64"),
-    }
-    
-    result = await backend.generate_image(prompt, full_params)
-    return result.model_dump()
 
 
 def _is_gpu_available() -> bool:

@@ -1,9 +1,14 @@
 """Tests for the service layer."""
 
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
+
+import pytest
 
 from backend.models.adapters import Adapter
 from backend.schemas.adapters import AdapterCreate
+from backend.services.deliveries import DeliveryService, process_delivery_job
+from backend.services.queue import QueueBackend
 
 
 class TestAdapterService:
@@ -129,6 +134,32 @@ class TestAdapterService:
 class TestDeliveryService:
     """Tests for the DeliveryService."""
 
+    class DummyQueue(QueueBackend):
+        """Simple queue backend used for testing enqueue behaviour."""
+
+        def __init__(self, should_fail: bool = False) -> None:
+            self.should_fail = should_fail
+            self.enqueued = []
+
+        def enqueue_delivery(self, job_id, *, background_tasks=None, **enqueue_kwargs):  # type: ignore[override]
+            if self.should_fail:
+                raise RuntimeError("queue failure")
+            self.enqueued.append((job_id, background_tasks, enqueue_kwargs))
+            return job_id
+
+    @staticmethod
+    def _override_session(monkeypatch, db_session):
+        """Force process_delivery_job to use the in-memory test session."""
+
+        @contextmanager
+        def session_context():
+            yield db_session
+
+        monkeypatch.setattr(
+            "backend.core.database.get_session_context",
+            lambda: session_context(),
+        )
+
     def test_create_job(self, delivery_service):
         """Test creating a new delivery job."""
         job = delivery_service.create_job(
@@ -139,6 +170,120 @@ class TestDeliveryService:
         assert job.id is not None
         assert job.prompt == "test prompt"
         assert job.status == "pending"
+
+    def test_schedule_job_uses_primary_queue(self, db_session):
+        """Primary queue is used when available and succeeds."""
+
+        primary = self.DummyQueue()
+        fallback = self.DummyQueue()
+        service = DeliveryService(
+            db_session,
+            queue_backend=primary,
+            fallback_queue_backend=fallback,
+        )
+
+        job = service.schedule_job("prompt", "cli", {"foo": "bar"})
+
+        assert job.id == primary.enqueued[0][0]
+        assert fallback.enqueued == []
+
+    def test_schedule_job_falls_back_when_primary_fails(self, db_session):
+        """Fallback queue is invoked when the primary queue raises."""
+
+        primary = self.DummyQueue(should_fail=True)
+        fallback = self.DummyQueue()
+        service = DeliveryService(
+            db_session,
+            queue_backend=primary,
+            fallback_queue_backend=fallback,
+        )
+
+        job = service.schedule_job("prompt", "cli", {"bar": 1})
+
+        assert job.id == fallback.enqueued[0][0]
+        assert primary.enqueued == []
+
+    def test_process_delivery_job_success(self, db_session, monkeypatch):
+        """Processing a delivery job marks it as succeeded with the result."""
+
+        service = DeliveryService(db_session)
+        job = service.create_job("p", "cli", {"key": "value"})
+
+        self._override_session(monkeypatch, db_session)
+
+        async def fake_execute(prompt, mode, params):
+            assert prompt == "p"
+            assert mode == "cli"
+            assert params == {"key": "value"}
+            return {"status": "ok", "result": True}
+
+        monkeypatch.setattr(
+            "backend.services.deliveries._execute_delivery_backend",
+            fake_execute,
+        )
+
+        process_delivery_job(job.id)
+
+        db_session.expire_all()
+        refreshed = service.get_job(job.id)
+        assert refreshed is not None
+        assert refreshed.status == "succeeded"
+        result = service.get_job_result(refreshed)
+        assert result == {"status": "ok", "result": True}
+
+    def test_process_delivery_job_failure_sets_retry(self, db_session, monkeypatch):
+        """Failures with retries left set the job to retrying."""
+
+        service = DeliveryService(db_session)
+        job = service.create_job("p", "cli", {"key": "value"})
+
+        self._override_session(monkeypatch, db_session)
+
+        async def failing_execute(prompt, mode, params):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(
+            "backend.services.deliveries._execute_delivery_backend",
+            failing_execute,
+        )
+
+        process_delivery_job(job.id, retries_left=2)
+
+        db_session.expire_all()
+        refreshed = service.get_job(job.id)
+        assert refreshed is not None
+        assert refreshed.status == "retrying"
+        result = service.get_job_result(refreshed)
+        assert result is not None
+        assert result["error"] == "boom"
+        assert result["retries_left"] == 2
+
+    def test_process_delivery_job_raises_when_requested(self, db_session, monkeypatch):
+        """raise_on_error propagates the original exception."""
+
+        service = DeliveryService(db_session)
+        job = service.create_job("p", "cli", {})
+
+        self._override_session(monkeypatch, db_session)
+
+        async def failing_execute(prompt, mode, params):
+            raise RuntimeError("explode")
+
+        monkeypatch.setattr(
+            "backend.services.deliveries._execute_delivery_backend",
+            failing_execute,
+        )
+
+        with pytest.raises(RuntimeError):
+            process_delivery_job(job.id, raise_on_error=True)
+
+        db_session.expire_all()
+        refreshed = service.get_job(job.id)
+        assert refreshed is not None
+        assert refreshed.status == "failed"
+        result = service.get_job_result(refreshed)
+        assert result is not None
+        assert result["error"] == "explode"
 
 
 class TestComposeService:
