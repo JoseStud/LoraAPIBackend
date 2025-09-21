@@ -2,6 +2,19 @@
  * Shared application-level types used by Pinia stores and components.
  */
 
+export interface FrontendRuntimeSettings {
+  backendUrl: string;
+  backendApiKey?: string | null;
+  [key: string]: unknown;
+}
+
+export interface SettingsState {
+  settings: FrontendRuntimeSettings | null;
+  isLoading: boolean;
+  isLoaded: boolean;
+  error: unknown | null;
+}
+
 export interface SystemStatusState {
   gpu_available: boolean;
   queue_length: number;
@@ -82,11 +95,5 @@ export interface UserPreferences {
   autoSave: boolean;
   notifications: boolean;
   theme: string;
-  [key: string]: unknown;
-}
-
-export interface FrontendRuntimeSettings {
-  backendUrl: string;
-  backendApiKey?: string | null;
   [key: string]: unknown;
 }

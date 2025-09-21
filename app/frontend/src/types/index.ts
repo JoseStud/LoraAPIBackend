@@ -6,3 +6,4 @@ export * from './recommendations';
 export * from './api';
 export * from './system';
 export * from './promptComposer';
+export * from './analytics';

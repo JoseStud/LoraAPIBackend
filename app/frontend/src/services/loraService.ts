@@ -14,6 +14,7 @@ import type {
   LoraGallerySelectionState,
   LoraListItem,
   LoraTagListResponse,
+  TopLoraPerformance,
 } from '@/types';
 
 const DEFAULT_BASE = '/api/v1';
@@ -120,6 +121,44 @@ export const fetchAdapters = async (
 
   const adapters = Array.isArray(payload) ? payload : payload.items ?? [];
   return adapters.map((item) => ({ ...item })) as LoraListItem[];
+};
+
+export const fetchTopAdapters = async (
+  baseUrl: string,
+  limit = 10,
+): Promise<TopLoraPerformance[]> => {
+  const base = sanitizeBaseUrl(baseUrl);
+  const api = useApi<AdapterListResponse | AdapterRead[]>(
+    () => `${base}/adapters${buildAdapterListQuery({ perPage: limit })}`,
+    { credentials: 'same-origin' },
+  );
+  const payload = await api.fetchData();
+
+  if (!payload) {
+    return [];
+  }
+
+  const list = Array.isArray(payload) ? payload : payload.items ?? [];
+  const toNumber = (value: unknown): number => {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0;
+    }
+    const parsed = Number(value ?? 0);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  return list.slice(0, limit).map((item) => {
+    const stats = (item.stats ?? {}) as Record<string, unknown>;
+
+    return {
+      id: item.id,
+      name: item.name,
+      version: item.version ?? null,
+      usage_count: toNumber(stats.usage_count),
+      success_rate: toNumber(stats.success_rate),
+      avg_time: toNumber(stats.avg_time ?? stats.avg_generation_time),
+    } satisfies TopLoraPerformance;
+  });
 };
 
 export const performBulkLoraAction = async (

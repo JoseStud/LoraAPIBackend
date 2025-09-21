@@ -2,9 +2,13 @@ import { unref } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
 
 import { useApi } from '@/composables/useApi';
-import { getJson } from '@/utils/api';
 
-import type { DashboardStatsSummary, SystemMetricsSnapshot, SystemStatusPayload } from '@/types';
+import type {
+  DashboardStatsSummary,
+  FrontendRuntimeSettings,
+  SystemMetricsSnapshot,
+  SystemStatusPayload,
+} from '@/types';
 
 const DEFAULT_BASE = '/api/v1';
 
@@ -32,15 +36,31 @@ export const useDashboardStatsApi = (baseUrl: MaybeRefOrGetter<string> = DEFAULT
     { credentials: 'same-origin' },
   );
 
+export const useFrontendSettingsApi = () =>
+  useApi<FrontendRuntimeSettings>(
+    () => '/frontend/settings',
+    { credentials: 'same-origin' },
+  );
+
+export const loadFrontendSettings = async (): Promise<FrontendRuntimeSettings | null> => {
+  const api = useFrontendSettingsApi();
+  return api.fetchData();
+};
+
 export const fetchDashboardStats = async (
   baseUrl: string,
 ): Promise<DashboardStatsSummary | null> => {
   const base = sanitizeBaseUrl(baseUrl);
-  const { data } = await getJson<DashboardStatsSummary>(
-    `${base}/dashboard/stats`,
-    { credentials: 'same-origin' },
-  );
-  return data ?? null;
+  const api = useDashboardStatsApi(base);
+  return api.fetchData();
+};
+
+export const fetchSystemStatus = async (
+  baseUrl: string,
+): Promise<SystemStatusPayload | null> => {
+  const base = sanitizeBaseUrl(baseUrl);
+  const api = useSystemStatusApi(base);
+  return api.fetchData();
 };
 
 export const emptyMetricsSnapshot = (): SystemMetricsSnapshot => ({

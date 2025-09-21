@@ -1,6 +1,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
+import { ApiError } from '@/composables/useApi';
+import { fetchSystemStatus } from '@/services/systemService';
 import { useAppStore } from '@/stores/app';
 
 import type { SystemStatusState } from '@/types';
@@ -97,69 +99,77 @@ export const useSystemStatus = (options: UseSystemStatusOptions = {}) => {
   const { systemStatus } = storeToRefs(appStore);
   const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
 
-  const apiAvailable = ref(true);
-  const isReady = ref(false);
+  const backendBase = computed<string>(() => configuredBackendUrl.value || '/api/v1');
+
+  const apiAvailable = ref<boolean>(true);
+  const isReady = ref<boolean>(false);
   const lastUpdate = ref<Date | null>(null);
 
-  const queueLength = computed(() => systemStatus.value.queue_length ?? 0);
-  const queueJobsLabel = computed(() => `${queueLength.value} jobs`);
-  const gpuStatusLabel = computed(() => systemStatus.value.gpu_status || 'Unknown');
-  const gpuStatusClass = computed(() => getGpuStatusClass(systemStatus.value.gpu_status));
-  const memoryUsage = computed(() => formatMemory(systemStatus.value.memory_used, systemStatus.value.memory_total));
-  const hasMemoryData = computed(() => Boolean(systemStatus.value.memory_used && systemStatus.value.memory_total));
-  const memoryPercent = computed(() => {
+  const queueLength = computed<number>(() => systemStatus.value.queue_length ?? 0);
+  const queueJobsLabel = computed<string>(() => `${queueLength.value} jobs`);
+  const gpuStatusLabel = computed<string>(() => systemStatus.value.gpu_status || 'Unknown');
+  const gpuStatusClass = computed<string>(() => getGpuStatusClass(systemStatus.value.gpu_status));
+  const memoryUsage = computed<string>(() =>
+    formatMemory(systemStatus.value.memory_used, systemStatus.value.memory_total),
+  );
+  const hasMemoryData = computed<boolean>(() =>
+    Boolean(systemStatus.value.memory_used && systemStatus.value.memory_total),
+  );
+  const memoryPercent = computed<number>(() => {
     if (!systemStatus.value.memory_used || !systemStatus.value.memory_total) {
       return 0;
     }
 
     return Math.min(100, Math.round((systemStatus.value.memory_used / systemStatus.value.memory_total) * 100));
   });
-  const statusIcon = computed(() => getStatusIcon(systemStatus.value.status));
-  const statusLabel = computed(() => systemStatus.value.status || 'Unknown');
-  const lastUpdatedLabel = computed(() => formatLastUpdateLabel(lastUpdate.value));
+  const statusIcon = computed<string>(() => getStatusIcon(systemStatus.value.status));
+  const statusLabel = computed<string>(() => systemStatus.value.status || 'Unknown');
+  const lastUpdatedLabel = computed<string>(() => formatLastUpdateLabel(lastUpdate.value));
 
-  let pollHandle: ReturnType<typeof setInterval> | null = null;
+  const pollHandle = ref<ReturnType<typeof setInterval> | null>(null);
 
-  const applyStatus = (next: Partial<SystemStatusState> = {}) => {
+  const applyStatus = (next: Partial<SystemStatusState> = {}): void => {
     appStore.updateSystemStatus(next);
   };
 
-  const applyFallback = () => {
+  const applyFallback = (): void => {
     applyStatus(FALLBACK_STATUS);
   };
 
-  const stopPolling = () => {
-    if (pollHandle) {
-      clearInterval(pollHandle);
-      pollHandle = null;
+  const stopPolling = (): void => {
+    if (pollHandle.value) {
+      clearInterval(pollHandle.value);
+      pollHandle.value = null;
     }
   };
 
-  const statusUrl = computed(() => {
-    const base = configuredBackendUrl.value || '/api/v1';
-    return `${base}/system/status`;
-  });
-
-  const fetchStatus = async () => {
+  const fetchStatus = async (): Promise<void> => {
     try {
-      const response = await fetch(statusUrl.value, { credentials: 'same-origin' });
-      if (response.ok) {
-        const payload = (await response.json()) as Partial<SystemStatusState>;
+      const payload = await fetchSystemStatus(backendBase.value);
+      if (payload) {
         applyStatus({ ...DEFAULT_STATUS, ...payload });
-        lastUpdate.value = new Date();
+
+        const updatedAt = payload.updated_at ?? payload.last_updated ?? null;
+        lastUpdate.value = updatedAt ? new Date(updatedAt) : new Date();
         apiAvailable.value = true;
-      } else if (response.status === 404) {
+        return;
+      }
+
+      apiAvailable.value = true;
+      applyStatus({ ...DEFAULT_STATUS });
+      lastUpdate.value = new Date();
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.status === 404) {
         apiAvailable.value = false;
         applyFallback();
         lastUpdate.value = new Date();
         stopPolling();
-      } else {
-        apiAvailable.value = true;
-        applyStatus({ status: 'error', gpu_status: 'Unknown' });
+        return;
       }
-    } catch (error) {
+
       apiAvailable.value = true;
       applyStatus({ status: 'error', gpu_status: 'Unknown' });
+
       if (import.meta.env.DEV) {
         console.error('Failed to load system status', error);
       }
@@ -170,14 +180,14 @@ export const useSystemStatus = (options: UseSystemStatusOptions = {}) => {
     }
   };
 
-  const startPolling = () => {
+  const startPolling = (): void => {
     stopPolling();
 
     if (!apiAvailable.value) {
       return;
     }
 
-    pollHandle = setInterval(() => {
+    pollHandle.value = setInterval(() => {
       if (!apiAvailable.value) {
         stopPolling();
         return;
