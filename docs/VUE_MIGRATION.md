@@ -15,6 +15,19 @@ The LoRA Manager frontend now ships as a single Vue 3 application. FastAPI serve
   - **History** mixes the archival grid with queue/system context.
   - **LoRAs & Recommendations** surface the gallery and similarity explorer respectively.
 
+## Alpine to Vue Component Mapping
+
+The last Alpine.js admin and analytics islands now map directly to Vue single-file components:
+
+| Legacy Alpine feature | Vue successor |
+| --- | --- |
+| System admin status card island | `src/components/SystemAdminStatusCard.vue` |
+| System metrics panel island | `src/components/SystemStatusPanel.vue` |
+| Job queue dashboard widget | `src/components/JobQueue.vue` |
+| Import/export control panel | `src/components/ImportExport.vue` |
+| Analytics overview island | `src/components/PerformanceAnalytics.vue` |
+| Offline experience message | `src/components/OfflineFeatureCard.vue` |
+
 ## Retired Legacy Assets
 
 - `app/frontend/static/js/components/**/*`

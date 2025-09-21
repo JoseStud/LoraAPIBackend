@@ -139,9 +139,9 @@
       <div class="card-body">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="text-center">
-            <div class="text-2xl mb-2">{{ getStatusIcon(systemStatus.overall) }}</div>
-            <div class="text-lg font-semibold" :class="getStatusClass(systemStatus.overall)">
-              {{ (systemStatus.overall || 'unknown').toUpperCase() }}
+            <div class="text-2xl mb-2">{{ statusIcon }}</div>
+            <div class="text-lg font-semibold" :class="statusClass">
+              {{ statusLabel }}
             </div>
             <div class="text-sm text-gray-500">Overall Status</div>
           </div>
@@ -174,47 +174,22 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { computed } from 'vue';
 
-import {
-  deriveMetricsFromDashboard,
-  emptyMetricsSnapshot,
-  fetchDashboardStats,
-} from '@/services/systemService';
-import { useBackendBase } from '@/utils/backend';
-import type {
-  DashboardStatsSummary,
-  SystemMetricsSnapshot,
-  SystemResourceStatsSummary,
-  SystemStatusLevel,
-  SystemStatusOverview,
-} from '@/types';
+import { useAdminMetrics } from '@/composables/useAdminMetrics';
+import type { SystemStatusLevel } from '@/types';
 
-const apiBaseUrl = useBackendBase();
+const {
+  metrics,
+  stats,
+  status,
+  error,
+} = useAdminMetrics({ intervalMs: 5_000 });
 
-const systemStatus = reactive<SystemStatusOverview>({
-  overall: 'unknown',
-  last_check: new Date().toISOString(),
-});
-
-const systemStats = reactive<SystemResourceStatsSummary>({
-  uptime: 'N/A',
-  active_workers: 0,
-  total_workers: 0,
-  database_size: 0,
-  total_records: 0,
-  gpu_memory_used: 'N/A',
-  gpu_memory_total: 'N/A',
-});
-
-const systemMetrics = reactive<SystemMetricsSnapshot>({
-  ...emptyMetricsSnapshot(),
-});
-
-const dashboardSummary = ref<DashboardStatsSummary | null>(null);
-const errorMessage = ref<string | null>(null);
-const metricsInterval = ref<ReturnType<typeof setInterval> | null>(null);
-const statsInterval = ref<ReturnType<typeof setInterval> | null>(null);
+const systemMetrics = computed(() => metrics.value);
+const systemStats = computed(() => stats.value);
+const statusLevel = computed<SystemStatusLevel>(() => status.value ?? 'unknown');
+const errorMessage = computed(() => (error.value ? error.value.message : null));
 
 const formatSize = (bytes: number | null | undefined): string => {
   if (!bytes || bytes <= 0) {
@@ -253,183 +228,7 @@ const getStatusClass = (status: SystemStatusLevel): string => {
   }
 };
 
-const normalizeStatus = (status?: string | null): SystemStatusLevel => {
-  if (!status) {
-    return 'unknown';
-  }
-  const value = status.toLowerCase();
-  if (value === 'healthy' || value === 'warning' || value === 'error') {
-    return value;
-  }
-  return 'unknown';
-};
-
-const refreshDashboardSummary = async (): Promise<DashboardStatsSummary | null> => {
-  const summary = await fetchDashboardStats(apiBaseUrl.value);
-  dashboardSummary.value = summary;
-  return summary;
-};
-
-const handleDashboardError = (err: unknown) => {
-  dashboardSummary.value = null;
-  errorMessage.value = err instanceof Error ? err.message : 'Failed to load dashboard stats';
-};
-
-const applyStatusFromSummary = (summary: DashboardStatsSummary | null): SystemStatusLevel => {
-  const status = normalizeStatus(summary?.system_health?.status);
-  systemStatus.overall = status;
-  systemStatus.last_check = new Date().toISOString();
-  return status;
-};
-
-const applyMetricsFromSummary = (
-  summary: DashboardStatsSummary | null,
-): SystemMetricsSnapshot => {
-  const metrics = deriveMetricsFromDashboard(summary);
-  Object.assign(systemMetrics, metrics);
-  return systemMetrics;
-};
-
-const formatDisplaySize = (value: number): string => (value > 0 ? formatSize(value) : 'N/A');
-
-const applyStatsFromSummary = (
-  summary: DashboardStatsSummary | null,
-  metrics: SystemMetricsSnapshot = systemMetrics,
-) => {
-  const stats = summary?.stats;
-  systemStats.uptime = 'N/A';
-  systemStats.active_workers = 0;
-  systemStats.total_workers = 0;
-  systemStats.database_size = 0;
-  systemStats.total_records = stats?.total_loras ?? 0;
-  systemStats.gpu_memory_used = formatDisplaySize(metrics.memory_used);
-  systemStats.gpu_memory_total = formatDisplaySize(metrics.memory_total);
-};
-
-type MetricStatus = Exclude<SystemStatusLevel, 'unknown'>;
-
-const evaluateMetricsSeverity = (): MetricStatus => {
-  const cpuPercent = systemMetrics.cpu_percent ?? 0;
-  const memoryPercent = systemMetrics.memory_percent ?? 0;
-  const diskPercent = systemMetrics.disk_percent ?? 0;
-  const gpus = systemMetrics.gpus ?? [];
-
-  const hasCriticalGpu = gpus.some(
-    (gpu) => (gpu.temperature ?? 0) > 85 || (gpu.memory_percent ?? 0) > 95,
-  );
-
-  if (cpuPercent > 90 || memoryPercent > 95 || diskPercent > 95 || hasCriticalGpu) {
-    return 'error';
-  }
-
-  const hasWarningGpu = gpus.some(
-    (gpu) => (gpu.temperature ?? 0) > 75 || (gpu.memory_percent ?? 0) > 85,
-  );
-
-  if (cpuPercent > 75 || memoryPercent > 85 || diskPercent > 85 || hasWarningGpu) {
-    return 'warning';
-  }
-
-  return 'healthy';
-};
-
-const mergeStatusLevels = (
-  base: SystemStatusLevel,
-  derived: MetricStatus,
-): SystemStatusLevel => {
-  if (derived === 'error' || base === 'error') {
-    return 'error';
-  }
-  if (derived === 'warning' || base === 'warning') {
-    return 'warning';
-  }
-  if (base === 'unknown') {
-    return 'unknown';
-  }
-  return 'healthy';
-};
-
-const updateSystemStatus = (baseStatus: SystemStatusLevel) => {
-  const derivedStatus = evaluateMetricsSeverity();
-  systemStatus.overall = mergeStatusLevels(baseStatus, derivedStatus);
-};
-
-const loadAllData = async () => {
-  try {
-    const summary = await refreshDashboardSummary();
-    const metrics = applyMetricsFromSummary(summary);
-    applyStatsFromSummary(summary, metrics);
-    const baseStatus = applyStatusFromSummary(summary);
-    updateSystemStatus(baseStatus);
-    errorMessage.value = null;
-  } catch (err) {
-    handleDashboardError(err);
-    const metrics = applyMetricsFromSummary(null);
-    applyStatsFromSummary(null, metrics);
-    const baseStatus = applyStatusFromSummary(null);
-    updateSystemStatus(baseStatus);
-  }
-};
-
-const loadSystemMetrics = async () => {
-  try {
-    const summary = await refreshDashboardSummary();
-    const metrics = applyMetricsFromSummary(summary);
-    applyStatsFromSummary(summary, metrics);
-    const baseStatus = applyStatusFromSummary(summary);
-    updateSystemStatus(baseStatus);
-    errorMessage.value = null;
-  } catch (err) {
-    handleDashboardError(err);
-    const metrics = applyMetricsFromSummary(null);
-    applyStatsFromSummary(null, metrics);
-    const baseStatus = applyStatusFromSummary(null);
-    updateSystemStatus(baseStatus);
-  }
-};
-
-const loadSystemStats = async () => {
-  try {
-    const summary = await refreshDashboardSummary();
-    applyStatsFromSummary(summary);
-    const baseStatus = applyStatusFromSummary(summary);
-    updateSystemStatus(baseStatus);
-    errorMessage.value = null;
-  } catch (err) {
-    handleDashboardError(err);
-    applyStatsFromSummary(null);
-    const baseStatus = applyStatusFromSummary(null);
-    updateSystemStatus(baseStatus);
-  }
-};
-
-const startRealTimeUpdates = () => {
-  metricsInterval.value = setInterval(() => {
-    void loadSystemMetrics();
-  }, 5000);
-
-  statsInterval.value = setInterval(() => {
-    void loadSystemStats();
-  }, 30000);
-};
-
-const stopRealTimeUpdates = () => {
-  if (metricsInterval.value) {
-    clearInterval(metricsInterval.value);
-    metricsInterval.value = null;
-  }
-  if (statsInterval.value) {
-    clearInterval(statsInterval.value);
-    statsInterval.value = null;
-  }
-};
-
-onMounted(async () => {
-  await loadAllData();
-  startRealTimeUpdates();
-});
-
-onBeforeUnmount(() => {
-  stopRealTimeUpdates();
-});
+const statusIcon = computed(() => getStatusIcon(statusLevel.value));
+const statusClass = computed(() => getStatusClass(statusLevel.value));
+const statusLabel = computed(() => (statusLevel.value || 'unknown').toUpperCase());
 </script>

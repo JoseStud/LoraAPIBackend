@@ -1,83 +1,53 @@
 #!/usr/bin/env python3
-"""Migration Helper Script.
+"""Migration helper for validating the Vue SPA takeover."""
 
-Helps migrate from monolithic files to the new modular structure.
-This script can be used to gradually transition components.
-"""
-
-import shutil
 from pathlib import Path
 from typing import Dict, List
 
 # Base directory for the project
 PROJECT_ROOT = Path(__file__).parent
 
-# Mapping of old files to new modular structure
-FILE_MIGRATION_MAP = {
-    # System Admin Component
-    "app/frontend/static/js/system-admin.js": [
-        "app/frontend/static/js/components/system-admin/index.js",
-        "app/frontend/static/js/components/system-admin/api.js", 
-        "app/frontend/static/js/components/system-admin/state.js",
-        "app/frontend/static/js/components/system-admin/metrics.js",
-        "app/frontend/static/js/components/system-admin/backup.js",
-        "app/frontend/static/js/components/system-admin/logs.js",
+# Mapping of retired Alpine features to their Vue counterparts
+FILE_MIGRATION_MAP: Dict[str, List[str]] = {
+    "System administration dashboard": [
+        "app/frontend/src/components/SystemAdminStatusCard.vue",
+        "app/frontend/src/components/SystemStatusPanel.vue",
+        "app/frontend/src/components/JobQueue.vue",
     ],
-    
-    # Component Loader
-    "app/frontend/static/js/component-loader.js": [
-        "app/frontend/static/js/core/component-loader/core.js",
-        "app/frontend/static/js/core/component-loader/registry.js",
-        "app/frontend/static/js/core/component-loader/stubs.js",
-        "app/frontend/static/js/core/component-loader/logger.js",
+    "Import/export workflows": [
+        "app/frontend/src/components/ImportExport.vue",
+        "app/frontend/src/views/ImportExportView.vue",
     ],
-    
-    # Alpine Config - dependencies removed after refactoring to apiDataFetcher
-    "app/frontend/static/js/alpine-config.js": [
-        # No longer dependent on lib files after cleanup
+    "Analytics overview": [
+        "app/frontend/src/components/PerformanceAnalytics.vue",
+        "app/frontend/src/views/AnalyticsView.vue",
     ],
-    
-    # Backend Routes
-    "app/frontend/routes_fastapi.py": [
-        "app/frontend/routes/pages.py",
-        "app/frontend/routes/htmx.py", 
-        "app/frontend/routes/sw.py",
-        "app/frontend/utils/http.py",
+    "Offline messaging": [
+        "app/frontend/src/components/OfflineFeatureCard.vue",
+        "app/frontend/src/views/OfflineView.vue",
     ],
 }
 
 
 def backup_original_files() -> None:
-    """Create backups of original files before migration."""
-    backup_dir = PROJECT_ROOT / "migration_backup"
-    backup_dir.mkdir(exist_ok=True)
-    
-    print("Creating backups of original files...")
-    
-    for original_file in FILE_MIGRATION_MAP.keys():
-        file_path = PROJECT_ROOT / original_file
-        if file_path.exists():
-            backup_path = backup_dir / file_path.name
-            shutil.copy2(file_path, backup_path)
-            print(f"  Backed up: {original_file} -> {backup_path}")
-        else:
-            print(f"  Warning: Original file not found: {original_file}")
+    """Legacy helper retained for compatibility."""
+    print("Legacy Alpine bundles have already been removed; nothing to back up.")
 
 
 def check_new_files() -> Dict[str, List[str]]:
     """Check which new modular files exist."""
     status = {}
     
-    for original_file, new_files in FILE_MIGRATION_MAP.items():
-        status[original_file] = []
-        
+    for feature, new_files in FILE_MIGRATION_MAP.items():
+        status[feature] = []
+
         for new_file in new_files:
             file_path = PROJECT_ROOT / new_file
             if file_path.exists():
-                status[original_file].append(f"✓ {new_file}")
+                status[feature].append(f"✓ {new_file}")
             else:
-                status[original_file].append(f"✗ {new_file}")
-    
+                status[feature].append(f"✗ {new_file}")
+
     return status
 
 
@@ -89,31 +59,23 @@ def print_migration_status() -> None:
     
     status = check_new_files()
     
-    for original_file, file_statuses in status.items():
-        print(f"\n{original_file}:")
+    for feature, file_statuses in status.items():
+        print(f"\n{feature}:")
         for file_status in file_statuses:
             print(f"  {file_status}")
-    
-    # Check if original files can be safely removed
+
     print("\n" + "-"*60)
-    print("MIGRATION READINESS")
+    print("VUE COMPONENT COVERAGE")
     print("-"*60)
-    
-    for original_file, new_files in FILE_MIGRATION_MAP.items():
-        file_path = PROJECT_ROOT / original_file
-        
-        if not file_path.exists():
-            print(f"✓ {original_file} - Already migrated")
-            continue
-        
-        # Check if all new files exist
+
+    for feature, new_files in FILE_MIGRATION_MAP.items():
         all_exist = all((PROJECT_ROOT / new_file).exists() for new_file in new_files)
-        
+
         if all_exist:
-            print(f"✓ {original_file} - Ready for migration (all modules created)")
+            print(f"✓ {feature} - Vue components present")
         else:
             missing = [f for f in new_files if not (PROJECT_ROOT / f).exists()]
-            print(f"✗ {original_file} - Missing modules: {', '.join(missing)}")
+            print(f"✗ {feature} - Missing: {', '.join(missing)}")
 
 
 def update_template_imports(dry_run: bool = True) -> None:
@@ -125,11 +87,7 @@ def update_template_imports(dry_run: bool = True) -> None:
         return
     
     # Mapping of old script includes to new ones
-    import_updates = {
-        'static/js/system-admin.js': 'static/js/components/system-admin/index.js',
-        'static/js/component-loader.js': 'static/js/core/index.js',
-        # alpine-config.js no longer needs lib dependencies after cleanup
-    }
+    import_updates: Dict[str, List[str] | str] = {}
     
     print(f"\n{'DRY RUN: ' if dry_run else ''}Updating template imports...")
     
@@ -167,43 +125,8 @@ def update_template_imports(dry_run: bool = True) -> None:
 
 
 def create_integration_test() -> None:
-    """Create a simple integration test to verify the migration."""
-    test_content = '''
-/**
- * Integration test for migrated components
- * 
- * Run this test to verify that all migrated components
- * work correctly together.
- */
-
-// Test that all new modules can be imported
-describe('Migration Integration Tests', () => {
-    test('system-admin modules can be imported', () => {
-        expect(() => {
-            require('../app/frontend/static/js/components/system-admin/api.js');
-            require('../app/frontend/static/js/components/system-admin/state.js');
-        }).not.toThrow();
-    });
-
-    test('component-loader modules can be imported', () => {
-        expect(() => {
-            require('../app/frontend/static/js/core/component-loader/core.js');
-            require('../app/frontend/static/js/core/component-loader/registry.js');
-        }).not.toThrow();
-    });
-
-    test('common utilities are available', () => {
-        expect(() => {
-            require('../app/frontend/static/js/utils/index.js');
-        }).not.toThrow();
-    });
-});
-'''
-    
-    test_file = PROJECT_ROOT / "tests/integration/migration.test.js"
-    test_file.parent.mkdir(parents=True, exist_ok=True)
-    test_file.write_text(test_content.strip())
-    print(f"Created integration test: {test_file}")
+    """This helper is no longer required now that the Vue SPA is canonical."""
+    print("Vue integration tests live under tests/unit and tests/e2e; no legacy scaffold created.")
 
 
 def main():

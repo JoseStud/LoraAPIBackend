@@ -140,24 +140,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
-import {
-  deriveMetricsFromDashboard,
-  emptyMetricsSnapshot,
-  fetchDashboardStats,
-} from '@/services/systemService';
-import { useBackendBase } from '@/utils/backend';
-import type { DashboardStatsSummary, SystemMetricsSnapshot } from '@/types';
+import { computed } from 'vue';
 
-const apiBaseUrl = useBackendBase();
+import { useAdminMetrics } from '@/composables/useAdminMetrics';
 
-const metricsData = ref<SystemMetricsSnapshot>(emptyMetricsSnapshot());
-const dashboardSummary = ref<DashboardStatsSummary | null>(null);
+const {
+  metrics,
+  isLoading,
+  error,
+  lastUpdatedLabel,
+} = useAdminMetrics({ intervalMs: 5_000 });
 
-const lastUpdated = ref('Never');
-const pollInterval = ref<ReturnType<typeof setInterval> | null>(null);
-const isLoading = ref(true);
-const error = ref<Error | null>(null);
+const metricsData = computed(() => metrics.value);
 
 const clampPercent = (value: number | null | undefined): number => {
   if (typeof value !== 'number' || Number.isNaN(value)) {
@@ -200,47 +194,5 @@ const formatTemperature = (value: number | null | undefined): string => {
   return `${Math.round(value)}°C`;
 };
 
-const applyMetrics = (summary: DashboardStatsSummary | null) => {
-  metricsData.value = deriveMetricsFromDashboard(summary);
-};
-
-const loadSystemMetrics = async () => {
-  try {
-    isLoading.value = true;
-    error.value = null;
-
-    const summary = await fetchDashboardStats(apiBaseUrl.value);
-    dashboardSummary.value = summary;
-    applyMetrics(summary);
-    lastUpdated.value = new Date().toLocaleTimeString();
-  } catch (err) {
-    applyMetrics(null);
-    dashboardSummary.value = null;
-    error.value = err instanceof Error ? err : new Error('Failed to load metrics');
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-const startPolling = () => {
-  void loadSystemMetrics();
-  pollInterval.value = setInterval(() => {
-    void loadSystemMetrics();
-  }, 5000);
-};
-
-const stopPolling = () => {
-  if (pollInterval.value) {
-    clearInterval(pollInterval.value);
-    pollInterval.value = null;
-  }
-};
-
-onMounted(() => {
-  startPolling();
-});
-
-onUnmounted(() => {
-  stopPolling();
-});
+const lastUpdated = computed(() => lastUpdatedLabel.value);
 </script>
