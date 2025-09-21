@@ -1,13 +1,11 @@
 """HTTP routes for managing adapters."""
 
-from datetime import datetime, timezone
 from typing import List, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
-from sqlmodel import Session, select
+from sqlmodel import select
 
-from backend.core.database import get_session
 from backend.core.dependencies import get_adapter_service
 from backend.models import Adapter
 from backend.schemas import AdapterCreate, AdapterListResponse, AdapterWrapper
@@ -87,32 +85,23 @@ class BulkActionRequest(BaseModel):
 
 
 @router.get("/adapters/tags")
-def get_adapter_tags(db_session: Session = Depends(get_session)):
+def get_adapter_tags(service: AdapterService = Depends(get_adapter_service)):
     """Return unique tag list across all adapters.
 
     Response shape matches frontend expectation: {"tags": [..]}.
     """
-    rows = db_session.exec(select(Adapter.tags)).all()
-    unique = set()
-    for tags in rows:
-        if not tags:
-            continue
-        try:
-            for t in tags:
-                if isinstance(t, str) and t.strip():
-                    unique.add(t.strip())
-        except TypeError:
-            # tags column might contain a single string by mistake
-            if isinstance(tags, str) and tags.strip():
-                unique.add(tags.strip())
+    try:
+        tags = service.get_all_tags()
+    except Exception as exc:  # pragma: no cover - defensive guard
+        raise HTTPException(status_code=500, detail=f"Failed to load adapter tags: {exc}") from exc
 
-    return {"tags": sorted(unique, key=lambda s: s.lower())}
+    return {"tags": tags}
 
 
 @router.post("/adapters/bulk")
 def bulk_adapter_action(
     request: BulkActionRequest,
-    db_session: Session = Depends(get_session),  # noqa: B008
+    service: AdapterService = Depends(get_adapter_service),  # noqa: B008
 ):
     """Perform a bulk action on a list of adapters in a transaction.
 
@@ -122,32 +111,12 @@ def bulk_adapter_action(
     if not request.lora_ids:
         return {"success": True, "processed": 0, "action": request.action, "ids": []}
 
-    # Fetch targeted adapters
-    adapters = db_session.exec(
-        select(Adapter).where(Adapter.id.in_(request.lora_ids)),
-    ).all()
-
-    processed_ids: List[str] = []
-    now = datetime.now(timezone.utc)
-
     try:
-        if request.action in ("activate", "deactivate"):
-            new_state = request.action == "activate"
-            for a in adapters:
-                a.active = new_state
-                a.updated_at = now
-                db_session.add(a)
-                processed_ids.append(a.id)
-        elif request.action == "delete":
-            for a in adapters:
-                processed_ids.append(a.id)
-                db_session.delete(a)
-        # Commit changes atomically
-        db_session.commit()
+        processed_ids = service.bulk_adapter_action(request.action, request.lora_ids)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
-        # Ensure rollback and surface problem in a consistent error
-        db_session.rollback()
-        raise HTTPException(status_code=500, detail=f"Bulk action failed: {exc}")
+        raise HTTPException(status_code=500, detail=f"Bulk action failed: {exc}") from exc
 
     return {
         "success": True,
@@ -159,80 +128,51 @@ def bulk_adapter_action(
 
 @router.patch("/adapters/{adapter_id}", response_model=AdapterWrapper)
 def patch_adapter(
-    adapter_id: str, payload: dict, db_session: Session = Depends(get_session),  # noqa: B008
+    adapter_id: str,
+    payload: dict,
+    service: AdapterService = Depends(get_adapter_service),  # noqa: B008
 ):
     """Update an adapter's fields.
 
     Supports updating tags (stored as JSON string) and other updatable fields.
     Only allows updating specific safe fields to prevent unauthorized modifications.
     """
-    # Define allowlist of patchable fields
-    ALLOWED_FIELDS = {
-        "weight", "active", "ordinal", "tags", "description", "activation_text",
-        "trained_words", "triggers", "archetype", "archetype_confidence",
-        "visibility", "nsfw_level", "supports_generation", "sd_version",
-    }
-    
-    a = db_session.get(Adapter, adapter_id)
-    if not a:
+    try:
+        updated = service.patch_adapter(adapter_id, payload)
+    except LookupError:
         raise HTTPException(status_code=404, detail="adapter not found")
-    
-    # Validate and apply only allowed fields
-    updated_fields = []
-    for k, v in payload.items():
-        if k not in ALLOWED_FIELDS:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Field '{k}' is not allowed to be modified. Allowed fields: {', '.join(sorted(ALLOWED_FIELDS))}",
-            )
-        if hasattr(a, k):
-            # Type validation for specific fields
-            if k == "weight" and not isinstance(v, (int, float)):
-                raise HTTPException(status_code=400, detail="Field 'weight' must be a number")
-            if k == "active" and not isinstance(v, bool):
-                raise HTTPException(status_code=400, detail="Field 'active' must be a boolean")
-            if k == "ordinal" and v is not None and not isinstance(v, int):
-                raise HTTPException(status_code=400, detail="Field 'ordinal' must be an integer or null")
-            if k == "tags" and not isinstance(v, list):
-                raise HTTPException(status_code=400, detail="Field 'tags' must be a list")
-            if k == "nsfw_level" and not isinstance(v, int):
-                raise HTTPException(status_code=400, detail="Field 'nsfw_level' must be an integer")
-            
-            setattr(a, k, v)
-            updated_fields.append(k)
-    
-    if not updated_fields:
-        raise HTTPException(status_code=400, detail="No valid fields provided for update")
-    
-    a.updated_at = datetime.now(timezone.utc)
-    db_session.add(a)
-    db_session.commit()
-    db_session.refresh(a)
-    ra = a.model_dump()
-    return {"adapter": ra}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:  # pragma: no cover - defensive guard
+        raise HTTPException(status_code=500, detail=f"Failed to patch adapter: {exc}") from exc
+
+    return {"adapter": updated.model_dump()}
 
 
 @router.delete("/adapters/{adapter_id}", status_code=204)
-def delete_adapter(adapter_id: str, db_session: Session = Depends(get_session)):  # noqa: B008
+def delete_adapter(
+    adapter_id: str,
+    service: AdapterService = Depends(get_adapter_service),  # noqa: B008
+):
     """Delete an adapter by id.
 
     Returns 204 on success.
     """
-    a = db_session.get(Adapter, adapter_id)
-    if not a:
+    if not service.delete_adapter(adapter_id):
         raise HTTPException(status_code=404, detail="adapter not found")
-    db_session.delete(a)
-    db_session.commit()
     return
 
 
 @router.get("/adapters/{adapter_id}", response_model=AdapterWrapper)
-def get_adapter(adapter_id: str, db_session: Session = Depends(get_session)):  # noqa: B008
+def get_adapter(
+    adapter_id: str,
+    service: AdapterService = Depends(get_adapter_service),  # noqa: B008
+):
     """Return a single adapter by id.
 
     Raises HTTPException(404) if not found.
     """
-    a = db_session.get(Adapter, adapter_id)
+    a = service.get_adapter(adapter_id)
     if not a:
         raise HTTPException(status_code=404, detail="adapter not found")
     ra = a.model_dump()
@@ -243,33 +183,24 @@ def get_adapter(adapter_id: str, db_session: Session = Depends(get_session)):  #
 def activate_adapter(
     adapter_id: str,
     ordinal: int = None,
-    db_session: Session = Depends(get_session),  # noqa: B008
+    service: AdapterService = Depends(get_adapter_service),  # noqa: B008
 ):
     """Mark an adapter active and optionally set its ordinal."""
-    a = db_session.get(Adapter, adapter_id)
+    a = service.activate_adapter(adapter_id, ordinal)
     if not a:
         raise HTTPException(status_code=404, detail="adapter not found")
-    a.active = True
-    if ordinal is not None:
-        a.ordinal = ordinal
-    a.updated_at = datetime.now(timezone.utc)
-    db_session.add(a)
-    db_session.commit()
-    db_session.refresh(a)
     ra = a.model_dump()
     return {"adapter": ra}
 
 
 @router.post("/adapters/{adapter_id}/deactivate", response_model=AdapterWrapper)
-def deactivate_adapter(adapter_id: str, db_session: Session = Depends(get_session)):  # noqa: B008
+def deactivate_adapter(
+    adapter_id: str,
+    service: AdapterService = Depends(get_adapter_service),  # noqa: B008
+):
     """Mark an adapter inactive."""
-    a = db_session.get(Adapter, adapter_id)
+    a = service.deactivate_adapter(adapter_id)
     if not a:
         raise HTTPException(status_code=404, detail="adapter not found")
-    a.active = False
-    a.updated_at = datetime.now(timezone.utc)
-    db_session.add(a)
-    db_session.commit()
-    db_session.refresh(a)
     ra = a.model_dump()
     return {"adapter": ra}

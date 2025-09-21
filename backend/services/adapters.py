@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import List, Optional, Sequence
+from typing import Any, List, Optional, Sequence, Set
 
 from sqlalchemy import func
 from sqlmodel import Session, select
@@ -29,6 +29,23 @@ class AdapterSearchResult:
 
 class AdapterService:
     """Service for adapter-related operations."""
+
+    PATCHABLE_FIELDS: Set[str] = {
+        "weight",
+        "active",
+        "ordinal",
+        "tags",
+        "description",
+        "activation_text",
+        "trained_words",
+        "triggers",
+        "archetype",
+        "archetype_confidence",
+        "visibility",
+        "nsfw_level",
+        "supports_generation",
+        "sd_version",
+    }
 
     def __init__(self, db_session: Session, storage_backend=None):
         """Initialize AdapterService with a DB session and storage backend.
@@ -313,7 +330,14 @@ class AdapterService:
                 seen[a.name] = a
         return list(seen.values())
 
-    def update_adapter(self, adapter_id: str, updates: dict) -> Optional[Adapter]:
+    def update_adapter(
+        self,
+        adapter_id: str,
+        updates: dict,
+        *,
+        commit: bool = True,
+        refresh: bool = True,
+    ) -> Optional[Adapter]:
         """Update an adapter with the given changes.
         
         Args:
@@ -333,11 +357,13 @@ class AdapterService:
                 setattr(adapter, field, value)
         
         self.db_session.add(adapter)
-        self.db_session.commit()
-        self.db_session.refresh(adapter)
+        if commit:
+            self.db_session.commit()
+            if refresh:
+                self.db_session.refresh(adapter)
         return adapter
 
-    def delete_adapter(self, adapter_id: str) -> bool:
+    def delete_adapter(self, adapter_id: str, *, commit: bool = True) -> bool:
         """Delete an adapter by ID.
         
         Args:
@@ -352,7 +378,8 @@ class AdapterService:
             return False
         
         self.db_session.delete(adapter)
-        self.db_session.commit()
+        if commit:
+            self.db_session.commit()
         return True
 
     def activate_adapter(self, adapter_id: str, ordinal: Optional[int] = None) -> Optional[Adapter]:
@@ -366,10 +393,10 @@ class AdapterService:
             Updated Adapter instance or None if not found
 
         """
-        updates = {"active": True}
+        updates = {"active": True, "updated_at": datetime.now(timezone.utc)}
         if ordinal is not None:
             updates["ordinal"] = ordinal
-        
+
         return self.update_adapter(adapter_id, updates)
 
     def deactivate_adapter(self, adapter_id: str) -> Optional[Adapter]:
@@ -382,4 +409,109 @@ class AdapterService:
             Updated Adapter instance or None if not found
 
         """
-        return self.update_adapter(adapter_id, {"active": False})
+        return self.update_adapter(
+            adapter_id,
+            {"active": False, "updated_at": datetime.now(timezone.utc)},
+        )
+
+    def get_all_tags(self) -> List[str]:
+        """Return a sorted list of all unique adapter tags."""
+
+        rows = self.db_session.exec(select(Adapter.tags)).all()
+        unique: Set[str] = set()
+
+        for raw_tags in rows:
+            if not raw_tags:
+                continue
+
+            if isinstance(raw_tags, (list, tuple, set)):
+                tags_iterable = raw_tags
+            elif isinstance(raw_tags, str):
+                tags_iterable = [raw_tags]
+            else:
+                continue
+
+            for tag in tags_iterable:
+                if isinstance(tag, str) and tag.strip():
+                    unique.add(tag.strip())
+
+        return sorted(unique, key=lambda value: value.lower())
+
+    def bulk_adapter_action(self, action: str, adapter_ids: Sequence[str]) -> List[str]:
+        """Apply bulk state changes or deletions within a single transaction."""
+
+        if not adapter_ids:
+            return []
+
+        adapters = self.db_session.exec(
+            select(Adapter).where(Adapter.id.in_(list(adapter_ids)))
+        ).all()
+
+        processed: List[str] = []
+        now = datetime.now(timezone.utc)
+
+        try:
+            if action in {"activate", "deactivate"}:
+                new_state = action == "activate"
+                for adapter in adapters:
+                    updates = {"active": new_state, "updated_at": now}
+                    self.update_adapter(
+                        adapter.id,
+                        updates,
+                        commit=False,
+                        refresh=False,
+                    )
+                    processed.append(adapter.id)
+            elif action == "delete":
+                for adapter in adapters:
+                    if self.delete_adapter(adapter.id, commit=False):
+                        processed.append(adapter.id)
+            else:
+                raise ValueError(f"Unsupported bulk action '{action}'")
+
+            self.db_session.commit()
+        except Exception:
+            self.db_session.rollback()
+            raise
+
+        return processed
+
+    def patch_adapter(self, adapter_id: str, payload: dict) -> Adapter:
+        """Apply a validated partial update to an adapter."""
+
+        adapter = self.get_adapter(adapter_id)
+        if adapter is None:
+            raise LookupError("adapter not found")
+
+        if not payload:
+            raise ValueError("No valid fields provided for update")
+
+        updates: dict[str, Any] = {}
+
+        for field, value in payload.items():
+            if field not in self.PATCHABLE_FIELDS:
+                allowed = ", ".join(sorted(self.PATCHABLE_FIELDS))
+                raise ValueError(
+                    f"Field '{field}' is not allowed to be modified. Allowed fields: {allowed}"
+                )
+
+            if field == "weight" and not isinstance(value, (int, float)):
+                raise ValueError("Field 'weight' must be a number")
+            if field == "active" and not isinstance(value, bool):
+                raise ValueError("Field 'active' must be a boolean")
+            if field == "ordinal" and value is not None and not isinstance(value, int):
+                raise ValueError("Field 'ordinal' must be an integer or null")
+            if field == "tags" and not isinstance(value, list):
+                raise ValueError("Field 'tags' must be a list")
+            if field == "nsfw_level" and not isinstance(value, int):
+                raise ValueError("Field 'nsfw_level' must be an integer")
+
+            updates[field] = value
+
+        updates["updated_at"] = datetime.now(timezone.utc)
+
+        updated = self.update_adapter(adapter_id, updates)
+        if updated is None:
+            raise LookupError("adapter not found")
+
+        return updated
