@@ -190,7 +190,7 @@ const updateJobStatuses = async () => {
       });
     } catch (error) {
       if (import.meta.env.DEV) {
-        console.debug('[JobQueue] Generation jobs endpoint failed, falling back', error);
+        console.info('[JobQueue] Generation jobs endpoint failed, falling back', error);
       }
     }
 
@@ -236,7 +236,7 @@ const updateJobStatuses = async () => {
     }
   } catch (error) {
     if (import.meta.env.DEV) {
-      console.debug('[JobQueue] Polling error:', error);
+      console.info('[JobQueue] Polling error:', error);
     }
   }
 };
@@ -264,7 +264,7 @@ const handleCancelJob = async (jobId: string) => {
       });
     } catch (error) {
       if (import.meta.env.DEV) {
-        console.debug('[JobQueue] Failed to cancel via generation endpoint, retrying legacy', error);
+        console.info('[JobQueue] Failed to cancel via generation endpoint, retrying legacy', error);
       }
     }
 
@@ -282,6 +282,9 @@ const handleCancelJob = async (jobId: string) => {
       appStore.addNotification('Failed to cancel job', 'error');
     }
   } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('Failed to cancel job', error);
+    }
     appStore.addNotification('Failed to cancel job', 'error');
   } finally {
     isCancelling.value = false;

@@ -898,6 +898,9 @@ export default {
           updateEstimatesLocal();
         }
       } catch (error) {
+        if (import.meta.env.DEV) {
+          console.warn('Failed to fetch export estimates:', error)
+        }
         updateEstimatesLocal();
       }
     };

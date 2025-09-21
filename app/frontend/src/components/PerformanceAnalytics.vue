@@ -645,7 +645,7 @@ export default {
         const response = await fetch('/api/v1/export', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ format: 'zip', loras: true, generations: true })
+          body: JSON.stringify({ format, loras: true, generations: true })
         })
         if (!response.ok) throw new Error('Failed to export data')
         const blob = await response.blob()
@@ -669,7 +669,10 @@ export default {
     }
 
     async function applyRecommendation(insight) {
-      showToastMessage('Applying recommendations is not available yet', 'info')
+      showToastMessage(
+        `Applying recommendation "${insight.title}" is not available yet`,
+        'info',
+      )
     }
 
     // Utility functions

@@ -7,15 +7,30 @@ import { mount } from '@vue/test-utils'
 import GenerationStudio from '../../app/frontend/src/components/GenerationStudio.vue'
 import { useAppStore } from '../../app/frontend/src/stores/app'
 
-// Mock the API
-vi.mock('../../app/frontend/src/composables/useApi.ts', () => ({
-  useApi: vi.fn(() => ({
-    fetchData: vi.fn().mockResolvedValue(null),
-    data: { value: null },
-    error: { value: null },
-    isLoading: { value: false }
-  }))
+const mocks = vi.hoisted(() => ({
+  startGenerationMock: vi.fn(),
+  cancelGenerationJobMock: vi.fn(),
+  deleteGenerationResultMock: vi.fn(),
+  loadSystemStatusMock: vi.fn(),
+  loadActiveJobsMock: vi.fn(),
+  loadRecentResultsMock: vi.fn(),
 }))
+
+vi.mock('../../app/frontend/src/composables/apiClients.ts', () => ({
+  useSystemStatusApi: vi.fn(() => ({ fetchData: mocks.loadSystemStatusMock })),
+  useActiveJobsApi: vi.fn(() => ({ fetchData: mocks.loadActiveJobsMock })),
+  useRecentResultsApi: vi.fn(() => ({ fetchData: mocks.loadRecentResultsMock })),
+}))
+
+vi.mock('../../app/frontend/src/services/generationService.ts', async () => {
+  const actual = await vi.importActual('../../app/frontend/src/services/generationService.ts')
+  return {
+    ...actual,
+    startGeneration: mocks.startGenerationMock,
+    cancelGenerationJob: mocks.cancelGenerationJobMock,
+    deleteGenerationResult: mocks.deleteGenerationResultMock,
+  }
+})
 
 // Mock WebSocket
 global.WebSocket = vi.fn(() => ({
@@ -58,10 +73,16 @@ describe('GenerationStudio.vue', () => {
     appStore = useAppStore()
     appStore.$reset()
     localStorageMock.getItem.mockReturnValue(null)
-    fetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({})
+    mocks.startGenerationMock.mockResolvedValue({ job_id: 'job-123', status: 'queued', progress: 0 })
+    mocks.cancelGenerationJobMock.mockResolvedValue(undefined)
+    mocks.deleteGenerationResultMock.mockResolvedValue(undefined)
+    mocks.loadSystemStatusMock.mockResolvedValue({
+      status: 'ready',
+      queue_length: 0,
+      gpu_status: 'Available',
     })
+    mocks.loadActiveJobsMock.mockResolvedValue([])
+    mocks.loadRecentResultsMock.mockResolvedValue([])
   })
 
   afterEach(() => {
@@ -234,17 +255,9 @@ describe('GenerationStudio.vue', () => {
     const generateButton = wrapper.find('.btn-primary')
     await generateButton.trigger('click')
 
-    // Should have called fetch with the generation endpoint
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/v1/generation/generate'),
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json'
-        }),
-        body: expect.stringContaining('test prompt')
-      })
-    )
+    expect(mocks.startGenerationMock).toHaveBeenCalled()
+    const [payload] = mocks.startGenerationMock.mock.calls[0]
+    expect(payload).toMatchObject({ prompt: 'test prompt' })
   })
 
   it('shows generate button loading state during generation', async () => {

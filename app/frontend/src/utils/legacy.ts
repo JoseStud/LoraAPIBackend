@@ -107,7 +107,7 @@ function uploadFileLegacy(url: string, formData: FormData, onProgress?: UploadPr
           try {
             const response = xhr.responseText ? JSON.parse(xhr.responseText) : null;
             resolve(response);
-          } catch (error) {
+          } catch (_error) {
             resolve(xhr.responseText);
           }
         } else {
