@@ -1,10 +1,5 @@
 import { useApi } from '@/composables/useApi';
-
-export interface ApiResponseMeta {
-  ok: boolean;
-  status: number;
-  headers?: Headers;
-}
+import type { ApiResponseMeta } from '@/composables/useApi';
 
 export interface ApiResult<T> {
   data: T | null;
@@ -34,7 +29,7 @@ function createJsonInit(method: string, body: unknown, options: RequestInit = {}
 async function executeRequest<T>(url: string, options: RequestInit = {}): Promise<ApiResult<T>> {
   const { fetchData, data, lastResponse } = useApi<T>(url, options);
   await fetchData();
-  const meta: ApiResponseMeta = lastResponse.value ?? { ok: true, status: 200 };
+  const meta: ApiResponseMeta = lastResponse.value ?? { ok: true, status: 200, statusText: 'OK' };
   return { data: data.value as T | null, meta };
 }
 
