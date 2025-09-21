@@ -47,75 +47,28 @@ def list_adapters(
     sort: str = "name",
     page: int = 1,
     per_page: int = 24,
-    db_session: Session = Depends(get_session),  # noqa: B008
+    service: AdapterService = Depends(get_adapter_service),  # noqa: B008
 ):
-    """Return a paginated list of adapters.
+    """Return a paginated list of adapters via the service layer."""
 
-    Supports search, filtering by active status, tags, and sorting.
-    """
-    q = select(Adapter)
-    
-    # Apply search filter
-    if search:
-        q = q.where(Adapter.name.ilike(f"%{search}%"))
-    
-    # Apply active filter
-    if active_only:
-        q = q.where(Adapter.active)
-    
-    # Apply tag filters (tags is comma-separated string)
-    tag_list = []
-    if tags:
-        tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
-    
-    # Execute initial query without tag filtering (done in Python)
-    all_results = db_session.exec(q).all()
-    
-    # Apply tag filtering in Python for cross-database compatibility
-    if tag_list:
-        def has_matching_tags(adapter):
-            if not adapter.tags:
-                return False
-            adapter_tags = adapter.tags if isinstance(adapter.tags, list) else []
-            # Convert to lowercase for case-insensitive matching
-            adapter_tags_lower = [tag.lower() for tag in adapter_tags if isinstance(tag, str)]
-            return any(filter_tag.lower() in adapter_tags_lower for filter_tag in tag_list)
-        
-        all_results = [adapter for adapter in all_results if has_matching_tags(adapter)]
-    
-    # Get total count after filtering
-    total_count = len(all_results)
-    
-    # Apply sorting
-    if sort == "name":
-        all_results.sort(key=lambda x: x.name.lower() if x.name else "")
-    elif sort == "created_at":
-        all_results.sort(key=lambda x: x.created_at, reverse=True)
-    elif sort == "updated_at":
-        all_results.sort(key=lambda x: x.updated_at, reverse=True)
-    elif sort == "file_size":
-        all_results.sort(key=lambda x: x.primary_file_size_kb or 0, reverse=True)
-    else:
-        all_results.sort(key=lambda x: x.name.lower() if x.name else "")
-    
-    # Apply pagination
-    offset = (page - 1) * per_page
-    results = all_results[offset:offset + per_page]
-    
-    # Calculate pagination info
-    total_pages = (total_count + per_page - 1) // per_page
-    filtered_count = total_count
-    
-    # Convert to response format
-    items = [a.model_dump() for a in results]
-    
+    tag_filters = [tag.strip() for tag in tags.split(",") if tag.strip()] if tags else []
+
+    result = service.search_adapters(
+        search=search,
+        active_only=active_only,
+        tags=tag_filters,
+        sort=sort,
+        page=page,
+        per_page=per_page,
+    )
+
     return {
-        "items": items,
-        "total": total_count,
-        "filtered": filtered_count,
-        "page": page,
-        "pages": total_pages,
-        "per_page": per_page,
+        "items": [adapter.model_dump() for adapter in result.items],
+        "total": result.total,
+        "filtered": result.filtered,
+        "page": result.page,
+        "pages": result.pages,
+        "per_page": result.per_page,
     }
 
 
