@@ -130,7 +130,7 @@
     <div class="text-xs text-gray-500 text-center">
       <span v-if="isLoading">Loading system metrics...</span>
       <span v-else-if="error" class="text-red-500">
-        Error loading metrics: {{ error.message }}
+        Error loading metrics: {{ error?.message ?? 'Unknown error' }}
       </span>
       <span v-else>
         Last updated: {{ lastUpdated }}
@@ -140,84 +140,88 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { storeToRefs } from 'pinia'
+import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { storeToRefs } from 'pinia';
 
-import { useSettingsStore } from '@/stores/settings'
-import { emptyMetricsSnapshot, fetchDashboardStats } from '@/services/systemService'
-import type { SystemMetricsSnapshot } from '@/types'
+import { useSettingsStore } from '@/stores/settings';
+import {
+  deriveMetricsFromDashboard,
+  emptyMetricsSnapshot,
+  fetchDashboardStats,
+} from '@/services/systemService';
+import type { DashboardStatsSummary, SystemMetricsSnapshot } from '@/types';
 
-// Reactive data
-const settingsStore = useSettingsStore()
-const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore)
-const apiBaseUrl = computed(() => configuredBackendUrl.value || '/api/v1')
+const settingsStore = useSettingsStore();
+const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
+const apiBaseUrl = computed(() => configuredBackendUrl.value || '/api/v1');
 
-const metricsData = ref<SystemMetricsSnapshot>(emptyMetricsSnapshot())
+const metricsData = ref<SystemMetricsSnapshot>(emptyMetricsSnapshot());
+const dashboardSummary = ref<DashboardStatsSummary | null>(null);
 
-const lastUpdated = ref('Never')
-const pollInterval = ref<ReturnType<typeof setInterval> | null>(null)
-const isLoading = ref(true)
-const error = ref<Error | null>(null)
+const lastUpdated = ref('Never');
+const pollInterval = ref<ReturnType<typeof setInterval> | null>(null);
+const isLoading = ref(true);
+const error = ref<Error | null>(null);
 
-// Computed properties
-const cpuPercent = computed(() => metricsData.value.cpu_percent || 0)
-const memoryPercent = computed(() => metricsData.value.memory_percent || 0)
-const memoryUsed = computed(() => metricsData.value.memory_used || 0)
-const diskPercent = computed(() => metricsData.value.disk_percent || 0)
-const diskUsed = computed(() => metricsData.value.disk_used || 0)
-const gpus = computed(() => metricsData.value.gpus || [])
+const cpuPercent = computed(() => metricsData.value.cpu_percent ?? 0);
+const memoryPercent = computed(() => metricsData.value.memory_percent ?? 0);
+const memoryUsed = computed(() => metricsData.value.memory_used ?? 0);
+const diskPercent = computed(() => metricsData.value.disk_percent ?? 0);
+const diskUsed = computed(() => metricsData.value.disk_used ?? 0);
+const gpus = computed(() => metricsData.value.gpus ?? []);
 
-// Utility function for formatting file sizes
-const formatSize = (bytes: number) => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
+const formatSize = (bytes: number | null | undefined): string => {
+  if (!bytes || bytes <= 0) {
+    return '0 B';
+  }
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
+  const value = bytes / k ** i;
+  return `${value.toFixed(2)} ${sizes[i]}`;
+};
 
-// Load system metrics from the API
+const applyMetrics = (summary: DashboardStatsSummary | null) => {
+  metricsData.value = deriveMetricsFromDashboard(summary);
+};
+
 const loadSystemMetrics = async () => {
   try {
-    isLoading.value = true
-    error.value = null
+    isLoading.value = true;
+    error.value = null;
 
-    await fetchDashboardStats(apiBaseUrl.value)
-    // Backend currently exposes coarse stats; populate placeholder metrics
-    Object.assign(metricsData.value, emptyMetricsSnapshot())
-    lastUpdated.value = new Date().toLocaleTimeString()
-
+    const summary = await fetchDashboardStats(apiBaseUrl.value);
+    dashboardSummary.value = summary;
+    applyMetrics(summary);
+    lastUpdated.value = new Date().toLocaleTimeString();
   } catch (err) {
-    console.error('Error loading system metrics:', err)
-    error.value = err instanceof Error ? err : new Error('Failed to load metrics')
+    applyMetrics(null);
+    dashboardSummary.value = null;
+    error.value = err instanceof Error ? err : new Error('Failed to load metrics');
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
-}
+};
 
-// Start polling for metrics
 const startPolling = () => {
-  // Initial load
-  loadSystemMetrics()
-  
-  // Poll every 5 seconds
-  pollInterval.value = setInterval(loadSystemMetrics, 5000)
-}
+  void loadSystemMetrics();
+  pollInterval.value = setInterval(() => {
+    void loadSystemMetrics();
+  }, 5000);
+};
 
-// Stop polling
 const stopPolling = () => {
   if (pollInterval.value) {
-    clearInterval(pollInterval.value)
-    pollInterval.value = null
+    clearInterval(pollInterval.value);
+    pollInterval.value = null;
   }
-}
+};
 
-// Lifecycle hooks
 onMounted(() => {
-  startPolling()
-})
+  startPolling();
+});
 
 onUnmounted(() => {
-  stopPolling()
-})
+  stopPolling();
+});
 </script>
