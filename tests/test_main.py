@@ -4,6 +4,8 @@ from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient
 
+from backend.schemas import SDNextGenerationResult
+
 
 def test_health(client: TestClient):
     """Health endpoint returns ok."""
@@ -77,3 +79,32 @@ def test_deliveries_enqueue(client: TestClient, mock_storage: MagicMock):
     assert r.status_code == 200
     dj = r.json()["delivery"]
     assert dj["id"] == did
+
+
+def test_generation_generate_request(client: TestClient, monkeypatch):
+    """Generation endpoint should complete without duplicate parameter errors."""
+
+    class DummyGenerationBackend:
+        async def generate_image(self, prompt, params):
+            assert params["generation_params"]["prompt"] == "test prompt"
+            return SDNextGenerationResult(
+                job_id="dummy-job",
+                status="completed",
+                images=["image-data"],
+            )
+
+    monkeypatch.setattr(
+        "backend.services.generation.get_generation_backend",
+        lambda backend_name: DummyGenerationBackend(),
+    )
+
+    payload = {
+        "prompt": "test prompt",
+        "steps": 5,
+    }
+
+    response = client.post("/v1/generation/generate", json=payload)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "completed"
