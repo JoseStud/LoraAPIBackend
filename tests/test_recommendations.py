@@ -169,12 +169,12 @@ class TestRecommendationService:
     async def test_batch_compute_embeddings(self, db_session, sample_adapters):
         """Test batch computing embeddings."""
         service = RecommendationService(db_session, gpu_enabled=False)
-        
+
         # Add adapters to database
         for adapter in sample_adapters:
             db_session.add(adapter)
         db_session.commit()
-        
+
         # Mock the feature extractor
         with patch.object(service, '_get_feature_extractor') as mock_extractor:
             mock_features = {
@@ -184,21 +184,61 @@ class TestRecommendationService:
                 'extracted_keywords': ['test'],
                 'quality_score': 0.7,
             }
-            
+
             mock_extractor_instance = MagicMock()
             mock_batch_result = mock_features
             mock_extractor_instance.extract_advanced_features.return_value = (
                 mock_batch_result
             )
             mock_extractor.return_value = mock_extractor_instance
-            
+
             # Test batch processing
             adapter_ids = [a.id for a in sample_adapters]
             result = await service.batch_compute_embeddings(adapter_ids)
-            
+
             assert result['processed_count'] == len(sample_adapters)
             assert result['error_count'] == 0
             assert 'processing_time_seconds' in result
+
+    @pytest.mark.anyio("asyncio")
+    async def test_batch_compute_embeddings_skips_existing(
+        self, db_session, sample_adapters
+    ):
+        """Adapters with existing embeddings should be skipped."""
+        service = RecommendationService(db_session, gpu_enabled=False)
+
+        # Add adapters to database
+        for adapter in sample_adapters:
+            db_session.add(adapter)
+        db_session.commit()
+
+        # Create existing embeddings for a subset of adapters
+        existing_ids = {adapter.id for adapter in sample_adapters[:2]}
+        for adapter_id in existing_ids:
+            db_session.add(
+                LoRAEmbedding(
+                    adapter_id=adapter_id,
+                    semantic_embedding=b'precomputed',
+                )
+            )
+        db_session.commit()
+
+        with patch.object(
+            service,
+            'compute_embeddings_for_lora',
+            new=AsyncMock(return_value=True),
+        ) as mock_compute:
+            adapter_ids = [a.id for a in sample_adapters]
+            result = await service.batch_compute_embeddings(adapter_ids)
+
+        # Ensure we skipped adapters with existing embeddings
+        assert result['processed_count'] == len(sample_adapters) - len(existing_ids)
+        assert result['skipped_count'] == len(existing_ids)
+        assert result['error_count'] == 0
+
+        # Ensure compute_embeddings_for_lora was not called for skipped adapters
+        called_ids = {call.args[0] for call in mock_compute.await_args_list}
+        assert called_ids.isdisjoint(existing_ids)
 
     @pytest.mark.anyio("asyncio")
     async def test_get_recommendations_for_prompt(self, db_session, sample_adapters):

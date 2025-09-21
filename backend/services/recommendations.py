@@ -459,16 +459,26 @@ class RecommendationService:
             stmt = select(Adapter).where(Adapter.active)
         
         adapters = list(self.db_session.exec(stmt))
-        
+
+        skipped_due_to_existing = 0
+
         # Filter out adapters that already have embeddings
         if not force_recompute:
+            pre_filter_count = len(adapters)
+            adapter_ids_to_check = [a.id for a in adapters]
+
             existing_ids = set()
-            stmt = select(LoRAEmbedding.adapter_id).where(
-                LoRAEmbedding.adapter_id.in_([a.id for a in adapters]),
-            )
-            existing_ids.update(self.db_session.exec(stmt))
+            if adapter_ids_to_check:
+                stmt = select(LoRAEmbedding.adapter_id).where(
+                    LoRAEmbedding.adapter_id.in_(adapter_ids_to_check),
+                )
+                existing_ids.update(
+                    self.db_session.exec(stmt).all()
+                )
+
             adapters = [a for a in adapters if a.id not in existing_ids]
-        
+            skipped_due_to_existing = pre_filter_count - len(adapters)
+
         processed_count = 0
         error_count = 0
         errors = []
@@ -500,12 +510,12 @@ class RecommendationService:
                         'adapter_id': adapter.id,
                         'error': f"Batch processing failed: {e}",
                     })
-        
+
         processing_time = time.time() - start_time
-        
+
         return {
             'processed_count': processed_count,
-            'skipped_count': len(adapters) - processed_count - error_count,
+            'skipped_count': skipped_due_to_existing,
             'error_count': error_count,
             'processing_time_seconds': processing_time,
             'errors': errors,
