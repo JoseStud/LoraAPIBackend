@@ -79,6 +79,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { useAppStore } from '@/stores/app';
+import { formatElapsedTime } from '@/utils/format';
 
 import type { GenerationJob } from '@/types';
 
@@ -128,16 +129,13 @@ const formatDuration = (startTime?: string) => {
   if (!startTime) {
     return '—';
   }
-  const now = new Date();
-  const start = new Date(startTime);
-  const diffMs = now.getTime() - start.getTime();
-  const diffSecs = Math.max(0, Math.floor(diffMs / 1000));
 
-  if (diffSecs < 60) return `${diffSecs}s`;
-  const diffMins = Math.floor(diffSecs / 60);
-  if (diffMins < 60) return `${diffMins}m ${diffSecs % 60}s`;
-  const diffHours = Math.floor(diffMins / 60);
-  return `${diffHours}h ${diffMins % 60}m`;
+  const start = new Date(startTime);
+  if (Number.isNaN(start.getTime())) {
+    return '—';
+  }
+
+  return formatElapsedTime(start);
 };
 
 const getStatusColorClass = (status: string) => {

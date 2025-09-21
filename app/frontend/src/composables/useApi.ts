@@ -49,10 +49,15 @@ export function useApi<T = unknown>(url: MaybeRefOrGetter<string>, defaultOption
       const contentType = typeof response.headers?.get === 'function'
         ? response.headers.get('content-type') ?? ''
         : '';
-      if (contentType.includes('application/json')) {
+      const canParseJson = typeof response.json === 'function';
+      const canReadText = typeof response.text === 'function';
+
+      if (contentType.includes('application/json') || (!contentType && canParseJson)) {
         data.value = (await response.json()) as T;
-      } else {
+      } else if (canReadText) {
         data.value = (await response.text()) as unknown as T;
+      } else {
+        data.value = null;
       }
     } catch (err) {
       error.value = err;
