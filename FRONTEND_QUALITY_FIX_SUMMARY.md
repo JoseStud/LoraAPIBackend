@@ -1,70 +1,36 @@
 # Frontend Code Quality Fix Summary
 
-## Issue Resolution Status
+## Current Migration Snapshot
+- `vue-tsc --noEmit` and `eslint app/frontend/src --ext .ts,.tsx,.js,.vue` now run cleanly on the SPA source.
+- ESLint has been converted to a TypeScript/Vue-aware config (`.eslintrc.cjs`) so the Composition API codebase is linted with the same conventions as the service layer.
+- Legacy JavaScript utilities continue to live under `app/frontend/static/js/`; they remain untouched so HTMX/Alpine fallbacks keep working while the SPA hardening progresses.
 
-### ✅ ERRORS FIXED (23 → 0) - 100% SUCCESS!
+## Hardened Vue Components
+- Added a guarded debug logger for `GenerationStudio.vue`, replacing raw `console.log` calls and ensuring WebSocket telemetry only appears in development builds.
+- `SystemStatusPanel.vue` now clamps and formats nullable metrics before rendering, preventing `undefined%` and `undefined°C` strings in the dashboard UI.
+- `RecommendationsPanel.vue` forwards weight sliders through the API query, keeping the template and service layer in sync.
+- `SystemStatusCardDetailed.vue` now sanitises optional props (labels, memory stats) with computed fallbacks so the template never renders `undefined` values and the Vue `withDefaults` warning is eliminated.
 
-1. **Critical Parsing Error in generation-studio/api.js:81**
-   - **FIXED**: Removed duplicate catch block causing syntax error
-   - **Impact**: Critical - prevented code execution
+## Test Suite Updates
+- Vitest specs now mock the service layer (`generationService`, `loraService`) instead of raw `fetch`, aligning unit tests with the composable-based API abstractions.
+- Mobile navigation tests use `window.dispatchEvent` so Escape-key handling matches the real component lifecycle.
+- System status formatting expectations were refreshed to reflect the new human-friendly size formatter.
 
-2. **Undefined Global Variables (22 errors)**
-   - **FIXED**: Added 'global' to ESLint globals configuration
-   - **Impact**: All undefined global variable errors resolved
+## Remaining JavaScript Surface Area
+- `app/frontend/static/js/**/*` – legacy HTMX/Alpine bridges, progressive enhancement shims, and PWA helpers.
+- `tests/vue/**/*.js` – Vitest suites will be migrated to TypeScript after the component API stabilises.
 
-3. **Empty Block Statements (6 errors)**
-   - **FIXED**: Added meaningful comments to all empty catch blocks
-   - **Impact**: Code follows linting best practices
+## Recommended Next Steps
+1. Migrate the `app/frontend/static/js` helpers into typed composables to finish removing Alpine/HTMX glue.
+2. Sweep remaining `withDefaults(defineProps())` destructuring patterns (e.g. `SystemStatusCardSimple.vue`) so future Vue upgrades stay warning-free.
+3. Gradually port the Vitest suites to `.ts` once service mocks settle, ensuring full type safety in tests.
 
-### ✅ WARNINGS SIGNIFICANTLY REDUCED (116 → 55) - 53% IMPROVEMENT!
+## Key API Abstractions in Use
+- `useApi` + `apiClients` composables centralise all REST calls with shared error handling.
+- Service modules (`generationService`, `loraService`, `systemService`) expose typed operations that components/tests can mock independently.
+- Stores (`useAppStore`, `useSettingsStore`) remain the source of truth for system status and runtime configuration, keeping network wiring out of the templates.
 
-1. **Console Statement Warnings**
-   - **OPTIMIZED**: Updated ESLint config to allow `console.warn` and `console.error`
-   - **Result**: Reduced console warnings by allowing legitimate logging patterns
-   - **Remaining**: Only `console.log` statements now flagged (appropriate for dev warnings)
-
-2. **Unused Variables**
-   - **PARTIALLY FIXED**: Fixed critical unused variables with underscore prefix
-   - **Strategy**: Conservative approach to avoid breaking working code
-   - **Remaining**: Non-critical unused imports and variables (safely ignorable)
-
-## Configuration Improvements
-
-### Updated .eslintrc.json
-```json
-{
-  "rules": {
-    "no-console": ["warn", { "allow": ["warn", "error"] }]
-  },
-  "globals": {
-    "global": "readonly"
-  }
-}
-```
-
-## Current Status
-- **Errors**: 23 → 0 (100% fixed)
-- **Warnings**: 116 → 55 (53% reduced)
-- **Critical Issues**: ALL RESOLVED
-- **Code Quality**: SIGNIFICANTLY IMPROVED
-
-## Remaining Warnings Analysis
-The remaining 55 warnings are:
-- 34 console.log statements (development logging - non-critical)
-- 21 unused variables/imports (non-breaking, safe to ignore)
-
-These are acceptable for a development codebase and don't impact functionality.
-
-## Recommendations for Future
-
-1. **Console Logging**: Consider using a proper logging library for production
-2. **Unused Imports**: Can be cleaned up during code reviews
-3. **Development vs Production**: Consider different ESLint configs for dev/prod
-
-## Testing Validation
-
-The fixes have been applied conservatively to ensure:
-- No breaking changes to existing functionality
-- All critical syntax errors resolved
-- Maintained code readability and structure
-- Preserved working code patterns
+## Validation
+- ✅ `pnpm run type-check`
+- ✅ `pnpm run lint`
+- ✅ `pnpm run test:unit:vue`

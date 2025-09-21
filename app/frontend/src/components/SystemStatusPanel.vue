@@ -13,7 +13,7 @@
           <div>
             <div class="flex justify-between text-sm mb-1">
               <span>CPU Usage</span>
-              <span>{{ cpuPercent }}%</span>
+              <span>{{ cpuPercentLabel }}</span>
             </div>
             <div class="w-full bg-gray-200 rounded-full h-2">
               <div 
@@ -27,7 +27,7 @@
           <div>
             <div class="flex justify-between text-sm mb-1">
               <span>Memory Usage</span>
-              <span>{{ memoryPercent }}% ({{ formatSize(memoryUsed) }})</span>
+              <span>{{ memoryPercentLabel }} ({{ formatSize(memoryUsed) }})</span>
             </div>
             <div class="w-full bg-gray-200 rounded-full h-2">
               <div 
@@ -41,7 +41,7 @@
           <div>
             <div class="flex justify-between text-sm mb-1">
               <span>Disk Usage</span>
-              <span>{{ diskPercent }}% ({{ formatSize(diskUsed) }})</span>
+              <span>{{ diskPercentLabel }} ({{ formatSize(diskUsed) }})</span>
             </div>
             <div class="w-full bg-gray-200 rounded-full h-2">
               <div 
@@ -63,19 +63,19 @@
             <div v-for="gpu in gpus" :key="gpu.id" class="space-y-2">
               <div class="flex justify-between text-sm mb-2">
                 <span>GPU {{ gpu.id }}: {{ gpu.name }}</span>
-                <span>{{ gpu.temperature }}°C</span>
+                <span>{{ formatTemperature(gpu.temperature) }}</span>
               </div>
               
               <!-- GPU Memory -->
               <div class="mb-2">
                 <div class="flex justify-between text-xs mb-1">
                   <span>Memory</span>
-                  <span>{{ gpu.memory_percent }}%</span>
+                  <span>{{ formatPercentLabel(gpu.memory_percent) }}</span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-1.5">
                   <div 
                     class="bg-red-600 h-1.5 rounded-full transition-all duration-500"
-                    :style="`width: ${gpu.memory_percent}%`"
+                    :style="`width: ${clampPercent(gpu.memory_percent)}%`"
                   ></div>
                 </div>
               </div>
@@ -84,12 +84,12 @@
               <div>
                 <div class="flex justify-between text-xs mb-1">
                   <span>Utilization</span>
-                  <span>{{ gpu.utilization }}%</span>
+                  <span>{{ formatPercentLabel(gpu.utilization) }}</span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-1.5">
                   <div 
                     class="bg-purple-600 h-1.5 rounded-full transition-all duration-500"
-                    :style="`width: ${gpu.utilization}%`"
+                    :style="`width: ${clampPercent(gpu.utilization)}%`"
                   ></div>
                 </div>
               </div>
@@ -163,11 +163,24 @@ const pollInterval = ref<ReturnType<typeof setInterval> | null>(null);
 const isLoading = ref(true);
 const error = ref<Error | null>(null);
 
-const cpuPercent = computed(() => metricsData.value.cpu_percent ?? 0);
-const memoryPercent = computed(() => metricsData.value.memory_percent ?? 0);
+const clampPercent = (value: number | null | undefined): number => {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return 0;
+  }
+  return Math.min(100, Math.max(0, Math.round(value)));
+};
+
+const formatPercentLabel = (value: number | null | undefined): string =>
+  typeof value === 'number' && !Number.isNaN(value) ? `${clampPercent(value)}%` : '—%';
+
+const cpuPercent = computed(() => clampPercent(metricsData.value.cpu_percent));
+const memoryPercent = computed(() => clampPercent(metricsData.value.memory_percent));
 const memoryUsed = computed(() => metricsData.value.memory_used ?? 0);
-const diskPercent = computed(() => metricsData.value.disk_percent ?? 0);
+const diskPercent = computed(() => clampPercent(metricsData.value.disk_percent));
 const diskUsed = computed(() => metricsData.value.disk_used ?? 0);
+const cpuPercentLabel = computed(() => formatPercentLabel(metricsData.value.cpu_percent));
+const memoryPercentLabel = computed(() => formatPercentLabel(metricsData.value.memory_percent));
+const diskPercentLabel = computed(() => formatPercentLabel(metricsData.value.disk_percent));
 const gpus = computed(() => metricsData.value.gpus ?? []);
 
 const formatSize = (bytes: number | null | undefined): string => {
@@ -178,7 +191,17 @@ const formatSize = (bytes: number | null | undefined): string => {
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
   const value = bytes / k ** i;
-  return `${value.toFixed(2)} ${sizes[i]}`;
+  const formatted = Number.isInteger(value)
+    ? value.toFixed(0)
+    : value.toFixed(2).replace(/\.?(?:0)+$/, (match) => (match.startsWith('.') ? '' : match));
+  return `${formatted} ${sizes[i]}`;
+};
+
+const formatTemperature = (value: number | null | undefined): string => {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return '—';
+  }
+  return `${Math.round(value)}°C`;
 };
 
 const applyMetrics = (summary: DashboardStatsSummary | null) => {

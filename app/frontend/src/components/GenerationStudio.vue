@@ -485,6 +485,12 @@ const websocket = ref<WebSocket | null>(null)
 const pollInterval = ref<number | null>(null)
 const isConnected = computed<boolean>(() => websocket.value?.readyState === WebSocket.OPEN)
 
+const logDebug = (...args: unknown[]): void => {
+  if (import.meta.env.DEV) {
+    console.info('[GenerationStudio]', ...args)
+  }
+}
+
 const parseTimestamp = (value?: string): number => {
   if (!value) {
     return 0
@@ -594,7 +600,7 @@ const initWebSocket = (): void => {
     websocket.value = connection
 
     connection.onopen = () => {
-      console.log('WebSocket connected for generation updates')
+      logDebug('WebSocket connected for generation updates')
     }
 
     connection.onmessage = (event: MessageEvent<string>) => {
@@ -607,7 +613,7 @@ const initWebSocket = (): void => {
     }
 
     connection.onclose = () => {
-      console.log('WebSocket disconnected')
+      logDebug('WebSocket disconnected')
       websocket.value = null
       window.setTimeout(() => {
         if (!websocket.value) {
@@ -660,10 +666,10 @@ const handleWebSocketMessage = (data: WebSocketMessage): void => {
       break
     }
     case 'generation_started':
-      console.log('Generation job started', data.job_id)
+      logDebug('Generation job started', data.job_id)
       break
     default:
-      console.log('Unknown WebSocket message type:', (data as { type?: string }).type)
+      logDebug('Unknown WebSocket message type:', (data as { type?: string }).type)
   }
 }
 
@@ -1014,7 +1020,7 @@ const getSystemStatusClasses = (status?: string): string => {
 }
 
 const showToast = (message: string, type: NotificationType = 'success'): void => {
-  console.log(`[${type.toUpperCase()}] ${message}`)
+  logDebug(`[${type.toUpperCase()}] ${message}`)
   appStore.addNotification(message, type)
 }
 
@@ -1027,11 +1033,11 @@ watch(params, (newParams) => {
 }, { deep: true })
 
 watch(isConnected, (connected) => {
-  console.log('WebSocket connection state changed:', connected)
+  logDebug('WebSocket connection state changed:', connected)
 })
 
 onMounted(async () => {
-  console.log('Initializing Generation Studio Vue component...')
+  logDebug('Initializing Generation Studio Vue component...')
 
   await Promise.all([
     loadSystemStatusData(),

@@ -1,9 +1,26 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import LoraCard from '../../app/frontend/src/components/LoraCard.vue';
 
-// Mock global fetch
-global.fetch = vi.fn();
+const mocks = vi.hoisted(() => ({
+  updateLoraWeightMock: vi.fn(),
+  toggleLoraActiveStateMock: vi.fn(),
+  triggerPreviewGenerationMock: vi.fn(),
+  deleteLoraMock: vi.fn(),
+  buildRecommendationsUrlMock: vi.fn(),
+}))
+
+vi.mock('../../app/frontend/src/services/loraService.ts', async () => {
+  const actual = await vi.importActual('../../app/frontend/src/services/loraService.ts');
+  return {
+    ...actual,
+    updateLoraWeight: mocks.updateLoraWeightMock,
+    toggleLoraActiveState: mocks.toggleLoraActiveStateMock,
+    triggerPreviewGeneration: mocks.triggerPreviewGenerationMock,
+    deleteLora: mocks.deleteLoraMock,
+    buildRecommendationsUrl: mocks.buildRecommendationsUrlMock,
+  };
+});
 
 describe('LoraCard', () => {
   const mockLora = {
@@ -20,7 +37,11 @@ describe('LoraCard', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch.mockReset();
+    mocks.updateLoraWeightMock.mockResolvedValue({ weight: 1.1 });
+    mocks.toggleLoraActiveStateMock.mockResolvedValue(undefined);
+    mocks.triggerPreviewGenerationMock.mockResolvedValue(undefined);
+    mocks.deleteLoraMock.mockResolvedValue(undefined);
+    mocks.buildRecommendationsUrlMock.mockReturnValue('/recommendations/1');
   });
 
   it('renders properly in grid view', () => {
@@ -154,38 +175,19 @@ describe('LoraCard', () => {
   });
 
   it('uses correct API URL composition for actions', async () => {
-    // Mock fetch to capture URLs
-    const fetchSpy = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({})
-    });
-    global.fetch = fetchSpy;
-    
-    // Mock window.alert for generatePreview
-    window.alert = vi.fn();
-    
     const wrapper = mount(LoraCard, {
       props: {
-        lora: mockLora
-      }
+        lora: mockLora,
+      },
     });
 
-    // Test weight update URL
     await wrapper.vm.updateWeight();
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/v1/adapters/1',
-      expect.objectContaining({ method: 'PATCH' })
-    );
+    expect(mocks.updateLoraWeightMock).toHaveBeenCalledWith('/api/v1', 1, expect.any(Number));
 
-    // Test toggle active URL
     await wrapper.vm.toggleActive();
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/v1/adapters/1/deactivate',
-      expect.objectContaining({ method: 'POST' })
-    );
+    expect(mocks.toggleLoraActiveStateMock).toHaveBeenCalledWith('/api/v1', 1, false);
 
-    // Test generate preview (no fetch call, just shows alert)
     await wrapper.vm.generatePreview();
-    expect(window.alert).toHaveBeenCalledWith('Preview generation not available yet.');
+    expect(mocks.triggerPreviewGenerationMock).toHaveBeenCalledWith('/api/v1', 1);
   });
 });

@@ -27,23 +27,34 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+
 import type { SystemStatusCardDetailedProps } from '@/types';
 
-const {
-  gpuStatusClass,
-  gpuStatusLabel,
-  queueJobsLabel,
-  hasMemoryData,
-  memoryUsage,
-  memoryPercent,
-  lastUpdatedLabel,
-} = withDefaults(defineProps<SystemStatusCardDetailedProps>(), {
-  gpuStatusClass: '',
-  gpuStatusLabel: 'Unknown',
-  queueJobsLabel: '0 jobs',
-  hasMemoryData: false,
-  memoryUsage: 'N/A',
-  memoryPercent: 0,
-  lastUpdatedLabel: 'Never',
+const props = defineProps<SystemStatusCardDetailedProps>();
+
+const gpuStatusClass = computed(() => props.gpuStatusClass ?? '');
+const gpuStatusLabel = computed(() => props.gpuStatusLabel ?? 'Unknown');
+const queueJobsLabel = computed(() => props.queueJobsLabel ?? '0 jobs');
+const memoryUsage = computed(() => props.memoryUsage ?? 'N/A');
+const lastUpdatedLabel = computed(() => props.lastUpdatedLabel ?? 'Never');
+
+const memoryPercent = computed(() => {
+  const value = props.memoryPercent;
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return 0;
+  }
+  return Math.min(100, Math.max(0, Math.round(value)));
+});
+
+const hasMemoryData = computed(() => {
+  if (!props.hasMemoryData) {
+    return false;
+  }
+  const usage = props.memoryUsage;
+  if (typeof usage === 'string' && usage.trim().length > 0) {
+    return true;
+  }
+  return typeof props.memoryPercent === 'number' && Number.isFinite(props.memoryPercent);
 });
 </script>

@@ -385,6 +385,7 @@ const loadSystemMetrics = async () => {
   } catch (err) {
     handleDashboardError(err);
     const metrics = applyMetricsFromSummary(null);
+    applyStatsFromSummary(null, metrics);
     const baseStatus = applyStatusFromSummary(null);
     updateSystemStatus(baseStatus);
   }

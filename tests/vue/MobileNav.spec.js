@@ -68,7 +68,7 @@ describe('MobileNav.vue', () => {
 
     // Send Escape
     const evt = new KeyboardEvent('keydown', { key: 'Escape' });
-    document.dispatchEvent(evt);
+    window.dispatchEvent(evt);
     await flush();
     expect(wrapper.find('#mobile-navigation').classes()).toContain('closed');
 

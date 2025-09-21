@@ -173,6 +173,9 @@ const recommendationUrl = computed<string>(() => {
   const params = new URLSearchParams();
   params.set('limit', String(limit.value));
   params.set('similarity_threshold', String(similarityThreshold.value));
+  WEIGHT_KEYS.forEach((key) => {
+    params.set(`weight_${key}`, weights.value[key].toString());
+  });
   return `${base}?${params.toString()}`;
 });
 
