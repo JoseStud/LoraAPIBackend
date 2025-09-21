@@ -444,6 +444,7 @@ import {
   toGenerationRequestPayload,
 } from '@/services/generationService'
 import { useAppStore } from '@/stores/app'
+import { useSettingsStore } from '@/stores/settings'
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,
@@ -460,6 +461,8 @@ import type {
 
 const appStore = useAppStore()
 const { activeJobs, recentResults } = storeToRefs(appStore)
+const settingsStore = useSettingsStore()
+const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore)
 
 const params = ref<GenerationFormState>({
   prompt: '',
@@ -484,6 +487,37 @@ const selectedResult = ref<GenerationResult | null>(null)
 const websocket = ref<WebSocket | null>(null)
 const pollInterval = ref<number | null>(null)
 const isConnected = computed<boolean>(() => websocket.value?.readyState === WebSocket.OPEN)
+
+const appendWebSocketPath = (path: string): string => {
+  const trimmed = path.replace(/\/+$/, '')
+  return trimmed ? `${trimmed}/ws/progress` : '/ws/progress'
+}
+
+const resolveWebSocketUrl = (backendUrl?: string | null): string => {
+  const fallbackBase = '/api/v1'
+  const rawBase = typeof backendUrl === 'string' ? backendUrl.trim() : ''
+  const base = rawBase.length > 0 ? rawBase : fallbackBase
+
+  if (/^https?:\/\//i.test(base)) {
+    try {
+      const url = new URL(base)
+      const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+      return `${protocol}//${url.host}${appendWebSocketPath(url.pathname)}`
+    } catch (error) {
+      console.error('Failed to parse backend URL for WebSocket:', error)
+    }
+  }
+
+  if (typeof window === 'undefined') {
+    return appendWebSocketPath(base)
+  }
+
+  const normalizedPath = base.startsWith('/') ? base : `/${base}`
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${protocol}//${window.location.host}${appendWebSocketPath(normalizedPath)}`
+}
+
+const websocketUrl = computed<string>(() => resolveWebSocketUrl(configuredBackendUrl.value))
 
 const logDebug = (...args: unknown[]): void => {
   if (import.meta.env.DEV) {
@@ -589,10 +623,10 @@ const loadRecentResultsDataFn = async (): Promise<void> => {
 
 const initWebSocket = (): void => {
   try {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${window.location.host}/v1/ws/progress`
+    const wsUrl = websocketUrl.value
 
     if (websocket.value) {
+      websocket.value.onclose = null
       websocket.value.close()
     }
 
@@ -947,6 +981,7 @@ const saveParams = (value: GenerationFormState = params.value): void => {
 
 const cleanup = (): void => {
   if (websocket.value) {
+    websocket.value.onclose = null
     websocket.value.close()
     websocket.value = null
   }
@@ -1034,6 +1069,26 @@ watch(params, (newParams) => {
 
 watch(isConnected, (connected) => {
   logDebug('WebSocket connection state changed:', connected)
+})
+
+watch(websocketUrl, (newUrl, oldUrl) => {
+  if (!newUrl || newUrl === oldUrl) {
+    return
+  }
+
+  if (websocket.value) {
+    const currentConnection = websocket.value
+    currentConnection.onclose = null
+    try {
+      currentConnection.close()
+    } catch (error) {
+      console.error('Failed to close existing WebSocket connection:', error)
+    } finally {
+      websocket.value = null
+    }
+  }
+
+  initWebSocket()
 })
 
 onMounted(async () => {
