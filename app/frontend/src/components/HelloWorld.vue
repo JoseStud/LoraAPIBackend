@@ -6,8 +6,9 @@
   
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
-const message = ref('This is our first Vue island.');
+
+const message = ref<string>('This is our first Vue island.');
 </script>
 
