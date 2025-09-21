@@ -56,7 +56,7 @@ export function useAdapterListApi(initialQuery: AdapterListQuery = { page: 1, pe
   const query = reactive<AdapterListQuery>({ ...initialQuery });
 
   const { data, error, isLoading, fetchData, lastResponse } = useApi<AdapterListResponse>(
-    () => `/api/v1/adapters${buildQueryString(query)}`,
+    () => resolveBackendUrl(`/adapters${buildQueryString(query)}`),
     { credentials: 'same-origin' },
   );
 
@@ -95,9 +95,11 @@ export const useRecommendationApi = (
   init: RequestInit = {},
 ) => useApi<RecommendationResponse>(url, withCredentials(init));
 
-export const useDashboardStatsApi = () => useApi<DashboardStatsResponse>('/api/v1/dashboard/stats');
+export const useDashboardStatsApi = () =>
+  useApi<DashboardStatsResponse>(() => resolveBackendUrl('/dashboard/stats'));
 
-export const useSystemStatusApi = () => useApi<SystemStatusPayload>('/api/v1/system/status');
+export const useSystemStatusApi = () =>
+  useApi<SystemStatusPayload>(() => resolveBackendUrl('/system/status'));
 
 export const useActiveJobsApi = () =>
   useApi<Partial<GenerationJob>[]>(() => resolveBackendUrl('/generation/jobs/active'));
