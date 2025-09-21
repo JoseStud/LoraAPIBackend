@@ -111,16 +111,13 @@ backend/
 
 ### Frontend Application (`app/frontend/`)
 
-The frontend now centers on a Vue 3 single-page application compiled by Vite. FastAPI serves the SPA shell (`index.html`) while the Vue source lives in `src/`. Legacy Alpine.js modules in `static/js/` continue to power screens that have not yet been migrated. The previously documented `templates/` directory no longer exists.
+The frontend now centers on a Vue 3 single-page application compiled by Vite. FastAPI serves the SPA shell (`index.html`) while the Vue source lives in `src/`. Legacy Alpine.js modules have been removed along with the historical `templates/` directory.
 
 ```
 app/frontend/
 ├── src/               # Vue SPA source (components, composables, router, stores)
 ├── static/
-│   └── js/
-│       ├── components/ # Alpine.js components still in production use
-│       ├── services/   # Legacy API helpers referenced by Alpine modules
-│       └── utils/      # Shared utilities for legacy code
+│   └── js/             # (removed) legacy Alpine bundles previously lived here
 ├── public/            # Static assets copied verbatim during build
 ├── index.html         # SPA entrypoint served by FastAPI
 └── utils/             # Shared utilities (including legacy compatibility helpers)
@@ -131,8 +128,8 @@ app/frontend/
 - **Vue 3 + Pinia** - Primary SPA framework and state management
 - **Vite** - Modern build tool with hot module replacement
 - **Tailwind CSS** - Utility-first CSS framework shared by both stacks
-- **Alpine.js (Legacy)** - Still used by modules in `app/frontend/static/js/`
-- **Compatibility Layer** - `app/frontend/src/utils/legacy.ts` exposes Vue utilities to Alpine code while migration continues
+- **Vue SPA Only** - Alpine.js bundles have been removed; Vue components own every workflow
+- **Compatibility Layer** - `app/frontend/src/utils/legacy.ts` keeps helper APIs available for any remaining vanilla scripts
 - **PWA** - Progressive Web App with offline support and mobile optimization
 
 ## 🧪 Testing
@@ -149,13 +146,13 @@ pytest tests/test_main.py -v            # API endpoints
 ```
 
 ### Frontend Tests (JavaScript)
-Legacy Alpine modules rely on Jest helpers in `tests/utils/test-helpers.js`, while Vue components use Vitest.
+The frontend test suite is Vue-first. Vitest exercises the SFCs while lightweight Jest suites cover DOM helpers where needed.
 ```bash
 # Run all frontend tests
 npm test
 
 # Run specific test types
-npm run test:unit          # Jest unit tests for Alpine-driven views
+npm run test:unit          # Jest unit tests for DOM utilities
 npm run test:unit:vue      # Vitest suite for Vue single-file components
 npm run test:integration   # API integration tests
 npm run test:e2e          # Playwright end-to-end tests

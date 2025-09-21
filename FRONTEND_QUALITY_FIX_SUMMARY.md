@@ -3,7 +3,7 @@
 ## Current Migration Snapshot
 - `vue-tsc --noEmit` and `eslint app/frontend/src --ext .ts,.tsx,.js,.vue` now run cleanly on the SPA source.
 - ESLint has been converted to a TypeScript/Vue-aware config (`.eslintrc.cjs`) so the Composition API codebase is linted with the same conventions as the service layer.
-- Legacy JavaScript utilities continue to live under `app/frontend/static/js/`; they remain untouched so HTMX/Alpine fallbacks keep working while the SPA hardening progresses.
+- Legacy Alpine/HTMX bundles have been fully removed from `app/frontend/static/js/`, leaving the Vue SPA as the sole UI surface.
 
 ## Hardened Vue Components
 - Added a guarded debug logger for `GenerationStudio.vue`, replacing raw `console.log` calls and ensuring WebSocket telemetry only appears in development builds.
@@ -17,13 +17,13 @@
 - System status formatting expectations were refreshed to reflect the new human-friendly size formatter.
 
 ## Remaining JavaScript Surface Area
-- `app/frontend/static/js/**/*` – legacy HTMX/Alpine bridges, progressive enhancement shims, and PWA helpers.
+- Removed legacy bundles live in history only; future work focuses on Vue composables and Pinia stores.
 - `tests/vue/**/*.js` – Vitest suites will be migrated to TypeScript after the component API stabilises.
 
 ## Recommended Next Steps
-1. Migrate the `app/frontend/static/js` helpers into typed composables to finish removing Alpine/HTMX glue.
-2. Sweep remaining `withDefaults(defineProps())` destructuring patterns (e.g. `SystemStatusCardSimple.vue`) so future Vue upgrades stay warning-free.
-3. Gradually port the Vitest suites to `.ts` once service mocks settle, ensuring full type safety in tests.
+1. Sweep remaining `withDefaults(defineProps())` destructuring patterns (e.g. `SystemStatusCardSimple.vue`) so future Vue upgrades stay warning-free.
+2. Gradually port the Vitest suites to `.ts` once service mocks settle, ensuring full type safety in tests.
+3. Audit Pinia stores for redundant legacy helpers now that the Alpine compatibility layer is gone.
 
 ## Key API Abstractions in Use
 - `useApi` + `apiClients` composables centralise all REST calls with shared error handling.

@@ -29,13 +29,7 @@ module.exports = {
   
   // Coverage paths - exclude problematic files
   collectCoverageFrom: [
-    'app/frontend/static/js/**/*.js',
-    '!app/frontend/static/js/vendor/**',
-    '!app/frontend/static/js/**/*.min.js',
-    '!app/frontend/static/js/**/lib/**',
-    '!app/frontend/static/js/components/system-admin.js',
-    '!app/frontend/static/js/components/performance-analytics.js',
-    '!app/frontend/static/js/pwa-manager.js',
+    'app/frontend/src/**/*.js',
     '!**/node_modules/**',
     '!**/coverage/**',
     '!**/tests/**'

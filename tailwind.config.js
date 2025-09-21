@@ -2,7 +2,6 @@
 module.exports = {
   content: [
     "./app/frontend/index.html",
-    "./app/frontend/static/js/**/*.js",
     "./app/frontend/src/**/*.{vue,ts,js}",
   ],
   theme: {
