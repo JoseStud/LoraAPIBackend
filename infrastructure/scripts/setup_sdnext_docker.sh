@@ -286,7 +286,7 @@ docker-compose up -d
 
 - **API**: http://localhost:8782 - LoRA Backend API
 - **SDNext**: http://localhost:7860 - Stable Diffusion WebUI
-- **WebSocket**: ws://localhost:8782/ws/progress - Real-time progress monitoring
+- **WebSocket**: ws://localhost:8782/api/v1/ws/progress - Real-time progress monitoring
 - **PostgreSQL**: localhost:5433 - Database
 - **Redis**: localhost:6380 - Job queue
 
@@ -337,10 +337,10 @@ curl -X POST http://localhost:8782/generation/queue-generation \
 
 ## WebSocket Monitoring
 
-Connect to `ws://localhost:8782/ws/progress` for real-time generation updates:
+Connect to `ws://localhost:8782/api/v1/ws/progress` for real-time generation updates:
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8782/ws/progress');
+const ws = new WebSocket('ws://localhost:8782/api/v1/ws/progress');
 ws.onopen = () => {
   ws.send(JSON.stringify({type: "subscribe", job_ids: null}));
 };

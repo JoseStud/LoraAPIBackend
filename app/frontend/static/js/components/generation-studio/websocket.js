@@ -4,6 +4,57 @@
  * Handles real-time communication via WebSocket connections.
  */
 
+const DEFAULT_BACKEND_BASE = '/api/v1';
+
+const normaliseBackendBase = (value) => {
+    if (typeof value !== 'string') {
+        return DEFAULT_BACKEND_BASE;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return DEFAULT_BACKEND_BASE;
+    }
+    return trimmed.replace(/\/+$/, '');
+};
+
+const resolveBackendBase = () => {
+    if (typeof window !== 'undefined' && typeof window.BACKEND_URL === 'string') {
+        const configured = window.BACKEND_URL.trim();
+        if (configured) {
+            return normaliseBackendBase(configured);
+        }
+    }
+    return DEFAULT_BACKEND_BASE;
+};
+
+const buildProgressWebSocketUrl = () => {
+    const backendBase = resolveBackendBase();
+
+    if (/^https?:\/\//i.test(backendBase)) {
+        try {
+            const url = new URL(backendBase);
+            url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+            const basePath = url.pathname.replace(/\/+$/, '');
+            url.pathname = `${basePath}/ws/progress`.replace(/\/+/g, '/');
+            url.hash = '';
+            url.search = '';
+            return url.toString();
+        } catch (error) {
+            console.error('Failed to parse backend URL for WebSocket:', error);
+        }
+    }
+
+    const basePath = backendBase.startsWith('/') ? backendBase : `/${backendBase}`;
+    const normalizedPath = `${basePath.replace(/\/+$/, '')}/ws/progress`.replace(/\/+/g, '/');
+
+    if (typeof window === 'undefined') {
+        return normalizedPath;
+    }
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}${normalizedPath}`;
+};
+
 /**
  * WebSocket management for real-time generation updates
  */
@@ -21,9 +72,7 @@ const generationWebSocket = {
         } = callbacks;
         
         try {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws/progress`;
-            
+            const wsUrl = buildProgressWebSocketUrl();
             const websocket = new WebSocket(wsUrl);
             
             websocket.onopen = (event) => {

@@ -514,7 +514,7 @@ describe('Import/Export Component', () => {
             global.WebSocket = jest.fn(() => mockWebSocket);
             
             component.initProgressTracking = jest.fn((operationId) => {
-                const ws = new WebSocket(`ws://localhost:8000/ws/progress/${operationId}`);
+                const ws = new WebSocket(`ws://localhost:8000/api/v1/ws/progress/${operationId}`);
                 ws.onmessage = (event) => {
                     const data = JSON.parse(event.data);
                     component.showProgress(data.progress, data.message);

@@ -27,6 +27,9 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+PROGRESS_WS_PATH="${PROGRESS_WS_PATH:-/api/v1/ws/progress}"
+PROGRESS_WS_URL="${PROGRESS_WS_URL:-ws://localhost:8782${PROGRESS_WS_PATH}}"
+
 # Function to check service health
 check_service() {
     local service_name=$1
@@ -49,15 +52,17 @@ check_websocket() {
     echo -n "Checking WebSocket... "
     
     if command -v python3 &> /dev/null; then
-        python3 -c "
+        PROGRESS_WS_URL="$PROGRESS_WS_URL" python3 -c "
 import asyncio
 import websockets
 import json
 import sys
+import os
 
 async def test_websocket():
     try:
-        async with websockets.connect('ws://localhost:8782/ws/progress') as websocket:
+        websocket_url = os.environ.get('PROGRESS_WS_URL', 'ws://localhost:8782/api/v1/ws/progress')
+        async with websockets.connect(websocket_url) as websocket:
             # Send subscription
             await websocket.send(json.dumps({'type': 'subscribe', 'job_ids': None}))
             # Wait for response
@@ -200,4 +205,4 @@ echo "- WebSocket Test: Open websocket_test.html in browser"
 echo
 echo "🚀 Integration Status: All core services are running!"
 echo "   Try the API at: http://localhost:8782/docs"
-echo "   Monitor progress at: ws://localhost:8782/ws/progress"
+echo "   Monitor progress at: ${PROGRESS_WS_URL}"

@@ -9,7 +9,7 @@ import websockets
 
 async def test_websocket():
     """Test WebSocket connection and message handling."""
-    uri = "ws://localhost:8000/ws/progress"
+    uri = "ws://localhost:8000/api/v1/ws/progress"
     
     try:
         async with websockets.connect(uri) as websocket:

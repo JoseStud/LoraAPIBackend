@@ -67,6 +67,13 @@ def test_health(client: TestClient):
     assert r.json()["status"] == "ok"
 
 
+def test_progress_websocket_uses_versioned_route(client: TestClient):
+    """The progress WebSocket should be reachable via the versioned API path."""
+
+    with client.websocket_connect("/api/v1/ws/progress") as websocket:
+        websocket.send_json({"type": "subscribe", "job_ids": None})
+
+
 def test_frontend_settings_endpoint(client: TestClient):
     """Frontend settings endpoint exposes runtime configuration."""
     response = client.get("/frontend/settings")

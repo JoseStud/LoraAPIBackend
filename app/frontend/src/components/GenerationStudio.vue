@@ -492,7 +492,10 @@ const isConnected = computed<boolean>(() => websocket.value?.readyState === WebS
 
 const appendWebSocketPath = (path: string): string => {
   const trimmed = path.replace(/\/+$/, '')
-  return trimmed ? `${trimmed}/ws/progress` : '/ws/progress'
+  if (trimmed) {
+    return `${trimmed}/ws/progress`
+  }
+  return '/api/v1/ws/progress'
 }
 
 const resolveWebSocketUrl = (backendUrl?: string | null): string => {
