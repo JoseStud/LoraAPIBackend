@@ -1,738 +1,336 @@
-# Vue 3 Migration Strategy - LoRA Manager Architecture Optimization
+# LoRA Manager Architecture Optimization and Migration Progress
 
-## 🚨 Critical Architecture Issue: Technology Stack Confusion
+## ✅ Vue 3 Migration Status: PARTIALLY COMPLETED
 
-### Current Problematic Hybrid Approach
-The LoRA Manager project currently suffers from **technology stack confusion** with a contradictory Vue.js + Alpine.js hybrid implementation:
+### Vue 3 Islands Architecture Successfully Implemented
 
-```javascript
-// Current problematic main.js structure
-import Alpine from 'alpinejs';
-import { createApp } from 'vue';
-import HelloWorld from '../vue/HelloWorld.vue';
-// ... 15+ Vue components imported
-// AND Alpine.js components mixed throughout
-```
+The project has successfully transitioned from the problematic **dual Alpine.js + Vue.js** hybrid to a modern **Vue 3 Islands** architecture:
 
-**Problems with Current Architecture:**
-1. **Dual Reactivity Systems**: Vue's reactivity conflicts with Alpine's reactive data
-2. **Component Confusion**: Developers must decide between Vue components vs Alpine components
-3. **Bundle Size Bloat**: Loading both frameworks increases JavaScript bundle size
-4. **Maintenance Nightmare**: Two different paradigms to maintain and debug
-5. **Performance Issues**: Double parsing and compilation overhead
-6. **Developer Experience**: Context switching between different syntaxes and patterns
+#### **Migration Achievements:**
+- ✅ **Vue 3 SPA Foundation**: Complete Vue 3 + Pinia + Vue Router setup with TypeScript support
+- ✅ **Alpine.js Removed**: No Alpine.js dependencies in package.json (successful dependency elimination)
+- ✅ **Modern Build Tooling**: Vite-based build with Vue plugin, optimized for production
+- ✅ **Component Migration**: Key components migrated to Vue 3 Composition API
+- ✅ **State Management**: Pinia stores for centralized state management
+- ✅ **API Layer**: Composables and service abstractions for API communication
+- ✅ **Testing Infrastructure**: Vitest + Vue Test Utils for component testing
 
-## 🎯 Recommended Solution: Full Vue 3 SPA Migration
-
-### Migration Strategy Overview
-
-**Phase 1: Pure Vue 3 SPA Architecture**
-- Convert to Single Page Application with Vue Router
-- Eliminate Alpine.js completely
-- FastAPI as pure JSON API backend
-- Client-side routing and state management
-
-**Phase 2: Modern Development Patterns**
-- Composition API with TypeScript
-- Pinia for state management
-- Vite optimization
-- Component-based architecture
-
-## 📋 Detailed Migration Plan
-
-### Step 1: Project Structure Reorganization
-
-**Target Structure:**
-```
-app/
-├── frontend/
-│   ├── src/                    # Vue 3 SPA source
-│   │   ├── main.ts            # Vue app entry point
-│   │   ├── App.vue            # Root component
-│   │   ├── router/            # Vue Router configuration
-│   │   ├── stores/            # Pinia stores
-│   │   ├── components/        # Reusable components
-│   │   ├── views/             # Page components
-│   │   ├── composables/       # Vue 3 composables
-│   │   ├── services/          # API service layer
-│   │   ├── types/             # TypeScript definitions
-│   │   └── assets/            # Static assets
-│   ├── public/                # Public assets
-│   └── index.html             # SPA entry point
-└── backend/                   # Pure FastAPI JSON API
-    ├── api/v1/               # API endpoints (JSON only)
-    ├── core/                 # Core services
-    ├── models/               # Database models
-    └── schemas/              # Pydantic schemas
-```
-
-### Step 2: Remove Alpine.js Dependencies
-
-**Current Dependencies to Remove:**
-```json
-// Remove from package.json
-{
-  "dependencies": {
-    "alpinejs": "^3.15.0"  // REMOVE
-  }
-}
-```
-
-**Update Vite Configuration:**
-```javascript
-// vite.config.js - Vue 3 SPA optimized
-import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
-import { resolve } from 'path';
-
-export default defineConfig({
-  plugins: [vue()],
-  root: './app/frontend/',
-  
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, 'app/frontend/src'),
-    },
-  },
-  
-  server: {
-    port: 5173,
-    proxy: {
-      '/api': 'http://localhost:8000',
-      '/ws': {
-        target: 'ws://localhost:8000',
-        ws: true,
-      },
-    },
-  },
-  
-  build: {
-    outDir: '../../dist',
-    emptyOutDir: true,
-    rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'app/frontend/index.html')
-      },
-    },
-  },
-});
-```
-
-### Step 3: Vue 3 SPA Entry Point
-
-**New Main Entry Point:**
+#### **Current Architecture:**
 ```typescript
-// app/frontend/src/main.ts
+// Successful Vue 3 SPA Entry Point (app/frontend/src/main.ts)
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import App from './App.vue';
 import router from './router';
-import './assets/css/styles.css';
 
-// Create Vue application
 const app = createApp(App);
-
-// Add plugins
 app.use(createPinia());
 app.use(router);
-
-// Mount application
 app.mount('#app');
 ```
 
-**Root Component:**
-```vue
-<!-- app/frontend/src/App.vue -->
-<template>
-  <div id="app" class="min-h-screen bg-gray-50">
-    <!-- Global navigation -->
-    <AppHeader />
-    
-    <!-- Loading indicator -->
-    <LoadingIndicator v-if="isLoading" />
-    
-    <!-- Main content area -->
-    <main class="container mx-auto px-4 py-8">
-      <router-view />
-    </main>
-    
-    <!-- Global notifications -->
-    <NotificationSystem />
-    
-    <!-- Global modals -->
-    <GlobalModals />
-  </div>
-</template>
+#### **Migrated Components:**
+- ✅ **Core UI**: `HelloWorld.vue`, `MobileNav.vue`, `SystemStatusCard.vue`
+- ✅ **Business Logic**: `RecommendationsPanel.vue`, `PromptComposer.vue`, `LoraGallery.vue`
+- ✅ **Generation Tools**: `GenerationStudio.vue`, `JobQueue.vue`
+- ✅ **Dashboard Views**: Complete SPA routing with lazy-loaded views
 
-<script setup lang="ts">
-import { computed } from 'vue';
-import { useGlobalStore } from '@/stores/global';
-import AppHeader from '@/components/layout/AppHeader.vue';
-import LoadingIndicator from '@/components/ui/LoadingIndicator.vue';
-import NotificationSystem from '@/components/notifications/NotificationSystem.vue';
-import GlobalModals from '@/components/modals/GlobalModals.vue';
+#### **Legacy Artifacts Remaining:**
+- 🔄 **Alpine Components**: Some legacy components in `app/frontend/static/js/components/` for backward compatibility
+- 🔄 **HTMX Integration**: Template-based components for specific workflows
+- 🔄 **Gradual Migration**: Islands approach allows incremental migration without breaking changes
 
-const globalStore = useGlobalStore();
-const isLoading = computed(() => globalStore.isLoading);
-</script>
+**The original "technology stack confusion" problem has been SOLVED.** The project now uses Vue 3 as the primary frontend framework with Alpine.js completely removed from dependencies.
+
+## 🔧 Current Backend Architecture Issues
+
+Despite the successful Vue migration, several backend architectural issues have been identified that impact maintainability, testability, and deployment flexibility:
+
+### Issue 1: Manual Service Container Instantiation Bypassing DI
+
+**Problem**: Multiple routers manually instantiate the ServiceContainer, bypassing FastAPI's dependency hooks already defined in `backend.core.dependencies`, which makes refactoring cross-cutting services harder and leads to repeated boilerplate across endpoints.
+
+**Current Problematic Pattern**:
+```python
+# backend/api/v1/adapters.py - Manual instantiation
+@router.get("/adapters", response_model=AdapterListResponse)
+def list_adapters(
+    db_session: Session = Depends(get_session),  # Manual session injection
+):
+    # Filtering/pagination logic implemented in router
+    q = select(Adapter)
+    if search:
+        q = q.where(Adapter.name.ilike(f"%{search}%"))
+    # ... more router-level logic
 ```
 
-### Step 4: Vue Router Configuration
+**Dependencies Available But Unused**:
+```python
+# backend/core/dependencies.py - Proper DI setup exists
+def get_adapter_service(
+    db_session: Session = Depends(get_session),
+) -> AdapterService:
+    container = ServiceContainer(db_session)
+    return container.adapters
+```
 
-**Router Setup:**
+### Issue 2: Adapter Business Logic Scattered in Router Layer
+
+**Problem**: Adapter filtering, sorting, and pagination are implemented directly in the router rather than inside AdapterService, so domain rules are scattered and difficult to evolve safely.
+
+**Current Implementation**:
+```python
+# backend/api/v1/adapters.py - Business logic in router (lines 40-110)
+def list_adapters(
+    search: str = "",
+    active_only: bool = False,
+    tags: str = "",
+    sort: str = "name",
+    # ... pagination logic implemented in router
+    q = select(Adapter)
+    if search:
+        q = q.where(Adapter.name.ilike(f"%{search}%"))
+    # Tag filtering in Python for "cross-database compatibility"
+    # Sorting logic in router
+    # Pagination calculation in router
+```
+
+**Service Layer Minimal**:
+```python
+# backend/services/adapters.py - Limited functionality
+def list_adapters(self, active_only: bool = False, limit: int = 100, offset: int = 0):
+    # Basic listing only, no filtering/search/pagination
+```
+
+### Issue 3: Delivery Queuing Mixed with HTTP Layer
+
+**Problem**: Delivery queuing mixes Redis detection, worker imports, and fallback execution within the HTTP layer, preventing alternate queue backends and complicating testing of background flows.
+
+**Current Problematic Pattern**:
+```python
+# backend/api/v1/deliveries.py - Infrastructure concerns in HTTP layer
+@router.post("/deliveries", status_code=201)
+async def create_delivery(delivery: DeliveryCreate, background_tasks: BackgroundTasks):
+    services = create_service_container(session)  # Manual container
+    dj = services.deliveries.create_job(...)
+    
+    if REDIS_URL:  # Infrastructure detection in router
+        try:
+            from backend.workers.tasks import q  # Import in router
+            q.enqueue("backend.workers.tasks.process_delivery", dj.id)
+        except Exception:
+            background_tasks.add_task(_process_delivery_fallback, ...)  # Fallback logic
+    else:
+        background_tasks.add_task(_process_delivery_fallback, ...)
+```
+
+### Issue 4: Vue Frontend Hard-codes API URLs
+
+**Problem**: The Vue generation service hard-codes `/api/v1/...` paths, ignoring the runtime backend URL provided by the settings store, which hinders deployment flexibility and coordinated refactors of the API prefix.
+
+**Current Hard-coded Pattern**:
 ```typescript
-// app/frontend/src/router/index.ts
-import { createRouter, createWebHistory } from 'vue-router';
-import type { RouteRecordRaw } from 'vue-router';
+// app/frontend/src/composables/apiClients.ts - Hard-coded paths
+export const useSystemStatusApi = () => useApi<SystemStatusPayload>('/api/v1/system/status');
+export const useActiveJobsApi = () => useApi<Partial<GenerationJob>[]>('/api/v1/generation/jobs/active');
+export const useDashboardStatsApi = () => useApi<DashboardStatsResponse>('/api/v1/dashboard/stats');
 
-// Lazy load components for better performance
-const Dashboard = () => import('@/views/Dashboard.vue');
-const LoraGallery = () => import('@/views/LoraGallery.vue');
-const GenerationStudio = () => import('@/views/GenerationStudio.vue');
-const SystemStatus = () => import('@/views/SystemStatus.vue');
-const Settings = () => import('@/views/Settings.vue');
-
-const routes: RouteRecordRaw[] = [
-  {
-    path: '/',
-    name: 'Dashboard',
-    component: Dashboard,
-    meta: { title: 'Dashboard' }
-  },
-  {
-    path: '/gallery',
-    name: 'Gallery',
-    component: LoraGallery,
-    meta: { title: 'LoRA Gallery' }
-  },
-  {
-    path: '/studio',
-    name: 'Studio',
-    component: GenerationStudio,
-    meta: { title: 'Generation Studio' }
-  },
-  {
-    path: '/status',
-    name: 'Status',
-    component: SystemStatus,
-    meta: { title: 'System Status' }
-  },
-  {
-    path: '/settings',
-    name: 'Settings',
-    component: Settings,
-    meta: { title: 'Settings' }
-  },
-  {
-    path: '/:pathMatch(.*)*',
-    name: 'NotFound',
-    component: () => import('@/views/NotFound.vue')
-  }
-];
-
-const router = createRouter({
-  history: createWebHistory(),
-  routes,
+// app/frontend/src/components/JobQueue.vue - Hard-coded endpoints  
+response = await fetch('/api/v1/generation/jobs/active', {
+  credentials: 'same-origin',
 });
-
-// Navigation guards
-router.beforeEach((to, from, next) => {
-  // Set page title
-  document.title = `${to.meta.title} - LoRA Manager`;
-  next();
-});
-
-export default router;
 ```
 
-### Step 5: Pinia State Management
+**Settings Store Available But Ignored**:
+  ```typescript
+// app/frontend/src/stores/settings.ts - Runtime configuration available
+export const useSettingsStore = defineStore('settings', () => {
+  // Backend URL configuration exists but not used consistently
+});
+```
 
-**Global Store:**
+## 🎯 Recommended Architectural Improvements
+
+### Solution 1: Promote Service Container to First-Class FastAPI Dependency
+
+**Problem**: Routers create containers manually instead of using DI, so services can't be swapped or extended centrally during refactors.
+
+**Suggested Implementation**:
+```python
+# backend/core/dependencies.py - Enhanced service container dependency
+def get_service_container(
+    db_session: Session = Depends(get_session),
+) -> ServiceContainer:
+    """Get a service container with the given database session."""
+    return ServiceContainer(db_session)
+
+# backend/api/v1/adapters.py - Using service container DI
+@router.get("/adapters", response_model=AdapterListResponse)
+def list_adapters(
+    search: str = "",
+    active_only: bool = False,
+    tags: str = "",
+    sort: str = "name",
+    page: int = 1,
+    per_page: int = 24,
+    container: ServiceContainer = Depends(get_service_container),
+):
+    """Return a paginated list of adapters with proper service separation."""
+    return container.adapters.list_adapters_filtered(
+        search=search,
+        active_only=active_only,
+        tags=tags.split(',') if tags else [],
+        sort=sort,
+        page=page,
+        per_page=per_page,
+    )
+```
+
+### Solution 2: Centralize Adapter Listing Logic Inside Service Layer
+
+**Problem**: `list_adapters` reimplements filtering, tag handling, and pagination within the route, diverging from AdapterService and making maintenance risky.
+
+**Suggested Implementation**:
+```python
+# backend/services/adapters.py - Enhanced service with filtering
+class AdapterService:
+    def list_adapters_filtered(
+        self,
+        search: str = "",
+        active_only: bool = False,
+        tags: List[str] = None,
+        sort: str = "name",
+        page: int = 1,
+        per_page: int = 24,
+    ) -> AdapterListResponse:
+        """List adapters with filtering, sorting, and pagination."""
+        q = select(Adapter)
+        
+        # Apply search filter
+        if search:
+            q = q.where(Adapter.name.ilike(f"%{search}%"))
+        
+        # Apply active filter
+        if active_only:
+            q = q.where(Adapter.active)
+        
+        # Execute query
+        all_results = self.db_session.exec(q).all()
+        
+        # Apply tag filtering (in-memory for cross-database compatibility)
+        if tags:
+            all_results = [a for a in all_results if self._has_matching_tags(a, tags)]
+        
+        # Apply sorting
+        all_results = self._sort_adapters(all_results, sort)
+        
+        # Apply pagination
+        total_count = len(all_results)
+        offset = (page - 1) * per_page
+        items = all_results[offset:offset + per_page]
+        
+        return AdapterListResponse(
+            items=[a.model_dump() for a in items],
+            total=total_count,
+            filtered=total_count,
+            page=page,
+            pages=(total_count + per_page - 1) // per_page,
+            per_page=per_page,
+        )
+```
+
+### Solution 3: Abstract Delivery Queuing Away from HTTP Layer
+
+**Problem**: `create_delivery` decides between Redis and background tasks inline, directly importing worker modules and replicating job-state updates, which couples API code to infrastructure details.
+
+**Suggested Implementation**:
+```python
+# backend/services/queue.py - New queue abstraction service
+from abc import ABC, abstractmethod
+
+class QueueBackend(ABC):
+    """Abstract queue backend interface."""
+    
+    @abstractmethod
+    async def enqueue_job(self, job_id: str, task_name: str, *args, **kwargs) -> bool:
+        """Enqueue a job for background processing."""
+        pass
+
+class RedisQueueBackend(QueueBackend):
+    """Redis-based queue backend using RQ."""
+    
+    async def enqueue_job(self, job_id: str, task_name: str, *args, **kwargs) -> bool:
+        try:
+            from backend.workers.tasks import q
+            q.enqueue(task_name, *args, **kwargs)
+            return True
+        except Exception as e:
+            logging.error(f"Failed to enqueue job {job_id}: {e}")
+            return False
+
+# backend/api/v1/deliveries.py - Simplified router
+@router.post("/deliveries", status_code=201, response_model=DeliveryCreateResponse)
+async def create_delivery(
+    delivery: DeliveryCreate,
+    background_tasks: BackgroundTasks,
+    container: ServiceContainer = Depends(get_service_container),
+):
+    """Create a delivery job and enqueue it for processing."""
+    # Queue backend selection handled by service layer
+    dj = await container.deliveries.create_and_enqueue_delivery(
+        delivery.prompt,
+        delivery.mode, 
+        delivery.params or {},
+    )
+    return {"delivery": dj.model_dump()}
+```
+
+### Solution 4: Respect Configured Backend Base URL in Frontend Services
+
+**Problem**: Generation service calls hard-coded `/api/v1/...` endpoints, so changing the API prefix or pointing at a remote backend requires touching many files.
+
+**Suggested Implementation**:
 ```typescript
-// app/frontend/src/stores/global.ts
-import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+// app/frontend/src/composables/apiClients.ts - Dynamic base URL
+import { useSettingsStore } from '@/stores/settings';
 
-export const useGlobalStore = defineStore('global', () => {
-  // State
-  const isLoading = ref(false);
-  const notifications = ref<Notification[]>([]);
-  const user = ref<User | null>(null);
-  
-  // Getters
-  const hasUnreadNotifications = computed(() => 
-    notifications.value.some(n => !n.read)
-  );
-  
-  // Actions
-  const setLoading = (loading: boolean) => {
-    isLoading.value = loading;
-  };
-  
-  const addNotification = (notification: Omit<Notification, 'id'>) => {
-    notifications.value.push({
-      ...notification,
-      id: Date.now().toString(),
-    });
-  };
-  
-  return {
-    // State
-    isLoading: readonly(isLoading),
-    notifications: readonly(notifications),
-    user: readonly(user),
-    
-    // Getters
-    hasUnreadNotifications,
-    
-    // Actions
-    setLoading,
-    addNotification,
-  };
-});
-```
-
-**LoRA Store:**
-```typescript
-// app/frontend/src/stores/lora.ts
-import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
-import { loraService } from '@/services/lora';
-import type { Adapter, AdapterFilters } from '@/types/lora';
-
-export const useLoraStore = defineStore('lora', () => {
-  // State
-  const adapters = ref<Adapter[]>([]);
-  const currentAdapter = ref<Adapter | null>(null);
-  const filters = ref<AdapterFilters>({
-    search: '',
-    activeOnly: false,
-    tags: [],
-    sort: 'name'
-  });
-  
-  // Getters
-  const filteredAdapters = computed(() => {
-    let filtered = adapters.value;
-    
-    if (filters.value.search) {
-      filtered = filtered.filter(adapter => 
-        adapter.name.toLowerCase().includes(filters.value.search.toLowerCase())
-      );
-    }
-    
-    if (filters.value.activeOnly) {
-      filtered = filtered.filter(adapter => adapter.active);
-    }
-    
-    return filtered.sort((a, b) => a.name.localeCompare(b.name));
-  });
-  
-  // Actions
-  const fetchAdapters = async () => {
-    try {
-      const response = await loraService.getAdapters(filters.value);
-      adapters.value = response.adapters;
-    } catch (error) {
-      console.error('Failed to fetch adapters:', error);
-      throw error;
-    }
-  };
-  
-  const createAdapter = async (adapter: CreateAdapterRequest) => {
-    try {
-      const newAdapter = await loraService.createAdapter(adapter);
-      adapters.value.push(newAdapter);
-      return newAdapter;
-    } catch (error) {
-      console.error('Failed to create adapter:', error);
-      throw error;
-    }
-  };
-  
-  return {
-    // State
-    adapters: readonly(adapters),
-    currentAdapter: readonly(currentAdapter),
-    filters,
-    
-    // Getters
-    filteredAdapters,
-    
-    // Actions
-    fetchAdapters,
-    createAdapter,
-  };
-});
-```
-
-### Step 6: Component Migration Strategy
-
-**Convert Alpine Components to Vue:**
-
-**Before (Alpine.js):**
-```html
-<!-- Old Alpine component -->
-<div x-data="{ open: false, adapters: [] }" x-init="fetchAdapters()">
-  <button @click="open = !open" x-text="open ? 'Close' : 'Open'"></button>
-  <div x-show="open">
-    <template x-for="adapter in adapters">
-      <div x-text="adapter.name"></div>
-    </template>
-  </div>
-</div>
-```
-
-**After (Vue 3 Composition API):**
-```vue
-<!-- New Vue component -->
-<template>
-  <div>
-    <button @click="toggleOpen" class="btn btn-primary">
-      {{ isOpen ? 'Close' : 'Open' }}
-    </button>
-    <div v-show="isOpen" class="adapter-list">
-      <div
-        v-for="adapter in adapters"
-        :key="adapter.id"
-        class="adapter-item"
-      >
-        {{ adapter.name }}
-      </div>
-    </div>
-  </div>
-</template>
-
-<script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useLoraStore } from '@/stores/lora';
-
-const loraStore = useLoraStore();
-const isOpen = ref(false);
-
-const adapters = computed(() => loraStore.adapters);
-
-const toggleOpen = () => {
-  isOpen.value = !isOpen.value;
+const getApiBaseUrl = (): string => {
+  const settingsStore = useSettingsStore();
+  return settingsStore.backendUrl || '/api/v1';
 };
 
-onMounted(() => {
-  loraStore.fetchAdapters();
-});
-</script>
-```
+export const useSystemStatusApi = () => 
+  useApi<SystemStatusPayload>(`${getApiBaseUrl()}/system/status`);
 
-### Step 7: API Service Layer
+export const useActiveJobsApi = () => 
+  useApi<Partial<GenerationJob>[]>(`${getApiBaseUrl()}/generation/jobs/active`);
 
-**Centralized API Services:**
-```typescript
-// app/frontend/src/services/api.ts
-import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
+export function useAdapterListApi(initialQuery: AdapterListQuery = { page: 1, perPage: 100 }) {
+  const query = reactive<AdapterListQuery>({ ...initialQuery });
 
-class ApiService {
-  private client: AxiosInstance;
+  const { data, error, isLoading, fetchData, lastResponse } = useApi<AdapterListResponse>(
+    () => `${getApiBaseUrl()}/adapters${buildQueryString(query)}`,
+    { credentials: 'same-origin' },
+  );
   
-  constructor() {
-    this.client = axios.create({
-      baseURL: '/api/v1',
-      timeout: 10000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    this.setupInterceptors();
-  }
-  
-  private setupInterceptors() {
-    // Request interceptor
-    this.client.interceptors.request.use(
-      (config) => {
-        // Add auth token if available
-        const token = localStorage.getItem('auth_token');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error) => Promise.reject(error)
-    );
-    
-    // Response interceptor
-    this.client.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        if (error.response?.status === 401) {
-          // Handle auth errors
-          this.handleAuthError();
-        }
-        return Promise.reject(error);
-      }
-    );
-  }
-  
-  private handleAuthError() {
-    localStorage.removeItem('auth_token');
-    window.location.href = '/login';
-  }
-  
-  async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.get(url, config);
-    return response.data;
-  }
-  
-  async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.post(url, data, config);
-    return response.data;
-  }
-  
-  async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.put(url, data, config);
-    return response.data;
-  }
-  
-  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.delete(url, config);
-    return response.data;
-  }
-}
-
-export const apiService = new ApiService();
-```
-
-**LoRA-specific API Service:**
-```typescript
-// app/frontend/src/services/lora.ts
-import { apiService } from './api';
-import type { 
-  Adapter, 
-  AdapterListResponse, 
-  CreateAdapterRequest,
-  AdapterFilters 
-} from '@/types/lora';
-
-class LoraService {
-  async getAdapters(filters: AdapterFilters): Promise<AdapterListResponse> {
-    const params = new URLSearchParams();
-    
-    if (filters.search) params.append('search', filters.search);
-    if (filters.activeOnly) params.append('active_only', 'true');
-    if (filters.tags.length) params.append('tags', filters.tags.join(','));
-    params.append('sort', filters.sort);
-    
-    return apiService.get<AdapterListResponse>(`/adapters?${params}`);
-  }
-  
-  async getAdapter(id: string): Promise<Adapter> {
-    return apiService.get<Adapter>(`/adapters/${id}`);
-  }
-  
-  async createAdapter(adapter: CreateAdapterRequest): Promise<Adapter> {
-    const response = await apiService.post<{ adapter: Adapter }>('/adapters', adapter);
-    return response.adapter;
-  }
-  
-  async updateAdapter(id: string, updates: Partial<Adapter>): Promise<Adapter> {
-    const response = await apiService.put<{ adapter: Adapter }>(`/adapters/${id}`, updates);
-    return response.adapter;
-  }
-  
-  async deleteAdapter(id: string): Promise<void> {
-    await apiService.delete(`/adapters/${id}`);
-  }
-}
-
-export const loraService = new LoraService();
-```
-
-### Step 8: Backend Modifications
-
-**Update FastAPI to Pure JSON API:**
-```python
-# backend/main.py - Remove template rendering
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-
-# Remove template-related imports
-# from fastapi.templating import Jinja2Templates
-
-app = FastAPI(
-    title="LoRA Manager API",
-    description="JSON API for LoRA Management",
-    version="2.0.0",
-)
-
-# Configure CORS for SPA
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vue dev server
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Mount only the API routes
-from backend.api.v1 import router as api_router
-app.include_router(api_router, prefix="/api/v1")
-
-# Serve static files for production
-app.mount("/", StaticFiles(directory="dist", html=True), name="spa")
-```
-
-**Remove Template Dependencies:**
-```python
-# Remove from app/frontend/routes_fastapi.py
-# This entire file can be deleted in the new architecture
-
-# Update backend API endpoints to return pure JSON
-# Remove any HTML template rendering
-```
-
-### Step 9: TypeScript Integration
-
-**Add TypeScript Configuration:**
-```json
-// app/frontend/tsconfig.json
-{
-  "compilerOptions": {
-    "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "skipLibCheck": true,
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "preserve",
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    }
-  },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  // ... rest of implementation
 }
 ```
 
-**Type Definitions:**
-```typescript
-// app/frontend/src/types/lora.ts
-export interface Adapter {
-  id: string;
-  name: string;
-  version?: string;
-  description?: string;
-  author_username?: string;
-  tags: string[];
-  trained_words: string[];
-  triggers: string[];
-  file_path: string;
-  weight: number;
-  active: boolean;
-  archetype?: string;
-  archetype_confidence?: number;
-  created_at: string;
-  updated_at: string;
-}
+## 🎯 Implementation Priority
 
-export interface AdapterListResponse {
-  adapters: Adapter[];
-  total: number;
-  page: number;
-  per_page: number;
-  pages: number;
-}
+### High Priority (Immediate Improvement)
+1. **Service Container DI**: Replace manual `create_service_container()` calls with proper FastAPI dependency injection
+2. **Adapter Service Centralization**: Move filtering/pagination logic from router to service layer
 
-export interface CreateAdapterRequest {
-  name: string;
-  version?: string;
-  description?: string;
-  file_path: string;
-  tags?: string[];
-  weight?: number;
-}
+### Medium Priority (Architecture Cleanup)  
+3. **Queue Abstraction**: Abstract delivery queuing from HTTP layer for better testability
+4. **Frontend URL Configuration**: Use settings store for API base URLs instead of hard-coding
 
-export interface AdapterFilters {
-  search: string;
-  activeOnly: boolean;
-  tags: string[];
-  sort: 'name' | 'created_at' | 'updated_at';
-}
-```
+### Benefits of These Improvements
 
-## 🚀 Migration Implementation Timeline
-
-### Week 1: Foundation Setup
-- [ ] Remove Alpine.js dependencies
-- [ ] Setup Vue 3 SPA structure
-- [ ] Configure Vite for SPA build
-- [ ] Create basic router configuration
-
-### Week 2: Core Components Migration
-- [ ] Convert 5 most critical components from Alpine to Vue
-- [ ] Setup Pinia stores for state management
-- [ ] Implement API service layer
-- [ ] Add TypeScript support
-
-### Week 3: Complete Component Migration
-- [ ] Convert remaining components
-- [ ] Implement proper routing
-- [ ] Add loading states and error handling
-- [ ] Test component functionality
-
-### Week 4: Backend Integration & Testing
-- [ ] Update FastAPI to pure JSON API
-- [ ] Remove template rendering
-- [ ] Test full integration
-- [ ] Performance optimization
-
-## 📊 Expected Benefits
-
-### Performance Improvements
-- **Bundle Size Reduction**: ~30% smaller JavaScript bundle
-- **Load Time**: Faster initial page load with code splitting
-- **Runtime Performance**: Single reactivity system, no conflicts
-
-### Developer Experience
-- **Consistency**: Single framework paradigm
-- **Tooling**: Full Vue DevTools support
-- **TypeScript**: Better type safety and IDE support
-- **Testing**: Unified testing strategy with Vue Test Utils
-
-### Maintainability
-- **Code Organization**: Clear component hierarchy
-- **State Management**: Centralized with Pinia
-- **API Layer**: Consistent service pattern
-- **Scalability**: Easier to add new features
-
-## ⚠️ Migration Risks & Mitigation
-
-### Risk 1: Component Compatibility
-**Mitigation**: Incremental migration, keep both systems during transition
-
-### Risk 2: State Management Conflicts
-**Mitigation**: Clear data flow patterns with Pinia stores
-
-### Risk 3: Routing Changes
-**Mitigation**: Maintain URL compatibility with proper route mapping
-
-### Risk 4: Backend Breaking Changes
-**Mitigation**: Maintain API compatibility during transition
-
-## 🎯 Success Metrics
-
-- [ ] **Zero Alpine.js dependencies** in final build
-- [ ] **100% Vue 3 components** using Composition API
-- [ ] **Full TypeScript coverage** for frontend code
-- [ ] **Performance improvement**: Bundle size reduction >25%
-- [ ] **Developer satisfaction**: Faster development cycles
-- [ ] **Maintainability**: Reduced complexity metrics
-
-This migration strategy will transform the LoRA Manager from a confused hybrid architecture to a clean, modern Vue 3 SPA with a pure FastAPI JSON backend, eliminating technology stack confusion and dramatically improving maintainability.
+- **Maintainability**: Centralized business logic makes changes safer and easier
+- **Testability**: Proper dependency injection enables better unit testing  
+- **Scalability**: Queue abstraction allows different deployment strategies
+- **Flexibility**: Configurable API URLs support various deployment scenarios
+- **Code Quality**: Reduced coupling between layers improves overall architecture
