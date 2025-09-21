@@ -178,6 +178,93 @@ class TestAdapterService:
         assert result.total == 2
         assert len(set(names)) == len(names)
 
+    def test_get_all_tags(self, adapter_service, db_session):
+        """Unique tags are aggregated and sorted case-insensitively."""
+
+        adapters = [
+            Adapter(name="a", tags=["fantasy", "Portrait"], file_path="/tmp/a"),
+            Adapter(name="b", tags=["sci-fi"], file_path="/tmp/b"),
+            Adapter(name="c", tags="single", file_path="/tmp/c"),
+        ]
+        db_session.add_all(adapters)
+        db_session.commit()
+
+        assert adapter_service.get_all_tags() == ["fantasy", "Portrait", "sci-fi", "single"]
+
+    def test_bulk_adapter_action_activate_and_delete(self, adapter_service, db_session):
+        """Bulk actions reuse service helpers and persist state changes."""
+
+        adapters = [
+            Adapter(name="one", active=False, file_path="/tmp/1"),
+            Adapter(name="two", active=False, file_path="/tmp/2"),
+            Adapter(name="three", active=True, file_path="/tmp/3"),
+        ]
+        db_session.add_all(adapters)
+        db_session.commit()
+
+        activate_ids = adapter_service.bulk_adapter_action(
+            "activate", [adapters[0].id, adapters[1].id]
+        )
+        assert set(activate_ids) == {adapters[0].id, adapters[1].id}
+
+        db_session.expire_all()
+        assert adapter_service.get_adapter(adapters[0].id).active is True
+        assert adapter_service.get_adapter(adapters[1].id).active is True
+
+        deleted_ids = adapter_service.bulk_adapter_action("delete", [adapters[2].id])
+        assert deleted_ids == [adapters[2].id]
+        assert adapter_service.get_adapter(adapters[2].id) is None
+
+    def test_bulk_adapter_action_rolls_back_on_failure(
+        self, adapter_service, db_session, monkeypatch
+    ):
+        """Failures trigger rollback and propagate errors."""
+
+        adapter = Adapter(name="rollback", active=False, file_path="/tmp/r")
+        db_session.add(adapter)
+        db_session.commit()
+
+        original_commit = adapter_service.db_session.commit
+        original_rollback = adapter_service.db_session.rollback
+        called = {"rolled_back": False}
+
+        def failing_commit():
+            raise RuntimeError("commit boom")
+
+        def tracking_rollback():
+            called["rolled_back"] = True
+            return original_rollback()
+
+        monkeypatch.setattr(adapter_service.db_session, "commit", failing_commit)
+        monkeypatch.setattr(adapter_service.db_session, "rollback", tracking_rollback)
+
+        with pytest.raises(RuntimeError):
+            adapter_service.bulk_adapter_action("activate", [adapter.id])
+
+        assert called["rolled_back"] is True
+
+        monkeypatch.setattr(adapter_service.db_session, "commit", original_commit)
+        monkeypatch.setattr(adapter_service.db_session, "rollback", original_rollback)
+        adapter_service.db_session.expire_all()
+        assert adapter_service.get_adapter(adapter.id).active is False
+
+    def test_patch_adapter_validation(self, adapter_service, db_session):
+        """Patch helper enforces allowed fields and value types."""
+
+        adapter = Adapter(name="patch", active=False, weight=1.0, file_path="/tmp/p")
+        db_session.add(adapter)
+        db_session.commit()
+
+        updated = adapter_service.patch_adapter(adapter.id, {"active": True, "weight": 0.5})
+        assert updated.active is True
+        assert updated.weight == 0.5
+
+        with pytest.raises(ValueError):
+            adapter_service.patch_adapter(adapter.id, {"unknown": 1})
+
+        with pytest.raises(ValueError):
+            adapter_service.patch_adapter(adapter.id, {"weight": "heavy"})
+
 
 class TestDeliveryService:
     """Tests for the DeliveryService."""
