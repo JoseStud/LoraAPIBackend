@@ -11,19 +11,25 @@ from backend.services.deliveries import DeliveryService
 from backend.services.recommendations import RecommendationService
 
 
-def get_adapter_service(
+def get_service_container(
     db_session: Session = Depends(get_session),  # noqa: B008 - FastAPI DI
+) -> ServiceContainer:
+    """Return a service container tied to the current database session."""
+
+    return ServiceContainer(db_session)
+
+
+def get_adapter_service(
+    container: ServiceContainer = Depends(get_service_container),  # noqa: B008 - FastAPI DI
 ) -> AdapterService:
     """Return an AdapterService instance."""
-    container = ServiceContainer(db_session)
     return container.adapters
 
 
 def get_delivery_service(
-    db_session: Session = Depends(get_session),  # noqa: B008 - FastAPI DI
+    container: ServiceContainer = Depends(get_service_container),  # noqa: B008 - FastAPI DI
 ) -> DeliveryService:
     """Return a DeliveryService instance."""
-    container = ServiceContainer(db_session)
     return container.deliveries
 
 
