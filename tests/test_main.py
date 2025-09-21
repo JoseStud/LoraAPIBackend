@@ -122,6 +122,76 @@ def test_deliveries_enqueue(client: TestClient, mock_storage: MagicMock):
     assert dj["id"] == did
 
 
+def test_compose_sdnext_delivery(
+    client: TestClient, mock_storage: MagicMock, monkeypatch
+):
+    """Compose endpoint should accept SDNext delivery configuration."""
+
+    mock_storage.exists.return_value = True
+    import uuid
+
+    adapter_payload = {
+        "name": "sdnext-" + uuid.uuid4().hex,
+        "version": "v1",
+        "file_path": "/fake/path",
+        "weight": 0.75,
+    }
+    create_response = client.post("/api/v1/adapters", json=adapter_payload)
+    assert create_response.status_code == 201
+    adapter_id = create_response.json()["adapter"]["id"]
+    activate_response = client.post(f"/api/v1/adapters/{adapter_id}/activate")
+    assert activate_response.status_code == 200
+
+    captured: dict[str, object] = {}
+
+    def fake_sdnext(prompt: str, params: dict, job_id: str) -> None:
+        captured["prompt"] = prompt
+        captured["params"] = params
+        captured["job_id"] = job_id
+
+    monkeypatch.setattr("backend.api.v1.compose._deliver_sdnext", fake_sdnext)
+
+    sdnext_config = {
+        "generation_params": {
+            "prompt": "seed prompt",
+            "negative_prompt": "avoid",  # ensure optional field is respected
+            "steps": 15,
+            "sampler_name": "DPM++ 2M",
+            "cfg_scale": 6.5,
+            "width": 512,
+            "height": 512,
+            "seed": 1234,
+            "batch_size": 1,
+            "n_iter": 1,
+            "denoising_strength": 0.35,
+        },
+        "mode": "deferred",
+        "save_images": False,
+        "return_format": "url",
+    }
+
+    payload = {
+        "prefix": "generate with sdnext",
+        "delivery": {
+            "mode": "sdnext",
+            "sdnext": sdnext_config,
+        },
+    }
+
+    response = client.post("/api/v1/compose", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body.get("delivery") is not None
+    delivery_info = body["delivery"]
+    assert delivery_info.get("id")
+    assert delivery_info.get("status") == "pending"
+
+    assert captured  # background task captured the sdnext payload
+    assert captured["job_id"] == delivery_info["id"]
+    assert captured["params"] == sdnext_config
+    assert "<lora:" in str(captured["prompt"])
+
 def test_generation_generate_request(client: TestClient, monkeypatch):
     """Generation endpoint should complete without duplicate parameter errors."""
 
