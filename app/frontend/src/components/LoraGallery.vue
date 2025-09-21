@@ -207,15 +207,14 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { storeToRefs } from 'pinia';
 
 import LoraCard from './LoraCard.vue';
-import { useSettingsStore } from '@/stores/settings';
 import {
   fetchAdapterTags,
   fetchAdapters,
   performBulkLoraAction,
 } from '@/services/loraService';
+import { useBackendBase } from '@/utils/backend';
 import type {
   LoraBulkAction,
   LoraGalleryFilters,
@@ -253,9 +252,7 @@ const filters = ref<LoraGalleryFilters>({
 });
 const sortBy = ref<LoraGallerySortOption>('name_asc');
 
-const settingsStore = useSettingsStore();
-const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
-const apiBaseUrl = computed(() => configuredBackendUrl.value || '/api/v1');
+const apiBaseUrl = useBackendBase();
 const windowExtras = window as WindowWithExtras;
 
 // Computed

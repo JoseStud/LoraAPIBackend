@@ -12,7 +12,7 @@ import type {
   RecommendationResponse,
   SystemStatusPayload,
 } from '@/types';
-import { resolveBackendUrl } from '@/services/generationService';
+import { resolveBackendUrl } from '@/utils/backend';
 
 export type DashboardStatsResponse = DashboardStatsSummary;
 

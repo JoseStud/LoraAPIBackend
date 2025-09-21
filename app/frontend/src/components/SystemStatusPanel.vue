@@ -141,19 +141,15 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { storeToRefs } from 'pinia';
-
-import { useSettingsStore } from '@/stores/settings';
 import {
   deriveMetricsFromDashboard,
   emptyMetricsSnapshot,
   fetchDashboardStats,
 } from '@/services/systemService';
+import { useBackendBase } from '@/utils/backend';
 import type { DashboardStatsSummary, SystemMetricsSnapshot } from '@/types';
 
-const settingsStore = useSettingsStore();
-const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
-const apiBaseUrl = computed(() => configuredBackendUrl.value || '/api/v1');
+const apiBaseUrl = useBackendBase();
 
 const metricsData = ref<SystemMetricsSnapshot>(emptyMetricsSnapshot());
 const dashboardSummary = ref<DashboardStatsSummary | null>(null);
