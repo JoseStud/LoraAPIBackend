@@ -340,8 +340,9 @@ def needs_resync(json_path: str, force_resync: bool = False) -> bool:
     
     try:
         # Import Adapter model to query directly
-        from backend.models import Adapter
         from sqlmodel import select
+
+        from backend.models import Adapter
         
         # Look for existing adapter with this json_file_path
         statement = select(Adapter).where(Adapter.json_file_path == json_path)
@@ -379,7 +380,6 @@ def run_one_shot_import(
     ignore_patterns: Optional[List[str]] = None,
 ):
     """Process the import directory once and return a summary."""
-
     results: List[Dict[str, Any]] = []
     processed = 0
     skipped = 0

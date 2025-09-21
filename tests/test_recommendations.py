@@ -1,10 +1,9 @@
 """Tests for the recommendation system."""
 
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
-
 import math
 import pickle
+from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
