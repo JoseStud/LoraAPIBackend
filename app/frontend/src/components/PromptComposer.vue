@@ -128,7 +128,7 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
-import { useApi } from './composables/useApi.js';
+import { useApi } from '@/composables/useApi';
 
 const STORAGE_KEY = 'prompt-composer-composition';
 const lastSaved = ref(null);

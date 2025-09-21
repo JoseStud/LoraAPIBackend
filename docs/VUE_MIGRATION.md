@@ -1,11 +1,11 @@
 # Vue 3 Islands Migration
 
-This document tracks the progressive migration from HTMX + Alpine.js to Vue 3 using an "islands" architecture. Vue and Alpine coexist; Vue controls isolated mount points while the rest of the page continues to function unchanged.
+This document tracks the progressive migration from HTMX + Alpine.js to Vue 3. The project now ships a dedicated single-page application (SPA) that bootstraps Vue Router and Pinia from a single entry point while legacy templates continue to function during the transition.
 
 ## Current State
 
 - Core tooling in place: Vite Vue plugin, Vue 3 dependency, Tailwind `.vue` scanning, dev proxy configuration.
-- Island scaffolding live via `app/frontend/static/js/main.js`.
+- SPA bootstrap lives in `app/frontend/src/main.ts` where Vue Router and Pinia are registered.
 - Migrated islands: `HelloWorld.vue`, `RecommendationsPanel.vue`, `MobileNav.vue`, `SystemStatusCard.vue`.
 - Prompt composition workflow moved from legacy HTMX/Alpine to Vue (`PromptComposer.vue`, `LoraCard.vue`, `LoraGallery.vue`).
 - Generation studio island scaffolded (`GenerationStudio.vue`) with shared composables.
@@ -15,15 +15,15 @@ This document tracks the progressive migration from HTMX + Alpine.js to Vue 3 us
 ## Files
 
 - Vite config with Vue plugin: `vite.config.js`
-- Entry: `app/frontend/static/js/main.js`
-- Vue components: `app/frontend/static/vue/**/*.vue`
-- Example component: `app/frontend/static/vue/HelloWorld.vue`
-- Feature component: `app/frontend/static/vue/RecommendationsPanel.vue`
-- Navigation: `app/frontend/static/vue/MobileNav.vue`
-- Prompt tools: `app/frontend/static/vue/PromptComposer.vue`, `app/frontend/static/vue/LoraCard.vue`, `app/frontend/static/vue/LoraGallery.vue`
-- Generation tools: `app/frontend/static/vue/GenerationStudio.vue`
-- Status widget: `app/frontend/static/vue/SystemStatusCard.vue`
-- Composables: `app/frontend/static/vue/composables/*.js`
+- Entry: `app/frontend/src/main.ts`
+- Vue components: `app/frontend/src/components/**/*.vue`
+- Example component: `app/frontend/src/components/HelloWorld.vue`
+- Feature component: `app/frontend/src/components/RecommendationsPanel.vue`
+- Navigation: `app/frontend/src/components/MobileNav.vue`
+- Prompt tools: `app/frontend/src/components/PromptComposer.vue`, `app/frontend/src/components/LoraCard.vue`, `app/frontend/src/components/LoraGallery.vue`
+- Generation tools: `app/frontend/src/components/GenerationStudio.vue`
+- Status widget: `app/frontend/src/components/SystemStatusCard.vue`
+- Composables: `app/frontend/src/composables/*.{ts,js}`
 - Tailwind config: `tailwind.config.js`
 - Example template mount: `app/frontend/templates/pages/recommendations.html`
 - Base template mount: `app/frontend/templates/base.html` (`data-vue-root="mobile-nav"`).
@@ -46,22 +46,22 @@ This document tracks the progressive migration from HTMX + Alpine.js to Vue 3 us
 
 ## Adding a New Vue Island
 
-1. Create a component under `app/frontend/static/vue/` (e.g., `FeaturePanel.vue`).
+1. Create a component under `app/frontend/src/components/` (e.g., `FeaturePanel.vue`).
 2. Add a mount point to the Jinja template: `<div data-vue-root="feature-panel"></div>`
-3. Update `main.js` to mount it:
-   ```js
-   import FeaturePanel from '../vue/FeaturePanel.vue';
-   mountVueApp('[data-vue-root="feature-panel"]', FeaturePanel);
-   ```
+3. Update `src/views/*.vue` (or register a new route) so the SPA renders it:
+  ```js
+  import FeaturePanel from '@/components/FeaturePanel.vue';
+  // Add <FeaturePanel /> to the desired view or route component.
+  ```
 
 Mount behavior:
-- The helper in `main.js` tries immediate mount, then falls back on `DOMContentLoaded` to support late-inserted DOM.
-- Scope every island with a unique `data-vue-root` value to avoid clashes and to keep Alpine behavior intact.
+- The SPA now renders components directly through Vue Router views; legacy island helpers remain available for hybrid pages if needed.
+- Scope every legacy island with a unique `data-vue-root` value to avoid clashes and to keep Alpine behavior intact.
 
 ### Example: Recommendations Panel
 
 - Mount point: add `<div data-vue-root="recommendations-panel"></div>` in a template (already added to `app/frontend/templates/pages/recommendations.html:8`).
-- Component file: `app/frontend/static/vue/RecommendationsPanel.vue`.
+- Component file: `app/frontend/src/components/RecommendationsPanel.vue`.
 - Data fetches:
   - LoRAs: `GET /v1/adapters?per_page=100`.
   - Similar: `GET /v1/recommendations/similar/{lora_id}?limit=..&similarity_threshold=..`.
@@ -71,7 +71,7 @@ Mount behavior:
 ### Example: Mobile Navigation (Migrated)
 
 - Mount point: add `<div data-vue-root="mobile-nav"></div>` in the base layout (already added to `app/frontend/templates/base.html`).
-- Component file: `app/frontend/static/vue/MobileNav.vue`.
+- Component file: `app/frontend/src/components/MobileNav.vue`.
 - Behavior: mirrors the previous Alpine mobile menu (toggle, overlay, active link highlight based on `window.location.pathname`).
 
 ### Example: System Status Card (Migrated)
@@ -79,46 +79,46 @@ Mount behavior:
 - Mount points:
   - Simple card in `app/frontend/templates/pages/generate.html`: `<div data-vue-root="system-status-card"></div>`
   - Detailed, collapsible card in `app/frontend/templates/pages/generate-composition-example.html`: `<div data-vue-root="system-status-card" data-variant="detailed"></div>`
-- Component file: `app/frontend/static/vue/SystemStatusCard.vue`.
-- Behavior: fetches `/system/status`, updates the shared Alpine store for compatibility, and handles 404 fallbacks. The detailed variant preserves the expandable panel UI from Alpine.
+- Component file: `app/frontend/src/components/SystemStatusCard.vue`.
+- Behavior: fetches `/system/status`, updates the shared Pinia store for compatibility with other widgets, and handles 404 fallbacks. The detailed variant preserves the expandable panel UI from Alpine.
 
 ### Example: Prompt Composer (Migrated)
 
 - Mount point: `<div data-vue-root="prompt-composer"></div>` in `app/frontend/templates/pages/compose.html`.
-- Component files: `app/frontend/static/vue/PromptComposer.vue`, `app/frontend/static/vue/LoraCard.vue`, `app/frontend/static/vue/LoraGallery.vue`.
+- Component files: `app/frontend/src/components/PromptComposer.vue`, `app/frontend/src/components/LoraCard.vue`, `app/frontend/src/components/LoraGallery.vue`.
 - Tests: `tests/vue/PromptComposer.spec.js`, `tests/vue/LoraCard.spec.js`.
 - Legacy fallback still bundled (`app/frontend/static/js/components/prompt-composer.js`) until cleanup completes.
 
 ### Example: LoRA Gallery (Migrated UI)
 
 - Mount point: `<div data-vue-root="lora-gallery"></div>` in `app/frontend/templates/pages/loras.html` (Vue island coexists with HTMX fallback).
-- Component: `app/frontend/static/vue/LoraGallery.vue`.
-- Companion card: `app/frontend/static/vue/LoraCard.vue`.
+- Component: `app/frontend/src/components/LoraGallery.vue`.
+- Companion card: `app/frontend/src/components/LoraCard.vue`.
 - Legacy scripts pending removal: `app/frontend/static/js/components/lora-gallery/index.js` plus HTMX snippets in the template.
 
 ### Example: Generation Studio (In Progress)
 
 - Mount point: `<div data-vue-root="generation-studio"></div>` in `app/frontend/templates/pages/generate.html`.
-- Component: `app/frontend/static/vue/GenerationStudio.vue`.
+- Component: `app/frontend/src/components/GenerationStudio.vue`.
 - Legacy scripts to retire: `app/frontend/static/js/components/generation-studio.js`, `app/frontend/static/js/components/generation-studio/api.js`, `.../ui.js` once feature parity is validated.
 
 ## Data Fetching
 
-- Use the included composable for simple fetches: `app/frontend/static/vue/composables/useApi.js`.
+- Use the included composable for simple fetches: `app/frontend/src/composables/useApi.ts`.
 - You can switch to Axios later if preferred.
 
 ## Refactor Targets
 
-- Fetch Consolidation: standardize on `app/frontend/static/vue/composables/useApi.js` (for Vue SFCs) or `app/frontend/static/js/utils/api.js` (for Alpine/vanilla JS modules).
-  - Done: `app/frontend/static/vue/RecommendationsPanel.vue` → `useApi`
-  - Done: `app/frontend/static/vue/composables/useSystemStatus.js` → `useApi`
+- Fetch Consolidation: standardize on `app/frontend/src/composables/useApi.ts` (for Vue SFCs) or `app/frontend/static/js/utils/api.js` (for Alpine/vanilla JS modules).
+  - Done: `app/frontend/src/components/RecommendationsPanel.vue` → `useApi`
+  - Done: `app/frontend/src/composables/useSystemStatus.ts` → `useApi`
   - Done: `app/frontend/static/js/components/generation-history/data.js` → `utils/api.js`
   - Done (partial: blobs/form keep direct fetch): `app/frontend/static/js/components/system-admin.js` → `utils/api.js`
   - Pending: `app/frontend/static/js/component-loader.js` (tags, dashboard stats, jobs)
   - Pending: `app/frontend/static/js/alpine-config.js` (results list, ratings, favorites, exports)
   - Pending: `app/frontend/static/js/components/recommendations/index.js`
   - Pending: `app/frontend/static/js/components/dashboard/index.js`
-  - Done: `app/frontend/static/vue/PromptComposer.vue` (migrated from `components/prompt-composer.js`)
+  - Done: `app/frontend/src/components/PromptComposer.vue` (migrated from `components/prompt-composer.js`)
   - Pending: `app/frontend/static/js/components/generation-studio.js`
   - Pending (consider service-worker constraints): `app/frontend/static/js/pwa-manager.js`
   - Pending: `app/frontend/static/js/common.js` (adapter actions)
@@ -127,9 +127,9 @@ Mount behavior:
   - Pending: Generation Studio panel (`app/frontend/templates/pages/generate.html` + `app/frontend/static/js/components/generation-studio.js`)
   - Pending: Job Queue (`app/frontend/static/js/components/job-queue/*` if present in entry)
   - Pending: Notifications/toasts (`app/frontend/static/js/components/notifications/*`)
-  - Migration in validation: LoRA Gallery (`app/frontend/static/vue/LoraGallery.vue`) — remove legacy HTMX blocks after QA
+  - Migration in validation: LoRA Gallery (`app/frontend/src/components/LoraGallery.vue`) — remove legacy HTMX blocks after QA
   - Pending: Generation History view (island wrapper around existing modules)
-  - Completed: Prompt Composer (`app/frontend/static/vue/PromptComposer.vue`)
+  - Completed: Prompt Composer (`app/frontend/src/components/PromptComposer.vue`)
   - Pending: Performance Analytics (`app/frontend/static/js/components/performance-analytics/*`)
   - Pending: Import/Export (`app/frontend/static/js/components/import-export/*`)
   - Later: System Admin screens (gradual islandization of sections)
@@ -149,7 +149,7 @@ Mount behavior:
 
 1. First Feature Migration: Continue migrating low-complexity UI to Vue islands (Recommendations panel scaffold complete; iterate on UX/data).
 2. Composables: Factor shared API/websocket logic into composables and adopt them across islands.
-3. Optional Global State: Add Pinia if/when multiple islands require shared state.
+3. Global State: Pinia now owns shared system/job/notification state for the SPA.
 4. Tests: Expand unit tests for new islands and edge cases (Vitest + @vue/test-utils already configured).
 5. Routing (later): Consider `vue-router` for SPA-like sections if multiple islands start to coordinate navigation.
 6. Cleanup: Execute the legacy cleanup plan above (remove HTMX/Alpine code, retire bundles, drop dependencies).
@@ -157,7 +157,7 @@ Mount behavior:
 ## Notes
 
 - Scope Vue islands with `data-vue-root` to avoid interfering with Alpine.
-- Keep using the single `main.js` entry to preserve the Vite manifest integration.
+- Keep using the single `src/main.ts` entry to preserve the Vite manifest integration.
 - Tailwind includes `.vue` files; add new paths here if structure changes.
 - Dev proxy: Vite proxies `/api` to your FastAPI backend; override with `BACKEND_URL` in `.env` if needed.
 

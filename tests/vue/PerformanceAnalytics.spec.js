@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
-import PerformanceAnalytics from '../../app/frontend/static/vue/PerformanceAnalytics.vue';
+import PerformanceAnalytics from '../../app/frontend/src/components/PerformanceAnalytics.vue';
 
 // Mock Chart.js
 const mockChart = {

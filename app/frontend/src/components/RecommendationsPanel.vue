@@ -114,7 +114,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import { useApi } from './composables/useApi.js';
+import { useApi } from '@/composables/useApi';
 
 // State
 const loras = ref([]);

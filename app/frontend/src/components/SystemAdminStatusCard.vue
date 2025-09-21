@@ -169,7 +169,7 @@
 
 <script setup>
 import { onMounted, onBeforeUnmount, ref, reactive } from 'vue';
-import { useApi } from './composables/useApi.js';
+import { useApi } from '@/composables/useApi';
 
 // Default states
 const systemStatus = reactive({

@@ -1,6 +1,8 @@
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
-import SystemStatusCard from '../../app/frontend/static/vue/SystemStatusCard.vue';
+
+import SystemStatusCard from '../../app/frontend/src/components/SystemStatusCard.vue';
+import { useAppStore } from '../../app/frontend/src/stores/app';
 
 const flush = async () => {
   await Promise.resolve();
@@ -10,6 +12,10 @@ const flush = async () => {
 };
 
 describe('SystemStatusCard.vue', () => {
+  beforeEach(() => {
+    useAppStore().$reset();
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });

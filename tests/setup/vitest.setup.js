@@ -1,5 +1,10 @@
 // Vitest setup for Vue SFCs and DOM
 import '@testing-library/jest-dom';
+import { createPinia, setActivePinia } from 'pinia';
+
+beforeEach(() => {
+  setActivePinia(createPinia());
+});
 
 // Basic fetch mock helper for tests that don't override it
 if (typeof globalThis.fetch === 'undefined') {

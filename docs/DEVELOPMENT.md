@@ -57,11 +57,11 @@ This project follows a modern, decoupled architecture with a distinct backend AP
 ### Frontend (`app/frontend/`)
 
 -   **Build Tool**: Vite for fast development and optimized builds.
--   **Framework**: Alpine.js for reactive, component-based UI.
+-   **Framework**: Vue 3 SPA with Pinia for global state management.
 -   **Styling**: Tailwind CSS for utility-first styling.
--   **Entrypoint (`static/js/main.js`)**: The single entry point for all JavaScript, which imports all necessary components and utilities.
--   **Components (`static/js/components/`)**: The UI is broken down into reusable Alpine.js components (e.g., `lora-gallery`, `generation-studio`).
--   **API Service (`static/js/services/api-service.js`)**: A centralized service for making all HTTP requests to the backend.
+-   **Entrypoint (`src/main.ts`)**: Boots Vue Router, Pinia, and global styles for the application.
+-   **Components (`src/components/`)**: Vue single-file components covering dashboard widgets, tools, and layout.
+-   **Composables (`src/composables/`)**: Shared logic for API access, notifications, and system status polling.
 
 ---
 

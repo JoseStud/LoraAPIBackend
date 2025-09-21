@@ -724,7 +724,7 @@
 
 <script>
 import { ref, reactive, computed, watch, onMounted } from 'vue';
-import { useApi } from './composables/useApi.js';
+import { useApi } from '@/composables/useApi';
 
 export default {
   name: 'ImportExport',

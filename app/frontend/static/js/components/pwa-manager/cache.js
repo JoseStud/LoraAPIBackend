@@ -357,11 +357,9 @@ const pwaCache = {
     getCriticalResources() {
         return [
             '/',
-            '/static/css/main.css',
-            '/static/js/main.js',
-            '/static/js/components/app.js',
-            '/static/icons/icon-192x192.png',
-            '/static/icons/icon-512x512.png'
+            '/index.html',
+            '/static/manifest.json',
+            '/static/images/logo.svg'
         ];
     },
     

@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
-import GenerationHistory from '../../app/frontend/static/vue/GenerationHistory.vue';
+import GenerationHistory from '../../app/frontend/src/components/GenerationHistory.vue';
 
 const flush = async () => {
   await Promise.resolve();

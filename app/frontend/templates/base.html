@@ -36,7 +36,7 @@
     <meta name="referrer" content="strict-origin-when-cross-origin">
     
     <!-- Vite CSS Bundle -->
-    {% set main_css = vite_asset_css('js/main.js') %}
+    {% set main_css = vite_asset_css('src/main.ts') %}
     {% if main_css %}
         <link rel="stylesheet" href="{{ main_css }}">
     {% endif %}
@@ -258,6 +258,6 @@
             }
         })();
     </script>
-    <script type="module" src="{{ vite_asset('js/main.js') }}"></script>
+    <script type="module" src="{{ vite_asset('src/main.ts') }}"></script>
 </body>
 </html>

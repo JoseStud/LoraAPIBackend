@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
-import LoraCard from '../../app/frontend/static/vue/LoraCard.vue';
+import LoraCard from '../../app/frontend/src/components/LoraCard.vue';
 
 // Mock global fetch
 global.fetch = vi.fn();
