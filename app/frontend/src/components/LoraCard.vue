@@ -37,9 +37,9 @@
         </div>
         
         <!-- Quality Score -->
-        <div v-if="lora.quality_score" class="lora-card-quality-score-container">
+        <div v-if="typeof lora.quality_score === 'number'" class="lora-card-quality-score-container">
           <div class="quality-score-badge">
-            <span class="text-white text-xs">⭐ {{ lora.quality_score.toFixed(1) }}</span>
+            <span class="text-white text-xs">⭐ {{ lora.quality_score?.toFixed(1) }}</span>
           </div>
         </div>
       </div>
@@ -85,7 +85,7 @@
                   Generate Preview
                 </button>
                 <div class="lora-card-menu-divider"></div>
-                <button @click="deleteLora" class="lora-card-menu-item-danger w-full text-left">
+                <button @click="deleteLoraHandler" class="lora-card-menu-item-danger w-full text-left">
                   Delete
                 </button>
               </div>
@@ -107,12 +107,12 @@
         </p>
         
         <!-- Tags -->
-        <div v-if="lora.tags && lora.tags.length" class="lora-card-tags">
-          <span v-for="tag in lora.tags.slice(0, 3)" :key="tag" class="tag">
+        <div v-if="(lora.tags?.length ?? 0) > 0" class="lora-card-tags">
+          <span v-for="tag in (lora.tags ?? []).slice(0, 3)" :key="tag" class="tag">
             {{ tag }}
           </span>
-          <span v-if="lora.tags.length > 3" class="text-xs text-gray-500">
-            +{{ lora.tags.length - 3 }} more
+          <span v-if="(lora.tags?.length ?? 0) > 3" class="text-xs text-gray-500">
+            +{{ (lora.tags?.length ?? 0) - 3 }} more
           </span>
         </div>
         
@@ -219,12 +219,12 @@
                 {{ lora.description }}
               </p>
               
-              <div v-if="lora.tags && lora.tags.length" class="flex space-x-1">
-                <span v-for="tag in lora.tags.slice(0, 2)" :key="tag" class="tag">
+              <div v-if="(lora.tags?.length ?? 0) > 0" class="flex space-x-1">
+                <span v-for="tag in (lora.tags ?? []).slice(0, 2)" :key="tag" class="tag">
                   {{ tag }}
                 </span>
-                <span v-if="lora.tags.length > 2" class="text-xs text-gray-500">
-                  +{{ lora.tags.length - 2 }}
+                <span v-if="(lora.tags?.length ?? 0) > 2" class="text-xs text-gray-500">
+                  +{{ (lora.tags?.length ?? 0) - 2 }}
                 </span>
               </div>
             </div>
@@ -249,48 +249,93 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+<script setup lang="ts">
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { storeToRefs } from 'pinia';
 
-const props = defineProps({
-  lora: {
-    type: Object,
-    required: true
-  },
-  viewMode: {
-    type: String,
-    default: 'grid'
-  },
-  bulkMode: {
-    type: Boolean,
-    default: false
-  },
-  isSelected: {
-    type: Boolean,
-    default: false
-  }
+import { useSettingsStore } from '@/stores/settings';
+import {
+  buildRecommendationsUrl,
+  deleteLora as deleteLoraRequest,
+  triggerPreviewGeneration,
+  toggleLoraActiveState,
+  updateLoraWeight,
+} from '@/services/loraService';
+import type {
+  LoraGallerySelectionState,
+  LoraListItem,
+  LoraUpdatePayload,
+} from '@/types';
+
+type NotificationType = 'success' | 'error' | 'warning' | 'info';
+
+type WindowWithExtras = Window & {
+  htmx?: {
+    trigger: (target: Element | Document, event: string, detail?: unknown) => void;
+  };
+  DevLogger?: {
+    error?: (...args: unknown[]) => void;
+  };
+};
+
+const props = withDefaults(defineProps<{
+  lora: LoraListItem;
+  viewMode?: LoraGallerySelectionState['viewMode'];
+  bulkMode?: boolean;
+  isSelected?: boolean;
+}>(), {
+  viewMode: 'grid',
+  bulkMode: false,
+  isSelected: false,
 });
 
-const emit = defineEmits(['toggle-selection', 'lora-updated', 'lora-deleted', 'lora-error']);
+const emit = defineEmits<{
+  'toggle-selection': [string];
+  update: [LoraUpdatePayload];
+  delete: [string];
+}>();
+
+const windowExtras = window as WindowWithExtras;
+
+const settingsStore = useSettingsStore();
+const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
+const apiBaseUrl = computed(() => configuredBackendUrl.value || '/api/v1');
 
 // Local state
 const showActions = ref(false);
-const weight = ref(props.lora.weight || 1.0);
-const isActive = ref(props.lora.active || false); // Local reactive state for active status
-const actionsMenuRef = ref(null);
+const actionsMenuRef = ref<HTMLDivElement | null>(null);
+const weight = ref<number>(props.lora.weight ?? 1.0);
+const isActive = ref<boolean>(Boolean(props.lora.active));
+
+const showNotification = (message: string, type: NotificationType = 'info') => {
+  if (windowExtras.htmx) {
+    windowExtras.htmx.trigger(document.body, 'show-notification', {
+      detail: { message, type },
+    });
+  }
+};
 
 // Watch for prop changes to sync local state
-watch(() => props.lora.active, (newActive) => {
-  isActive.value = newActive;
-});
+watch(
+  () => props.lora.active,
+  (newActive) => {
+    isActive.value = Boolean(newActive);
+  },
+);
 
-watch(() => props.lora.weight, (newWeight) => {
-  weight.value = newWeight || 1.0;
-});
+watch(
+  () => props.lora.weight,
+  (newWeight) => {
+    if (typeof newWeight === 'number') {
+      weight.value = newWeight;
+    }
+  },
+);
 
 // Click outside handler
-const handleClickOutside = (event) => {
-  if (actionsMenuRef.value && !actionsMenuRef.value.contains(event.target)) {
+const handleClickOutside = (event: MouseEvent) => {
+  const target = event.target;
+  if (actionsMenuRef.value && target instanceof Node && !actionsMenuRef.value.contains(target)) {
     showActions.value = false;
   }
 };
@@ -298,123 +343,69 @@ const handleClickOutside = (event) => {
 // Methods
 const updateWeight = async () => {
   try {
-    const response = await fetch(`/api/v1/adapters/${props.lora.id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ weight: parseFloat(weight.value) })
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    emit('lora-updated', {
+    const updated = await updateLoraWeight(apiBaseUrl.value, props.lora.id, weight.value);
+    const nextWeight = updated?.weight ?? weight.value;
+    weight.value = nextWeight;
+    emit('update', {
       id: props.lora.id,
-      weight: weight.value,
-      type: 'weight'
+      weight: nextWeight,
+      type: 'weight',
     });
   } catch (error) {
-    if (window.DevLogger && window.DevLogger.error) {
-      window.DevLogger.error('Failed to update LoRA weight:', error);
-    }
-    
-    emit('lora-error', {
-      id: props.lora.id,
-      error: 'Failed to update weight',
-      type: 'weight'
-    });
+    windowExtras.DevLogger?.error?.('Failed to update LoRA weight:', error);
+    showNotification('Failed to update weight.', 'error');
+    weight.value = props.lora.weight ?? weight.value;
   }
 };
 
 const toggleActive = async () => {
   try {
-    const endpoint = isActive.value ? 'deactivate' : 'activate';
-    const response = await fetch(`/api/v1/adapters/${props.lora.id}/${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    // Update local state (no prop mutation)
-    isActive.value = !isActive.value;
-    
-    emit('lora-updated', {
+    const nextState = !isActive.value;
+    await toggleLoraActiveState(apiBaseUrl.value, props.lora.id, nextState);
+    isActive.value = nextState;
+    emit('update', {
       id: props.lora.id,
-      active: isActive.value,
-      type: 'active'
+      active: nextState,
+      type: 'active',
     });
   } catch (error) {
-    if (window.DevLogger && window.DevLogger.error) {
-      window.DevLogger.error('Failed to toggle LoRA active state:', error);
-    }
-    
-    emit('lora-error', {
-      id: props.lora.id,
-      error: 'Failed to toggle active state',
-      type: 'active'
-    });
+    windowExtras.DevLogger?.error?.('Failed to toggle LoRA active state:', error);
+    showNotification('Failed to toggle active state.', 'error');
   }
 };
 
-const getRecommendations = async () => {
+const getRecommendations = () => {
   try {
-    // Navigate to recommendations page
-    window.location.href = `/recommendations?lora_id=${props.lora.id}`;
+    const targetUrl = buildRecommendationsUrl(props.lora.id);
+    window.location.href = targetUrl;
   } catch (error) {
-    if (window.DevLogger && window.DevLogger.error) {
-      window.DevLogger.error('Error navigating to recommendations:', error);
-    }
+    windowExtras.DevLogger?.error?.('Error navigating to recommendations:', error);
+    showNotification('Unable to open recommendations.', 'error');
   }
 };
 
 const generatePreview = async () => {
-  // Placeholder: backend endpoint for previews not implemented
-  if (typeof window.htmx !== 'undefined') {
-    window.htmx.trigger(document.body, 'show-notification', {
-      detail: { message: 'Preview generation not available yet.', type: 'info' }
-    });
-  } else {
-    alert('Preview generation not available yet.');
+  try {
+    await triggerPreviewGeneration(apiBaseUrl.value, props.lora.id);
+    showNotification('Preview generation started.', 'info');
+  } catch (error) {
+    windowExtras.DevLogger?.error?.('Preview generation not available:', error);
+    showNotification('Preview generation not available yet.', 'info');
   }
 };
 
-const deleteLora = async () => {
+const deleteLoraHandler = async () => {
   if (!confirm(`Are you sure you want to delete "${props.lora.name}"?`)) {
     return;
   }
-  
+
   try {
-    const response = await fetch(`/api/v1/adapters/${props.lora.id}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    emit('lora-deleted', {
-      id: props.lora.id
-    });
+    await deleteLoraRequest(apiBaseUrl.value, props.lora.id);
+    emit('delete', props.lora.id);
+    showNotification('LoRA deleted.', 'success');
   } catch (error) {
-    if (window.DevLogger && window.DevLogger.error) {
-      window.DevLogger.error('Error deleting LoRA:', error);
-    }
-    
-    emit('lora-error', {
-      id: props.lora.id,
-      error: 'Error deleting LoRA',
-      type: 'delete'
-    });
-    
-    alert('Error deleting LoRA');
+    windowExtras.DevLogger?.error?.('Error deleting LoRA:', error);
+    showNotification('Error deleting LoRA.', 'error');
   }
 };
 
