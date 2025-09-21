@@ -294,6 +294,8 @@ class AdapterService:
             AdapterSearchResult describing the filtered items and pagination.
         """
 
+        total_count = self.count_total()
+
         base_query = select(Adapter)
         filters = []
 
@@ -329,7 +331,8 @@ class AdapterService:
         if filters:
             count_query = count_query.where(*filters)
 
-        filtered_count = self.db_session.exec(count_query).one()
+        filtered_count_result = self.db_session.exec(count_query).one()
+        filtered_count = int(filtered_count_result or 0)
 
         per_page_value = max(per_page, 1)
         page_value = max(page, 1)
@@ -363,7 +366,7 @@ class AdapterService:
 
         return AdapterSearchResult(
             items=items,
-            total=filtered_count,
+            total=total_count,
             filtered=filtered_count,
             page=page_value,
             pages=total_pages,
