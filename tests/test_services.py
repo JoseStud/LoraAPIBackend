@@ -106,6 +106,9 @@ class TestAdapterService:
         )
 
         assert first_page.total == 2
+        assert first_page.filtered == 2
+        assert first_page.page == 1
+        assert first_page.per_page == 1
         assert first_page.pages == 2
         assert first_page.items[0].name == "Gamma"
 
@@ -129,6 +132,51 @@ class TestAdapterService:
             "Beta",
             "Alpha",
         ]
+
+    def test_search_adapters_tag_filters_deduplicate_results(self, adapter_service, db_session):
+        """Tag filtering occurs at the database level and avoids duplicates."""
+
+        now = datetime.now(timezone.utc)
+        adapters = [
+            Adapter(
+                name="Alpha",
+                active=True,
+                tags=["Fantasy", "Portrait"],
+                file_path="/tmp/a",
+                created_at=now - timedelta(days=2),
+                updated_at=now - timedelta(days=2),
+            ),
+            Adapter(
+                name="Beta",
+                active=True,
+                tags=["portrait"],
+                file_path="/tmp/b",
+                created_at=now - timedelta(days=1),
+                updated_at=now - timedelta(days=1),
+            ),
+            Adapter(
+                name="Gamma",
+                active=True,
+                tags=["landscape"],
+                file_path="/tmp/c",
+                created_at=now - timedelta(hours=1),
+                updated_at=now - timedelta(hours=1),
+            ),
+        ]
+        db_session.add_all(adapters)
+        db_session.commit()
+
+        result = adapter_service.search_adapters(
+            tags=["fantasy", "PORTRAIT"],
+            sort="created_at",
+            page=1,
+            per_page=5,
+        )
+
+        names = [adapter.name for adapter in result.items]
+        assert names == ["Beta", "Alpha"]
+        assert result.total == 2
+        assert len(set(names)) == len(names)
 
     def test_get_all_tags(self, adapter_service, db_session):
         """Unique tags are aggregated and sorted case-insensitively."""
