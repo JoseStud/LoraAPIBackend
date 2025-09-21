@@ -57,13 +57,18 @@ def fix_unused_imports(file_path):
         print(f"Fixed unused imports in: {file_path}")
 
 def main():
-    """Main function to process all JavaScript files."""
-    js_files = glob.glob('app/frontend/static/js/**/*.js', recursive=True)
-    
+    """Main function to process legacy JavaScript files."""
+    legacy_root = Path('app/frontend/static/js')
+    if not legacy_root.exists():
+        print("Legacy static JS directory not found; skipping migration helpers.")
+        return
+
+    js_files = glob.glob(str(legacy_root / '**/*.js'), recursive=True)
+
     for file_path in js_files:
         if not os.path.exists(file_path):
             continue
-            
+
         print(f"Processing: {file_path}")
         fix_unused_function_params(file_path)
         fix_unused_imports(file_path)
