@@ -18,6 +18,13 @@ from backend.services.composition import ComposeService
 from backend.services.deliveries import DeliveryService
 
 
+@pytest.fixture
+def anyio_backend():
+    """Force AnyIO tests to execute using the asyncio backend."""
+
+    return "asyncio"
+
+
 @pytest.fixture(name="mock_storage")
 def mock_storage_fixture(monkeypatch) -> MagicMock:
     """Mock storage adapter fixture that patches storage functions.

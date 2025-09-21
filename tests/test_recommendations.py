@@ -3,13 +3,24 @@
 import math
 import pickle
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pytest
 
-from backend.models import Adapter, LoRAEmbedding
-from backend.schemas.recommendations import RecommendationItem
+from backend.models import (
+    Adapter,
+    LoRAEmbedding,
+    RecommendationFeedback,
+    RecommendationSession,
+    UserPreference,
+)
+from backend.schemas.recommendations import (
+    RecommendationItem,
+    UserFeedbackRequest,
+    UserPreferenceRequest,
+)
 from backend.services.recommendations import RecommendationService
 
 
@@ -106,7 +117,7 @@ class TestRecommendationService:
             assert service.gpu_enabled
             assert service.device == 'cuda'
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio("asyncio")
     async def test_compute_embeddings_for_lora(self, db_session, sample_adapter):
         """Test computing embeddings for a single LoRA."""
         service = RecommendationService(db_session, gpu_enabled=False)
@@ -146,7 +157,7 @@ class TestRecommendationService:
             assert embedding.extracted_keywords == ['anime', 'character']
             assert embedding.predicted_style == 'anime'
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio("asyncio")
     async def test_compute_embeddings_for_nonexistent_lora(self, db_session):
         """Test computing embeddings for non-existent LoRA."""
         service = RecommendationService(db_session, gpu_enabled=False)
@@ -154,7 +165,7 @@ class TestRecommendationService:
         with pytest.raises(ValueError, match="Adapter nonexistent not found"):
             await service.compute_embeddings_for_lora("nonexistent")
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio("asyncio")
     async def test_batch_compute_embeddings(self, db_session, sample_adapters):
         """Test batch computing embeddings."""
         service = RecommendationService(db_session, gpu_enabled=False)
@@ -189,7 +200,7 @@ class TestRecommendationService:
             assert result['error_count'] == 0
             assert 'processing_time_seconds' in result
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio("asyncio")
     async def test_get_recommendations_for_prompt(self, db_session, sample_adapters):
         """Test getting recommendations for a prompt."""
         service = RecommendationService(db_session, gpu_enabled=False)
@@ -231,7 +242,7 @@ class TestRecommendationService:
                     assert rec.similarity_score >= 0
                     assert rec.final_score >= 0
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio("asyncio")
     async def test_prompt_recommendations_handle_zero_vectors(self, db_session):
         """Zero vectors must yield finite similarity scores."""
         service = RecommendationService(db_session, gpu_enabled=False)
@@ -275,12 +286,13 @@ class TestRecommendationService:
         
         # Get stats
         stats = service.get_recommendation_stats()
-        
+
         assert stats.total_loras == len(sample_adapters)
         assert stats.loras_with_embeddings == 0  # No embeddings yet
         assert stats.embedding_coverage == 0.0
         assert stats.avg_recommendation_time_ms >= 0
         assert stats.model_memory_usage_gb >= 0
+        assert stats.feedback_count == 0
 
     def test_get_embedding_status_nonexistent(self, db_session):
         """Test getting embedding status for non-existent LoRA."""
@@ -297,7 +309,7 @@ class TestRecommendationService:
     def test_get_embedding_status_existing(self, db_session, sample_adapter):
         """Test getting embedding status for existing LoRA with embeddings."""
         service = RecommendationService(db_session, gpu_enabled=False)
-        
+
         # Add adapter and embedding
         db_session.add(sample_adapter)
         embedding = LoRAEmbedding(
@@ -308,15 +320,151 @@ class TestRecommendationService:
         )
         db_session.add(embedding)
         db_session.commit()
-        
+
         status = service.get_embedding_status(sample_adapter.id)
-        
+
         assert status.adapter_id == sample_adapter.id
         assert status.has_semantic_embedding
         assert status.has_artistic_embedding
         assert not status.has_technical_embedding  # Not set in test
         assert status.has_extracted_features
         assert not status.needs_recomputation
+
+    def test_record_feedback_persists_data(self, db_session, sample_adapter):
+        """Recording feedback should persist a RecommendationFeedback entry."""
+
+        service = RecommendationService(db_session, gpu_enabled=False)
+        db_session.add(sample_adapter)
+        db_session.commit()
+
+        rec_session = RecommendationSession(
+            id="session-1",
+            context_prompt="a test prompt",
+            active_loras=[sample_adapter.id],
+        )
+        db_session.add(rec_session)
+        db_session.commit()
+
+        feedback_request = UserFeedbackRequest(
+            session_id=rec_session.id,
+            recommended_lora_id=sample_adapter.id,
+            feedback_type="positive",
+            feedback_reason="Helpful recommendation",
+            implicit_signal=False,
+        )
+
+        record = service.record_feedback(feedback_request)
+
+        stored = db_session.get(RecommendationFeedback, record.id)
+        assert stored is not None
+        assert stored.feedback_type == "positive"
+        assert stored.feedback_reason == "Helpful recommendation"
+
+        refreshed_session = db_session.get(RecommendationSession, rec_session.id)
+        assert refreshed_session.user_feedback is not None
+        assert sample_adapter.id in refreshed_session.user_feedback
+        assert (
+            refreshed_session.user_feedback[sample_adapter.id]["feedback_type"]
+            == "positive"
+        )
+
+    def test_record_feedback_requires_valid_entities(self, db_session, sample_adapter):
+        """Feedback recording should validate session and adapter existence."""
+
+        service = RecommendationService(db_session, gpu_enabled=False)
+        db_session.add(sample_adapter)
+        db_session.commit()
+
+        with pytest.raises(ValueError, match="Recommendation session invalid not found"):
+            service.record_feedback(
+                UserFeedbackRequest(
+                    session_id="invalid",
+                    recommended_lora_id=sample_adapter.id,
+                    feedback_type="positive",
+                ),
+            )
+
+        rec_session = RecommendationSession(id="session-2")
+        db_session.add(rec_session)
+        db_session.commit()
+
+        with pytest.raises(ValueError, match="Adapter missing not found"):
+            service.record_feedback(
+                UserFeedbackRequest(
+                    session_id=rec_session.id,
+                    recommended_lora_id="missing",
+                    feedback_type="positive",
+                ),
+            )
+
+    def test_update_user_preference_upserts(self, db_session):
+        """Preferences should be created and updated idempotently."""
+
+        service = RecommendationService(db_session, gpu_enabled=False)
+
+        request = UserPreferenceRequest(
+            preference_type="style",
+            preference_value="anime",
+            confidence=0.9,
+            explicit=True,
+        )
+        preference = service.update_user_preference(request)
+
+        assert preference.preference_type == "style"
+        assert preference.learned_from == "explicit"
+        assert preference.evidence_count == 1
+
+        updated = service.update_user_preference(
+            UserPreferenceRequest(
+                preference_type="style",
+                preference_value="anime",
+                confidence=0.6,
+                explicit=False,
+            ),
+        )
+
+        assert updated.id == preference.id
+        assert updated.learned_from == "feedback"
+        assert updated.evidence_count == 2
+        assert pytest.approx(updated.confidence) == 0.6
+
+        stored = db_session.get(UserPreference, updated.id)
+        assert stored is not None
+        assert stored.confidence == pytest.approx(0.6)
+
+    @pytest.mark.anyio("asyncio")
+    async def test_rebuild_similarity_index_writes_index(
+        self,
+        db_session,
+        tmp_path,
+    ):
+        """Rebuilding the index should persist the refreshed payload to disk."""
+
+        service = RecommendationService(db_session, gpu_enabled=False)
+        index_path = tmp_path / "index.pkl"
+        service.index_cache_path = str(index_path)
+
+        engine = MagicMock()
+        engine.lora_ids = ["a", "b"]
+        engine.semantic_embeddings = np.array([[1.0], [0.5]], dtype=np.float32)
+        engine.artistic_embeddings = np.array([[1.0], [0.5]], dtype=np.float32)
+        engine.technical_embeddings = np.array([[1.0], [0.5]], dtype=np.float32)
+
+        service._get_recommendation_engine = MagicMock(return_value=engine)
+        service._build_similarity_index = AsyncMock()
+
+        result = await service.rebuild_similarity_index(force=True)
+
+        index_file = Path(service.index_cache_path)
+        assert index_file.exists()
+
+        with index_file.open("rb") as handle:
+            payload = pickle.load(handle)
+
+        assert payload["lora_ids"] == engine.lora_ids
+        assert result.status == "rebuilt"
+        assert result.indexed_items == len(engine.lora_ids)
+        assert result.index_size_bytes > 0
 
 
 class TestRecommendationModels:
@@ -381,11 +529,11 @@ class TestRecommendationModels:
         assert result['style_confidence'] >= 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio("asyncio")
 class TestRecommendationIntegration:
     """Integration tests for the recommendation system."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio("asyncio")
     async def test_end_to_end_recommendation_flow(self, db_session, sample_adapters):
         """Test the complete recommendation flow."""
         service = RecommendationService(db_session, gpu_enabled=False)

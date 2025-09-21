@@ -1,21 +1,31 @@
 """Recommendation service for LoRA adapter discovery and learning."""
 
 import asyncio
-import os
 import pickle
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Optional
 
 import numpy as np
+from sqlalchemy import func
 from sqlmodel import Session, select
 
-from backend.models import Adapter, LoRAEmbedding, RecommendationSession, UserPreference
+from backend.models import (
+    Adapter,
+    LoRAEmbedding,
+    RecommendationFeedback,
+    RecommendationSession,
+    UserPreference,
+)
 from backend.schemas.recommendations import (
     EmbeddingStatus,
+    IndexRebuildResponse,
     RecommendationItem,
     RecommendationStats,
+    UserFeedbackRequest,
+    UserPreferenceRequest,
 )
 
 
@@ -55,8 +65,8 @@ class RecommendationService:
         # Configuration
         self.embedding_cache_dir = "cache/embeddings"
         self.index_cache_path = "cache/similarity_index.pkl"
-        os.makedirs(self.embedding_cache_dir, exist_ok=True)
-        os.makedirs(os.path.dirname(self.index_cache_path), exist_ok=True)
+        Path(self.embedding_cache_dir).mkdir(parents=True, exist_ok=True)
+        Path(self.index_cache_path).parent.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
     def is_gpu_available() -> bool:
@@ -113,6 +123,12 @@ class RecommendationService:
             type(self)._ensure_shared_models(self.device, self.gpu_enabled)
             self._semantic_embedder = type(self)._shared_semantic_embedder
         return self._semantic_embedder
+
+    def _require_db_session(self) -> Session:
+        """Return the active database session or raise if unavailable."""
+        if self.db_session is None:
+            raise RuntimeError("RecommendationService requires an active database session")
+        return self.db_session
 
     def _get_feature_extractor(self):
         """Lazy initialization of feature extraction models."""
@@ -513,26 +529,173 @@ class RecommendationService:
 
     async def _build_similarity_index(self):
         """Build or rebuild the similarity index for fast recommendations."""
+        session = self._require_db_session()
         # Get all LoRAs with embeddings
         stmt = select(Adapter).join(
             LoRAEmbedding, Adapter.id == LoRAEmbedding.adapter_id,
         ).where(Adapter.active)
-        
-        adapters = list(self.db_session.exec(stmt))
-        
+
+        adapters = list(session.exec(stmt))
+
         if adapters:
             engine = self._get_recommendation_engine()
             await asyncio.to_thread(engine.build_similarity_index, adapters)
 
+    def record_feedback(self, feedback: UserFeedbackRequest) -> RecommendationFeedback:
+        """Persist recommendation feedback for later learning."""
+
+        session = self._require_db_session()
+
+        recommendation_session = session.get(RecommendationSession, feedback.session_id)
+        if recommendation_session is None:
+            raise ValueError(
+                f"Recommendation session {feedback.session_id} not found",
+            )
+
+        adapter = session.get(Adapter, feedback.recommended_lora_id)
+        if adapter is None:
+            raise ValueError(
+                f"Adapter {feedback.recommended_lora_id} not found",
+            )
+
+        feedback_record = RecommendationFeedback(
+            session_id=feedback.session_id,
+            recommended_lora_id=feedback.recommended_lora_id,
+            feedback_type=feedback.feedback_type,
+            feedback_reason=feedback.feedback_reason,
+            implicit_signal=feedback.implicit_signal,
+        )
+
+        session.add(feedback_record)
+
+        # Track most recent feedback per recommendation in the session payload
+        feedback_map = recommendation_session.user_feedback or {}
+        feedback_map[feedback.recommended_lora_id] = {
+            'feedback_type': feedback.feedback_type,
+            'implicit_signal': feedback.implicit_signal,
+            'feedback_reason': feedback.feedback_reason,
+            'recorded_at': datetime.now(timezone.utc).isoformat(),
+        }
+        recommendation_session.user_feedback = feedback_map
+        session.add(recommendation_session)
+
+        session.commit()
+        session.refresh(feedback_record)
+
+        return feedback_record
+
+    def update_user_preference(
+        self,
+        preference: UserPreferenceRequest,
+    ) -> UserPreference:
+        """Create or update a persisted user preference record."""
+
+        session = self._require_db_session()
+        stmt = select(UserPreference).where(
+            UserPreference.preference_type == preference.preference_type,
+            UserPreference.preference_value == preference.preference_value,
+        )
+
+        existing = session.exec(stmt).first()
+        now = datetime.now(timezone.utc)
+        learned_from = 'explicit' if preference.explicit else 'feedback'
+
+        if existing:
+            existing.confidence = preference.confidence
+            existing.learned_from = learned_from
+            existing.evidence_count += 1
+            existing.last_evidence_at = now
+            existing.updated_at = now
+            session.add(existing)
+            session.commit()
+            session.refresh(existing)
+            return existing
+
+        new_preference = UserPreference(
+            preference_type=preference.preference_type,
+            preference_value=preference.preference_value,
+            confidence=preference.confidence,
+            learned_from=learned_from,
+            evidence_count=1,
+            last_evidence_at=now,
+        )
+        session.add(new_preference)
+        session.commit()
+        session.refresh(new_preference)
+        return new_preference
+
+    async def rebuild_similarity_index(
+        self,
+        *,
+        force: bool = False,
+    ) -> IndexRebuildResponse:
+        """Rebuild the cached similarity index and persist it to disk."""
+
+        engine = self._get_recommendation_engine()
+        index_file = Path(self.index_cache_path)
+        index_file.parent.mkdir(parents=True, exist_ok=True)
+
+        if not force and getattr(engine, 'lora_ids', None):
+            index_size = index_file.stat().st_size if index_file.exists() else 0
+            return IndexRebuildResponse(
+                status='skipped',
+                indexed_items=len(engine.lora_ids),
+                index_path=str(index_file),
+                index_size_bytes=index_size,
+                processing_time_seconds=0.0,
+                rebuilt_at=datetime.now(timezone.utc),
+                skipped=True,
+                skipped_reason='existing_index',
+            )
+
+        start_time = time.time()
+
+        await self._build_similarity_index()
+
+        indexed_items = len(getattr(engine, 'lora_ids', []) or [])
+        index_size = 0
+        status = 'empty'
+        skipped_reason = None
+
+        if indexed_items:
+            payload = {
+                'lora_ids': engine.lora_ids,
+                'semantic_embeddings': engine.semantic_embeddings,
+                'artistic_embeddings': engine.artistic_embeddings,
+                'technical_embeddings': engine.technical_embeddings,
+            }
+            with index_file.open('wb') as handle:
+                pickle.dump(payload, handle)
+            index_size = index_file.stat().st_size
+            status = 'rebuilt'
+        else:
+            if index_file.exists():
+                index_file.unlink()
+
+        processing_time = time.time() - start_time
+
+        return IndexRebuildResponse(
+            status=status,
+            indexed_items=indexed_items,
+            index_path=str(index_file),
+            index_size_bytes=index_size,
+            processing_time_seconds=processing_time,
+            rebuilt_at=datetime.now(timezone.utc),
+            skipped=False,
+            skipped_reason=skipped_reason,
+        )
+
     def get_recommendation_stats(self) -> RecommendationStats:
         """Get comprehensive recommendation system statistics."""
+        session = self._require_db_session()
+
         # Count total LoRAs
-        total_loras = len(list(self.db_session.exec(
+        total_loras = len(list(session.exec(
             select(Adapter).where(Adapter.active),
         )))
-        
+
         # Count LoRAs with embeddings
-        loras_with_embeddings = len(list(self.db_session.exec(
+        loras_with_embeddings = len(list(session.exec(
             select(LoRAEmbedding),
         )))
         
@@ -542,14 +705,18 @@ class RecommendationService:
         )
         
         # Get user preference count
-        user_preferences_count = len(list(self.db_session.exec(
+        user_preferences_count = len(list(session.exec(
             select(UserPreference),
         )))
-        
+
         # Get session count
-        session_count = len(list(self.db_session.exec(
+        session_count = len(list(session.exec(
             select(RecommendationSession),
         )))
+
+        feedback_count = session.exec(
+            select(func.count()).select_from(RecommendationFeedback),
+        ).one()
         
         # Calculate average query time
         avg_query_time = (
@@ -575,7 +742,7 @@ class RecommendationService:
                 pass
         
         # Get last embedding update
-        last_embedding = self.db_session.exec(
+        last_embedding = session.exec(
             select(LoRAEmbedding).order_by(LoRAEmbedding.last_computed.desc()),
         ).first()
         last_index_update = (
@@ -591,7 +758,7 @@ class RecommendationService:
             cache_hit_rate=cache_hit_rate,
             total_sessions=session_count,
             user_preferences_count=user_preferences_count,
-            feedback_count=0,  # TODO: Implement feedback tracking
+            feedback_count=feedback_count,
             model_memory_usage_gb=memory_usage,
             last_index_update=last_index_update,
         )
