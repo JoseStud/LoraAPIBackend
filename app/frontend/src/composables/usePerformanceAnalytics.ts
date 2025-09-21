@@ -6,6 +6,7 @@
 
 import { ref } from 'vue';
 
+import { exportAnalyticsReport } from '@/services/analyticsService';
 import { fetchTopAdapters } from '@/services/loraService';
 import { fetchDashboardStats } from '@/services/systemService';
 import { useBackendBase } from '@/utils/backend';
@@ -19,6 +20,7 @@ import type {
   PerformanceTimeRange,
   TopLoraPerformance,
 } from '@/types';
+import type { AnalyticsExportOptions, AnalyticsExportResult } from '@/types';
 
 const DEFAULT_KPIS: PerformanceKpiSummary = {
   total_generations: 0,
@@ -263,6 +265,12 @@ export function usePerformanceAnalytics() {
     }
   };
 
+  const exportAnalytics = async (
+    format: string,
+    overrides: Partial<AnalyticsExportOptions> = {},
+  ): Promise<AnalyticsExportResult> =>
+    exportAnalyticsReport(backendBase.value, { format, ...overrides });
+
   return {
     timeRange,
     autoRefresh,
@@ -276,6 +284,7 @@ export function usePerformanceAnalytics() {
     toggleAutoRefresh,
     formatDuration: formatDurationLabel,
     cleanup,
+    exportAnalytics,
   };
 }
 

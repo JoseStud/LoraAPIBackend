@@ -2,7 +2,7 @@ import { computed, reactive, unref } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
 
 import { useApi } from '@/composables/useApi';
-import { getFilenameFromContentDisposition } from '@/utils/api';
+import { getFilenameFromContentDisposition, requestBlob } from '@/utils/api';
 
 import type {
   GenerationBulkDeleteRequest,
@@ -284,17 +284,12 @@ export const exportResults = async (
   payload: GenerationExportRequest,
 ): Promise<GenerationDownloadMetadata> => {
   const base = sanitizeBaseUrl(baseUrl);
-  const response = await fetch(buildEndpoint(base, '/results/export'), {
+  const { blob, response } = await requestBlob(buildEndpoint(base, '/results/export'), {
     method: 'POST',
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!response.ok) {
-    const message = await response.text().catch(() => '');
-    throw new Error(message || `Export failed with status ${response.status}`);
-  }
-  const blob = await response.blob();
   return toDownloadMetadata(blob, response, `generation-export-${Date.now()}.zip`);
 };
 
@@ -304,15 +299,13 @@ export const downloadResult = async (
   fallbackName = `generation-${resultId}.png`,
 ): Promise<GenerationDownloadMetadata> => {
   const base = sanitizeBaseUrl(baseUrl);
-  const response = await fetch(buildEndpoint(base, `/results/${encodeURIComponent(String(resultId))}/download`), {
-    method: 'GET',
-    credentials: 'same-origin',
-  });
-  if (!response.ok) {
-    const message = await response.text().catch(() => '');
-    throw new Error(message || `Download failed with status ${response.status}`);
-  }
-  const blob = await response.blob();
+  const { blob, response } = await requestBlob(
+    buildEndpoint(base, `/results/${encodeURIComponent(String(resultId))}/download`),
+    {
+      method: 'GET',
+      credentials: 'same-origin',
+    },
+  );
   return toDownloadMetadata(blob, response, fallbackName);
 };
 

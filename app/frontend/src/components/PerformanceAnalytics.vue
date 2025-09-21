@@ -331,16 +331,20 @@
       </div>
     </div>
 
-    <!-- Toast Notifications -->
-    <div v-if="showToast" class="fixed top-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg" :class="getToastClass()">
-      <span>{{ toastMessage }}</span>
-    </div>
   </div>
 </template>
 
-<script>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+<script lang="ts">
+import { nextTick, onMounted, onUnmounted, ref } from 'vue';
+
+import { useNotifications } from '@/composables/useNotifications';
 import { usePerformanceAnalytics } from '@/composables/usePerformanceAnalytics';
+import { downloadFile } from '@/utils/browser';
+
+import type { PerformanceInsightEntry } from '@/types';
+import type { Chart } from 'chart.js';
+
+type ChartConstructor = new (context: HTMLCanvasElement, config: unknown) => Chart;
 
 export default {
   name: 'PerformanceAnalytics',
@@ -358,15 +362,15 @@ export default {
       loadAllData,
       toggleAutoRefresh,
       formatDuration,
-      cleanup
+      cleanup,
+      exportAnalytics,
     } = usePerformanceAnalytics();
+
+    const notifications = useNotifications();
 
     // Component state
     const isInitialized = ref(false);
-    const charts = ref({});
-    const showToast = ref(false);
-    const toastMessage = ref('');
-    const toastType = ref('success');
+    const charts = ref<Record<string, Chart | undefined>>({});
 
     // Template refs for chart canvases
     const generationVolumeChart = ref(null);
@@ -383,13 +387,18 @@ export default {
         isInitialized.value = true;
       } catch (error) {
         console.error('Failed to initialize performance analytics:', error);
-        showToastMessage('Failed to load analytics data', 'error');
+        notifications.showError('Failed to load analytics data');
       }
     }
 
     // Chart initialization using global Chart.js
     function initializeCharts() {
-      if (typeof window.Chart === 'undefined') {
+      const chartConstructor =
+        typeof window !== 'undefined'
+          ? (window as typeof window & { Chart?: ChartConstructor }).Chart
+          : undefined;
+
+      if (!chartConstructor) {
         console.warn('Chart.js not available');
         return;
       }
@@ -397,7 +406,7 @@ export default {
       try {
         // Generation Volume Chart
         if (generationVolumeChart.value) {
-          charts.value.volume = new window.Chart(generationVolumeChart.value, {
+          charts.value.volume = new chartConstructor(generationVolumeChart.value, {
             type: 'line',
             data: {
               labels: [],
@@ -429,7 +438,7 @@ export default {
 
         // Performance Chart
         if (performanceChart.value) {
-          charts.value.performance = new window.Chart(performanceChart.value, {
+          charts.value.performance = new chartConstructor(performanceChart.value, {
             type: 'line',
             data: {
               labels: [],
@@ -476,7 +485,7 @@ export default {
 
         // LoRA Usage Chart
         if (loraUsageChart.value) {
-          charts.value.loraUsage = new window.Chart(loraUsageChart.value, {
+          charts.value.loraUsage = new chartConstructor(loraUsageChart.value, {
             type: 'doughnut',
             data: {
               labels: [],
@@ -510,7 +519,7 @@ export default {
 
         // Resource Usage Chart
         if (resourceUsageChart.value) {
-          charts.value.resourceUsage = new window.Chart(resourceUsageChart.value, {
+          charts.value.resourceUsage = new chartConstructor(resourceUsageChart.value, {
             type: 'line',
             data: {
               labels: [],
@@ -636,53 +645,37 @@ export default {
     async function refreshData() {
       await loadAllData();
       updateCharts();
-      showToastMessage('Data refreshed successfully');
+      notifications.showSuccess('Data refreshed successfully');
     }
 
     // Export functions
-    async function exportData(format) {
+    async function exportData(format: string) {
       try {
-        const response = await fetch('/api/v1/export', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ format, loras: true, generations: true })
-        })
-        if (!response.ok) throw new Error('Failed to export data')
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `export-${Date.now()}.zip`
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
-        showToastMessage('Export completed successfully')
+        const result = await exportAnalytics(format);
+        downloadFile(result.blob, result.filename);
+        notifications.showSuccess('Export completed successfully');
       } catch (error) {
-        console.error('Error exporting data:', error)
-        showToastMessage('Failed to export data', 'error')
+        console.error('Error exporting data:', error);
+        notifications.showError('Failed to export data');
       }
     }
 
     function scheduleReport() {
-      showToastMessage('Report scheduling feature coming soon', 'info');
+      notifications.showInfo('Report scheduling feature coming soon');
     }
 
-    async function applyRecommendation(insight) {
-      showToastMessage(
-        `Applying recommendation "${insight.title}" is not available yet`,
-        'info',
-      )
+    function applyRecommendation(insight: PerformanceInsightEntry) {
+      notifications.showInfo(`Applying recommendation "${insight.title}" is not available yet`);
     }
 
     // Utility functions
-    function getSuccessRateClass(rate) {
+    function getSuccessRateClass(rate: number) {
       if (rate >= 95) return 'bg-green-100 text-green-800';
       if (rate >= 90) return 'bg-yellow-100 text-yellow-800';
       return 'bg-red-100 text-red-800';
     }
 
-    function getInsightClass(severity) {
+    function getInsightClass(severity: string) {
       switch (severity) {
         case 'high': return 'border-red-200 bg-red-50';
         case 'medium': return 'border-yellow-200 bg-yellow-50';
@@ -690,7 +683,7 @@ export default {
       }
     }
 
-    function getInsightIconClass(severity) {
+    function getInsightIconClass(severity: string) {
       switch (severity) {
         case 'high': return 'text-red-500';
         case 'medium': return 'text-yellow-500';
@@ -698,7 +691,7 @@ export default {
       }
     }
 
-    function getInsightTextClass(severity) {
+    function getInsightTextClass(severity: string) {
       switch (severity) {
         case 'high': return 'text-red-800';
         case 'medium': return 'text-yellow-800';
@@ -706,30 +699,12 @@ export default {
       }
     }
 
-    function getInsightDescClass(severity) {
+    function getInsightDescClass(severity: string) {
       switch (severity) {
         case 'high': return 'text-red-700';
         case 'medium': return 'text-yellow-700';
         default: return 'text-blue-700';
       }
-    }
-
-    function getToastClass() {
-      switch (toastType.value) {
-        case 'error': return 'bg-red-500 text-white';
-        case 'info': return 'bg-blue-500 text-white';
-        default: return 'bg-green-500 text-white';
-      }
-    }
-
-    function showToastMessage(message, type = 'success') {
-      toastMessage.value = message;
-      toastType.value = type;
-      showToast.value = true;
-      
-      setTimeout(() => {
-        showToast.value = false;
-      }, 4000);
     }
 
     // Lifecycle
@@ -740,8 +715,8 @@ export default {
     onUnmounted(() => {
       cleanup();
       // Destroy charts
-      Object.values(charts.value).forEach(chart => {
-        if (chart && typeof chart.destroy === 'function') {
+      Object.values(charts.value).forEach((chart) => {
+        if (chart) {
           chart.destroy();
         }
       });
@@ -758,10 +733,6 @@ export default {
       performanceInsights,
       chartData,
       isLoading,
-      showToast,
-      toastMessage,
-      toastType,
-      
       // Template refs
       generationVolumeChart,
       performanceChart,
@@ -781,7 +752,6 @@ export default {
       getInsightIconClass,
       getInsightTextClass,
       getInsightDescClass,
-      getToastClass
     };
   }
 };

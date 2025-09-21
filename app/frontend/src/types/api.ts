@@ -53,7 +53,7 @@ export interface ApiResultSnapshot<TData = unknown, TError = unknown> {
   meta: ApiResponseMeta | null;
 }
 
-/** Structured result object returned by legacy helpers. */
+/** Structured result object returned by API helpers. */
 export interface ApiResult<TData = unknown> {
   data: TData | null;
   meta: ApiResponseMeta;
