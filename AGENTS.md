@@ -2,7 +2,16 @@
 
 ## 🚨 Critical Finding: Frontend Architecture Claims vs Reality
 
-### Vue 3 Migration Status: INCOMPLETE - Documentation Does Not Match Reality
+### Vue 3 Migrati### Issue 3: Inconsistent Test Coverage 📊 **MEDIUM PRIORITY**
+
+**Problem**: Test infrastructure expects both Alpine.js and Vue 3, creating maintenance overhead and potential confusion.
+
+**Files Affected**:
+- `tests/utils/test-helpers.js` - Contains Alpine.js mocks
+- Vue component tests expect Alpine.js global objects
+- Mixed testing paradigms across the codebase
+
+**Recommendation**: Standardize on Vue 3 testing patterns and remove Alpine test infrastructure.s: INCOMPLETE - Documentation Does Not Match Reality
 
 **REALITY CHECK**: After comprehensive code analysis, the Vue 3 migration claims in this document are **significantly overstated**. The project maintains a **hybrid Alpine.js + Vue 3** architecture, not a pure Vue 3 SPA.
 
@@ -87,6 +96,7 @@ export const useSystemStatusApi = () =>
   useApi<SystemStatusPayload>(() => resolveBackendUrl('/system/status'));
 ```
 
+
 ## 🎯 Current Architectural Issues and Recommendations
 
 ### Issue 1: Incomplete Frontend Migration 🚨 **HIGH PRIORITY**
@@ -132,25 +142,38 @@ if req.delivery:
     )
 ```
 
-### Issue 3: Inconsistent Test Coverage 📊 **MEDIUM PRIORITY**
 
-**Problem**: Test infrastructure expects both Alpine.js and Vue 3, creating maintenance overhead and potential confusion.
 
-**Files Affected**:
-- `tests/utils/test-helpers.js` - Contains Alpine.js mocks
-- Vue component tests expect Alpine.js global objects
-- Mixed testing paradigms across the codebase
 
-**Recommendation**: Standardize on Vue 3 testing patterns and remove Alpine test infrastructure.
+### Issue 3: Dashboard Metrics Implementation � **LOW PRIORITY** ⬇️
 
-### Issue 4: Documentation Accuracy 📝 **MEDIUM PRIORITY**
+**Status**: **SIGNIFICANTLY IMPROVED** - Real dashboard metrics now implemented
 
-**Problem**: This AGENTS.md document contained significant inaccuracies about the current state, leading to:
-- Developer confusion about actual architecture
-- Misplaced confidence in completed migrations
-- Incorrect understanding of technical debt
+**Progress Made**:
+```python
+# backend/api/v1/dashboard.py - Real dashboard statistics
+@router.get("/stats")
+async def get_dashboard_stats(services: ServiceContainer = Depends(get_service_container)):
+    stats = services.adapters.get_dashboard_statistics()
+    stats["active_jobs"] = services.deliveries.count_active_jobs()
+    system_health = services.system.get_health_summary().as_dict()
+    return {"stats": stats, "system_health": system_health}
 
-**Recommendation**: Maintain accurate documentation that reflects the actual codebase state.
+# backend/services/adapters.py - Real statistics implementation
+def get_dashboard_statistics(self, *, recent_hours: int = 24) -> Dict[str, int]:
+    total = self.count_total()
+    active = self.count_active()
+    recent_imports = self.count_recent_imports(hours=recent_hours)
+    embeddings_coverage = int(round((active / total) * 100)) if total else 0
+    return {
+        "total_loras": total,
+        "active_loras": active,
+        "embeddings_coverage": embeddings_coverage,
+        "recent_imports": recent_imports,
+    }
+```
+
+**Recent Improvements**: Global adapter totals (#84) now tracked separately from filtered counts, providing accurate dashboard metrics.
 
 ## 📋 Implementation Priority Roadmap
 
@@ -165,22 +188,15 @@ if req.delivery:
 3. **Standardize Testing Framework** - Choose either Vue 3 or Alpine testing patterns, eliminate mixed approaches
 
 ### 📈 **Medium Priority (Feature Completion)**
-4. **Implement Live Dashboard Metrics** - Replace dashboard stubs with real queue, GPU, and import metrics
-5. **Build Real Import/Export Pipelines** - Implement actual data archival and progress tracking
+3. **Build Real Import/Export Pipelines** - Implement actual data archival and progress tracking
+4. **Improve Batch Embedding Performance** - Optimize large-scale embedding computation workflows
 
 ### 🧪 **Low Priority (Testing & Ops)**
-6. **Expand Queue Backend Testing** - Add comprehensive tests for Redis vs fallback queue scenarios
-7. **Performance Optimization** - Review AdapterService performance with large datasets
+5. **Expand Queue Backend Testing** - Add comprehensive tests for Redis vs fallback queue scenarios
+6. **Performance Optimization** - Review AdapterService performance with large datasets
 
 ## 📊 Architecture Quality Assessment
 
-### **Current Status: 🟡 MIXED - Strong Backend, Confused Frontend**
-
-**✅ Backend Architecture: WELL IMPLEMENTED**
-- Service container and dependency injection properly configured
-- FastAPI patterns correctly followed
-- Queue systems properly abstracted
-- URL resolution implemented correctly
 
 **⚠️ Frontend Architecture: NEEDS COMPLETION**
 - Vue 3 infrastructure exists but incomplete migration
