@@ -271,7 +271,7 @@ All endpoints are prefixed with `/api`.
 
 ## ✅ Worker and background tasks (IMPLEMENTED)
 
-- ✅ **Redis + RQ integration** for background job processing (app/workers/)
+- ✅ **Redis + RQ integration** for background job processing (backend/workers/)
 - ✅ **DeliveryJob table** with comprehensive status tracking and performance indexes
 - ✅ **Structured job lifecycle** with status updates (pending → running → succeeded/failed)
 - ✅ **Worker process** with proper error handling and result persistence
