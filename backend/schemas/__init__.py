@@ -25,6 +25,9 @@ from .deliveries import (
 from .generation import (
     ComposeDeliverySDNext,
     GenerationComplete,
+    GenerationCancelResponse,
+    GenerationJobStatus,
+    GenerationResultSummary,
     GenerationStarted,
     ProgressUpdate,
     SDNextDeliveryParams,
@@ -70,6 +73,9 @@ __all__ = [
     "ProgressUpdate",
     "GenerationStarted",
     "GenerationComplete",
+    "GenerationJobStatus",
+    "GenerationCancelResponse",
+    "GenerationResultSummary",
     # Recommendations
     "RecommendationRequest",
     "RecommendationResponse",

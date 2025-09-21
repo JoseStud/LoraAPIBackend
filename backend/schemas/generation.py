@@ -1,8 +1,9 @@
 """Generation and SDNext-related schemas."""
 
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SDNextGenerationParams(BaseModel):
@@ -73,10 +74,55 @@ class GenerationStarted(BaseModel):
 
 class GenerationComplete(BaseModel):
     """WebSocket notification that generation is complete."""
-    
+
     job_id: str
     status: str  # "completed" or "failed"
     images: Optional[List[str]] = None
     error_message: Optional[str] = None
     total_duration: Optional[float] = None
+    generation_info: Optional[Dict[str, Any]] = None
+
+
+class GenerationJobStatus(BaseModel):
+    """Summary of an active generation job for queue displays."""
+
+    id: str
+    jobId: Optional[str] = None
+    prompt: Optional[str] = None
+    status: str
+    progress: float = 0.0
+    message: Optional[str] = None
+    error: Optional[str] = None
+    params: Dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+    startTime: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+    result: Optional[Dict[str, Any]] = None
+
+
+class GenerationCancelResponse(BaseModel):
+    """Response returned when cancelling a generation job."""
+
+    success: bool = True
+    status: str
+    message: Optional[str] = None
+
+
+class GenerationResultSummary(BaseModel):
+    """Summary of a completed generation result."""
+
+    id: str
+    job_id: str
+    prompt: Optional[str] = None
+    negative_prompt: Optional[str] = None
+    status: str
+    image_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    steps: Optional[int] = None
+    cfg_scale: Optional[float] = None
+    seed: Optional[int] = None
+    created_at: datetime
+    finished_at: Optional[datetime] = None
     generation_info: Optional[Dict[str, Any]] = None
