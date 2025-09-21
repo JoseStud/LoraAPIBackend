@@ -66,7 +66,7 @@ ENVIRONMENT=production uvicorn app.main:app --host 0.0.0.0 --port 8000
 - ✅ **GPU Acceleration** - AMD ROCm and NVIDIA CUDA support
 - ✅ **Comprehensive API** - 28+ endpoints with full CRUD operations
 - ✅ **Background Processing** - Redis/RQ for async operations
-- ✅ **Modern Frontend** - Vite + Alpine.js + Tailwind CSS with component architecture
+- ✅ **Modern Frontend** - Vue 3 single-page application built with Vite, complemented by a legacy Alpine.js layer for unchanged modules
 - ✅ **Progressive Web App** - Offline capabilities and mobile-optimized interface
 
 ## 🏗️ Architecture
@@ -76,8 +76,12 @@ The project uses a modular architecture with a clear separation between the back
 ### Project Root
 ```
 .
-├── app/              # Main application: FastAPI wrapper and frontend
-│   ├── frontend/     # Frontend assets (templates, static files)
+├── app/              # Main application: FastAPI wrapper and frontend assets
+│   ├── frontend/
+│   │   ├── src/      # Vue 3 SPA source (components, composables, router)
+│   │   ├── static/   # Legacy Alpine.js modules and supporting assets
+│   │   ├── public/   # Static assets copied verbatim by Vite
+│   │   └── index.html  # SPA entrypoint served by FastAPI
 │   └── main.py       # Main FastAPI app entry point
 ├── backend/          # Backend API (self-contained FastAPI app)
 │   ├── api/          # API endpoint routers
@@ -107,29 +111,28 @@ backend/
 
 ### Frontend Application (`app/frontend/`)
 
-The frontend is built with Vite, Alpine.js, and Tailwind CSS. FastAPI serves the HTML templates, and the frontend assets are managed by Vite.
+The frontend now centers on a Vue 3 single-page application compiled by Vite. FastAPI serves the SPA shell (`index.html`) while the Vue source lives in `src/`. Legacy Alpine.js modules in `static/js/` continue to power screens that have not yet been migrated. The previously documented `templates/` directory no longer exists.
 
 ```
 app/frontend/
+├── src/               # Vue SPA source (components, composables, router, stores)
 ├── static/
-│   ├── js/
-│   │   ├── components/    # Modular Alpine.js components (e.g., lora-gallery, generation-studio)
-│   │   ├── services/      # API communication layer (api-service.js)
-│   │   └── utils/         # Shared utility functions
-│   ├── css/           # Compiled CSS
-│   └── images/        # Static images
-└── templates/
-    ├── pages/         # Main HTML pages for each route
-    └── partials/      # Reusable HTML fragments (e.g., for HTMX)
+│   └── js/
+│       ├── components/ # Alpine.js components still in production use
+│       ├── services/   # Legacy API helpers referenced by Alpine modules
+│       └── utils/      # Shared utilities for legacy code
+├── public/            # Static assets copied verbatim during build
+├── index.html         # SPA entrypoint served by FastAPI
+└── utils/             # Shared utilities (including legacy compatibility helpers)
 ```
 
 ### Frontend Technology Stack
 
+- **Vue 3 + Pinia** - Primary SPA framework and state management
 - **Vite** - Modern build tool with hot module replacement
-- **Alpine.js** - Lightweight reactive framework for component behavior
-- **Tailwind CSS** - Utility-first CSS framework
-- **HTMX** - Dynamic HTML exchanges for seamless updates
-- **Jinja2** - Server-side templating
+- **Tailwind CSS** - Utility-first CSS framework shared by both stacks
+- **Alpine.js (Legacy)** - Still used by modules in `app/frontend/static/js/`
+- **Compatibility Layer** - `app/frontend/src/utils/legacy.ts` exposes Vue utilities to Alpine code while migration continues
 - **PWA** - Progressive Web App with offline support and mobile optimization
 
 ## 🧪 Testing
@@ -146,12 +149,14 @@ pytest tests/test_main.py -v            # API endpoints
 ```
 
 ### Frontend Tests (JavaScript)
+Legacy Alpine modules rely on Jest helpers in `tests/utils/test-helpers.js`, while Vue components use Vitest.
 ```bash
 # Run all frontend tests
 npm test
 
 # Run specific test types
-npm run test:unit          # Jest unit tests for components
+npm run test:unit          # Jest unit tests for Alpine-driven views
+npm run test:unit:vue      # Vitest suite for Vue single-file components
 npm run test:integration   # API integration tests
 npm run test:e2e          # Playwright end-to-end tests
 npm run test:performance  # Lighthouse performance audits
