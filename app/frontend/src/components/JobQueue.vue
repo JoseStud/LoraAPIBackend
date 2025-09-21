@@ -78,7 +78,9 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
+import { resolveBackendUrl } from '@/services/generationService';
 import { useAppStore } from '@/stores/app';
+import { useSettingsStore } from '@/stores/settings';
 import { formatElapsedTime } from '@/utils/format';
 
 import type { GenerationJob } from '@/types';
@@ -106,7 +108,11 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const appStore = useAppStore();
+const settingsStore = useSettingsStore();
 const { activeJobs } = storeToRefs(appStore);
+const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
+
+const buildBackendUrl = (path: string): string => resolveBackendUrl(path, configuredBackendUrl.value);
 
 const isReady = ref(false);
 const isPolling = ref(false);
@@ -185,7 +191,7 @@ const updateJobStatuses = async () => {
   try {
     let response: Response | null = null;
     try {
-      response = await fetch('/api/v1/generation/jobs/active', {
+      response = await fetch(buildBackendUrl('/generation/jobs/active'), {
         credentials: 'same-origin',
       });
     } catch (error) {
@@ -195,7 +201,7 @@ const updateJobStatuses = async () => {
     }
 
     if (!response) {
-      response = await fetch('/api/v1/jobs/status', {
+      response = await fetch(buildBackendUrl('/jobs/status'), {
         credentials: 'same-origin',
       });
     }
@@ -258,7 +264,7 @@ const handleCancelJob = async (jobId: string) => {
     let response: Response | null = null;
 
     try {
-      response = await fetch(`/api/v1/generation/jobs/${backendJobId}/cancel`, {
+      response = await fetch(buildBackendUrl(`/generation/jobs/${backendJobId}/cancel`), {
         method: 'POST',
         credentials: 'same-origin',
       });
@@ -269,7 +275,7 @@ const handleCancelJob = async (jobId: string) => {
     }
 
     if (!response) {
-      response = await fetch(`/api/v1/jobs/${backendJobId}/cancel`, {
+      response = await fetch(buildBackendUrl(`/jobs/${backendJobId}/cancel`), {
         method: 'POST',
         credentials: 'same-origin',
       });

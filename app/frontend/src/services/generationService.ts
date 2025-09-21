@@ -8,6 +8,7 @@ import type {
   SDNextGenerationParams,
   SDNextGenerationResult,
 } from '@/types';
+import { useSettingsStore } from '@/stores/settings';
 import {
   deleteRequest,
   ensureData,
@@ -24,6 +25,84 @@ export type GenerationParamOverrides =
 export type GenerationRequestBody = SDNextGenerationParams & {
   loras?: CompositionEntry[];
 };
+
+const DEFAULT_BACKEND_BASE = '/api/v1';
+
+const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
+
+const trimLeadingSlash = (value: string): string => value.replace(/^\/+/, '');
+
+const splitPathSuffix = (input: string): { pathname: string; suffix: string } => {
+  const match = input.match(/^([^?#]*)(.*)$/);
+  if (!match) {
+    return { pathname: input, suffix: '' };
+  }
+  return { pathname: match[1] ?? '', suffix: match[2] ?? '' };
+};
+
+const selectBackendBase = (override?: string | null): string => {
+  const overrideValue = typeof override === 'string' ? override.trim() : '';
+  if (overrideValue.length > 0) {
+    return overrideValue;
+  }
+
+  const settingsStore = useSettingsStore();
+  const configured = settingsStore.backendUrl.trim();
+  if (configured.length > 0) {
+    return configured;
+  }
+
+  return DEFAULT_BACKEND_BASE;
+};
+
+const normaliseBackendBase = (base: string): string => {
+  if (/^https?:\/\//i.test(base)) {
+    return trimTrailingSlash(base);
+  }
+
+  const withoutTrailing = trimTrailingSlash(base);
+  if (!withoutTrailing) {
+    return DEFAULT_BACKEND_BASE;
+  }
+
+  return withoutTrailing.startsWith('/') ? withoutTrailing : `/${withoutTrailing}`;
+};
+
+const joinBackendPath = (base: string, path: string): string => {
+  const { pathname, suffix } = splitPathSuffix(path);
+  const normalisedBase = trimTrailingSlash(base);
+  const normalisedPathname = trimLeadingSlash(pathname);
+
+  if (!normalisedPathname) {
+    return normalisedBase || DEFAULT_BACKEND_BASE;
+  }
+
+  if (!normalisedBase) {
+    return `/${normalisedPathname}${suffix}`;
+  }
+
+  const combined = /^https?:\/\//i.test(normalisedBase)
+    ? `${normalisedBase}/${normalisedPathname}`
+    : `${normalisedBase}/${normalisedPathname}`.replace(/^\/+/, '/');
+
+  return `${combined}${suffix}`;
+};
+
+export const resolveGenerationBaseUrl = (baseOverride?: string | null): string => {
+  const base = selectBackendBase(baseOverride);
+  return normaliseBackendBase(base);
+};
+
+export const resolveBackendUrl = (path = '', baseOverride?: string | null): string => {
+  const base = resolveGenerationBaseUrl(baseOverride);
+  if (!path) {
+    return base;
+  }
+  return joinBackendPath(base, path);
+};
+
+const resolveGenerationRoute = (path: string, baseOverride?: string | null): string =>
+  resolveBackendUrl(`/generation/${trimLeadingSlash(path)}`, baseOverride);
 
 export const createGenerationParams = (
   overrides: GenerationParamOverrides,
@@ -43,9 +122,10 @@ export const createGenerationParams = (
 
 export const requestGeneration = async (
   payload: GenerationRequestBody,
+  baseUrl?: string | null,
 ): Promise<SDNextGenerationResult | null> => {
   const { data } = await postJson<SDNextGenerationResult, GenerationRequestBody>(
-    '/api/v1/generation/generate',
+    resolveGenerationRoute('generate', baseUrl),
     payload,
     { credentials: 'same-origin' },
   );
@@ -75,9 +155,10 @@ export const toGenerationRequestPayload = (
 
 export const startGeneration = async (
   payload: GenerationRequestPayload,
+  baseUrl?: string | null,
 ): Promise<GenerationStartResponse> => {
   const result = await postJson<GenerationStartResponse, GenerationRequestPayload>(
-    '/api/v1/generation/generate',
+    resolveGenerationRoute('generate', baseUrl),
     payload,
     { credentials: 'same-origin' },
   );
@@ -86,9 +167,10 @@ export const startGeneration = async (
 
 export const cancelGenerationJob = async (
   jobId: string,
+  baseUrl?: string | null,
 ): Promise<GenerationCancelResponse | null> => {
   const { data } = await requestJson<GenerationCancelResponse>(
-    `/api/v1/generation/jobs/${encodeURIComponent(jobId)}/cancel`,
+    resolveGenerationRoute(`jobs/${encodeURIComponent(jobId)}/cancel`, baseUrl),
     {
       method: 'POST',
       credentials: 'same-origin',
@@ -99,8 +181,9 @@ export const cancelGenerationJob = async (
 
 export const deleteGenerationResult = async (
   resultId: string | number,
+  baseUrl?: string | null,
 ): Promise<void> => {
-  await deleteRequest<unknown>(`/api/v1/generation/results/${resultId}`, {
+  await deleteRequest<unknown>(resolveGenerationRoute(`results/${resultId}`, baseUrl), {
     credentials: 'same-origin',
   });
 };
@@ -108,9 +191,10 @@ export const deleteGenerationResult = async (
 export const downloadGenerationResult = async (
   resultId: string | number,
   fallbackName = `generation-${resultId}`,
+  baseUrl?: string | null,
 ): Promise<GenerationDownloadMetadata> => {
   const { blob, response } = await requestBlob(
-    `/api/v1/generation/results/${resultId}/download`,
+    resolveGenerationRoute(`results/${resultId}/download`, baseUrl),
     { credentials: 'same-origin' },
   );
   return {

@@ -440,6 +440,8 @@ import { useActiveJobsApi, useRecentResultsApi, useSystemStatusApi } from '@/com
 import {
   cancelGenerationJob,
   deleteGenerationResult,
+  resolveBackendUrl,
+  resolveGenerationBaseUrl,
   startGeneration as startGenerationRequest,
   toGenerationRequestPayload,
 } from '@/services/generationService'
@@ -494,9 +496,7 @@ const appendWebSocketPath = (path: string): string => {
 }
 
 const resolveWebSocketUrl = (backendUrl?: string | null): string => {
-  const fallbackBase = '/api/v1'
-  const rawBase = typeof backendUrl === 'string' ? backendUrl.trim() : ''
-  const base = rawBase.length > 0 ? rawBase : fallbackBase
+  const base = resolveGenerationBaseUrl(backendUrl)
 
   if (/^https?:\/\//i.test(base)) {
     try {
@@ -508,13 +508,15 @@ const resolveWebSocketUrl = (backendUrl?: string | null): string => {
     }
   }
 
+  const wsPath = appendWebSocketPath(base)
+
   if (typeof window === 'undefined') {
-    return appendWebSocketPath(base)
+    return wsPath
   }
 
-  const normalizedPath = base.startsWith('/') ? base : `/${base}`
+  const normalizedPath = wsPath.startsWith('/') ? wsPath : `/${wsPath}`
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${window.location.host}${appendWebSocketPath(normalizedPath)}`
+  return `${protocol}//${window.location.host}${normalizedPath}`
 }
 
 const websocketUrl = computed<string>(() => resolveWebSocketUrl(configuredBackendUrl.value))
@@ -556,7 +558,7 @@ const { fetchData: loadSystemStatus } = useSystemStatusApi()
 const { fetchData: loadActiveJobsData } = useActiveJobsApi()
 const { fetchData: loadRecentResultsData } = useRecentResultsApi(() => {
   const limit = showHistory.value ? 50 : 10
-  return `/api/v1/generation/results?limit=${limit}`
+  return resolveBackendUrl(`/generation/results?limit=${limit}`, configuredBackendUrl.value)
 })
 
 const sortedActiveJobs: ComputedRef<GenerationJob[]> = computed(() => {

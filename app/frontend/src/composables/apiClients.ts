@@ -12,6 +12,7 @@ import type {
   RecommendationResponse,
   SystemStatusPayload,
 } from '@/types';
+import { resolveBackendUrl } from '@/services/generationService';
 
 export type DashboardStatsResponse = DashboardStatsSummary;
 
@@ -98,7 +99,8 @@ export const useDashboardStatsApi = () => useApi<DashboardStatsResponse>('/api/v
 
 export const useSystemStatusApi = () => useApi<SystemStatusPayload>('/api/v1/system/status');
 
-export const useActiveJobsApi = () => useApi<Partial<GenerationJob>[]>('/api/v1/generation/jobs/active');
+export const useActiveJobsApi = () =>
+  useApi<Partial<GenerationJob>[]>(() => resolveBackendUrl('/generation/jobs/active'));
 
 export const useRecentResultsApi = (
   url: MaybeRefOrGetter<string>,
