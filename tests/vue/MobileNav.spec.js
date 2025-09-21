@@ -1,6 +1,41 @@
 import { mount } from '@vue/test-utils';
-import { nextTick } from 'vue';
+import { defineComponent, h, nextTick } from 'vue';
+import { vi } from 'vitest';
 import MobileNav from '../../app/frontend/src/components/MobileNav.vue';
+
+vi.mock('vue-router', () => ({
+  RouterLink: defineComponent({
+    name: 'RouterLink',
+    inheritAttrs: false,
+    props: {
+      to: { type: [String, Object], required: true },
+    },
+    setup(props, { slots, attrs }) {
+      return () => {
+        const target = props.to;
+        let href = '#';
+        if (typeof target === 'string') {
+          href = target;
+        } else if (target && typeof target === 'object' && 'path' in target && typeof target.path === 'string') {
+          href = target.path;
+        }
+        const children = typeof slots.default === 'function' ? slots.default() : [];
+        return h('a', { ...attrs, href }, children);
+      };
+    },
+  }),
+  useRoute: () => ({
+    path: typeof window !== 'undefined' ? window.location.pathname ?? '/' : '/',
+    fullPath: typeof window !== 'undefined' ? window.location.pathname ?? '/' : '/',
+    params: {},
+    query: {},
+    hash: '',
+    name: undefined,
+    matched: [],
+    redirectedFrom: undefined,
+    meta: {},
+  }),
+}));
 
 const flush = async () => {
   await Promise.resolve();

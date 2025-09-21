@@ -1,44 +1,10 @@
 import { MaybeRefOrGetter, Ref, ref, unref } from 'vue';
 
-export interface ApiResponseMeta {
-  ok: boolean;
-  status: number;
-  statusText: string;
-  headers?: Headers;
-  url?: string;
-}
+import type { ApiResponseMeta } from '@/types';
+import { ApiError } from '@/types';
 
-export interface ApiErrorInit<TError> {
-  message: string;
-  status: number;
-  statusText: string;
-  payload: TError | null;
-  meta: ApiResponseMeta;
-  response: Response;
-}
-
-export class ApiError<TError = unknown> extends Error {
-  public readonly status: number;
-
-  public readonly statusText: string;
-
-  public readonly payload: TError | null;
-
-  public readonly meta: ApiResponseMeta;
-
-  public readonly response: Response;
-
-  constructor(init: ApiErrorInit<TError>) {
-    super(init.message);
-    this.name = 'ApiError';
-    this.status = init.status;
-    this.statusText = init.statusText;
-    this.payload = init.payload;
-    this.meta = init.meta;
-    this.response = init.response;
-    Object.setPrototypeOf(this, new.target.prototype);
-  }
-}
+export type { ApiResponseMeta } from '@/types';
+export { ApiError } from '@/types';
 
 export function useApi<T = unknown, TError = unknown>(
   url: MaybeRefOrGetter<string>,
