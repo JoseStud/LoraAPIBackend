@@ -3,7 +3,61 @@ from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient
 
+from backend.core.dependencies import get_service_container
+from backend.main import app as backend_app
 from backend.schemas import SDNextGenerationResult
+from backend.services import ServiceContainer
+from backend.services.queue import QueueBackend
+
+
+class RecordingQueueBackend(QueueBackend):
+    """Queue backend that records enqueue calls for assertions."""
+
+    def __init__(self) -> None:
+        self.calls = []
+
+    def enqueue_delivery(self, job_id: str, *, background_tasks=None, **enqueue_kwargs):
+        self.calls.append(
+            {
+                "job_id": job_id,
+                "background_tasks": background_tasks,
+                "enqueue_kwargs": enqueue_kwargs,
+            }
+        )
+
+
+class FailingQueueBackend(QueueBackend):
+    """Queue backend that always raises to force fallback usage."""
+
+    def __init__(self) -> None:
+        self.attempts = 0
+
+    def enqueue_delivery(self, job_id: str, *, background_tasks=None, **enqueue_kwargs):
+        self.attempts += 1
+        raise RuntimeError("primary queue failed")
+
+
+def _create_active_adapter(client: TestClient, mock_storage: MagicMock) -> None:
+    """Helper to create and activate a test adapter."""
+
+    mock_storage.exists.return_value = True
+    import uuid
+
+    name = "test-" + uuid.uuid4().hex
+    data = {
+        "name": name,
+        "version": "v1",
+        "file_path": "/fake/path",
+        "weight": 1.0,
+    }
+    response = client.post("/api/v1/adapters", json=data)
+    assert response.status_code == 201
+    adapter_id = response.json()["adapter"]["id"]
+
+    activate_response = client.post(f"/api/v1/adapters/{adapter_id}/activate")
+    assert activate_response.status_code == 200
+
+    return adapter_id
 
 
 def test_health(client: TestClient):
@@ -120,6 +174,82 @@ def test_deliveries_enqueue(client: TestClient, mock_storage: MagicMock):
     assert r.status_code == 200
     dj = r.json()["delivery"]
     assert dj["id"] == did
+
+
+def test_compose_uses_primary_queue_backend(
+    client: TestClient,
+    db_session,
+    mock_storage: MagicMock,
+):
+    """Compose should enqueue via the configured primary queue backend."""
+
+    _create_active_adapter(client, mock_storage)
+
+    queue_backend = RecordingQueueBackend()
+
+    def override_service_container():
+        return ServiceContainer(
+            db_session,
+            queue_backend=queue_backend,
+            fallback_queue_backend=None,
+        )
+
+    backend_app.dependency_overrides[get_service_container] = override_service_container
+    try:
+        response = client.post(
+            "/api/v1/compose",
+            json={"prefix": "p", "delivery": {"mode": "cli", "cli": {}}},
+        )
+    finally:
+        backend_app.dependency_overrides.pop(get_service_container, None)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["delivery"]["id"]
+
+    assert len(queue_backend.calls) == 1
+    call = queue_backend.calls[0]
+    assert call["job_id"] == body["delivery"]["id"]
+    assert call["background_tasks"] is not None
+
+
+def test_compose_falls_back_to_background_queue(
+    client: TestClient,
+    db_session,
+    mock_storage: MagicMock,
+):
+    """Compose should fall back when the primary queue raises."""
+
+    _create_active_adapter(client, mock_storage)
+
+    primary_queue = FailingQueueBackend()
+    fallback_queue = RecordingQueueBackend()
+
+    def override_service_container():
+        return ServiceContainer(
+            db_session,
+            queue_backend=primary_queue,
+            fallback_queue_backend=fallback_queue,
+        )
+
+    backend_app.dependency_overrides[get_service_container] = override_service_container
+    try:
+        response = client.post(
+            "/api/v1/compose",
+            json={"prefix": "p", "delivery": {"mode": "cli", "cli": {}}},
+        )
+    finally:
+        backend_app.dependency_overrides.pop(get_service_container, None)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["delivery"]["id"]
+
+    assert primary_queue.attempts == 1
+    assert len(fallback_queue.calls) == 1
+    call = fallback_queue.calls[0]
+    assert call["job_id"] == body["delivery"]["id"]
+    assert call["background_tasks"] is not None
 
 
 def test_generation_generate_request(client: TestClient, monkeypatch):

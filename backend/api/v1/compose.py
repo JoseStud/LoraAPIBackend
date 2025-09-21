@@ -4,14 +4,10 @@ This module exposes a single POST /compose endpoint that builds a prompt
 from active adapters and optionally schedules a delivery.
 """
 
-import asyncio
-
 from fastapi import APIRouter, BackgroundTasks, Depends
 
-from backend.core.database import get_session_context
 from backend.core.dependencies import get_service_container
-from backend.delivery import get_delivery_backend, get_generation_backend
-from backend.schemas import ComposeRequest, ComposeResponse, SDNextGenerationParams
+from backend.schemas import ComposeRequest, ComposeResponse
 from backend.services import ServiceContainer
 
 router = APIRouter()
@@ -42,140 +38,12 @@ async def compose(
 
     delivery_info = None
     if req.delivery:
-        # Create delivery job
-        dj = services.deliveries.create_job(
-            prompt, 
-            req.delivery.mode, 
+        job = services.deliveries.schedule_job(
+            prompt,
+            req.delivery.mode,
             req.delivery.model_dump(),
+            background_tasks=background_tasks,
         )
-        delivery_info = {"id": dj.id, "status": dj.status}
-        
-        # Schedule delivery based on mode
-        if req.delivery.mode == "http" and req.delivery.http:
-            background_tasks.add_task(
-                _deliver_http, 
-                prompt, 
-                req.delivery.http.model_dump(),
-                dj.id,
-            )
-        elif req.delivery.mode == "cli" and req.delivery.cli:
-            background_tasks.add_task(
-                _deliver_cli, 
-                prompt, 
-                req.delivery.cli.model_dump(),
-                dj.id,
-            )
-        elif req.delivery.mode == "sdnext" and req.delivery.sdnext:
-            background_tasks.add_task(
-                _deliver_sdnext,
-                prompt,
-                req.delivery.sdnext.model_dump(),
-                dj.id,
-            )
+        delivery_info = {"id": job.id, "status": job.status}
 
     return ComposeResponse(prompt=prompt, tokens=tokens, delivery=delivery_info)
-
-
-def _deliver_http(prompt: str, params: dict, job_id: str) -> None:
-    """Background task for HTTP delivery executed synchronously."""
-    asyncio.run(_deliver_http_async(prompt, params, job_id))
-
-
-async def _deliver_http_async(prompt: str, params: dict, job_id: str) -> None:
-    try:
-        backend = get_delivery_backend("http")
-        result = await backend.deliver(prompt, params)
-
-        # Update job status
-        with get_session_context() as session:
-            services = ServiceContainer(session)
-            if result.get("status") in (200, "ok"):
-                services.deliveries.update_job_status(job_id, "succeeded", result)
-            else:
-                services.deliveries.update_job_status(job_id, "failed", result)
-    except Exception as exc:  # pragma: no cover - background logging path
-        with get_session_context() as session:
-            services = ServiceContainer(session)
-            services.deliveries.update_job_status(
-                job_id,
-                "failed",
-                {"error": str(exc)},
-            )
-
-
-def _deliver_cli(prompt: str, params: dict, job_id: str) -> None:
-    """Background task for CLI delivery executed synchronously."""
-    asyncio.run(_deliver_cli_async(prompt, params, job_id))
-
-
-async def _deliver_cli_async(prompt: str, params: dict, job_id: str) -> None:
-    try:
-        backend = get_delivery_backend("cli")
-        result = await backend.deliver(prompt, params)
-
-        # Update job status
-        with get_session_context() as session:
-            services = ServiceContainer(session)
-            if result.get("status") == "ok":
-                services.deliveries.update_job_status(job_id, "succeeded", result)
-            else:
-                services.deliveries.update_job_status(job_id, "failed", result)
-    except Exception as exc:  # pragma: no cover - background logging path
-        with get_session_context() as session:
-            services = ServiceContainer(session)
-            services.deliveries.update_job_status(
-                job_id,
-                "failed",
-                {"error": str(exc)},
-            )
-
-
-def _deliver_sdnext(prompt: str, params: dict, job_id: str) -> None:
-    """Background task for SDNext generation delivery executed synchronously."""
-    asyncio.run(_deliver_sdnext_async(prompt, params, job_id))
-
-
-async def _deliver_sdnext_async(prompt: str, params: dict, job_id: str) -> None:
-    try:
-        backend = get_generation_backend("sdnext")
-
-        # Extract generation parameters
-        gen_params_dict = params.get("generation_params", {})
-        gen_params_dict["prompt"] = prompt  # Use composed prompt
-
-        # Convert to proper format
-        gen_params = SDNextGenerationParams(**gen_params_dict)
-
-        # Prepare full parameters
-        full_params = {
-            "generation_params": gen_params.model_dump(),
-            "mode": params.get("mode", "immediate"),
-            "save_images": params.get("save_images", True),
-            "return_format": params.get("return_format", "base64"),
-        }
-
-        result = await backend.generate_image(prompt, full_params)
-
-        # Update job status
-        with get_session_context() as session:
-            services = ServiceContainer(session)
-            if result.status == "completed":
-                services.deliveries.update_job_status(
-                    job_id,
-                    "succeeded",
-                    result.model_dump(),
-                )
-            else:
-                services.deliveries.update_job_status(
-                    job_id,
-                    "failed",
-                    result.model_dump(),
-                )
-    except Exception as exc:  # pragma: no cover - background logging path
-        with get_session_context() as session:
-            services = ServiceContainer(session)
-            services.deliveries.update_job_status(
-                job_id,
-                "failed",
-                {"error": str(exc)},
-            )

@@ -135,10 +135,14 @@ def client_fixture(db_session: Session, monkeypatch):
     def session_context_override():
         yield db_session
 
-    monkeypatch.setattr(
-        "backend.api.v1.compose.get_session_context",
-        lambda: session_context_override(),
-    )
+    from backend.api.v1 import compose as compose_module
+
+    if hasattr(compose_module, "get_session_context"):
+        monkeypatch.setattr(
+            compose_module,
+            "get_session_context",
+            lambda: session_context_override(),
+        )
 
     yield TestClient(fastapi_app)
 
