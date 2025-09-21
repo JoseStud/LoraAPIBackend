@@ -36,7 +36,7 @@ async def create_delivery(
         try:
             from backend.workers.tasks import q
             # enqueue with delivery id
-            q.enqueue("app.workers.tasks.process_delivery", dj.id)
+            q.enqueue("backend.workers.tasks.process_delivery", dj.id)
         except Exception:
             # fallback to BackgroundTasks
             background_tasks.add_task(
