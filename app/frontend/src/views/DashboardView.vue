@@ -1,5 +1,16 @@
 <template>
   <div class="flex flex-col gap-6">
+    <PageHeader
+      title="Dashboard Overview"
+      subtitle="Monitor system health, track jobs, and explore LoRA insights at a glance."
+    >
+      <template #actions>
+        <RouterLink class="btn btn-secondary btn-sm" to="/loras">
+          Browse LoRAs
+        </RouterLink>
+      </template>
+    </PageHeader>
+
     <section class="grid gap-6 lg:grid-cols-2">
       <SystemStatusCard variant="detailed" />
       <SystemAdminStatusCard />
@@ -33,12 +44,15 @@
 </template>
 
 <script setup lang="ts">
+import { RouterLink } from 'vue-router';
+
 import GenerationHistory from '@/components/GenerationHistory.vue';
 import GenerationStudio from '@/components/GenerationStudio.vue';
 import HelloWorld from '@/components/HelloWorld.vue';
 import ImportExport from '@/components/ImportExport.vue';
 import JobQueue from '@/components/JobQueue.vue';
 import LoraGallery from '@/components/LoraGallery.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import PerformanceAnalytics from '@/components/PerformanceAnalytics.vue';
 import PromptComposer from '@/components/PromptComposer.vue';
 import RecommendationsPanel from '@/components/RecommendationsPanel.vue';
