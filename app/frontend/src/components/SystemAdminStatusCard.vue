@@ -154,13 +154,13 @@
     </div>
 
     <!-- Error Messages -->
-    <div v-if="error" class="card border-red-200 bg-red-50">
+    <div v-if="errorMessage" class="card border-red-200 bg-red-50">
       <div class="card-body">
         <div class="flex items-center text-red-600">
           <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
-          <span>{{ error }}</span>
+          <span>{{ errorMessage }}</span>
         </div>
       </div>
     </div>
@@ -169,7 +169,7 @@
 
 <script setup>
 import { onMounted, onBeforeUnmount, ref, reactive } from 'vue';
-import { useApi } from '@/composables/useApi';
+import { useDashboardStatsApi } from '@/composables/apiClients';
 
 // Default states
 const systemStatus = reactive({
@@ -196,8 +196,14 @@ const systemMetrics = reactive({
   gpus: []
 });
 
-const error = ref(null);
+const errorMessage = ref(null);
 const updateInterval = ref(null);
+
+const {
+  data: dashboardData,
+  fetchData: fetchDashboardStats,
+  error: dashboardApiError,
+} = useDashboardStatsApi();
 
 // Utility functions
 const formatSize = (bytes) => {
@@ -231,24 +237,23 @@ const getStatusClass = (status) => {
 // API functions
 const loadSystemStatus = async () => {
   try {
-    const { data, fetchData } = useApi('/api/v1/dashboard/stats');
-    await fetchData();
-    if (data.value) {
-      const status = data.value?.system_health?.status || 'healthy';
-      Object.assign(systemStatus, { overall: status, last_check: new Date().toISOString() });
-      error.value = null;
-    }
+    const payload = await fetchDashboardStats();
+    const source = payload ?? dashboardData.value;
+    const systemHealth = source?.system_health ?? {};
+    const status = typeof systemHealth.status === 'string' ? systemHealth.status : 'healthy';
+    Object.assign(systemStatus, { overall: status, last_check: new Date().toISOString() });
+    errorMessage.value = null;
   } catch (err) {
     Object.assign(systemStatus, { overall: 'healthy', last_check: new Date().toISOString() });
-    error.value = null;
+    errorMessage.value = dashboardApiError.value?.message ?? null;
   }
 };
 
 const loadSystemStats = async () => {
   try {
-    const { data, fetchData } = useApi('/api/v1/dashboard/stats');
-    await fetchData();
-    const stats = data.value?.stats || {};
+    const payload = await fetchDashboardStats();
+    const source = payload ?? dashboardData.value;
+    const stats = source?.stats ?? {};
     Object.assign(systemStats, {
       uptime: 'N/A',
       active_workers: 0,

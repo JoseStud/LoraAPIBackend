@@ -128,7 +128,7 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
-import { useApi } from '@/composables/useApi';
+import { useAdapterListApi } from '@/composables/apiClients';
 
 const STORAGE_KEY = 'prompt-composer-composition';
 const lastSaved = ref(null);
@@ -137,7 +137,7 @@ const lastSaved = ref(null);
 const loras = ref([]);
 const searchTerm = ref('');
 const activeOnly = ref(false);
-const { data, error, isLoading, fetchData: loadLoras } = useApi('/api/v1/adapters?per_page=200&page=1', { credentials: 'same-origin' });
+const { data, error, isLoading, fetchData: loadLoras } = useAdapterListApi('/api/v1/adapters?per_page=200&page=1');
 
 // Composition
 const activeLoras = ref([]);

@@ -114,7 +114,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import { useApi } from '@/composables/useApi';
+import { useAdapterListApi, useRecommendationApi } from '@/composables/apiClients';
 
 // State
 const loras = ref([]);
@@ -136,7 +136,7 @@ const fmtScore = (v) => (v == null ? '-' : Number(v).toFixed(3));
 
 // Data loading via composables
 const lorasUrl = '/api/v1/adapters?per_page=100&page=1';
-const { data: lorasData, error: lorasErr, isLoading: lorasLoading, fetchData: loadLoras } = useApi(lorasUrl, { credentials: 'same-origin' });
+const { data: lorasData, error: lorasErr, isLoading: lorasLoading, fetchData: loadLoras } = useAdapterListApi(lorasUrl);
 
 const fetchLoras = async () => {
   isLoadingLoras.value = true;
@@ -170,7 +170,7 @@ const buildSimilarUrl = () => {
   return `${base}?${params.toString()}`;
 };
 
-const { data: recsData, error: recsErrObj, isLoading: recsLoading, fetchData: loadRecs } = useApi(() => buildSimilarUrl(), { credentials: 'same-origin' });
+const { data: recsData, error: recsErrObj, isLoading: recsLoading, fetchData: loadRecs } = useRecommendationApi(() => buildSimilarUrl());
 
 const fetchRecommendations = async () => {
   if (!selectedLoraId.value) return;

@@ -432,7 +432,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 
-import { useApi } from '@/composables/useApi'
+import { useActiveJobsApi, useRecentResultsApi, useSystemStatusApi } from '@/composables/apiClients'
 import { useAppStore } from '@/stores/app'
 
 // Reactive state
@@ -463,9 +463,9 @@ const pollInterval = ref(null)
 const isConnected = ref(false)
 
 // API composables
-const { fetchData: loadSystemStatus } = useApi('/api/v1/system/status')
-const { fetchData: loadActiveJobsData } = useApi('/api/v1/generation/jobs/active')
-const { fetchData: loadRecentResultsData } = useApi(() => {
+const { fetchData: loadSystemStatus } = useSystemStatusApi()
+const { fetchData: loadActiveJobsData } = useActiveJobsApi()
+const { fetchData: loadRecentResultsData } = useRecentResultsApi(() => {
   const limit = showHistory.value ? 50 : 10
   return `/api/v1/generation/results?limit=${limit}`
 })
