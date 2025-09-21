@@ -112,97 +112,154 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue';
 import { useAdapterListApi, useRecommendationApi } from '@/composables/apiClients';
+import type { AdapterRead, RecommendationItem, RecommendationResponse } from '@/types';
 
-// State
-const loras = ref([]);
-const isLoadingLoras = ref(false);
-const lorasError = ref('');
+const WEIGHT_KEYS = ['semantic', 'artistic', 'technical'] as const;
+type WeightKey = (typeof WEIGHT_KEYS)[number];
+type WeightState = Record<WeightKey, number>;
 
-const selectedLoraId = ref('');
-const selectedLora = computed(() => loras.value.find(l => String(l.id) === String(selectedLoraId.value)) || null);
+const DEFAULT_WEIGHTS: Readonly<WeightState> = {
+  semantic: 0.6,
+  artistic: 0.3,
+  technical: 0.1,
+} as const satisfies WeightState;
 
-const limit = ref(10);
-const similarityThreshold = ref(0.1);
-const weights = ref({ semantic: 0.6, artistic: 0.3, technical: 0.1 });
-
-const recommendations = ref([]);
-const isLoadingRecs = ref(false);
-const recsError = ref('');
-
-const fmtScore = (v) => (v == null ? '-' : Number(v).toFixed(3));
-
-// Data loading via composables
-const lorasUrl = '/api/v1/adapters?per_page=100&page=1';
-const { data: lorasData, error: lorasErr, isLoading: lorasLoading, fetchData: loadLoras } = useAdapterListApi(lorasUrl);
-
-const fetchLoras = async () => {
-  isLoadingLoras.value = true;
-  lorasError.value = '';
-  try {
-    await loadLoras();
-    const payload = lorasData.value;
-    loras.value = Array.isArray(payload?.items) ? payload.items : (Array.isArray(payload) ? payload : []);
-    if (!Array.isArray(loras.value)) loras.value = [];
-  } catch (e) {
-    lorasError.value = 'Failed to load LoRAs';
-  } finally {
-    // reflect composable state into existing flag for template compatibility
-    isLoadingLoras.value = !!lorasLoading.value;
-    // ensure we end loading state even if composable didn’t toggle yet
-    isLoadingLoras.value = false;
+const toErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message) {
+    return error.message;
   }
+  if (typeof error === 'string' && error) {
+    return error;
+  }
+  return fallback;
 };
 
-const buildSimilarUrl = () => {
-  if (!selectedLoraId.value) return '';
+const {
+  error: lorasErr,
+  isLoading: lorasLoading,
+  fetchData: loadLoras,
+  adapters: adapterResults,
+} = useAdapterListApi({ page: 1, perPage: 100 });
+
+const loras = computed<AdapterRead[]>(() => adapterResults.value);
+const lorasError = ref<string>('');
+
+const selectedLoraId = ref<AdapterRead['id'] | ''>('');
+const selectedLora = computed<AdapterRead | null>(() => {
+  if (!selectedLoraId.value) {
+    return null;
+  }
+  return loras.value.find((lora) => lora.id === selectedLoraId.value) ?? null;
+});
+
+const limit = ref<number>(10);
+const similarityThreshold = ref<number>(0.1);
+const weights = ref<WeightState>({ ...DEFAULT_WEIGHTS });
+
+const recommendations = ref<RecommendationItem[]>([]);
+const recsError = ref<string>('');
+
+const fmtScore = (value: number | null | undefined): string =>
+  value == null ? '-' : Number(value).toFixed(3);
+
+const recommendationUrl = computed<string>(() => {
+  if (!selectedLoraId.value) {
+    return '';
+  }
   const base = `/api/v1/recommendations/similar/${encodeURIComponent(selectedLoraId.value)}`;
   const params = new URLSearchParams();
   params.set('limit', String(limit.value));
   params.set('similarity_threshold', String(similarityThreshold.value));
-  // Note: backend expects a dict for weights; default weights are applied server-side.
-  // If nested query parsing is enabled, uncomment the following lines:
-  // params.set('weights.semantic', String(weights.value.semantic));
-  // params.set('weights.artistic', String(weights.value.artistic));
-  // params.set('weights.technical', String(weights.value.technical));
   return `${base}?${params.toString()}`;
+});
+
+const {
+  data: recsData,
+  error: recsErrObj,
+  isLoading: recsLoading,
+  fetchData: loadRecs,
+} = useRecommendationApi(() => recommendationUrl.value);
+
+const isLoadingLoras = computed<boolean>(() => lorasLoading.value);
+const isLoadingRecs = computed<boolean>(() => recsLoading.value);
+
+const isRecommendationResponse = (payload: unknown): payload is RecommendationResponse =>
+  Boolean(
+    payload &&
+      typeof payload === 'object' &&
+      Array.isArray((payload as RecommendationResponse).recommendations),
+  );
+
+const resetSettings = (): void => {
+  limit.value = 10;
+  similarityThreshold.value = 0.1;
+  weights.value = { ...DEFAULT_WEIGHTS };
 };
 
-const { data: recsData, error: recsErrObj, isLoading: recsLoading, fetchData: loadRecs } = useRecommendationApi(() => buildSimilarUrl());
-
-const fetchRecommendations = async () => {
-  if (!selectedLoraId.value) return;
-  isLoadingRecs.value = true;
-  recsError.value = '';
-  recommendations.value = [];
+const fetchLoras = async (): Promise<void> => {
+  lorasError.value = '';
   try {
-    await loadRecs();
-    const payload = recsData.value;
-    recommendations.value = Array.isArray(payload?.recommendations) ? payload.recommendations : [];
-  } catch (e) {
-    recsError.value = 'Failed to fetch recommendations';
-  } finally {
-    // reflect composable state into existing flag for template compatibility
-    isLoadingRecs.value = !!recsLoading.value;
-    // ensure we end loading state even if composable didn’t toggle yet
-    isLoadingRecs.value = false;
+    await loadLoras();
+  } catch (error) {
+    lorasError.value = toErrorMessage(error, 'Failed to load LoRAs');
   }
 };
 
-const resetSettings = () => {
-  limit.value = 10;
-  similarityThreshold.value = 0.1;
-  weights.value = { semantic: 0.6, artistic: 0.3, technical: 0.1 };
+const fetchRecommendations = async (): Promise<void> => {
+  recsError.value = '';
+  recommendations.value = [];
+
+  if (!selectedLora.value) {
+    return;
+  }
+
+  if (!recommendationUrl.value) {
+    recsError.value = 'Unable to resolve recommendation endpoint.';
+    return;
+  }
+
+  try {
+    const payload = (await loadRecs()) ?? recsData.value;
+    if (isRecommendationResponse(payload)) {
+      recommendations.value = payload.recommendations;
+    } else if (Array.isArray(payload)) {
+      recommendations.value = payload;
+    }
+  } catch (error) {
+    recsError.value = toErrorMessage(error, 'Failed to fetch recommendations');
+  }
 };
+
+watch(lorasErr, (error) => {
+  if (error) {
+    lorasError.value = toErrorMessage(error, 'Failed to load LoRAs');
+  }
+});
+
+watch(recsErrObj, (error) => {
+  if (error) {
+    recsError.value = toErrorMessage(error, 'Failed to fetch recommendations');
+  }
+});
+
+watch(selectedLoraId, (nextId) => {
+  if (!nextId) {
+    recommendations.value = [];
+    recsError.value = '';
+  }
+});
 
 onMounted(async () => {
   await fetchLoras();
 });
 
 watch([selectedLoraId, limit, similarityThreshold], () => {
-  if (selectedLoraId.value) fetchRecommendations();
+  if (selectedLora.value) {
+    void fetchRecommendations();
+  }
 });
 
 </script>
