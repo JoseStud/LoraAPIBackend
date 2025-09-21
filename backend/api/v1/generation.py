@@ -1,9 +1,10 @@
 """Router for SDNext generation endpoints."""
 
 import asyncio
-from typing import Dict
+import json
+from typing import Any, Dict, List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlmodel import Session
 
 from backend.core.database import get_session, get_session_context
@@ -13,11 +14,17 @@ from backend.schemas import (
     DeliveryCreateResponse,
     DeliveryRead,
     DeliveryWrapper,
+    GenerationCancelResponse,
+    GenerationJobStatus,
+    GenerationResultSummary,
     GenerationStarted,
     SDNextGenerationParams,
     SDNextGenerationResult,
 )
 from backend.services import create_service_container
+
+ACTIVE_JOB_STATUSES = {"pending", "running"}
+CANCELLABLE_STATUSES = {"pending", "running"}
 
 router = APIRouter(prefix="/generation", tags=["generation"])
 
@@ -233,6 +240,82 @@ async def queue_generation_job(
     return DeliveryCreateResponse(delivery_id=job.id)
 
 
+@router.get("/jobs/active", response_model=List[GenerationJobStatus])
+async def list_active_generation_jobs(
+    limit: int = Query(50, ge=1, le=200),
+    session: Session = Depends(get_session),
+):
+    """Return active generation jobs for frontend queues."""
+
+    services = create_service_container(session)
+
+    jobs_by_id = {}
+    for status in ACTIVE_JOB_STATUSES:
+        for job in services.deliveries.list_jobs(status=status, limit=limit):
+            jobs_by_id[job.id] = job
+
+    ordered_jobs = sorted(
+        jobs_by_id.values(),
+        key=lambda job: job.started_at or job.created_at,
+        reverse=True,
+    )
+
+    active_jobs: List[GenerationJobStatus] = []
+    for job in ordered_jobs[:limit]:
+        raw_params = services.deliveries.get_job_params(job)
+        generation_params: Dict[str, Any] = {}
+        if isinstance(raw_params, dict):
+            maybe_generation_params = raw_params.get("generation_params")
+            if isinstance(maybe_generation_params, dict):
+                generation_params = maybe_generation_params
+            else:
+                generation_params = raw_params
+
+        result_payload = services.deliveries.get_job_result(job) or {}
+        if not isinstance(result_payload, dict):
+            result_payload = {}
+
+        progress_value = result_payload.get("progress")
+        progress = 0.0
+        if isinstance(progress_value, (int, float)):
+            progress = float(progress_value)
+            if progress <= 1:
+                progress *= 100
+
+        message = None
+        for key in ("message", "detail"):
+            value = result_payload.get(key)
+            if isinstance(value, str):
+                message = value
+                break
+
+        error_text = None
+        for key in ("error", "error_message"):
+            value = result_payload.get(key)
+            if isinstance(value, str):
+                error_text = value
+                break
+
+        active_jobs.append(
+            GenerationJobStatus(
+                id=job.id,
+                jobId=job.id,
+                prompt=generation_params.get("prompt") or job.prompt,
+                status=job.status,
+                progress=progress,
+                message=message,
+                error=error_text,
+                params=generation_params,
+                created_at=job.created_at,
+                startTime=job.started_at or job.created_at,
+                finished_at=job.finished_at,
+                result=result_payload or None,
+            )
+        )
+
+    return active_jobs
+
+
 @router.get("/jobs/{job_id}", response_model=DeliveryWrapper)
 async def get_generation_job(
     job_id: str,
@@ -240,11 +323,11 @@ async def get_generation_job(
 ):
     """Get generation job status and results."""
     services = create_service_container(session)
-    
+
     job = services.deliveries.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
     # Convert to read model
     delivery_read = DeliveryRead(
         id=job.id,
@@ -257,8 +340,98 @@ async def get_generation_job(
         started_at=job.started_at,
         finished_at=job.finished_at,
     )
-    
+
     return DeliveryWrapper(delivery=delivery_read)
+
+
+@router.post("/jobs/{job_id}/cancel", response_model=GenerationCancelResponse)
+async def cancel_generation_job(
+    job_id: str,
+    session: Session = Depends(get_session),
+):
+    """Cancel an active generation job."""
+
+    services = create_service_container(session)
+    job = services.deliveries.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.status not in CANCELLABLE_STATUSES:
+        raise HTTPException(status_code=400, detail="Job cannot be cancelled in its current state")
+
+    services.deliveries.update_job_status(job_id, "cancelled", result={"status": "cancelled"})
+    services.websocket.stop_job_monitoring(job_id)
+
+    return GenerationCancelResponse(status="cancelled", message="Generation job cancelled")
+
+
+@router.get("/results", response_model=List[GenerationResultSummary])
+async def list_generation_results(
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    session: Session = Depends(get_session),
+):
+    """Return recent completed generation results."""
+
+    services = create_service_container(session)
+    jobs = services.deliveries.list_jobs(status="succeeded", limit=limit, offset=offset)
+
+    results: List[GenerationResultSummary] = []
+    for job in jobs:
+        raw_params = services.deliveries.get_job_params(job)
+        generation_params: Dict[str, Any] = {}
+        if isinstance(raw_params, dict):
+            maybe_generation_params = raw_params.get("generation_params")
+            if isinstance(maybe_generation_params, dict):
+                generation_params = maybe_generation_params
+            else:
+                generation_params = raw_params
+
+        result_payload = services.deliveries.get_job_result(job) or {}
+        if not isinstance(result_payload, dict):
+            result_payload = {}
+
+        images = result_payload.get("images")
+        image_url = None
+        if isinstance(images, list) and images:
+            first_image = images[0]
+            if isinstance(first_image, str):
+                image_url = first_image
+
+        thumbnail_url = result_payload.get("thumbnail_url")
+        if not isinstance(thumbnail_url, str):
+            thumbnail_url = None
+
+        generation_info = result_payload.get("generation_info")
+        if isinstance(generation_info, str):
+            try:
+                generation_info = json.loads(generation_info)
+            except (TypeError, json.JSONDecodeError):
+                generation_info = None
+        elif not isinstance(generation_info, dict):
+            generation_info = None
+
+        results.append(
+            GenerationResultSummary(
+                id=job.id,
+                job_id=job.id,
+                prompt=generation_params.get("prompt") or job.prompt,
+                negative_prompt=generation_params.get("negative_prompt"),
+                status=job.status,
+                image_url=image_url,
+                thumbnail_url=thumbnail_url,
+                width=generation_params.get("width"),
+                height=generation_params.get("height"),
+                steps=generation_params.get("steps"),
+                cfg_scale=generation_params.get("cfg_scale"),
+                seed=generation_params.get("seed"),
+                created_at=job.created_at,
+                finished_at=job.finished_at,
+                generation_info=generation_info,
+            )
+        )
+
+    return results
 
 
 def _process_generation_job(job_id: str, params: Dict) -> None:

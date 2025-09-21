@@ -74,9 +74,9 @@ class DeliveryService:
         return list(self.db_session.exec(q).all())
 
     def update_job_status(
-        self, 
-        job_id: str, 
-        status: str, 
+        self,
+        job_id: str,
+        status: str,
         result: Optional[Dict] = None,
         error: Optional[str] = None,
     ) -> Optional[DeliveryJob]:
@@ -97,14 +97,24 @@ class DeliveryService:
             return None
         
         job.status = status
+        stored_result: Optional[Dict] = None
         if result is not None:
-            job.result = json.dumps(result)
-        
+            stored_result = dict(result)
+
+        if error is not None:
+            if stored_result is None:
+                stored_result = {"error": error}
+            else:
+                stored_result = {**stored_result, "error": error}
+
+        if stored_result is not None:
+            job.result = json.dumps(stored_result)
+
         # Set timestamps based on status
         if status == "running" and job.started_at is None:
             from datetime import datetime, timezone
             job.started_at = datetime.now(timezone.utc)
-        elif status in ("succeeded", "failed") and job.finished_at is None:
+        elif status in ("succeeded", "failed", "cancelled") and job.finished_at is None:
             from datetime import datetime, timezone
             job.finished_at = datetime.now(timezone.utc)
         
