@@ -14,6 +14,7 @@ from .deliveries import DeliveryService, process_delivery_job
 from .generation import GenerationService
 from .queue import BackgroundTaskQueueBackend, QueueBackend, RedisQueueBackend
 from .storage import StorageService, get_storage_service
+from .system import SystemService
 from .websocket import WebSocketService, websocket_service
 
 
@@ -49,6 +50,7 @@ class ServiceContainer:
         self._compose_service: Optional[ComposeService] = None
         self._generation_service: Optional[GenerationService] = None
         self._websocket_service: Optional[WebSocketService] = None
+        self._system_service: Optional[SystemService] = None
         self._queue_backend = queue_backend
         self._fallback_queue_backend = fallback_queue_backend
     
@@ -111,6 +113,14 @@ class ServiceContainer:
         if self._websocket_service is None:
             self._websocket_service = websocket_service
         return self._websocket_service
+
+    @property
+    def system(self) -> SystemService:
+        """Get system monitoring service instance."""
+
+        if self._system_service is None:
+            self._system_service = SystemService(self.deliveries)
+        return self._system_service
 
 
 # Factory function for creating service containers

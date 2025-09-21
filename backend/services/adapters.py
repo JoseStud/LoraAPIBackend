@@ -1,8 +1,8 @@
 """Adapter service for managing LoRA adapters."""
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, List, Optional, Sequence, Set
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional, Sequence, Set
 
 from sqlalchemy import func
 from sqlmodel import Session, select
@@ -210,6 +210,64 @@ class AdapterService:
             q = q.where(Adapter.active)
 
         q = q.offset(offset).limit(limit)
+        return list(self.db_session.exec(q).all())
+
+    def count_total(self) -> int:
+        """Return the total number of adapters stored."""
+
+        result = self.db_session.exec(select(func.count(Adapter.id))).one()
+        return int(result or 0)
+
+    def count_active(self) -> int:
+        """Return the number of adapters flagged as active."""
+
+        result = self.db_session.exec(
+            select(func.count(Adapter.id)).where(Adapter.active)
+        ).one()
+        return int(result or 0)
+
+    def count_recent_imports(
+        self,
+        *,
+        since: Optional[datetime] = None,
+        hours: int = 24,
+    ) -> int:
+        """Return number of adapters ingested within the recent window."""
+
+        if since is None:
+            since = datetime.now(timezone.utc) - timedelta(hours=hours)
+
+        timestamp_column = func.coalesce(Adapter.last_ingested_at, Adapter.created_at)
+        result = self.db_session.exec(
+            select(func.count(Adapter.id)).where(timestamp_column >= since)
+        ).one()
+        return int(result or 0)
+
+    def get_dashboard_statistics(self, *, recent_hours: int = 24) -> Dict[str, int]:
+        """Return aggregate statistics used by the dashboard view."""
+
+        total = self.count_total()
+        active = self.count_active()
+        recent_imports = self.count_recent_imports(hours=recent_hours)
+        embeddings_coverage = int(round((active / total) * 100)) if total else 0
+
+        return {
+            "total_loras": total,
+            "active_loras": active,
+            "embeddings_coverage": embeddings_coverage,
+            "recent_imports": recent_imports,
+        }
+
+    def get_featured_adapters(self, limit: int = 5) -> List[Adapter]:
+        """Return a list of adapters to highlight on the dashboard."""
+
+        order_clause = func.coalesce(Adapter.updated_at, Adapter.created_at).desc()
+        q = (
+            select(Adapter)
+            .where(Adapter.active.is_(True))
+            .order_by(order_clause, Adapter.name)
+            .limit(limit)
+        )
         return list(self.db_session.exec(q).all())
 
     def search_adapters(
