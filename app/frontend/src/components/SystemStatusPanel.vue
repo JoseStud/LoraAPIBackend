@@ -139,25 +139,25 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+
+import { useSettingsStore } from '@/stores/settings'
+import { emptyMetricsSnapshot, fetchDashboardStats } from '@/services/systemService'
+import type { SystemMetricsSnapshot } from '@/types'
 
 // Reactive data
-const metricsData = ref({
-  cpu_percent: 0,
-  memory_percent: 0,
-  memory_used: 0,
-  memory_total: 0,
-  disk_percent: 0,
-  disk_used: 0,
-  disk_total: 0,
-  gpus: []
-})
+const settingsStore = useSettingsStore()
+const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore)
+const apiBaseUrl = computed(() => configuredBackendUrl.value || '/api/v1')
+
+const metricsData = ref<SystemMetricsSnapshot>(emptyMetricsSnapshot())
 
 const lastUpdated = ref('Never')
-const pollInterval = ref(null)
+const pollInterval = ref<ReturnType<typeof setInterval> | null>(null)
 const isLoading = ref(true)
-const error = ref(null)
+const error = ref<Error | null>(null)
 
 // Computed properties
 const cpuPercent = computed(() => metricsData.value.cpu_percent || 0)
@@ -168,7 +168,7 @@ const diskUsed = computed(() => metricsData.value.disk_used || 0)
 const gpus = computed(() => metricsData.value.gpus || [])
 
 // Utility function for formatting file sizes
-const formatSize = (bytes) => {
+const formatSize = (bytes: number) => {
   if (bytes === 0) return '0 B'
   const k = 1024
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
@@ -181,28 +181,15 @@ const loadSystemMetrics = async () => {
   try {
     isLoading.value = true
     error.value = null
-    
-    const response = await fetch('/api/v1/dashboard/stats')
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
-    }
-    
-    const data = await response.json()
-    // No direct metrics in backend; keep defaults and update timestamp
-    Object.assign(metricsData.value, {
-      cpu_percent: 0,
-      memory_percent: 0,
-      memory_used: 0,
-      disk_percent: 0,
-      disk_used: 0,
-      gpus: []
-    })
+
+    await fetchDashboardStats(apiBaseUrl.value)
+    // Backend currently exposes coarse stats; populate placeholder metrics
+    Object.assign(metricsData.value, emptyMetricsSnapshot())
     lastUpdated.value = new Date().toLocaleTimeString()
-    
+
   } catch (err) {
     console.error('Error loading system metrics:', err)
-    error.value = err
+    error.value = err instanceof Error ? err : new Error('Failed to load metrics')
   } finally {
     isLoading.value = false
   }

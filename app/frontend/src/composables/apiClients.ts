@@ -1,31 +1,19 @@
 import { computed, reactive } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
-import type { AdapterListResponse, AdapterRead } from '@/types/lora';
+
 import { useApi } from './useApi';
 import type {
+  AdapterListQuery,
+  AdapterListResponse,
+  AdapterRead,
+  DashboardStatsSummary,
   GenerationJob,
   GenerationResult,
   RecommendationResponse,
-  SystemStatusState,
+  SystemStatusPayload,
 } from '@/types';
 
-type AdapterListResult = AdapterListResponse | AdapterRead[];
-type SystemStatusResponse = Partial<SystemStatusState> & Record<string, unknown>;
-
-export type DashboardStatsResponse = {
-  stats?: Record<string, unknown>;
-  system_health?: Record<string, unknown>;
-  [key: string]: unknown;
-};
-
-export interface AdapterListQuery {
-  page?: number;
-  perPage?: number;
-  search?: string;
-  active?: boolean;
-  tags?: readonly string[];
-  sort?: string;
-}
+export type DashboardStatsResponse = DashboardStatsSummary;
 
 const withCredentials = (init: RequestInit = {}): RequestInit => ({
   credentials: 'same-origin',
@@ -108,7 +96,7 @@ export const useRecommendationApi = (
 
 export const useDashboardStatsApi = () => useApi<DashboardStatsResponse>('/api/v1/dashboard/stats');
 
-export const useSystemStatusApi = () => useApi<SystemStatusResponse>('/api/v1/system/status');
+export const useSystemStatusApi = () => useApi<SystemStatusPayload>('/api/v1/system/status');
 
 export const useActiveJobsApi = () => useApi<Partial<GenerationJob>[]>('/api/v1/generation/jobs/active');
 

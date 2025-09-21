@@ -48,6 +48,101 @@ export interface SDNextGenerationResult {
   generation_info?: Record<string, unknown> | null;
 }
 
+export interface GenerationLoraReference {
+  id: string;
+  name?: string | null;
+  version?: string | null;
+  weight?: number | null;
+  adapter_id?: string | null;
+  /** Additional metadata attached to the LoRA reference. */
+  extra?: Record<string, unknown> | null;
+}
+
+export interface GenerationHistoryEntry {
+  id: string | number;
+  job_id?: string | null;
+  prompt: string;
+  negative_prompt?: string | null;
+  image_url: string;
+  thumbnail_url?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+  width: number;
+  height: number;
+  steps: number;
+  cfg_scale: number;
+  seed?: number | null;
+  sampler_name?: string | null;
+  model_name?: string | null;
+  status?: string | null;
+  rating?: number | null;
+  is_favorite?: boolean;
+  loras?: GenerationLoraReference[] | null;
+  metadata?: Record<string, unknown> | null;
+  /**
+   * Backend may return additional engine-specific fields.
+   * Consumers should narrow this record when stricter typing becomes available.
+   */
+  [key: string]: unknown;
+}
+
+export interface GenerationHistoryPageInfo {
+  page?: number;
+  page_size?: number;
+  total?: number;
+  pages?: number;
+  has_more?: boolean;
+  next_page?: number | null;
+  previous_page?: number | null;
+}
+
+export interface GenerationHistoryResponse extends GenerationHistoryPageInfo {
+  results: GenerationHistoryEntry[];
+}
+
+export type GenerationHistoryPayload = GenerationHistoryEntry[] | GenerationHistoryResponse;
+
+export interface GenerationHistoryQuery {
+  page?: number;
+  page_size?: number;
+  search?: string;
+  sort?: string;
+  min_rating?: number;
+  width?: number;
+  height?: number;
+  start_date?: string;
+  end_date?: string;
+  [key: string]: unknown;
+}
+
+export interface GenerationRatingUpdate {
+  rating: number;
+}
+
+export interface GenerationFavoriteUpdate {
+  is_favorite: boolean;
+}
+
+export interface GenerationBulkFavoriteRequest extends GenerationFavoriteUpdate {
+  ids: readonly (string | number)[];
+}
+
+export interface GenerationBulkDeleteRequest {
+  ids: readonly (string | number)[];
+}
+
+export interface GenerationExportRequest {
+  ids: readonly (string | number)[];
+  include_metadata?: boolean;
+}
+
+export interface GenerationDownloadMetadata {
+  blob: Blob;
+  filename: string;
+  contentType?: string | null;
+  size: number;
+}
+
 export interface ProgressUpdate {
   job_id: string;
   progress: number;

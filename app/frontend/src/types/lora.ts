@@ -85,6 +85,7 @@ export interface AdapterRead {
   json_file_mtime?: string | null;
   json_file_size?: number | null;
   last_ingested_at?: string | null;
+  last_updated?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -102,4 +103,52 @@ export interface AdapterListResponse {
   page: number;
   pages: number;
   per_page: number;
+}
+
+export interface AdapterListQuery {
+  page?: number;
+  perPage?: number;
+  search?: string;
+  active?: boolean;
+  tags?: readonly string[];
+  sort?: string;
+}
+
+export type LoraGallerySortOption =
+  | 'name_asc'
+  | 'name_desc'
+  | 'created_at_desc'
+  | 'created_at_asc'
+  | 'last_updated_desc';
+
+export interface LoraGalleryFilters {
+  search?: string;
+  activeOnly: boolean;
+  tags: string[];
+  sort: LoraGallerySortOption;
+}
+
+export interface LoraGallerySelectionState {
+  viewMode: 'grid' | 'list';
+  bulkMode: boolean;
+  selectedIds: string[];
+}
+
+export type LoraBulkAction = 'activate' | 'deactivate' | 'delete';
+
+export interface LoraBulkActionRequest {
+  action: LoraBulkAction;
+  lora_ids: string[];
+}
+
+export interface LoraTagListResponse {
+  tags: string[];
+  [key: string]: unknown;
+}
+
+export interface LoraGalleryState {
+  filters: LoraGalleryFilters;
+  availableTags: string[];
+  showAllTags: boolean;
+  selection: LoraGallerySelectionState;
 }

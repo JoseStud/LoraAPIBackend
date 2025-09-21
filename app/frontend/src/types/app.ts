@@ -9,6 +9,12 @@ export interface SystemStatusState {
   gpu_status: string;
   memory_used: number;
   memory_total: number;
+  active_workers?: number;
+  backend?: string | null;
+  queue_eta_seconds?: number | null;
+  last_updated?: string | null;
+  warnings?: string[];
+  [key: string]: unknown;
 }
 
 export type JobStatus =
