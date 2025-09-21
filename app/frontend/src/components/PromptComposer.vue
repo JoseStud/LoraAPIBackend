@@ -126,80 +126,123 @@
   
 </template>
 
-<script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+<script setup lang="ts">
+import { computed, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue';
+
 import { useAdapterListApi } from '@/composables/apiClients';
+import { createGenerationParams, requestGeneration } from '@/services/generationService';
 import { copyToClipboard } from '@/utils/browser';
 
+import type {
+  AdapterRead,
+  AdapterSummary,
+  CompositionEntry,
+  SavedComposition,
+} from '@/types';
+
 const STORAGE_KEY = 'prompt-composer-composition';
-const lastSaved = ref(null);
+const DEFAULT_WEIGHT = 1;
 
-// Loras
-const loras = ref([]);
-const searchTerm = ref('');
-const activeOnly = ref(false);
-const { data, error, isLoading, fetchData: loadLoras } = useAdapterListApi({ page: 1, perPage: 200 });
+const lastSaved: Ref<SavedComposition | null> = ref(null);
 
-// Composition
-const activeLoras = ref([]);
+const loras: Ref<AdapterSummary[]> = ref([]);
+const searchTerm = ref<string>('');
+const activeOnly = ref<boolean>(false);
+const { adapters, error, isLoading, fetchData: loadLoras } = useAdapterListApi({ page: 1, perPage: 200 });
 
-// Prompt fields
-const basePrompt = ref('');
-const negativePrompt = ref('');
-const finalPrompt = ref('');
-const basePromptError = ref('');
-const isGenerating = ref(false);
+const activeLoras: Ref<CompositionEntry[]> = ref([]);
+const basePrompt = ref<string>('');
+const negativePrompt = ref<string>('');
+const finalPrompt = ref<string>('');
+const basePromptError = ref<string>('');
+const isGenerating = ref<boolean>(false);
 
-const filteredLoras = computed(() => {
+const filteredLoras: ComputedRef<AdapterSummary[]> = computed(() => {
   const term = searchTerm.value.trim().toLowerCase();
   let items = loras.value;
-  if (activeOnly.value) items = items.filter((i) => i.active);
-  if (term) items = items.filter((i) => (i.name || '').toLowerCase().includes(term));
+
+  if (activeOnly.value) {
+    items = items.filter((item) => item.active);
+  }
+
+  if (term) {
+    items = items.filter((item) => item.name.toLowerCase().includes(term));
+  }
+
   return items;
 });
 
-const isInComposition = (id) => activeLoras.value.some((l) => String(l.id) === String(id));
+const isInComposition = (id: AdapterSummary['id']): boolean => {
+  return activeLoras.value.some((entry) => String(entry.id) === String(id));
+};
 
-const addToComposition = (l) => {
-  if (isInComposition(l.id)) return;
-  activeLoras.value.push({ id: l.id, name: l.name, weight: 1.0 });
+const addToComposition = (lora: AdapterSummary): void => {
+  if (isInComposition(lora.id)) {
+    return;
+  }
+
+  activeLoras.value.push({ id: lora.id, name: lora.name, weight: DEFAULT_WEIGHT });
   updateFinal();
 };
 
-const removeFromComposition = (idx) => {
-  activeLoras.value.splice(idx, 1);
+const removeFromComposition = (index: number): void => {
+  if (index < 0 || index >= activeLoras.value.length) {
+    return;
+  }
+
+  activeLoras.value.splice(index, 1);
   updateFinal();
 };
 
-const moveUp = (idx) => {
-  if (idx <= 0) return;
-  const [item] = activeLoras.value.splice(idx, 1);
-  activeLoras.value.splice(idx - 1, 0, item);
+const moveUp = (index: number): void => {
+  if (index <= 0 || index >= activeLoras.value.length) {
+    return;
+  }
+
+  const [item] = activeLoras.value.splice(index, 1);
+
+  if (!item) {
+    return;
+  }
+
+  activeLoras.value.splice(index - 1, 0, item);
   updateFinal();
 };
 
-const moveDown = (idx) => {
-  if (idx >= activeLoras.value.length - 1) return;
-  const [item] = activeLoras.value.splice(idx, 1);
-  activeLoras.value.splice(idx + 1, 0, item);
+const moveDown = (index: number): void => {
+  if (index < 0 || index >= activeLoras.value.length - 1) {
+    return;
+  }
+
+  const [item] = activeLoras.value.splice(index, 1);
+
+  if (!item) {
+    return;
+  }
+
+  activeLoras.value.splice(index + 1, 0, item);
   updateFinal();
 };
 
-const balanceWeights = () => {
-  if (activeLoras.value.length === 0) return;
-  const w = 1.0;
-  activeLoras.value.forEach((l) => (l.weight = w));
+const balanceWeights = (): void => {
+  if (activeLoras.value.length === 0) {
+    return;
+  }
+
+  activeLoras.value.forEach((entry) => {
+    entry.weight = DEFAULT_WEIGHT;
+  });
   updateFinal();
 };
 
-const duplicateComposition = () => {
-  activeLoras.value = activeLoras.value.map((l) => ({ ...l }));
+const duplicateComposition = (): void => {
+  activeLoras.value = activeLoras.value.map((entry) => ({ ...entry }));
   updateFinal();
 };
 
-const formatWeightToken = (value) => {
-  const parsed = Number(value);
-  const numeric = Number.isFinite(parsed) ? parsed : 1;
+const formatWeightToken = (value: number | string | null | undefined): string => {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  const numeric = Number.isFinite(parsed) ? parsed : DEFAULT_WEIGHT;
   const fixed = numeric.toFixed(2);
   const trimmed = fixed
     .replace(/(\.\d*?[1-9])0+$/u, '$1')
@@ -207,38 +250,48 @@ const formatWeightToken = (value) => {
   return trimmed.includes('.') ? trimmed : `${trimmed}.0`;
 };
 
-const buildFinalPrompt = () => {
+const buildFinalPrompt = (): string => {
   const base = basePrompt.value.trim();
-  if (!base) return '';
-  const parts = [base];
-  activeLoras.value.forEach((l) => {
-    const weightToken = formatWeightToken(l.weight ?? 1);
-    parts.push(`<lora:${l.name}:${weightToken}>`);
+
+  if (!base) {
+    return '';
+  }
+
+  const parts: string[] = [base];
+
+  activeLoras.value.forEach((entry) => {
+    const weightToken = formatWeightToken(entry.weight);
+    parts.push(`<lora:${entry.name}:${weightToken}>`);
   });
+
   return parts.join(' ');
 };
 
-const validate = () => {
+const validate = (): boolean => {
   basePromptError.value = '';
+
   if (!basePrompt.value.trim()) {
     basePromptError.value = 'Base prompt is required';
     return false;
   }
+
   if (basePrompt.value.length > 1000) {
     basePromptError.value = 'Base prompt is too long';
     return false;
   }
+
   return true;
 };
 
-const updateFinal = () => {
+const updateFinal = (): void => {
   finalPrompt.value = buildFinalPrompt();
 };
 
-const copyPrompt = async () => {
+const copyPrompt = async (): Promise<void> => {
   try {
     updateFinal();
     const success = await copyToClipboard(finalPrompt.value || '');
+
     if (!success && import.meta.env.DEV) {
       console.warn('Failed to copy prompt to clipboard');
     }
@@ -249,59 +302,163 @@ const copyPrompt = async () => {
   }
 };
 
-const saveComposition = () => {
-  const payload = { items: activeLoras.value, base: basePrompt.value, neg: negativePrompt.value };
-  lastSaved.value = payload;
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); } catch {}
+const toSavedComposition = (value: unknown): SavedComposition | null => {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const record = value as Partial<SavedComposition> & { items?: unknown };
+
+  const items = Array.isArray(record.items)
+    ? record.items
+        .map((item) => {
+          if (!item || typeof item !== 'object') {
+            return null;
+          }
+
+          const entry = item as Partial<CompositionEntry>;
+
+          if (typeof entry.id !== 'string' || typeof entry.name !== 'string') {
+            return null;
+          }
+
+          const weight =
+            typeof entry.weight === 'number' ? entry.weight : Number(entry.weight);
+          const normalisedWeight = Number.isFinite(weight) ? weight : DEFAULT_WEIGHT;
+
+          return {
+            id: entry.id,
+            name: entry.name,
+            weight: normalisedWeight,
+          } satisfies CompositionEntry;
+        })
+        .filter((entry): entry is CompositionEntry => entry !== null)
+    : [];
+
+  const base = typeof record.base === 'string' ? record.base : '';
+  const neg = typeof record.neg === 'string' ? record.neg : '';
+
+  return { items, base, neg };
 };
 
-const loadComposition = () => {
+const saveComposition = (): void => {
+  const payload: SavedComposition = {
+    items: activeLoras.value.map((entry) => ({ ...entry })),
+    base: basePrompt.value,
+    neg: negativePrompt.value,
+  };
+
+  lastSaved.value = payload;
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('Failed to persist composition', error);
+    }
+  }
+};
+
+const loadComposition = (): void => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    const payload = raw ? JSON.parse(raw) : lastSaved.value;
-    if (!payload) return;
-    activeLoras.value = Array.isArray(payload?.items) ? payload.items.map((l) => ({ id: l.id, name: l.name, weight: Number(l.weight) || 1 })) : [];
-    basePrompt.value = payload?.base || '';
-    negativePrompt.value = payload?.neg || '';
+    let payload: SavedComposition | null = null;
+
+    if (raw) {
+      payload = toSavedComposition(JSON.parse(raw) as unknown);
+    } else if (lastSaved.value) {
+      payload = lastSaved.value;
+    }
+
+    if (!payload) {
+      return;
+    }
+
+    activeLoras.value = payload.items.map((entry) => ({ ...entry }));
+    basePrompt.value = payload.base;
+    negativePrompt.value = payload.neg;
+    lastSaved.value = payload;
     updateFinal();
-  } catch {}
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('Failed to load composition', error);
+    }
+  }
 };
 
-const clearComposition = () => {
+const clearComposition = (): void => {
   activeLoras.value = [];
   updateFinal();
 };
 
-const generateImage = async () => {
+const generateImage = async (): Promise<void> => {
   if (!validate()) {
     updateFinal();
     return;
   }
+
   isGenerating.value = true;
+
   try {
-    await fetch('/api/v1/generation/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: finalPrompt.value, negative_prompt: negativePrompt.value, loras: activeLoras.value })
+    updateFinal();
+    const trimmedNegative = negativePrompt.value.trim();
+    const params = createGenerationParams({
+      prompt: finalPrompt.value,
+      negative_prompt: trimmedNegative ? trimmedNegative : null,
     });
-  } catch {}
-  finally {
+
+    await requestGeneration({
+      ...params,
+      loras: activeLoras.value.map((entry) => ({ ...entry })),
+    });
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('Failed to trigger generation', error);
+    }
+  } finally {
     isGenerating.value = false;
   }
 };
 
 onMounted(async () => {
   await loadLoras();
-  const payload = data.value;
-  const items = Array.isArray(payload?.items) ? payload.items : (Array.isArray(payload) ? payload : []);
-  loras.value = items.map((i) => ({ id: i.id, name: i.name, description: i.description, active: i.active ?? true }));
 });
 
-// Autosave composition to localStorage for resilience
-watch([activeLoras, basePrompt, negativePrompt], () => {
-  const payload = { items: activeLoras.value, base: basePrompt.value, neg: negativePrompt.value };
-  lastSaved.value = payload;
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); } catch {}
-}, { deep: true });
+watch(
+  () => adapters.value as AdapterRead[] | undefined,
+  (next: AdapterRead[] | undefined) => {
+    const items = Array.isArray(next) ? next : [];
+
+    loras.value = items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      active: item.active ?? true,
+    }));
+  },
+  { immediate: true },
+);
+
+watch<[CompositionEntry[], string, string]>(
+  () => [activeLoras.value, basePrompt.value, negativePrompt.value],
+  ([items, base, neg]: [CompositionEntry[], string, string]) => {
+    const payload: SavedComposition = {
+      items: items.map((entry) => ({ ...entry })),
+      base,
+      neg,
+    };
+
+    lastSaved.value = payload;
+
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn('Failed to persist composition', error);
+      }
+    }
+  },
+  { deep: true },
+);
 
 </script>
