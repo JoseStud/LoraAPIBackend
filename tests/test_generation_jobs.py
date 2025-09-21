@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from typing import Dict
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.main import app as backend_app
 from backend.services import ServiceContainer
 from backend.services.deliveries import DeliveryService
+from backend.services.queue import QueueBackend
 
 
 def _create_generation_params(prompt: str) -> Dict[str, Dict[str, object]]:
@@ -144,4 +146,146 @@ def test_list_generation_results_returns_recent_jobs(
     assert entry["steps"] == 25
     assert entry["cfg_scale"] == 7.5
     assert entry["seed"] == 1234
+
+
+def test_queue_generation_job_uses_primary_queue_backend(
+    client: TestClient,
+    db_session,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Queue endpoint enqueues jobs via the configured primary queue backend."""
+
+    class TrackingQueue(QueueBackend):
+        def __init__(self) -> None:
+            self.calls = []
+
+        def enqueue_delivery(self, job_id, *, background_tasks=None, **enqueue_kwargs):  # type: ignore[override]
+            self.calls.append((job_id, background_tasks, enqueue_kwargs))
+
+    primary_queue = TrackingQueue()
+    fallback_queue = TrackingQueue()
+
+    start_mock = AsyncMock()
+    broadcast_mock = AsyncMock()
+    monkeypatch.setattr(
+        "backend.services.websocket.websocket_service.start_job_monitoring",
+        start_mock,
+    )
+    monkeypatch.setattr(
+        "backend.services.websocket.websocket_service.manager.broadcast_generation_started",
+        broadcast_mock,
+    )
+
+    from backend.core.dependencies import get_service_container
+
+    def override_service_container():
+        return ServiceContainer(
+            db_session,
+            queue_backend=primary_queue,
+            fallback_queue_backend=fallback_queue,
+        )
+
+    backend_app.dependency_overrides[get_service_container] = override_service_container
+
+    response = client.post(
+        "/api/v1/generation/queue-generation",
+        json={"prompt": "Track primary"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    job_id = payload["delivery_id"]
+
+    assert len(primary_queue.calls) == 1
+    assert primary_queue.calls[0][0] == job_id
+    assert primary_queue.calls[0][1] is not None
+    assert fallback_queue.calls == []
+
+    start_mock.assert_awaited_once()
+    start_args, start_kwargs = start_mock.await_args
+    assert start_args[0] == job_id
+    assert start_kwargs == {}
+
+    broadcast_mock.assert_awaited_once()
+    broadcast_args, broadcast_kwargs = broadcast_mock.await_args
+    assert broadcast_args[0] == job_id
+    assert broadcast_kwargs == {}
+
+
+def test_queue_generation_job_falls_back_to_background_tasks(
+    client: TestClient,
+    db_session,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Queue endpoint uses the in-process fallback when the primary queue fails."""
+
+    class FailingQueue(QueueBackend):
+        def __init__(self) -> None:
+            self.calls = []
+
+        def enqueue_delivery(self, job_id, *, background_tasks=None, **enqueue_kwargs):  # type: ignore[override]
+            self.calls.append((job_id, background_tasks, enqueue_kwargs))
+            raise RuntimeError("primary failure")
+
+    class InstrumentedBackgroundQueue(QueueBackend):
+        def __init__(self) -> None:
+            self.calls = []
+
+        def enqueue_delivery(self, job_id, *, background_tasks=None, **enqueue_kwargs):  # type: ignore[override]
+            self.calls.append((job_id, background_tasks, enqueue_kwargs))
+            if background_tasks is not None:
+                background_tasks.add_task(lambda job=job_id: None)
+
+    primary_queue = FailingQueue()
+    fallback_queue = InstrumentedBackgroundQueue()
+
+    start_mock = AsyncMock()
+    broadcast_mock = AsyncMock()
+    monkeypatch.setattr(
+        "backend.services.websocket.websocket_service.start_job_monitoring",
+        start_mock,
+    )
+    monkeypatch.setattr(
+        "backend.services.websocket.websocket_service.manager.broadcast_generation_started",
+        broadcast_mock,
+    )
+
+    from backend.core.dependencies import get_service_container
+
+    def override_service_container():
+        return ServiceContainer(
+            db_session,
+            queue_backend=primary_queue,
+            fallback_queue_backend=fallback_queue,
+        )
+
+    backend_app.dependency_overrides[get_service_container] = override_service_container
+
+    response = client.post(
+        "/api/v1/generation/queue-generation",
+        json={"prompt": "Track fallback"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    job_id = payload["delivery_id"]
+
+    assert len(primary_queue.calls) == 1
+    assert primary_queue.calls[0][0] == job_id
+    assert len(fallback_queue.calls) == 1
+    assert fallback_queue.calls[0][0] == job_id
+
+    background_tasks = fallback_queue.calls[0][1]
+    assert background_tasks is not None
+    assert getattr(background_tasks, "tasks", [])  # background task scheduled
+
+    start_mock.assert_awaited_once()
+    start_args, start_kwargs = start_mock.await_args
+    assert start_args[0] == job_id
+    assert start_kwargs == {}
+
+    broadcast_mock.assert_awaited_once()
+    broadcast_args, broadcast_kwargs = broadcast_mock.await_args
+    assert broadcast_args[0] == job_id
+    assert broadcast_kwargs == {}
 

@@ -1,12 +1,10 @@
 """Router for SDNext generation endpoints."""
 
-import asyncio
 import json
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
-from backend.core.database import get_session_context
 from backend.core.dependencies import get_service_container
 from backend.delivery import get_generation_backend
 from backend.schemas import (
@@ -203,20 +201,14 @@ async def queue_generation_job(
         "backend": backend,
     }
     
-    # Create delivery job
-    job = services.deliveries.create_job(
+    # Create delivery job and schedule it via the configured queue backends
+    job = services.deliveries.schedule_job(
         prompt=generation_params.prompt,
         mode="sdnext",
         params=delivery_params,
+        background_tasks=background_tasks,
     )
-    
-    # Queue for background processing
-    background_tasks.add_task(
-        _process_generation_job,
-        job.id,
-        delivery_params,
-    )
-    
+
     # Start WebSocket monitoring for the job
     await services.websocket.start_job_monitoring(job.id, services.generation)
     
@@ -417,57 +409,3 @@ async def list_generation_results(
         )
 
     return results
-
-
-def _process_generation_job(job_id: str, params: Dict) -> None:
-    """Background task to process a generation job executed synchronously."""
-    asyncio.run(_process_generation_job_async(job_id, params))
-
-
-async def _process_generation_job_async(job_id: str, params: Dict) -> None:
-    with get_session_context() as session:
-        services = ServiceContainer(session)
-
-        # Update job status to running
-        services.deliveries.update_job_status(job_id, "running")
-
-        try:
-            # Extract parameters
-            gen_params_dict = params.get("generation_params", {})
-            gen_params = SDNextGenerationParams(**gen_params_dict)
-            backend = params.get("backend", "sdnext")
-
-            # Generate image
-            generation_kwargs = {
-                key: value
-                for key, value in params.items()
-                if key != "generation_params"
-            }
-            result = await services.generation.generate_image(
-                gen_params.prompt,
-                backend,
-                gen_params,
-                **generation_kwargs,
-            )
-
-            # Update job with result
-            if result.status == "completed":
-                services.deliveries.update_job_status(
-                    job_id,
-                    "succeeded",
-                    result.model_dump(),
-                )
-            else:
-                services.deliveries.update_job_status(
-                    job_id,
-                    "failed",
-                    result.model_dump(),
-                )
-
-        except Exception as exc:  # pragma: no cover - background logging path
-            # Update job with error
-            services.deliveries.update_job_status(
-                job_id,
-                "failed",
-                {"error": str(exc)},
-            )
