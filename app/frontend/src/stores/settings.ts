@@ -1,13 +1,7 @@
 import { defineStore } from 'pinia';
 
-import type { FrontendRuntimeSettings } from '@/types';
-
-interface SettingsState {
-  settings: FrontendRuntimeSettings | null;
-  isLoading: boolean;
-  isLoaded: boolean;
-  error: unknown | null;
-}
+import { loadFrontendSettings } from '@/services/systemService';
+import type { FrontendRuntimeSettings, SettingsState } from '@/types';
 
 const normalizeBackendUrl = (value?: string | null): string => {
   if (!value) {
@@ -81,17 +75,12 @@ export const useSettingsStore = defineStore('app-settings', {
       this.error = null;
 
       try {
-        const response = await fetch('/frontend/settings', {
-          credentials: 'same-origin',
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to load settings: HTTP ${response.status}`);
+        const payload = await loadFrontendSettings();
+        if (!payload) {
+          throw new Error('Received empty settings response');
         }
-
-        const payload = (await response.json()) as FrontendRuntimeSettings;
         this.setSettings(payload);
-      } catch (error) {
+      } catch (error: unknown) {
         this.error = error;
         if (!this.isLoaded) {
           this.setSettings({ backendUrl: this.settings?.backendUrl ?? '' });

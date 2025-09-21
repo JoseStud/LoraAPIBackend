@@ -340,7 +340,7 @@
 
 <script>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
-import { usePerformanceAnalytics } from '@/composables/usePerformanceAnalytics.js';
+import { usePerformanceAnalytics } from '@/composables/usePerformanceAnalytics';
 
 export default {
   name: 'PerformanceAnalytics',
