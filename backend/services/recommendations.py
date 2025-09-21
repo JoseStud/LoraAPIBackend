@@ -5,6 +5,7 @@ import os
 import pickle
 import time
 from datetime import datetime, timezone
+from threading import Lock
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -21,6 +22,13 @@ from backend.schemas.recommendations import (
 class RecommendationService:
     """Service for generating intelligent LoRA recommendations."""
 
+    # Shared model caches to avoid reloading transformers for every request
+    _shared_lock: Lock = Lock()
+    _shared_device: Optional[str] = None
+    _shared_semantic_embedder = None
+    _shared_feature_extractor = None
+    _shared_recommendation_engine = None
+
     def __init__(self, db_session: Session, gpu_enabled: bool = False):
         """Initialize recommendation service.
         
@@ -33,7 +41,7 @@ class RecommendationService:
         self.gpu_enabled = gpu_enabled
         self.device = 'cuda' if gpu_enabled else 'cpu'
         
-        # Initialize embedding models lazily
+        # Initialize embedding models lazily (per-instance references)
         self._semantic_embedder = None
         self._feature_extractor = None
         self._recommendation_engine = None
@@ -50,32 +58,87 @@ class RecommendationService:
         os.makedirs(self.embedding_cache_dir, exist_ok=True)
         os.makedirs(os.path.dirname(self.index_cache_path), exist_ok=True)
 
+    @staticmethod
+    def is_gpu_available() -> bool:
+        """Detect GPU availability across CUDA, ROCm, and MPS runtimes."""
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                return True
+            if getattr(torch.version, "hip", None):
+                return True
+            if torch.backends.mps.is_available():
+                return True
+            return False
+        except ImportError:
+            return False
+
+    @classmethod
+    def _ensure_shared_models(cls, device: str, gpu_enabled: bool) -> None:
+        """Ensure heavy models are loaded once per process for the given device."""
+        with cls._shared_lock:
+            if cls._shared_device != device:
+                # Device changed; drop existing caches so we reload with the new target
+                cls._shared_semantic_embedder = None
+                cls._shared_feature_extractor = None
+                cls._shared_recommendation_engine = None
+                cls._shared_device = device
+
+            if cls._shared_semantic_embedder is None:
+                from .recommendation_models import LoRASemanticEmbedder
+
+                batch_size = 32 if gpu_enabled else 16
+                cls._shared_semantic_embedder = LoRASemanticEmbedder(
+                    device=device,
+                    batch_size=batch_size,
+                )
+
+            if cls._shared_feature_extractor is None:
+                from .recommendation_models import GPULoRAFeatureExtractor
+
+                cls._shared_feature_extractor = GPULoRAFeatureExtractor(device=device)
+
+            if cls._shared_recommendation_engine is None:
+                from .recommendation_models import LoRARecommendationEngine
+
+                cls._shared_recommendation_engine = LoRARecommendationEngine(
+                    cls._shared_feature_extractor,
+                    device=device,
+                )
+
     def _get_semantic_embedder(self):
         """Lazy initialization of semantic embedding models."""
         if self._semantic_embedder is None:
-            from .recommendation_models import LoRASemanticEmbedder
-            self._semantic_embedder = LoRASemanticEmbedder(
-                device=self.device,
-                batch_size=32 if self.gpu_enabled else 16,
-            )
+            type(self)._ensure_shared_models(self.device, self.gpu_enabled)
+            self._semantic_embedder = type(self)._shared_semantic_embedder
         return self._semantic_embedder
 
     def _get_feature_extractor(self):
         """Lazy initialization of feature extraction models."""
         if self._feature_extractor is None:
-            from .recommendation_models import GPULoRAFeatureExtractor
-            self._feature_extractor = GPULoRAFeatureExtractor(device=self.device)
+            type(self)._ensure_shared_models(self.device, self.gpu_enabled)
+            self._feature_extractor = type(self)._shared_feature_extractor
         return self._feature_extractor
 
     def _get_recommendation_engine(self):
         """Lazy initialization of recommendation engine."""
         if self._recommendation_engine is None:
-            from .recommendation_models import LoRARecommendationEngine
-            self._recommendation_engine = LoRARecommendationEngine(
-                self._get_feature_extractor(),
-                device=self.device,
-            )
+            type(self)._ensure_shared_models(self.device, self.gpu_enabled)
+            self._recommendation_engine = type(self)._shared_recommendation_engine
         return self._recommendation_engine
+
+    @classmethod
+    def preload_models(cls, gpu_enabled: Optional[bool] = None) -> None:
+        """Eagerly load heavy shared models so the first request is fast."""
+        if gpu_enabled is None:
+            gpu_enabled = cls.is_gpu_available()
+
+        # We don't need a DB session to warm the caches
+        temp = cls(db_session=None, gpu_enabled=gpu_enabled)  # type: ignore[arg-type]
+        temp._get_semantic_embedder()
+        temp._get_feature_extractor()
+        temp._get_recommendation_engine()
 
     async def get_similar_loras(
         self,
@@ -112,7 +175,11 @@ class RecommendationService:
         # Check if index is built
         if not hasattr(engine, 'lora_ids') or not engine.lora_ids:
             await self._build_similarity_index()
-        
+
+        # If the index still has no items (e.g. embeddings couldn't be generated)
+        if not engine.lora_ids:
+            return []
+
         # Generate recommendations
         recommendations = await asyncio.to_thread(
             engine.get_recommendations,
@@ -210,10 +277,14 @@ class RecommendationService:
                 # Deserialize embedding
                 lora_embedding = pickle.loads(embedding.semantic_embedding)
                 
-                # Calculate cosine similarity
-                similarity = np.dot(prompt_embedding, lora_embedding) / (
-                    np.linalg.norm(prompt_embedding) * np.linalg.norm(lora_embedding)
-                )
+                # Calculate cosine similarity, guarding against zero vectors to avoid NaN
+                prompt_norm = float(np.linalg.norm(prompt_embedding))
+                lora_norm = float(np.linalg.norm(lora_embedding))
+                denominator = prompt_norm * lora_norm
+                if denominator == 0.0:
+                    similarity = 0.0
+                else:
+                    similarity = float(np.dot(prompt_embedding, lora_embedding) / denominator)
                 
                 # Apply style preference boost
                 style_boost = 0.0

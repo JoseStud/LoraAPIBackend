@@ -196,20 +196,24 @@ const duplicateComposition = () => {
   updateFinal();
 };
 
+const formatWeightToken = (value) => {
+  const parsed = Number(value);
+  const numeric = Number.isFinite(parsed) ? parsed : 1;
+  const fixed = numeric.toFixed(2);
+  const trimmed = fixed
+    .replace(/(\.\d*?[1-9])0+$/u, '$1')
+    .replace(/\.0+$/u, '');
+  return trimmed.includes('.') ? trimmed : `${trimmed}.0`;
+};
+
 const buildFinalPrompt = () => {
   const base = basePrompt.value.trim();
   if (!base) return '';
   const parts = [base];
   activeLoras.value.forEach((l) => {
-    const w = Number(l.weight ?? 1)
-      .toFixed(2)
-      .replace(/\.00$/, '.0')
-      .replace(/0$/, '');
-    parts.push(`<lora:${l.name}:${w}>`);
+    const weightToken = formatWeightToken(l.weight ?? 1);
+    parts.push(`<lora:${l.name}:${weightToken}>`);
   });
-  if (negativePrompt.value.trim()) {
-    parts.push(` --neg ${negativePrompt.value.trim()}`);
-  }
   return parts.join(' ');
 };
 

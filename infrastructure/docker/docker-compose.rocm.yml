@@ -56,10 +56,17 @@ services:
       - sdnext_outputs:/host/outputs   # Generated images
       # Mount local cloned sdnext source so container has /app contents pre-populated
       - ./sdnext_src:/app
+    # Enable AMD ROCm GPU access without Swarm
     devices:
-      # ROCm device access (required for AMD GPU acceleration)
-      - /dev/dri:/dev/dri             # DRI devices for GPU access
-      - /dev/kfd:/dev/kfd             # KFD device for compute
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      - video
+    device_cgroup_rules:
+      - 'c 226:* rmw'
+      - 'c 238:* rmw'
+    security_opt:
+      - seccomp:unconfined
     environment:
       # ROCm-optimized SDNext configuration for your setup (mapping style prevents YAML folding issues)
       COMMANDLINE_ARGS: "--listen --port 7860 --api  --cors-origins '*'  --data-dir /host/models --models-dir /host/models/Stable-diffusion "
@@ -103,10 +110,11 @@ services:
     ports:
       - '8782:8000'
     environment:
+      IMPORT_ON_STARTUP: 'True'
       REDIS_URL: "redis://redis:6379/0"
       DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
       # Backend URL for frontend-to-backend communication
-      BACKEND_URL: "http://localhost:8000/api"
+      BACKEND_URL: "http://localhost:8782/api/v1"
       # SDNext integration
       SDNEXT_BASE_URL: "http://sdnext:7860"
       SDNEXT_TIMEOUT: "240"             # Longer timeout for ROCm

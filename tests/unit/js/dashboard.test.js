@@ -71,7 +71,7 @@ describe('Dashboard Component Integration Tests', () => {
             this.loading = true;
             
             try {
-                const data = await mockFetchData('/api/dashboard/stats');
+                const data = await mockFetchData('/api/v1/dashboard/stats');
                 
                 // Update stats if provided
                 if (data.stats) {
@@ -110,7 +110,7 @@ describe('Dashboard Component Integration Tests', () => {
 
         // Verify fetchData was called with correct endpoint
         expect(mockFetchData).toHaveBeenCalledTimes(1);
-        expect(mockFetchData).toHaveBeenCalledWith('/api/dashboard/stats');
+        expect(mockFetchData).toHaveBeenCalledWith('/api/v1/dashboard/stats');
 
         // Verify stats were updated correctly
         expect(mockDashboard.stats.total_loras).toBe(10);
@@ -130,7 +130,7 @@ describe('Dashboard Component Integration Tests', () => {
             this.loading = true;
             
             try {
-                const data = await mockFetchData('/api/dashboard/stats');
+                const data = await mockFetchData('/api/v1/dashboard/stats');
                 
                 if (data.stats) {
                     this.stats = { ...this.stats, ...data.stats };
@@ -175,21 +175,19 @@ describe('Dashboard Component Integration Tests', () => {
 
     test('should verify URL rewriting compatibility', () => {
         // Test that our endpoint will work with the URL rewriting shim
-        const apiEndpoint = '/api/dashboard/stats';
-        
+        const apiEndpoint = '/api/v1/dashboard/stats';
+
         // Simulate the URL rewriting logic from base.html
         let rewrittenUrl = apiEndpoint;
-        const BACKEND_URL = 'http://localhost:8000/api';
-        
-        // The current URL doesn't start with /api/v1/, so it won't be rewritten
-        // This is correct for our use case since we're using the newer /api/ pattern
-        expect(apiEndpoint.startsWith('/api/v1/')).toBe(false);
-        
-        // For newer /api/ endpoints, they can use the BACKEND_URL directly if needed
-        if (apiEndpoint.startsWith('/api/') && !apiEndpoint.startsWith('/api/v1/')) {
-            // This would be handled by the application's API configuration
-            // The endpoint we're using should work with the current setup
-            expect(apiEndpoint).toBe('/api/dashboard/stats');
+        const BACKEND_URL = 'http://localhost:8782/api/v1';
+
+        expect(apiEndpoint.startsWith('/api/v1/')).toBe(true);
+
+        if (apiEndpoint.startsWith('/api/v1/')) {
+            const suffix = apiEndpoint.substring('/api/v1'.length);
+            rewrittenUrl = `${BACKEND_URL}${suffix}`;
         }
+
+        expect(rewrittenUrl).toBe('http://localhost:8782/api/v1/dashboard/stats');
     });
 });

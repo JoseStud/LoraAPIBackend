@@ -1,5 +1,6 @@
 """Router for SDNext generation endpoints."""
 
+import asyncio
 from typing import Dict
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -262,26 +263,24 @@ async def get_generation_job(
     return DeliveryWrapper(delivery=delivery_read)
 
 
-async def _process_generation_job(job_id: str, params: Dict):
-    """Background task to process a generation job.
-    
-    Args:
-        job_id: Delivery job ID
-        params: Generation parameters
+def _process_generation_job(job_id: str, params: Dict) -> None:
+    """Background task to process a generation job executed synchronously."""
+    asyncio.run(_process_generation_job_async(job_id, params))
 
-    """
+
+async def _process_generation_job_async(job_id: str, params: Dict) -> None:
     with get_session_context() as session:
         services = create_service_container(session)
-        
+
         # Update job status to running
         services.deliveries.update_job_status(job_id, "running")
-        
+
         try:
             # Extract parameters
             gen_params_dict = params.get("generation_params", {})
             gen_params = SDNextGenerationParams(**gen_params_dict)
             backend = params.get("backend", "sdnext")
-            
+
             # Generate image
             result = await services.generation.generate_image(
                 gen_params.prompt,
@@ -289,25 +288,25 @@ async def _process_generation_job(job_id: str, params: Dict):
                 gen_params,
                 **params,
             )
-            
+
             # Update job with result
             if result.status == "completed":
                 services.deliveries.update_job_status(
-                    job_id, 
-                    "succeeded", 
+                    job_id,
+                    "succeeded",
                     result.model_dump(),
                 )
             else:
                 services.deliveries.update_job_status(
-                    job_id, 
-                    "failed", 
+                    job_id,
+                    "failed",
                     result.model_dump(),
                 )
-                
-        except Exception as exc:
+
+        except Exception as exc:  # pragma: no cover - background logging path
             # Update job with error
             services.deliveries.update_job_status(
-                job_id, 
-                "failed", 
+                job_id,
+                "failed",
                 {"error": str(exc)},
             )

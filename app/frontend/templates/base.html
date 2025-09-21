@@ -184,6 +184,15 @@
     <script>
         // Expose backend base URL provided by server
         window.BACKEND_URL = '{{ BACKEND_URL | default("http://localhost:8000/v1") }}';
+        window.BACKEND_API_KEY = '{{ BACKEND_API_KEY | default("") }}';
+
+        try {
+            if (window.BACKEND_API_KEY && typeof localStorage !== 'undefined') {
+                localStorage.setItem('lora_manager_api_key', window.BACKEND_API_KEY);
+            }
+        } catch (e) {
+            // Access to localStorage can fail in private browsing; ignore.
+        }
 
         // Runtime shim: rewrite legacy /api/v1/* requests to the configured BACKEND_URL
         (function () {
@@ -203,6 +212,31 @@
                     }
                 } catch (e) {
                     console.warn('fetch shim failed to rewrite URL:', e);
+                }
+
+                if (window.BACKEND_API_KEY) {
+                    try {
+                        const ensureApiKey = (headersLike) => {
+                            const headers = new Headers(headersLike || {});
+                            if (!headers.has('X-API-Key')) {
+                                headers.set('X-API-Key', window.BACKEND_API_KEY);
+                            }
+                            return headers;
+                        };
+
+                        if (input instanceof Request) {
+                            const headers = ensureApiKey(input.headers);
+                            input = new Request(input, { headers });
+                        }
+
+                        if (init && Object.prototype.hasOwnProperty.call(init, 'headers')) {
+                            init = { ...init, headers: ensureApiKey(init.headers) };
+                        } else if (!(input instanceof Request)) {
+                            init = { ...(init || {}), headers: ensureApiKey() };
+                        }
+                    } catch (e) {
+                        console.warn('fetch shim failed to append API key header:', e);
+                    }
                 }
                 return origFetch(input, init);
             };

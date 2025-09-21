@@ -4,6 +4,8 @@ This module exposes a single POST /compose endpoint that builds a prompt
 from active adapters and optionally schedules a delivery.
 """
 
+import asyncio
+
 from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlmodel import Session
 
@@ -76,12 +78,16 @@ async def compose(
     return ComposeResponse(prompt=prompt, tokens=tokens, delivery=delivery_info)
 
 
-async def _deliver_http(prompt: str, params: dict, job_id: str):
-    """Background task for HTTP delivery."""
+def _deliver_http(prompt: str, params: dict, job_id: str) -> None:
+    """Background task for HTTP delivery executed synchronously."""
+    asyncio.run(_deliver_http_async(prompt, params, job_id))
+
+
+async def _deliver_http_async(prompt: str, params: dict, job_id: str) -> None:
     try:
         backend = get_delivery_backend("http")
         result = await backend.deliver(prompt, params)
-        
+
         # Update job status
         with get_session_context() as session:
             services = create_service_container(session)
@@ -89,22 +95,26 @@ async def _deliver_http(prompt: str, params: dict, job_id: str):
                 services.deliveries.update_job_status(job_id, "succeeded", result)
             else:
                 services.deliveries.update_job_status(job_id, "failed", result)
-    except Exception as exc:
+    except Exception as exc:  # pragma: no cover - background logging path
         with get_session_context() as session:
             services = create_service_container(session)
             services.deliveries.update_job_status(
-                job_id, 
-                "failed", 
+                job_id,
+                "failed",
                 {"error": str(exc)},
             )
 
 
-async def _deliver_cli(prompt: str, params: dict, job_id: str):
-    """Background task for CLI delivery."""
+def _deliver_cli(prompt: str, params: dict, job_id: str) -> None:
+    """Background task for CLI delivery executed synchronously."""
+    asyncio.run(_deliver_cli_async(prompt, params, job_id))
+
+
+async def _deliver_cli_async(prompt: str, params: dict, job_id: str) -> None:
     try:
         backend = get_delivery_backend("cli")
         result = await backend.deliver(prompt, params)
-        
+
         # Update job status
         with get_session_context() as session:
             services = create_service_container(session)
@@ -112,28 +122,32 @@ async def _deliver_cli(prompt: str, params: dict, job_id: str):
                 services.deliveries.update_job_status(job_id, "succeeded", result)
             else:
                 services.deliveries.update_job_status(job_id, "failed", result)
-    except Exception as exc:
+    except Exception as exc:  # pragma: no cover - background logging path
         with get_session_context() as session:
             services = create_service_container(session)
             services.deliveries.update_job_status(
-                job_id, 
-                "failed", 
+                job_id,
+                "failed",
                 {"error": str(exc)},
             )
 
 
-async def _deliver_sdnext(prompt: str, params: dict, job_id: str):
-    """Background task for SDNext generation delivery."""
+def _deliver_sdnext(prompt: str, params: dict, job_id: str) -> None:
+    """Background task for SDNext generation delivery executed synchronously."""
+    asyncio.run(_deliver_sdnext_async(prompt, params, job_id))
+
+
+async def _deliver_sdnext_async(prompt: str, params: dict, job_id: str) -> None:
     try:
         backend = get_generation_backend("sdnext")
-        
+
         # Extract generation parameters
         gen_params_dict = params.get("generation_params", {})
         gen_params_dict["prompt"] = prompt  # Use composed prompt
-        
+
         # Convert to proper format
         gen_params = SDNextGenerationParams(**gen_params_dict)
-        
+
         # Prepare full parameters
         full_params = {
             "generation_params": gen_params.model_dump(),
@@ -141,29 +155,29 @@ async def _deliver_sdnext(prompt: str, params: dict, job_id: str):
             "save_images": params.get("save_images", True),
             "return_format": params.get("return_format", "base64"),
         }
-        
+
         result = await backend.generate_image(prompt, full_params)
-        
+
         # Update job status
         with get_session_context() as session:
             services = create_service_container(session)
             if result.status == "completed":
                 services.deliveries.update_job_status(
-                    job_id, 
-                    "succeeded", 
+                    job_id,
+                    "succeeded",
                     result.model_dump(),
                 )
             else:
                 services.deliveries.update_job_status(
-                    job_id, 
-                    "failed", 
+                    job_id,
+                    "failed",
                     result.model_dump(),
                 )
-    except Exception as exc:
+    except Exception as exc:  # pragma: no cover - background logging path
         with get_session_context() as session:
             services = create_service_container(session)
             services.deliveries.update_job_status(
-                job_id, 
-                "failed", 
+                job_id,
+                "failed",
                 {"error": str(exc)},
             )

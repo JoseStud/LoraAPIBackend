@@ -13,13 +13,17 @@ import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from fnmatch import fnmatch
+from typing import Any, Dict, List, Optional
 
 # Add parent directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from backend.core.config import settings
-from backend.core.database import get_session
+from backend.core.database import get_session_context
+
+# Backwards compatibility for tests that monkeypatch importer.get_session
+get_session = get_session_context
 from backend.services import AdapterService
 
 logger = logging.getLogger("lora.importer")
@@ -165,12 +169,65 @@ def parse_civitai_json(json_path: str) -> ParsedMetadata:
     )
 
 
-def discover_metadata(import_path: str):
+def _should_ignore(path: str, import_root: str, patterns: Optional[List[str]]) -> bool:
+    """Return True if `path` matches any ignore pattern."""
+    if not patterns:
+        return False
+
+    rel_path = os.path.relpath(path, import_root)
+    # Normalise path separators for consistent glob matching
+    rel_path_normalised = rel_path.replace(os.sep, "/")
+    full_path_normalised = path.replace(os.sep, "/")
+
+    for pattern in patterns:
+        if fnmatch(rel_path, pattern) or fnmatch(rel_path_normalised, pattern):
+            return True
+        if fnmatch(path, pattern) or fnmatch(full_path_normalised, pattern):
+            return True
+    return False
+
+
+def discover_metadata(import_path: str, ignore_patterns: Optional[List[str]] = None):
     """Yield JSON metadata files found under `import_path` recursively."""
-    for root, _, files in os.walk(import_path):
+    for root, dirs, files in os.walk(import_path):
+        # Prune ignored directories early to avoid descending into them
+        dirs[:] = [
+            d
+            for d in dirs
+            if not _should_ignore(os.path.join(root, d), import_path, ignore_patterns)
+        ]
         for fn in files:
             if fn.lower().endswith(".json"):
-                yield os.path.join(root, fn)
+                full_path = os.path.join(root, fn)
+                if _should_ignore(full_path, import_path, ignore_patterns):
+                    continue
+                yield full_path
+
+
+def discover_orphan_safetensors(
+    import_path: str, ignore_patterns: Optional[List[str]] = None,
+) -> List[str]:
+    """Return safetensor files that do not have a matching JSON metadata file."""
+    orphans: List[str] = []
+    for root, dirs, files in os.walk(import_path):
+        dirs[:] = [
+            d
+            for d in dirs
+            if not _should_ignore(os.path.join(root, d), import_path, ignore_patterns)
+        ]
+        json_basenames = {
+            os.path.splitext(fn)[0].lower() for fn in files if fn.lower().endswith(".json")
+        }
+        for fn in files:
+            if not fn.lower().endswith(".safetensors"):
+                continue
+            basename = os.path.splitext(fn)[0].lower()
+            if basename not in json_basenames:
+                full_path = os.path.join(root, fn)
+                if _should_ignore(full_path, import_path, ignore_patterns):
+                    continue
+                orphans.append(full_path)
+    return sorted(orphans)
 
 
 def register_adapter_from_metadata(
@@ -245,8 +302,11 @@ def register_adapter_from_metadata(
     from backend.services import upsert_adapter_from_payload
 
     # validate file exists before attempting to persist
-    svc = AdapterService(get_session())
-    if not svc.validate_file_path(parsed.file_path):
+    with get_session_context() as validation_session:
+        svc = AdapterService(validation_session)
+        file_is_valid = svc.validate_file_path(parsed.file_path)
+
+    if not file_is_valid:
         msg = f"File does not exist or is not readable: {parsed.file_path}"
         logger.error(msg)
         result["status"] = "missing_file"
@@ -276,11 +336,11 @@ def needs_resync(json_path: str, force_resync: bool = False) -> bool:
         return False
         
     # Check if we have existing record for this file
-    session = get_session()
+    session = get_session_context()
     
     try:
         # Import Adapter model to query directly
-        from models import Adapter
+        from backend.models import Adapter
         from sqlmodel import select
         
         # Look for existing adapter with this json_file_path
@@ -296,8 +356,14 @@ def needs_resync(json_path: str, force_resync: bool = False) -> bool:
         # Compare file modification time
         stat = os.stat(json_path)
         file_mtime = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc)
-        
-        return file_mtime > existing.json_file_mtime
+        existing_mtime = existing.json_file_mtime
+
+        if existing_mtime.tzinfo is None:
+            existing_mtime = existing_mtime.replace(tzinfo=timezone.utc)
+        if file_mtime.tzinfo is None:
+            file_mtime = file_mtime.replace(tzinfo=timezone.utc)
+
+        return file_mtime > existing_mtime
         
     except Exception as e:
         logger.warning("Error checking resync status for %s: %s", json_path, e)
@@ -306,35 +372,83 @@ def needs_resync(json_path: str, force_resync: bool = False) -> bool:
         session.close()
 
 
+def run_one_shot_import(
+    import_path: str,
+    dry_run: bool = False,
+    force_resync: bool = False,
+    ignore_patterns: Optional[List[str]] = None,
+):
+    """Process the import directory once and return a summary."""
+
+    results: List[Dict[str, Any]] = []
+    processed = 0
+    skipped = 0
+    errors = 0
+
+    for jpath in discover_metadata(import_path, ignore_patterns):
+        needs_processing = force_resync or needs_resync(jpath)
+
+        if not dry_run and not needs_processing:
+            skipped += 1
+            continue
+
+        try:
+            parsed = parse_civitai_json(jpath)
+            res = register_adapter_from_metadata(
+                parsed,
+                json_path=jpath,
+                dry_run=dry_run,
+            )
+            status = res.get("status")
+
+            if dry_run and not needs_processing:
+                res["status"] = "would_skip_no_changes"
+                skipped += 1
+            elif not dry_run and not needs_processing:
+                skipped += 1
+
+            if needs_processing and status in {"upserted", "would_register"}:
+                processed += 1
+            elif status in {"missing_file", "error"}:
+                errors += 1
+
+            results.append(res)
+        except Exception as exc:  # pragma: no cover - defensive guard for CLI usage
+            logger.exception("Failed to process %s: %s", jpath, exc)
+            results.append({"json": jpath, "status": "error", "error": str(exc)})
+            errors += 1
+
+    orphans = discover_orphan_safetensors(import_path, ignore_patterns)
+
+    summary = {
+        "total": len(results),
+        "processed": processed,
+        "skipped": skipped,
+        "errors": errors,
+        "results": results,
+        "safetensors_without_metadata": orphans,
+    }
+
+    return summary
+
+
 def run_poller(
     import_path: str, 
     poll_seconds: int, 
     dry_run: bool, 
     force_resync: bool = False,
+    ignore_patterns: Optional[List[str]] = None,
 ):
     """Run the import poller to process JSON files."""
     seen = set()
     # Dry-run mode: perform a single pass and emit a JSON summary then exit.
     if dry_run:
-        results = []
-        for jpath in discover_metadata(import_path):
-            # In dry-run mode, check if file needs processing for summary
-            needs_processing = needs_resync(jpath, force_resync)
-            
-            try:
-                parsed = parse_civitai_json(jpath)
-                res = register_adapter_from_metadata(
-                    parsed, json_path=jpath, dry_run=True,
-                )
-                if not needs_processing:
-                    res["status"] = "would_skip_no_changes"
-                results.append(res)
-                seen.add(jpath)
-            except Exception as exc:
-                logger.exception("Failed to process %s: %s", jpath, exc)
-                results.append({"json": jpath, "status": "error", "error": str(exc)})
-
-        summary = {"total": len(results), "results": results}
+        summary = run_one_shot_import(
+            import_path,
+            dry_run=True,
+            force_resync=force_resync,
+            ignore_patterns=ignore_patterns,
+        )
         # Print JSON summary to stdout for consumption by callers.
         print(json.dumps(summary, indent=2, ensure_ascii=False, default=json_serial))
         return
@@ -343,8 +457,17 @@ def run_poller(
     processed_count = 0
     skipped_count = 0
     
+    if ignore_patterns:
+        logger.info(
+            "Ignoring %d pattern(s) during import: %s",
+            len(ignore_patterns),
+            ", ".join(ignore_patterns),
+        )
+
+    previous_orphans: Optional[List[str]] = None
+
     while True:
-        for jpath in discover_metadata(import_path):
+        for jpath in discover_metadata(import_path, ignore_patterns):
             # Smart resync: check if file needs processing
             if not needs_resync(jpath, force_resync):
                 if jpath not in seen:  # Only log once per session
@@ -363,6 +486,18 @@ def run_poller(
                 seen.add(jpath)
             except Exception as exc:
                 logger.exception("Failed to process %s: %s", jpath, exc)
+
+        orphans = discover_orphan_safetensors(import_path, ignore_patterns)
+        if previous_orphans != orphans:
+            if orphans:
+                logger.warning(
+                    "Found %d safetensors without metadata: %s",
+                    len(orphans),
+                    ", ".join(orphans),
+                )
+            else:
+                logger.info("No safetensors missing metadata detected")
+            previous_orphans = orphans
         
         # In force_resync mode, run once and exit (don't poll indefinitely)
         if force_resync:
@@ -399,11 +534,27 @@ def main():
         default=settings.IMPORT_POLL_SECONDS, 
         help="Poll interval in seconds",
     )
+    parser.add_argument(
+        "--ignore", 
+        action="append",
+        default=None,
+        help="Glob pattern to ignore (can be specified multiple times)",
+    )
     args = parser.parse_args()
+
+    ignore_patterns = list(settings.IMPORT_IGNORE_PATTERNS)
+    if args.ignore:
+        ignore_patterns.extend(args.ignore)
 
     logging.basicConfig(level=logging.INFO)
     try:
-        run_poller(args.path, args.poll, args.dry_run, args.force_resync)
+        run_poller(
+            args.path,
+            args.poll,
+            args.dry_run,
+            args.force_resync,
+            ignore_patterns or None,
+        )
     except KeyboardInterrupt:
         logger.info("Importer stopped by user")
 

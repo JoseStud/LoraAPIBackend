@@ -3,6 +3,9 @@
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
+import math
+import pickle
+
 import numpy as np
 import pytest
 
@@ -228,6 +231,38 @@ class TestRecommendationService:
                     assert isinstance(rec, RecommendationItem)
                     assert rec.similarity_score >= 0
                     assert rec.final_score >= 0
+
+    @pytest.mark.asyncio
+    async def test_prompt_recommendations_handle_zero_vectors(self, db_session):
+        """Zero vectors must yield finite similarity scores."""
+        service = RecommendationService(db_session, gpu_enabled=False)
+
+        adapter = Adapter(
+            id="zero-vec",
+            name="Zero Vector LoRA",
+            description="",
+            file_path="/tmp/zero.safetensors",
+            active=True,
+        )
+        db_session.add(adapter)
+        db_session.add(
+            LoRAEmbedding(
+                adapter_id=adapter.id,
+                semantic_embedding=pickle.dumps(np.zeros(8, dtype=float)),
+            ),
+        )
+        db_session.commit()
+
+        dummy_embedder = MagicMock()
+        dummy_embedder.primary_model.encode.return_value = np.zeros(8, dtype=float)
+
+        with patch.object(service, "_get_semantic_embedder", return_value=dummy_embedder):
+            recs = await service.get_recommendations_for_prompt("", active_loras=[])
+
+        assert recs, "Expected recommendation for zero-vector adapter"
+        for rec in recs:
+            assert not math.isnan(rec.similarity_score)
+            assert not math.isnan(rec.final_score)
 
     def test_get_recommendation_stats(self, db_session, sample_adapters):
         """Test getting recommendation statistics."""

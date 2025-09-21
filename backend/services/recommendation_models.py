@@ -1,14 +1,69 @@
 """GPU-accelerated recommendation models for 8GB VRAM deployment."""
 
+import hashlib
+import logging
 import re
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 
 
+logger = logging.getLogger(__name__)
+
+
+class _FallbackSentenceEncoder:
+    """Lightweight hashed-feature encoder used when transformers are unavailable."""
+
+    def __init__(self, embedding_dim: int):
+        self.embedding_dim = embedding_dim
+
+    def encode(
+        self,
+        inputs,
+        device=None,
+        show_progress_bar: bool = False,
+        convert_to_numpy: bool = True,
+        **_: Any,
+    ):
+        """Encode text or batch of texts into deterministic hashed vectors."""
+        if isinstance(inputs, str):
+            vector = self._encode_single(inputs)
+            return vector if convert_to_numpy else vector.tolist()
+
+        vectors = [self._encode_single(text) for text in inputs or []]
+        if not vectors:
+            array = np.zeros((0, self.embedding_dim), dtype=np.float32)
+        else:
+            array = np.vstack(vectors)
+        return array if convert_to_numpy else array.tolist()
+
+    def _encode_single(self, text: Optional[str]) -> np.ndarray:
+        if not text:
+            return np.zeros(self.embedding_dim, dtype=np.float32)
+
+        tokens = re.findall(r"\b\w+\b", text.lower())
+        if not tokens:
+            return np.zeros(self.embedding_dim, dtype=np.float32)
+
+        vector = np.zeros(self.embedding_dim, dtype=np.float32)
+        for token in tokens:
+            digest = hashlib.md5(token.encode("utf-8")).hexdigest()
+            index = int(digest, 16) % self.embedding_dim
+            vector[index] += 1.0
+
+        norm = np.linalg.norm(vector)
+        if norm:
+            vector /= norm
+        return vector
+
+
 class LoRASemanticEmbedder:
     """Generate high-quality dense vector representations using 8GB VRAM."""
-    
+
+    SEMANTIC_DIM = 1024
+    ARTISTIC_DIM = 384
+    TECHNICAL_DIM = 768
+
     def __init__(self, device='cuda', batch_size=32, mixed_precision=True):
         """Initialize semantic embedding models.
         
@@ -21,19 +76,20 @@ class LoRASemanticEmbedder:
         self.device = device
         self.batch_size = batch_size
         self.mixed_precision = mixed_precision
-        
-        # Import dependencies
+
+        self._transformers_available = True
         try:
             from sentence_transformers import SentenceTransformer
             self.SentenceTransformer = SentenceTransformer
         except ImportError:
-            raise ImportError(
-                "sentence-transformers is required. Install with: "
-                "pip install sentence-transformers",
+            self.SentenceTransformer = None
+            self._transformers_available = False
+            logger.warning(
+                "sentence-transformers not available; using fallback hashed embeddings.",
             )
-        
+
         # Check GPU availability (supports both CUDA and ROCm)
-        if device in ['cuda', 'gpu']:
+        if self._transformers_available and device in ['cuda', 'gpu']:
             try:
                 import torch
                 if torch.cuda.is_available():
@@ -58,37 +114,110 @@ class LoRASemanticEmbedder:
         self._primary_model = None
         self._art_model = None
         self._technical_model = None
+
+        # Cache dynamically discovered embedding dimensions so fallback
+        # vectors match the actual encoder output size.
+        self._semantic_dim = None
+        self._artistic_dim = None
+        self._technical_dim = None
         
     def _load_models(self):
         """Load all embedding models."""
-        if self._primary_model is None:
-            print("📚 Loading semantic embedding models...")
-            
-            # Primary embedding model - excellent for semantic similarity
-            # VRAM Usage: ~2-3GB, 1024-dim embeddings, superior quality
-            self._primary_model = self.SentenceTransformer(
-                'sentence-transformers/all-mpnet-base-v2',
+        if self._primary_model is not None:
+            return
+
+        if not self._transformers_available:
+            self._primary_model = _FallbackSentenceEncoder(self.SEMANTIC_DIM)
+            self._art_model = _FallbackSentenceEncoder(self.ARTISTIC_DIM)
+            self._technical_model = _FallbackSentenceEncoder(self.TECHNICAL_DIM)
+            return
+
+        print("📚 Loading semantic embedding models...")
+
+        # Primary embedding model - excellent for semantic similarity
+        # VRAM Usage: ~2-3GB, 1024-dim embeddings, superior quality
+        self._primary_model = self.SentenceTransformer(
+            'sentence-transformers/all-mpnet-base-v2',
+        )
+        if self.device == 'cuda':
+            self._primary_model = self._primary_model.to(self.device)
+
+        # Specialized art/anime model for domain-specific understanding
+        # VRAM Usage: ~1-2GB, 768-dim embeddings
+        self._art_model = self.SentenceTransformer(
+            'sentence-transformers/all-MiniLM-L12-v2',
+        )
+        if self.device == 'cuda':
+            self._art_model = self._art_model.to(self.device)
+
+        # Technical prompt analysis model for parameter understanding
+        # VRAM Usage: ~1GB, optimized for technical content
+        self._technical_model = self.SentenceTransformer(
+            'sentence-transformers/paraphrase-mpnet-base-v2',
+        )
+        if self.device == 'cuda':
+            self._technical_model = self._technical_model.to(self.device)
+
+        print("✅ Semantic embedding models loaded successfully")
+
+    def _resolve_dimension(self, model, default_dim: int) -> int:
+        """Infer the embedding dimensionality for the provided model."""
+        if model is None:
+            return default_dim
+
+        # Prefer SentenceTransformer helper when available.
+        getter = getattr(model, "get_sentence_embedding_dimension", None)
+        if callable(getter):
+            try:
+                dim = getter()
+                if dim:
+                    return int(dim)
+            except Exception:
+                pass
+
+        # FallbackSentenceEncoder exposes `embedding_dim`.
+        embedding_dim = getattr(model, "embedding_dim", None)
+        if embedding_dim:
+            try:
+                return int(embedding_dim)
+            except Exception:
+                pass
+
+        # As a last resort, encode an empty string to inspect the shape.
+        try:
+            sample = model.encode("", convert_to_numpy=True)
+            if hasattr(sample, "shape") and sample.shape[-1]:
+                return int(sample.shape[-1])
+            if isinstance(sample, (list, tuple)):
+                return int(len(sample))
+        except Exception:
+            pass
+
+        return default_dim
+
+    def _get_semantic_dim(self) -> int:
+        if self._semantic_dim is None:
+            self._semantic_dim = self._resolve_dimension(
+                self.primary_model,
+                self.SEMANTIC_DIM,
             )
-            if self.device == 'cuda':
-                self._primary_model = self._primary_model.to(self.device)
-            
-            # Specialized art/anime model for domain-specific understanding
-            # VRAM Usage: ~1-2GB, 768-dim embeddings
-            self._art_model = self.SentenceTransformer(
-                'sentence-transformers/all-MiniLM-L12-v2',
+        return self._semantic_dim
+
+    def _get_artistic_dim(self) -> int:
+        if self._artistic_dim is None:
+            self._artistic_dim = self._resolve_dimension(
+                self.art_model,
+                self.ARTISTIC_DIM,
             )
-            if self.device == 'cuda':
-                self._art_model = self._art_model.to(self.device)
-            
-            # Technical prompt analysis model for parameter understanding
-            # VRAM Usage: ~1GB, optimized for technical content
-            self._technical_model = self.SentenceTransformer(
-                'sentence-transformers/paraphrase-mpnet-base-v2',
+        return self._artistic_dim
+
+    def _get_technical_dim(self) -> int:
+        if self._technical_dim is None:
+            self._technical_dim = self._resolve_dimension(
+                self.technical_model,
+                self.TECHNICAL_DIM,
             )
-            if self.device == 'cuda':
-                self._technical_model = self._technical_model.to(self.device)
-            
-            print("✅ Semantic embedding models loaded successfully")
+        return self._technical_dim
 
     @property
     def primary_model(self):
@@ -129,7 +258,10 @@ class LoRASemanticEmbedder:
             )
         else:
             # Fallback empty embedding
-            embeddings['semantic'] = np.zeros(1024, dtype=np.float32)
+            embeddings['semantic'] = np.zeros(
+                self._get_semantic_dim(),
+                dtype=np.float32,
+            )
         
         # Art-specific embedding for style and aesthetic understanding
         art_text = content_texts['artistic']
@@ -141,7 +273,10 @@ class LoRASemanticEmbedder:
                 convert_to_numpy=True,
             )
         else:
-            embeddings['artistic'] = np.zeros(384, dtype=np.float32)
+            embeddings['artistic'] = np.zeros(
+                self._get_artistic_dim(),
+                dtype=np.float32,
+            )
         
         # Technical embedding for compatibility and parameters
         tech_text = content_texts['technical']
@@ -153,7 +288,10 @@ class LoRASemanticEmbedder:
                 convert_to_numpy=True,
             )
         else:
-            embeddings['technical'] = np.zeros(768, dtype=np.float32)
+            embeddings['technical'] = np.zeros(
+                self._get_technical_dim(),
+                dtype=np.float32,
+            )
         
         return embeddings
     
@@ -262,61 +400,77 @@ class LoRASemanticEmbedder:
             all_artistic.append(texts['artistic'])
             all_technical.append(texts['technical'])
         
-        # Batch encode with GPU acceleration
+        # Batch encode with GPU acceleration or fallback hashing
         print(f"🔄 Batch encoding {len(loras)} LoRAs...")
-        
-        # Use torch.no_grad() if available to save VRAM
-        context_manager = None
-        try:
-            import torch
-            context_manager = torch.no_grad()
-        except ImportError:
+
+        if self._transformers_available:
+            # Use torch.no_grad() if available to save VRAM
             context_manager = None
-        
-        if context_manager:
-            with context_manager:
+            try:
+                import torch
+                context_manager = torch.no_grad()
+            except ImportError:
+                context_manager = None
+
+            if context_manager:
+                with context_manager:
+                    semantic_embeddings = self.primary_model.encode(
+                        all_semantic,
+                        batch_size=self.batch_size,
+                        device=self.device,
+                        show_progress_bar=True,
+                        convert_to_numpy=True,
+                    )
+
+                    artistic_embeddings = self.art_model.encode(
+                        all_artistic,
+                        batch_size=self.batch_size,
+                        device=self.device,
+                        show_progress_bar=True,
+                        convert_to_numpy=True,
+                    )
+
+                    technical_embeddings = self.technical_model.encode(
+                        all_technical,
+                        batch_size=self.batch_size,
+                        device=self.device,
+                        show_progress_bar=True,
+                        convert_to_numpy=True,
+                    )
+            else:
                 semantic_embeddings = self.primary_model.encode(
                     all_semantic,
                     batch_size=self.batch_size,
-                    device=self.device,
                     show_progress_bar=True,
                     convert_to_numpy=True,
                 )
-                
+
                 artistic_embeddings = self.art_model.encode(
                     all_artistic,
                     batch_size=self.batch_size,
-                    device=self.device,
                     show_progress_bar=True,
                     convert_to_numpy=True,
                 )
-                
+
                 technical_embeddings = self.technical_model.encode(
                     all_technical,
                     batch_size=self.batch_size,
-                    device=self.device,
                     show_progress_bar=True,
                     convert_to_numpy=True,
                 )
         else:
             semantic_embeddings = self.primary_model.encode(
                 all_semantic,
-                batch_size=self.batch_size,
-                show_progress_bar=True,
                 convert_to_numpy=True,
             )
-            
+
             artistic_embeddings = self.art_model.encode(
                 all_artistic,
-                batch_size=self.batch_size,
-                show_progress_bar=True,
                 convert_to_numpy=True,
             )
-            
+
             technical_embeddings = self.technical_model.encode(
                 all_technical,
-                batch_size=self.batch_size,
-                show_progress_bar=True,
                 convert_to_numpy=True,
             )
         

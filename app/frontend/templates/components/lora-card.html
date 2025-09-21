@@ -1,7 +1,4 @@
-<!-{% macro lora_card(lora, view_mode='grid', bulk_mode=false) %}
-<div x-data="loraCard({{ lora.json | safe }})"
-     class="lora-card-wrapper {{ 'lora-card-grid' if view_mode == 'grid' else 'lora-card-list' }}">oRA Card Component Template -->
-<!-- Can be used in both grid and list views -->
+<!-- LoRA Card Component Template -->
 
 {% macro lora_card(lora, view_mode='grid', bulk_mode=false) %}
 <div x-data='loraCard({{ lora.json | safe }})'

@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     IMPORT_PATH: Optional[str] = "/app/loras"
     # Poll interval (seconds) for the importer when running in polling mode
     IMPORT_POLL_SECONDS: int = 10
+    # Optional glob-style patterns (relative to IMPORT_PATH) to skip during import
+    IMPORT_IGNORE_PATTERNS: List[str] = []
+    # Importer bootstrap behaviour
+    IMPORT_ON_STARTUP: bool = False
+    IMPORT_ON_STARTUP_FORCE_RESYNC: bool = False
+    IMPORT_ON_STARTUP_DRY_RUN: bool = False
     
     # SDNext Integration Settings
     SDNEXT_BASE_URL: Optional[str] = None  # e.g., "http://localhost:7860"
@@ -38,10 +44,14 @@ class Settings(BaseSettings):
     
     # CORS settings for backend API
     CORS_ORIGINS: List[str] = [
-        "http://localhost:8000",
         "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8782",
+        "http://127.0.0.1:8782",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
     ]
-    CORS_ALLOW_CREDENTIALS: bool = False
+    CORS_ALLOW_CREDENTIALS: bool = True
     
     @property
     def get_backend_url(self) -> str:

@@ -81,6 +81,44 @@ describe('PromptComposer.vue', () => {
     expect(finalPrompt).toContain('<lora:LoraOne:1.5>');
   });
 
+  it('formats weight tokens without trailing dots', async () => {
+    const wrapper = mount(PromptComposer);
+    await flush();
+
+    await wrapper.find('[data-testid="lora-list"] > div').trigger('click');
+    await nextTick();
+
+    const base = wrapper.find('textarea');
+    await base.setValue('A base prompt');
+    await nextTick();
+
+    let finalPrompt = wrapper.findAll('textarea').at(2).element.value;
+    expect(finalPrompt).toContain('<lora:LoraOne:1.0>');
+
+    const slider = wrapper.find('input[type="range"]');
+    await slider.setValue('0');
+    await nextTick();
+
+    finalPrompt = wrapper.findAll('textarea').at(2).element.value;
+    expect(finalPrompt).toContain('<lora:LoraOne:0.0>');
+  });
+
+  it('keeps negative prompt separate from the final prompt text', async () => {
+    const wrapper = mount(PromptComposer);
+    await flush();
+
+    const base = wrapper.find('textarea');
+    await base.setValue('Base prompt');
+    await nextTick();
+
+    const negative = wrapper.findAll('textarea').at(1);
+    await negative.setValue('blurry, low quality');
+    await nextTick();
+
+    const finalPrompt = wrapper.findAll('textarea').at(2).element.value;
+    expect(finalPrompt).toBe('Base prompt');
+  });
+
   it('removes LoRA from composition', async () => {
     const wrapper = mount(PromptComposer);
     await flush();
@@ -166,4 +204,3 @@ describe('PromptComposer.vue', () => {
     expect(final).toBe('CopyMe');
   });
 });
-

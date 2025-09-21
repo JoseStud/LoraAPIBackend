@@ -34,20 +34,8 @@ def get_compose_service() -> ComposeService:
 
 
 def _is_gpu_available() -> bool:
-    """Check if GPU is available (supports CUDA, ROCm, and MPS)."""
-    try:
-        import torch
-        if torch.cuda.is_available():
-            return True
-        elif hasattr(torch.version, 'hip') and torch.version.hip is not None:
-            # ROCm/HIP support for AMD GPUs
-            return True
-        elif torch.backends.mps.is_available():
-            # Apple Silicon GPU support
-            return True
-        return False
-    except ImportError:
-        return False
+    """Proxy GPU availability check to the recommendation service helper."""
+    return RecommendationService.is_gpu_available()
 
 
 def get_recommendation_service(

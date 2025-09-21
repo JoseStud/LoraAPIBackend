@@ -1,5 +1,6 @@
 """HTTP routes for creating and querying delivery jobs."""
 
+import asyncio
 import os
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -83,13 +84,17 @@ def get_delivery(delivery_id: str, session: Session = Depends(get_session)):
     return DeliveryWrapper(delivery=delivery_read)
 
 
-async def _process_delivery_fallback(job_id: str, prompt: str, mode: str, params: dict):
+def _process_delivery_fallback(job_id: str, prompt: str, mode: str, params: dict) -> None:
     """Fallback delivery processing when Redis is not available."""
+    asyncio.run(_process_delivery_fallback_async(job_id, prompt, mode, params))
+
+
+async def _process_delivery_fallback_async(job_id: str, prompt: str, mode: str, params: dict) -> None:
     try:
         with get_session_context() as session:
             services = create_service_container(session)
             services.deliveries.update_job_status(job_id, "running")
-        
+
         # Process based on mode
         if mode == "http":
             backend = get_delivery_backend("http")
@@ -99,11 +104,11 @@ async def _process_delivery_fallback(job_id: str, prompt: str, mode: str, params
             result = await backend.deliver(prompt, params)
         elif mode == "sdnext":
             backend = get_generation_backend("sdnext")
-            
+
             # Extract generation parameters
             gen_params_dict = params.get("generation_params", {})
             gen_params_dict["prompt"] = prompt
-            
+
             try:
                 gen_params = SDNextGenerationParams(**gen_params_dict)
                 full_params = {
@@ -114,11 +119,11 @@ async def _process_delivery_fallback(job_id: str, prompt: str, mode: str, params
                 }
                 result_obj = await backend.generate_image(prompt, full_params)
                 result = result_obj.model_dump()
-            except Exception as exc:
+            except Exception as exc:  # pragma: no cover - defensive branch
                 result = {"status": "failed", "error": str(exc)}
         else:
             result = {"status": "error", "detail": f"unknown mode: {mode}"}
-        
+
         # Update job with result
         with get_session_context() as session:
             services = create_service_container(session)
@@ -126,12 +131,12 @@ async def _process_delivery_fallback(job_id: str, prompt: str, mode: str, params
                 services.deliveries.update_job_status(job_id, "succeeded", result)
             else:
                 services.deliveries.update_job_status(job_id, "failed", result)
-                
-    except Exception as exc:
+
+    except Exception as exc:  # pragma: no cover - background logging path
         with get_session_context() as session:
             services = create_service_container(session)
             services.deliveries.update_job_status(
-                job_id, 
-                "failed", 
+                job_id,
+                "failed",
                 {"error": str(exc)},
             )

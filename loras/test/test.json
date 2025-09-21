@@ -1,1 +1,40 @@
-{"name": "test_adapter_updated", "model": {"name": "Test Model Updated", "type": "LORA"}, "modelVersions": [{"name": "v1.1", "files": [{"name": "test.safetensors", "downloadUrl": "http://example.com/test.safetensors", "hashes": {"SHA256": "abc123"}, "sizeKB": 1000}]}]}
+{
+  "name": "Celestial Anime Portraits",
+  "description": "Create luminous anime-inspired character portraits bathed in celestial light, with sparkling eyes and layered watercolor textures.",
+  "tags": ["anime", "portrait", "fantasy", "celestial", "watercolor"],
+  "supportsGeneration": true,
+  "sd version": "SD1.5",
+  "nsfwLevel": 0,
+  "activation text": "celestial portrait",
+  "stats": {
+    "downloadCount": 4200,
+    "favoriteCount": 380,
+    "rating": 4.6,
+    "commentCount": 95
+  },
+  "creator": {
+    "username": "stargazer"
+  },
+  "model": {
+    "name": "Celestial Anime Portraits",
+    "type": "LORA"
+  },
+  "modelVersions": [
+    {
+      "name": "v1.1",
+      "publishedAt": "2024-05-01T12:00:00Z",
+      "trainedWords": ["celestial portrait", "shimmering eyes", "soft glow"],
+      "files": [
+        {
+          "name": "celestial-anime-portraits.safetensors",
+          "downloadUrl": "http://example.com/celestial-anime-portraits.safetensors",
+          "hashes": {
+            "SHA256": "abc123"
+          },
+          "sizeKB": 155000,
+          "primary": true
+        }
+      ]
+    }
+  ]
+}

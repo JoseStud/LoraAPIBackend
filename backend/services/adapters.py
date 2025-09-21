@@ -62,7 +62,7 @@ class AdapterService:
             trained_words=payload.trained_words or [],
             triggers=payload.triggers or [],
             file_path=payload.file_path,
-            weight=payload.weight or 1.0,
+            weight=payload.weight if payload.weight is not None else 1.0,
             active=payload.active or False,
             ordinal=payload.ordinal,
             primary_file_name=payload.primary_file_name,
@@ -119,7 +119,8 @@ class AdapterService:
             existing.trained_words = payload.trained_words or existing.trained_words
             existing.triggers = payload.triggers or existing.triggers
             existing.file_path = payload.file_path or existing.file_path
-            existing.weight = payload.weight or existing.weight
+            if payload.weight is not None:
+                existing.weight = payload.weight
             existing.active = payload.active if payload.active is not None else existing.active
             existing.ordinal = payload.ordinal if payload.ordinal is not None else existing.ordinal
             existing.primary_file_name = payload.primary_file_name or existing.primary_file_name
