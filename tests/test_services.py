@@ -105,7 +105,7 @@ class TestAdapterService:
             per_page=1,
         )
 
-        assert first_page.total == 2
+        assert first_page.total == 3
         assert first_page.filtered == 2
         assert first_page.page == 1
         assert first_page.per_page == 1
@@ -121,12 +121,16 @@ class TestAdapterService:
             per_page=1,
         )
 
+        assert second_page.total == 3
+        assert second_page.filtered == 2
         assert second_page.page == 2
         assert second_page.per_page == 1
         assert second_page.items[0].name == "Alpha"
 
         # Sorting by updated_at should return most recently updated first
         updated_order = adapter_service.search_adapters(sort="updated_at", per_page=5)
+        assert updated_order.total == 3
+        assert updated_order.filtered == 3
         assert [adapter.name for adapter in updated_order.items[:3]] == [
             "Gamma",
             "Beta",
@@ -175,7 +179,8 @@ class TestAdapterService:
 
         names = [adapter.name for adapter in result.items]
         assert names == ["Beta", "Alpha"]
-        assert result.total == 2
+        assert result.total == 3
+        assert result.filtered == 2
         assert len(set(names)) == len(names)
 
     def test_get_all_tags(self, adapter_service, db_session):
