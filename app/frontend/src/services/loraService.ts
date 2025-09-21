@@ -2,16 +2,17 @@ import { computed, reactive, unref } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
 
 import { useApi } from '@/composables/useApi';
-import { getJson, postJson } from '@/utils/api';
 
 import type {
   AdapterListQuery,
   AdapterListResponse,
   AdapterRead,
+  GalleryLora,
   LoraBulkActionRequest,
   LoraGalleryFilters,
   LoraGalleryState,
   LoraGallerySelectionState,
+  LoraListItem,
   LoraTagListResponse,
 } from '@/types';
 
@@ -76,12 +77,13 @@ export const useAdapterListApi = (
     return api.data.value;
   };
 
-  const adapters = computed<AdapterRead[]>(() => {
+  const adapters = computed<LoraListItem[]>(() => {
     const payload = api.data.value;
     if (!payload) {
       return [];
     }
-    return Array.isArray(payload) ? payload : payload.items ?? [];
+    const list = Array.isArray(payload) ? payload : payload.items ?? [];
+    return list.map((item) => ({ ...item })) as LoraListItem[];
   });
 
   return {
@@ -94,28 +96,30 @@ export const useAdapterListApi = (
 
 export const fetchAdapterTags = async (baseUrl: string): Promise<string[]> => {
   const base = sanitizeBaseUrl(baseUrl);
-  const { data } = await getJson<LoraTagListResponse>(
-    `${base}/adapters/tags`,
-    { credentials: 'same-origin' },
-  );
-  return data?.tags ?? [];
+  const api = useApi<LoraTagListResponse>(() => `${base}/adapters/tags`, {
+    credentials: 'same-origin',
+  });
+  const payload = await api.fetchData();
+  return payload?.tags ?? [];
 };
 
 export const fetchAdapters = async (
   baseUrl: string,
   query: AdapterListQuery = {},
-): Promise<AdapterRead[]> => {
+): Promise<LoraListItem[]> => {
   const base = sanitizeBaseUrl(baseUrl);
-  const { data } = await getJson<AdapterListResponse | AdapterRead[]>(
-    `${base}/adapters${buildAdapterListQuery(query)}`,
-    { credentials: 'same-origin' },
-  );
+  const targetUrl = `${base}/adapters${buildAdapterListQuery(query)}`;
+  const api = useApi<AdapterListResponse | AdapterRead[]>(() => targetUrl, {
+    credentials: 'same-origin',
+  });
+  const payload = await api.fetchData();
 
-  if (!data) {
+  if (!payload) {
     return [];
   }
 
-  return Array.isArray(data) ? data : data.items ?? [];
+  const adapters = Array.isArray(payload) ? payload : payload.items ?? [];
+  return adapters.map((item) => ({ ...item })) as LoraListItem[];
 };
 
 export const performBulkLoraAction = async (
@@ -123,11 +127,83 @@ export const performBulkLoraAction = async (
   payload: LoraBulkActionRequest,
 ): Promise<void> => {
   const base = sanitizeBaseUrl(baseUrl);
-  await postJson<unknown, LoraBulkActionRequest>(
-    `${base}/adapters/bulk`,
-    payload,
-    { credentials: 'same-origin' },
-  );
+  const api = useApi<unknown>(() => `${base}/adapters/bulk`, {
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  await api.fetchData({
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+};
+
+export const updateLoraWeight = async (
+  baseUrl: string,
+  loraId: string,
+  weight: number,
+): Promise<GalleryLora | null> => {
+  const base = sanitizeBaseUrl(baseUrl);
+  const api = useApi<AdapterRead>(() => `${base}/adapters/${encodeURIComponent(loraId)}`, {
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  const payload = await api.fetchData({
+    method: 'PATCH',
+    body: JSON.stringify({ weight }),
+  });
+  return (payload ? { ...payload } : null) as GalleryLora | null;
+};
+
+export const toggleLoraActiveState = async (
+  baseUrl: string,
+  loraId: string,
+  activate: boolean,
+): Promise<GalleryLora | null> => {
+  const base = sanitizeBaseUrl(baseUrl);
+  const endpoint = activate ? 'activate' : 'deactivate';
+  const api = useApi<AdapterRead>(() => `${base}/adapters/${encodeURIComponent(loraId)}/${endpoint}`, {
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  const payload = await api.fetchData({ method: 'POST' });
+  return (payload ? { ...payload } : null) as GalleryLora | null;
+};
+
+export const deleteLora = async (baseUrl: string, loraId: string): Promise<void> => {
+  const base = sanitizeBaseUrl(baseUrl);
+  const api = useApi<void>(() => `${base}/adapters/${encodeURIComponent(loraId)}`, {
+    credentials: 'same-origin',
+  });
+  await api.fetchData({
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+};
+
+export const buildRecommendationsUrl = (loraId: string): string => {
+  return `/recommendations?lora_id=${encodeURIComponent(loraId)}`;
+};
+
+export const triggerPreviewGeneration = async (
+  baseUrl: string,
+  loraId: string,
+): Promise<unknown> => {
+  const base = sanitizeBaseUrl(baseUrl);
+  const api = useApi<unknown>(() => `${base}/adapters/${encodeURIComponent(loraId)}/preview`, {
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  return api.fetchData({ method: 'POST' });
 };
 
 export const createDefaultGalleryState = (): LoraGalleryState => {

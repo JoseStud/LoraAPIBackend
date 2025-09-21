@@ -188,9 +188,8 @@
             :bulk-mode="bulkMode"
             :is-selected="selectedLoras.includes(lora.id)"
             @toggle-selection="handleSelectionChange"
-            @lora-updated="handleLoraUpdate"
-            @lora-deleted="handleLoraDelete"
-            @lora-error="handleLoraError"
+            @update="handleLoraUpdate"
+            @delete="handleLoraDelete"
           />
           
           <div v-if="filteredLoras.length === 0 && !isLoading" class="text-center py-12 text-gray-500">
@@ -207,7 +206,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import LoraCard from './LoraCard.vue';
@@ -218,11 +217,12 @@ import {
   performBulkLoraAction,
 } from '@/services/loraService';
 import type {
-  AdapterRead,
   LoraBulkAction,
   LoraGalleryFilters,
   LoraGallerySelectionState,
   LoraGallerySortOption,
+  LoraUpdatePayload,
+  GalleryLora,
 } from '@/types';
 
 type WindowWithExtras = Window & {
@@ -234,29 +234,12 @@ type WindowWithExtras = Window & {
   };
 };
 
-interface LoraUpdateDetail {
-  id: string;
-  type: string;
-  weight?: number;
-  active?: boolean;
-}
-
-interface LoraDeleteDetail {
-  id: string;
-}
-
-interface LoraErrorDetail {
-  id: string;
-  error: string;
-  type: string;
-}
-
 // State
 const isInitialized = ref(false);
 const isLoading = ref(false);
-const loras = ref<AdapterRead[]>([]);
+const loras = ref<GalleryLora[]>([]);
 const selectedLoras = ref<string[]>([]);
-const viewMode = ref('grid');
+const viewMode = ref<LoraGallerySelectionState['viewMode']>('grid');
 const bulkMode = ref(false);
 const searchTerm = ref('');
 const availableTags = ref<string[]>([]);
@@ -280,7 +263,7 @@ const allSelected = computed(() => {
   return filteredLoras.value.length > 0 && selectedLoras.value.length === filteredLoras.value.length;
 });
 
-const filteredLoras = computed(() => {
+const filteredLoras = computed<GalleryLora[]>(() => {
   let filtered = [...loras.value];
   
   // Apply search
@@ -450,23 +433,22 @@ const performBulkAction = async (action: LoraBulkAction) => {
   }
 };
 
-const handleLoraUpdate = (detail: LoraUpdateDetail) => {
+const handleLoraUpdate = (detail: LoraUpdatePayload) => {
   const { id, type } = detail;
-  
+
   // Find and update the LoRA in our local state
   const lora = loras.value.find(l => l.id === id);
   if (lora) {
     if (type === 'weight' && detail.weight !== undefined) {
       lora.weight = detail.weight;
-    } else if (type === 'active' && detail.active !== undefined) {
+    }
+    if (type === 'active' && detail.active !== undefined) {
       lora.active = detail.active;
     }
   }
 };
 
-const handleLoraDelete = (detail: LoraDeleteDetail) => {
-  const { id } = detail;
-  
+const handleLoraDelete = (id: string) => {
   // Remove the LoRA from our local state
   const index = loras.value.findIndex(l => l.id === id);
   if (index !== -1) {
@@ -480,25 +462,11 @@ const handleLoraDelete = (detail: LoraDeleteDetail) => {
   }
 };
 
-const handleLoraError = (detail: LoraErrorDetail) => {
-  const { id, error, type } = detail;
-
-  if (windowExtras.DevLogger?.error) {
-    windowExtras.DevLogger.error(`LoRA ${id} error (${type}):`, error);
-  }
-
-  if (windowExtras.htmx) {
-    windowExtras.htmx.trigger(document.body, 'show-notification', {
-      detail: { message: error, type: 'error' }
-    });
-  }
-};
-
 // Lifecycle
 onMounted(async () => {
   // Restore persisted view mode
   const savedViewMode = localStorage.getItem('loraViewMode');
-  if (savedViewMode) {
+  if (savedViewMode === 'grid' || savedViewMode === 'list') {
     viewMode.value = savedViewMode;
   }
   

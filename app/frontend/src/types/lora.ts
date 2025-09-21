@@ -105,6 +105,20 @@ export interface AdapterListResponse {
   per_page: number;
 }
 
+export type LoraListItem = Omit<AdapterRead, 'weight' | 'tags'> & {
+  tags?: AdapterRead['tags'];
+  /** Optional preview image resolved on the client side. */
+  preview_image?: string | null;
+  /** Weight slider value, defaults to adapter weight when missing. */
+  weight?: AdapterRead['weight'];
+  /** Quality score surfaced by the UI layer. */
+  quality_score?: number | null;
+  /** Optional adapter type surfaced only in the gallery UI. */
+  type?: string | null;
+};
+
+export type GalleryLora = LoraListItem;
+
 export interface AdapterListQuery {
   page?: number;
   perPage?: number;
@@ -151,4 +165,13 @@ export interface LoraGalleryState {
   availableTags: string[];
   showAllTags: boolean;
   selection: LoraGallerySelectionState;
+}
+
+export type LoraUpdateType = 'weight' | 'active';
+
+export interface LoraUpdatePayload {
+  id: string;
+  type: LoraUpdateType;
+  weight?: number;
+  active?: boolean;
 }
