@@ -146,21 +146,20 @@ pytest tests/test_main.py -v            # API endpoints
 ```
 
 ### Frontend Tests (JavaScript)
-The frontend test suite is Vue-first. Vitest exercises the SFCs while lightweight Jest suites cover DOM helpers where needed.
+The frontend test suite now runs entirely on Vitest. Vue single-file components, Pinia stores, and API-facing integration tests share the same runner and mocks.
 ```bash
 # Run all frontend tests
 npm test
 
 # Run specific test types
-npm run test:unit          # Jest unit tests for DOM utilities
-npm run test:unit:vue      # Vitest suite for Vue single-file components
-npm run test:integration   # API integration tests
+npm run test:unit          # Vitest suite for Vue components and shared utilities
+npm run test:integration   # Vitest-driven API integration tests
 npm run test:e2e          # Playwright end-to-end tests
 npm run test:performance  # Lighthouse performance audits
 
 # Development testing
-npm run test:watch        # Watch mode for development
-npm run test:coverage     # Generate coverage reports
+npm run test:watch        # Vitest watch mode
+npm run test:coverage     # Generate coverage and send to Coveralls
 ```
 
 ### Code Quality

@@ -3,17 +3,19 @@
  * Provides realistic mock responses for all API endpoints
  */
 
+import { afterEach, beforeEach, vi } from 'vitest';
+
 // Mock fetch globally for all tests
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 // Mock WebSocket
-global.WebSocket = jest.fn().mockImplementation((url) => {
+global.WebSocket = vi.fn().mockImplementation((url) => {
     return {
-        close: jest.fn(),
-        send: jest.fn(),
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn(),
-        dispatchEvent: jest.fn(),
+        close: vi.fn(),
+        send: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
         readyState: 1, // OPEN
         url: url,
         onopen: null,
@@ -138,14 +140,35 @@ const apiMocks = {
     'GET /api/loras/:id': (url) => {
         const id = url.split('/').pop();
         const lora = mockData.loras.find(l => l.id === id);
-        
+
         if (!lora) {
             throw new Error('LoRA not found');
         }
-        
+
         return lora;
     },
-    
+
+    'POST /api/loras': (url, options = {}) => {
+        try {
+            const body = options.body ? JSON.parse(options.body) : {};
+            if (!body.name || !body.type) {
+                throw new Error('validation: name and type are required');
+            }
+
+            return {
+                id: `created-${Date.now()}`,
+                ...body,
+                created_at: new Date('2024-01-05T00:00:00Z').toISOString(),
+                updated_at: new Date('2024-01-05T00:00:00Z').toISOString(),
+            };
+        } catch (error) {
+            if (error instanceof SyntaxError) {
+                throw new Error('validation: malformed JSON');
+            }
+            throw error;
+        }
+    },
+
     'POST /api/loras/upload': (url, options) => {
         // Check if proper form data was sent
         const hasFormData = options.body instanceof FormData;
@@ -185,6 +208,7 @@ const apiMocks = {
     },
     
     'POST /api/recommendations/feedback': () => ({
+        success: true,
         message: 'Feedback recorded successfully'
     }),
     
@@ -192,29 +216,79 @@ const apiMocks = {
     'GET /api/analytics': (url) => {
         const urlObj = new URL(url, 'http://localhost');
         const timeRange = urlObj.searchParams.get('timeRange') || '24h';
-        
+
         return {
-            ...mockData.analytics,
-            timeRange
+            kpis: mockData.analytics.kpis,
+            systemMetrics: {
+                cpu_usage: '15%',
+                memory_usage: '2.1 GB / 4.0 GB',
+                storage_usage: '1.1 TB / 2.0 TB',
+            },
+            performanceMetrics: mockData.analytics.performance_metrics,
+            usageStats: mockData.analytics.usage_stats,
+            timeRange,
         };
     },
-    
+
     'GET /api/analytics/export': (url) => {
         const urlObj = new URL(url, 'http://localhost');
         const format = urlObj.searchParams.get('format') || 'json';
-        
+
         if (format === 'csv') {
-            return 'timestamp,response_time,memory_usage\n2024-01-01T00:00:00Z,245,75.2';
+            const csv = 'timestamp,response_time,memory_usage\n2024-01-01T00:00:00Z,245,75.2';
+            return new Response(csv, {
+                status: 200,
+                headers: { 'content-type': 'text/csv' },
+            });
         }
-        
-        return mockData.analytics;
+
+        const payload = {
+            timestamp: new Date('2024-01-01T00:00:00Z').toISOString(),
+            data: mockData.analytics,
+        };
+
+        return new Response(JSON.stringify(payload), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+        });
     },
-    
+
     // Admin
-    'GET /api/admin/overview': () => mockData.admin.overview,
-    
-    'GET /api/admin/workers': () => mockData.admin.workers,
-    
+    'GET /api/admin/overview': () => ({
+        ...mockData.admin.overview,
+        cpuUsage: '15%',
+        memoryUsage: '2.1 GB / 4.0 GB',
+        diskUsage: '45% of 2 TB',
+    }),
+
+    'GET /api/admin/workers': () => ({
+        active: mockData.admin.workers.workers.filter(worker => worker.status === 'active'),
+        inactive: mockData.admin.workers.workers.filter(worker => worker.status !== 'active'),
+        failed: [],
+        workers: mockData.admin.workers.workers,
+    }),
+
+    'GET /api/admin/settings': (url, options = {}) => {
+        const headers = options.headers instanceof Headers
+            ? options.headers
+            : new Headers(options.headers ?? {});
+        const authHeader = headers.get('Authorization') ?? '';
+        if (authHeader.includes('invalid')) {
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+                status: 403,
+                headers: { 'content-type': 'application/json' },
+            });
+        }
+
+        return {
+            feature_flags: {
+                enableBackups: true,
+                enableRecommendations: true,
+            },
+            auditLogging: true,
+        };
+    },
+
     'POST /api/admin/workers/:id/restart': () => ({
         message: 'Worker restarted successfully'
     }),
@@ -223,32 +297,116 @@ const apiMocks = {
     'POST /api/export': () => new Blob(['mock export data'], { type: 'application/json' }),
     
     'POST /api/import': () => ({
+        success: true,
         message: 'Import started successfully',
-        job_id: 'import-job-123'
-    })
+        job_id: 'import-job-123',
+        processed_files: 1,
+        total_files: 1,
+    }),
+
+    'GET /api/v1/dashboard/stats': () => ({
+        stats: {
+            total_loras: mockData.loras.length,
+            active_loras: mockData.loras.length - 1,
+            embeddings_coverage: 85,
+            recent_imports: 4,
+        },
+        system_health: {
+            gpu_memory: '10 GB / 24 GB',
+            storage_usage: '1.1 TB / 2.0 TB',
+            cpu_usage: '15%',
+            uptime: '7 days 12 hours',
+            gpus: [
+                { name: 'RTX 4090', memory_used: '10 GB / 24 GB', temperature: '65°C' },
+            ],
+        },
+    }),
+
+    'GET /api/v1/system/status': () => ({
+        status: 'ok',
+        queues: {
+            active_jobs: mockData.loras.length,
+            scheduled_jobs: 2,
+        },
+        services: {
+            database: 'online',
+            cache: 'online',
+        },
+        version: '2.1.0',
+    }),
+
+    'GET /frontend/settings': () => ({
+        backendUrl: '/api/v1',
+        features: {
+            enableRecommendations: true,
+            enableImportExport: true,
+        },
+    }),
 };
 
 // Mock fetch implementation
 const mockFetch = (url, options = {}) => {
-    const method = options.method || 'GET';
-    
+    const method = options.method ? options.method.toUpperCase() : 'GET';
+
     // Extract the path from the full URL
     let path;
     try {
-        const urlObj = new URL(url);
+        const urlObj = new URL(url, 'http://localhost');
         path = urlObj.pathname;
     } catch {
-        // If URL parsing fails, assume it's already a path
-        path = url;
+        path = typeof url === 'string' ? url : '/';
     }
-    
-    // Create keys for exact and pattern matching
-    const exactKey = `${method} ${path}`;
-    const patternKey = `${method} ${path.replace(/\/[^/]+$/, '/:id')}`;
-    
-    // Try exact match first, then pattern match
-    const mockFn = apiMocks[exactKey] || apiMocks[patternKey];
-    
+
+    let normalizedPath = path || '/';
+    if (!normalizedPath.startsWith('/')) {
+        normalizedPath = `/${normalizedPath}`;
+    }
+    if (normalizedPath.length > 1) {
+        normalizedPath = normalizedPath.replace(/\/+$/, '');
+    }
+
+    const findHandler = () => {
+        const directKey = `${method} ${normalizedPath}`;
+        if (apiMocks[directKey]) {
+            return apiMocks[directKey];
+        }
+
+        const pathSegments = normalizedPath.split('/').filter(Boolean);
+
+        for (const [key, handler] of Object.entries(apiMocks)) {
+            const [patternMethod, patternPath] = key.split(' ');
+            if (patternMethod !== method) {
+                continue;
+            }
+
+            let normalisedPattern = patternPath || '/';
+            if (!normalisedPattern.startsWith('/')) {
+                normalisedPattern = `/${normalisedPattern}`;
+            }
+            if (normalisedPattern.length > 1) {
+                normalisedPattern = normalisedPattern.replace(/\/+$/, '');
+            }
+
+            const patternSegments = normalisedPattern.split('/').filter(Boolean);
+
+            if (patternSegments.length !== pathSegments.length) {
+                continue;
+            }
+
+            const matches = patternSegments.every((segment, index) => {
+                return segment.startsWith(':') || segment === pathSegments[index];
+            });
+
+            if (matches) {
+                return handler;
+            }
+        }
+
+        return undefined;
+    };
+
+    const mockFn = findHandler();
+
     if (!mockFn) {
         // Handle unknown endpoints
         if (url.includes('nonexistent')) {
@@ -270,11 +428,16 @@ const mockFetch = (url, options = {}) => {
             text: () => Promise.resolve('Internal server error')
         });
     }
-    
+
     try {
         const data = mockFn(url, options);
+
+        if (typeof Response !== 'undefined' && data instanceof Response) {
+            return Promise.resolve(data);
+        }
+
         const isBlob = data instanceof Blob;
-        
+
         return Promise.resolve({
             ok: true,
             status: 200,
@@ -325,8 +488,4 @@ afterEach(() => {
     fetch.mockClear();
 });
 
-module.exports = {
-    mockFetch,
-    mockData,
-    apiMocks
-};
+export { apiMocks, mockData, mockFetch };

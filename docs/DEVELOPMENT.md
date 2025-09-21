@@ -112,14 +112,13 @@ The project has a comprehensive testing suite.
     ```
 -   Tests are located in `tests/integration` and `tests/unit`. They use an in-memory SQLite database and mock external services.
 
-### Frontend Testing (Jest, Vitest & Playwright)
+### Frontend Testing (Vitest & Playwright)
 
 -   **Run all frontend tests:**
     ```bash
     npm test
     ```
--   **DOM Utility Tests (Jest)**: Exercise navigation helpers and accessibility affordances without Alpine dependencies.
--   **Vue Unit Tests (`npm run test:unit:vue`)**: Use Vitest for Vue single-file components.
+-   **Unit & Integration (`npm run test:unit`)**: Runs the unified Vitest suite covering Vue SFCs, composables, and API helpers.
 -   **End-to-End Tests (`tests/e2e/`)**: Use Playwright to simulate user interactions in a real browser.
 
 ---

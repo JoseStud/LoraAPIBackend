@@ -1,3 +1,7 @@
+// @vitest-environment node
+
+import { vi } from 'vitest';
+
 /**
  * Integration Tests for API Endpoints
  */
@@ -368,10 +372,10 @@ describe('API Integration Tests', () => {
             expect(ws.readyState).toBe(1); // OPEN state from mock
             
             // Test that we can set event handlers
-            ws.onopen = jest.fn();
-            ws.onclose = jest.fn();
-            ws.onerror = jest.fn();
-            ws.onmessage = jest.fn();
+            ws.onopen = vi.fn();
+            ws.onclose = vi.fn();
+            ws.onerror = vi.fn();
+            ws.onmessage = vi.fn();
             
             expect(ws.onopen).toBeDefined();
             expect(ws.onclose).toBeDefined();
@@ -384,7 +388,7 @@ describe('API Integration Tests', () => {
             
             // Test message handling with mocked WebSocket
             const mockMessage = { data: '{"type": "status_update", "payload": {"status": "online"}}' };
-            ws.onmessage = jest.fn();
+            ws.onmessage = vi.fn();
             
             // Simulate receiving a message
             if (ws.onmessage) {
@@ -396,12 +400,9 @@ describe('API Integration Tests', () => {
     });
     
     describe('Error Handling', () => {
-    });
-    
-    describe('Error Handling', () => {
         test('should handle 404 errors gracefully', async () => {
             const response = await fetch(`${baseURL}/api/nonexistent-endpoint`);
-            
+
             expect(response.status).toBe(404);
             
             const data = await response.json();
