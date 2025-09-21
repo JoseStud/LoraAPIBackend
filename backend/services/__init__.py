@@ -6,11 +6,13 @@ from sqlmodel import Session
 
 # Import file_exists for test compatibility - use root level for backward compatibility
 from backend.services.storage import get_storage_service
+from backend.core.config import settings
 
 from .adapters import AdapterService
 from .composition import ComposeService
-from .deliveries import DeliveryService
+from .deliveries import DeliveryService, process_delivery_job
 from .generation import GenerationService
+from .queue import BackgroundTaskQueueBackend, QueueBackend, RedisQueueBackend
 from .storage import StorageService, get_storage_service
 from .websocket import WebSocketService, websocket_service
 
@@ -26,10 +28,16 @@ from backend.core.database import get_session, get_session_context
 
 class ServiceContainer:
     """Container for managing service dependencies."""
-    
-    def __init__(self, db_session: Session):
+
+    def __init__(
+        self,
+        db_session: Optional[Session],
+        *,
+        queue_backend: Optional[QueueBackend] = None,
+        fallback_queue_backend: Optional[QueueBackend] = None,
+    ):
         """Initialize service container.
-        
+
         Args:
             db_session: Database session for services that need it
 
@@ -41,6 +49,8 @@ class ServiceContainer:
         self._compose_service: Optional[ComposeService] = None
         self._generation_service: Optional[GenerationService] = None
         self._websocket_service: Optional[WebSocketService] = None
+        self._queue_backend = queue_backend
+        self._fallback_queue_backend = fallback_queue_backend
     
     @property
     def storage(self) -> StorageService:
@@ -62,8 +72,23 @@ class ServiceContainer:
     @property
     def deliveries(self) -> DeliveryService:
         """Get delivery service instance."""
+        if self.db_session is None:
+            raise ValueError("DeliveryService requires an active database session")
+
         if self._delivery_service is None:
-            self._delivery_service = DeliveryService(self.db_session)
+            primary_queue = self._queue_backend
+            if primary_queue is None and settings.REDIS_URL:
+                primary_queue = RedisQueueBackend(settings.REDIS_URL)
+
+            fallback_queue = self._fallback_queue_backend
+            if fallback_queue is None:
+                fallback_queue = BackgroundTaskQueueBackend(process_delivery_job)
+
+            self._delivery_service = DeliveryService(
+                self.db_session,
+                queue_backend=primary_queue,
+                fallback_queue_backend=fallback_queue,
+            )
         return self._delivery_service
     
     @property
