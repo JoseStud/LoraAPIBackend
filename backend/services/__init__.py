@@ -9,11 +9,12 @@ from backend.services.storage import get_storage_service
 from backend.core.config import settings
 
 from .adapters import AdapterService
+from .archive import ArchiveService
 from .composition import ComposeService
 from .deliveries import DeliveryService, process_delivery_job
 from .generation import GenerationService
 from .queue import BackgroundTaskQueueBackend, QueueBackend, RedisQueueBackend
-from .storage import StorageService, get_storage_service
+from .storage import StorageService
 from .system import SystemService
 from .websocket import WebSocketService, websocket_service
 
@@ -51,6 +52,7 @@ class ServiceContainer:
         self._generation_service: Optional[GenerationService] = None
         self._websocket_service: Optional[WebSocketService] = None
         self._system_service: Optional[SystemService] = None
+        self._archive_service: Optional[ArchiveService] = None
         self._queue_backend = queue_backend
         self._fallback_queue_backend = fallback_queue_backend
     
@@ -66,10 +68,18 @@ class ServiceContainer:
         """Get adapter service instance."""
         if self._adapter_service is None:
             self._adapter_service = AdapterService(
-                self.db_session, 
+                self.db_session,
                 self.storage.backend,
             )
         return self._adapter_service
+
+    @property
+    def archive(self) -> ArchiveService:
+        """Get archive service instance."""
+
+        if self._archive_service is None:
+            self._archive_service = ArchiveService(self.adapters, self.storage)
+        return self._archive_service
     
     @property
     def deliveries(self) -> DeliveryService:

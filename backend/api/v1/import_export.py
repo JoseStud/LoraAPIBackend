@@ -1,14 +1,17 @@
-"""Import/Export API endpoints."""
+"""Import/Export API endpoints backed by archive helpers."""
 
-import io
-import json
-import zipfile
+import math
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+
+from backend.core.config import settings
+from backend.core.dependencies import get_archive_service
+from backend.services.archive import ArchiveService
 
 router = APIRouter(tags=["import-export"])
 
@@ -62,113 +65,66 @@ class BackupHistoryItem(BaseModel):
     status: str
 
 
+def _format_size(num_bytes: int) -> str:
+    if num_bytes <= 0:
+        return "0 Bytes"
+    units = ["Bytes", "KB", "MB", "GB", "TB"]
+    exponent = 0
+    value = float(num_bytes)
+    while value >= 1024 and exponent < len(units) - 1:
+        value /= 1024
+        exponent += 1
+    return f"{value:.2f} {units[exponent]}"
+
+
+def _format_duration(seconds: float) -> str:
+    if seconds <= 0:
+        return "0 seconds"
+    if seconds < 60:
+        return f"{max(1, math.ceil(seconds))} seconds"
+    minutes = math.ceil(seconds / 60)
+    return f"{minutes} minutes"
+
+
 @router.post("/export/estimate")
-async def estimate_export(config: ExportConfig) -> ExportEstimate:
-    """Calculate export size and time estimates."""
-    size_bytes = 0
-    time_minutes = 0
-    
-    if config.loras:
-        size_bytes += 10 * 1024 * 1024  # 10MB for metadata
-        time_minutes += 2
-        
-        if config.lora_files:
-            size_bytes += 500 * 1024 * 1024  # 500MB for model files
-            time_minutes += 10
-            
-        if config.lora_embeddings:
-            size_bytes += 100 * 1024 * 1024  # 100MB for embeddings
-            time_minutes += 3
-    
-    if config.generations:
-        if config.generation_range == "all":
-            size_bytes += 200 * 1024 * 1024  # 200MB
-            time_minutes += 5
-        else:
-            size_bytes += 50 * 1024 * 1024  # 50MB for date range
-            time_minutes += 2
-    
-    if config.user_data:
-        size_bytes += 5 * 1024 * 1024  # 5MB
-        time_minutes += 1
-    
-    if config.system_config:
-        size_bytes += 1 * 1024 * 1024  # 1MB
-        time_minutes += 1
-    
-    if config.analytics:
-        size_bytes += 20 * 1024 * 1024  # 20MB
-        time_minutes += 2
-    
-    # Apply compression
-    compression_ratio = {
-        'none': 1.0,
-        'fast': 0.7,
-        'balanced': 0.5,
-        'maximum': 0.3,
-    }[config.compression]
-    
-    size_bytes *= compression_ratio
-    
-    def format_file_size(bytes_val):
-        if bytes_val == 0:
-            return '0 Bytes'
-        k = 1024
-        sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
-        i = len(sizes) - 1
-        while i >= 0:
-            if bytes_val >= k ** i:
-                break
-            i -= 1
-        return f"{round(bytes_val / (k ** i), 2)} {sizes[i]}"
-    
+async def estimate_export(
+    config: ExportConfig,
+    archive_service: ArchiveService = Depends(get_archive_service),  # noqa: B008
+) -> ExportEstimate:
+    """Calculate export size and time estimates using archive metadata."""
+
+    if not config.loras:
+        return ExportEstimate(size="0 Bytes", time="0 seconds")
+
+    estimation = archive_service.estimate_adapter_export()
     return ExportEstimate(
-        size=format_file_size(size_bytes),
-        time=f"{max(1, round(time_minutes))} minutes",
+        size=_format_size(estimation.total_bytes),
+        time=_format_duration(estimation.estimated_seconds),
     )
 
 
 @router.post("/export")
-async def export_data(config: ExportConfig):
-    """Export data based on configuration."""
-    # Create a mock export file
-    output = io.BytesIO()
-    
-    with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        # Add export metadata
-        export_info = {
-            "export_date": datetime.now().isoformat(),
-            "config": config.dict(),
-            "version": "2.1.0",
-        }
-        zip_file.writestr("export_info.json", json.dumps(export_info, indent=2))
-        
-        # Add mock data based on configuration
-        if config.loras:
-            zip_file.writestr("loras/metadata.json", json.dumps({"loras": []}, indent=2))
-            if config.lora_files:
-                zip_file.writestr("loras/models/README.txt", "LoRA model files would be here")
-        
-        if config.generations:
-            zip_file.writestr("generations/data.json", json.dumps({"generations": []}, indent=2))
-        
-        if config.user_data:
-            zip_file.writestr("user/preferences.json", json.dumps({"preferences": {}}, indent=2))
-        
-        if config.system_config:
-            zip_file.writestr("system/config.json", json.dumps({"config": {}}, indent=2))
-        
-        if config.analytics:
-            zip_file.writestr("analytics/metrics.json", json.dumps({"metrics": {}}, indent=2))
-    
-    output.seek(0)
-    
+async def export_data(
+    config: ExportConfig,
+    archive_service: ArchiveService = Depends(get_archive_service),  # noqa: B008
+):
+    """Stream an archive export of adapters using the archive helper."""
+
+    if not config.loras:
+        raise HTTPException(status_code=400, detail="LoRA export must be enabled")
+    if config.format.lower() != "zip":
+        raise HTTPException(status_code=400, detail="Only ZIP exports are supported")
+
+    archive = archive_service.build_export_archive()
     filename = f"lora_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
-    
+
     return StreamingResponse(
-        io.BytesIO(output.read()),
+        archive.iterator,
         media_type="application/zip",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Content-Length": str(archive.size),
+        },
     )
 
 
@@ -176,41 +132,59 @@ async def export_data(config: ExportConfig):
 async def import_data(
     files: List[UploadFile] = File(...),
     config: str = Form(...),
+    archive_service: ArchiveService = Depends(get_archive_service),  # noqa: B008
 ):
-    """Import data from uploaded files."""
+    """Import adapters from uploaded archives after validation."""
+
     try:
-        ImportConfig.parse_raw(config)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid config: {str(e)}")
-    
+        parsed_config = ImportConfig.model_validate_json(config)
+    except Exception as exc:  # pragma: no cover - defensive guard
+        raise HTTPException(status_code=400, detail=f"Invalid config: {exc}") from exc
+
+    if not files:
+        raise HTTPException(status_code=400, detail="No files were provided for import")
+
+    dry_run_modes = {"dry-run", "dryrun", "preview"}
+    persist = parsed_config.mode.lower() not in dry_run_modes
+    target_root = Path(settings.IMPORT_PATH or (Path.cwd() / "loras"))
+
     results = []
-    
-    for file in files:
-        # Validate file type
-        valid_extensions = ['.zip', '.tar.gz', '.json', '.lora', '.safetensors']
-        file_ext = ''.join(file.filename.split('.')[-2:]) if file.filename.endswith('.tar.gz') else f".{file.filename.split('.')[-1]}"
-        
-        if file_ext not in valid_extensions:
-            results.append({
-                "file": file.filename,
-                "status": "skipped",
-                "reason": "Unsupported file type",
-            })
+    success = True
+    for upload in files:
+        upload.file.seek(0)
+        try:
+            summary = archive_service.import_archive(
+                upload.file,
+                target_directory=target_root,
+                persist=persist,
+                validate=parsed_config.validate,
+            )
+        except ValueError as exc:
+            success = False
+            results.append(
+                {
+                    "file": upload.filename,
+                    "status": "error",
+                    "detail": str(exc),
+                }
+            )
             continue
-        
-        # Process file (mock implementation)
-        content = await file.read()
-        
-        results.append({
-            "file": file.filename,
-            "status": "processed",
-            "size": len(content),
-            "items_imported": 1 if file_ext == '.json' else 0,
-        })
-    
+
+        status = "validated" if not persist else "imported"
+        results.append(
+            {
+                "file": upload.filename,
+                "status": status,
+                "created": summary.created,
+                "updated": summary.updated,
+                "adapters": summary.adapters,
+            }
+        )
+
+    processed = sum(1 for item in results if item.get("status") != "error")
     return {
-        "success": True,
-        "processed_files": len([r for r in results if r["status"] == "processed"]),
+        "success": success,
+        "processed_files": processed,
         "total_files": len(files),
         "results": results,
     }
@@ -229,7 +203,7 @@ async def get_backup_history() -> List[BackupHistoryItem]:
             status="completed",
         ),
         BackupHistoryItem(
-            id="backup_002", 
+            id="backup_002",
             created_at=datetime.now().isoformat(),
             type="Quick Backup",
             size=1024 * 1024 * 50,  # 50MB
