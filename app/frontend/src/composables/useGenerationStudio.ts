@@ -11,6 +11,7 @@ import {
 } from '@/services/generationService'
 import { useAppStore } from '@/stores/app'
 import { useSettingsStore } from '@/stores/settings'
+import { normalizeGenerationProgress } from '@/utils/progress'
 import type {
   GenerationFormState,
   GenerationJob,
@@ -18,13 +19,6 @@ import type {
   NotificationType,
   SystemStatusState,
 } from '@/types'
-
-const normalizeProgress = (value?: number | null): number => {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
-    return 0
-  }
-  return value <= 1 ? Math.round(value * 100) : Math.round(value)
-}
 
 export const useGenerationStudio = () => {
   const appStore = useAppStore()
@@ -103,7 +97,7 @@ export const useGenerationStudio = () => {
           id: response.job_id,
           prompt: payload.prompt,
           status: response.status as GenerationJob['status'],
-          progress: normalizeProgress(response.progress),
+          progress: normalizeGenerationProgress(response.progress),
           startTime: createdAt,
           created_at: createdAt,
           width: payload.width,

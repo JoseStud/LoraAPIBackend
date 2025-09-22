@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useActiveJobsApi, useRecentResultsApi, useSystemStatusApi } from '@/composables/apiClients'
 import { resolveBackendUrl, resolveGenerationBaseUrl } from '@/services/generationService'
 import { useAppStore } from '@/stores/app'
+import { normalizeGenerationProgress } from '@/utils/progress'
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,
@@ -44,13 +45,6 @@ const parseTimestamp = (value?: string): number => {
   }
   const timestamp = Date.parse(value)
   return Number.isNaN(timestamp) ? 0 : timestamp
-}
-
-const normalizeProgress = (value?: number | null): number => {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
-    return 0
-  }
-  return value <= 1 ? Math.round(value * 100) : Math.round(value)
 }
 
 const appendWebSocketPath = (path: string): string => {
@@ -188,7 +182,7 @@ export const useGenerationUpdates = ({
       return
     }
 
-    job.progress = normalizeProgress(update.progress)
+    job.progress = normalizeGenerationProgress(update.progress)
     job.status = update.status as GenerationJob['status']
 
     if (typeof update.current_step === 'number') {
