@@ -340,14 +340,14 @@ def test_compose_sdnext_delivery(
 
     captured: dict[str, object] = {}
 
-    async def fake_execute(prompt: str, mode: str, params: dict) -> dict:
+    async def fake_execute(self, prompt: str, mode: str, params: dict) -> dict:
         captured["prompt"] = prompt
         captured["params"] = params
         captured["mode"] = mode
         return {"status": "succeeded"}
 
     monkeypatch.setattr(
-        "backend.services.deliveries._execute_delivery_backend",
+        "backend.workers.delivery_runner.DeliveryRunner._execute_delivery_backend",
         fake_execute,
     )
 
