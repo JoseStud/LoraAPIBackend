@@ -68,4 +68,85 @@ describe('useApi composable', () => {
     expect(apiError.message).toContain('Something went wrong');
     expect(lastResponse.value).toMatchObject({ ok: false, status: 500, statusText: 'Internal Server Error', url: '/api/fail' });
   });
+
+  it('ignores stale responses when newer requests resolve first', async () => {
+    const firstPayload = { message: 'first' };
+    const secondPayload = { message: 'second' };
+    const firstResponse = createJsonResponse(firstPayload, { url: '/api/test?first' });
+    const secondResponse = createJsonResponse(secondPayload, { url: '/api/test?second' });
+
+    let resolveFirst: ((value: Response) => void) | undefined;
+    const firstFetchPromise = new Promise<Response>((resolve) => {
+      resolveFirst = resolve;
+    });
+
+    const fetchMock = vi
+      .fn<[], Promise<Response>>()
+      .mockReturnValueOnce(firstFetchPromise)
+      .mockResolvedValueOnce(secondResponse);
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { fetchData, data, lastResponse, error, isLoading } = useApi<typeof firstPayload>('/api/test');
+
+    const firstCall = fetchData();
+    const secondCall = fetchData();
+
+    await expect(secondCall).resolves.toEqual(secondPayload);
+
+    expect(data.value).toEqual(secondPayload);
+    expect(lastResponse.value).toMatchObject({ url: '/api/test?second', status: 200 });
+    expect(error.value).toBeNull();
+    expect(isLoading.value).toBe(false);
+
+    resolveFirst?.(firstResponse);
+    await firstCall;
+
+    expect(data.value).toEqual(secondPayload);
+    expect(lastResponse.value).toMatchObject({ url: '/api/test?second', status: 200 });
+    expect(error.value).toBeNull();
+    expect(isLoading.value).toBe(false);
+  });
+
+  it('does not overwrite the latest state with stale error responses', async () => {
+    const errorPayload = { detail: 'failure' };
+    const successPayload = { message: 'success' };
+    const failingResponse = createJsonResponse(errorPayload, {
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+      url: '/api/test?error',
+    });
+    const successResponse = createJsonResponse(successPayload, { url: '/api/test?success' });
+
+    let resolveFirst: ((value: Response) => void) | undefined;
+    const firstFetchPromise = new Promise<Response>((resolve) => {
+      resolveFirst = resolve;
+    });
+
+    const fetchMock = vi
+      .fn<[], Promise<Response>>()
+      .mockReturnValueOnce(firstFetchPromise)
+      .mockResolvedValueOnce(successResponse);
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { fetchData, data, error, lastResponse, isLoading } = useApi<typeof successPayload, typeof errorPayload>('/api/test');
+
+    const firstCall = fetchData();
+    const secondCall = fetchData();
+
+    await expect(secondCall).resolves.toEqual(successPayload);
+
+    expect(data.value).toEqual(successPayload);
+    expect(error.value).toBeNull();
+    expect(lastResponse.value).toMatchObject({ url: '/api/test?success', status: 200 });
+    expect(isLoading.value).toBe(false);
+
+    resolveFirst?.(failingResponse);
+    await expect(firstCall).rejects.toBeInstanceOf(ApiError);
+
+    expect(data.value).toEqual(successPayload);
+    expect(error.value).toBeNull();
+    expect(lastResponse.value).toMatchObject({ url: '/api/test?success', status: 200 });
+    expect(isLoading.value).toBe(false);
+  });
 });
