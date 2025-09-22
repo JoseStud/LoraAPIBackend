@@ -1,3 +1,4 @@
+import { computed, reactive, ref, shallowRef } from 'vue';
 import { defineStore } from 'pinia';
 
 import {
@@ -23,19 +24,6 @@ import type {
   SystemStatusPayload,
   SystemStatusState,
 } from '@/types';
-
-interface GenerationState {
-  systemStatus: SystemStatusState;
-  jobs: GenerationJob[];
-  results: GenerationResult[];
-  isConnected: boolean;
-  historyLimit: number;
-  pollIntervalMs: number;
-  pollTimer: number | null;
-  queueClient: GenerationQueueClient | null;
-  websocketManager: GenerationWebSocketManager | null;
-  notificationAdapter: GenerationNotificationAdapter | null;
-}
 
 const DEFAULT_SYSTEM_STATUS: SystemStatusState = {
   gpu_available: true,
@@ -106,406 +94,474 @@ const sanitizeResult = (result: GenerationResult): GenerationResult => {
   return { ...result, created_at: new Date().toISOString() };
 };
 
-export const useGenerationStore = defineStore('generation', {
-  state: (): GenerationState => ({
-    systemStatus: { ...DEFAULT_SYSTEM_STATUS },
-    jobs: [],
-    results: [],
-    isConnected: false,
-    historyLimit: DEFAULT_HISTORY_LIMIT,
-    pollIntervalMs: DEFAULT_POLL_INTERVAL,
-    pollTimer: null,
-    queueClient: null,
-    websocketManager: null,
-    notificationAdapter: null,
-  }),
+export const useGenerationStore = defineStore('generation', () => {
+  const systemStatus = reactive<SystemStatusState>({ ...DEFAULT_SYSTEM_STATUS });
+  const jobs = ref<GenerationJob[]>([]);
+  const results = ref<GenerationResult[]>([]);
+  const isConnected = ref(false);
+  const historyLimit = ref(DEFAULT_HISTORY_LIMIT);
+  const pollIntervalMs = ref(DEFAULT_POLL_INTERVAL);
 
-  getters: {
-    activeJobs: (state): GenerationJob[] => state.jobs,
-    recentResults: (state): GenerationResult[] => state.results,
-    sortedActiveJobs: (state): GenerationJob[] => {
-      const statusPriority: Record<GenerationJob['status'], number> = {
-        processing: 0,
-        queued: 1,
-        completed: 2,
-        failed: 3,
-      };
+  const notificationAdapter = shallowRef<GenerationNotificationAdapter | null>(null);
+  const queueClient = shallowRef<GenerationQueueClient | null>(null);
+  const websocketManager = shallowRef<GenerationWebSocketManager | null>(null);
 
-      return [...state.jobs].sort((a, b) => {
-        const aPriority = statusPriority[a.status] ?? 4;
-        const bPriority = statusPriority[b.status] ?? 4;
+  let pollTimer: number | null = null;
 
-        if (aPriority !== bPriority) {
-          return aPriority - bPriority;
-        }
+  const activeJobs = computed(() => jobs.value);
+  const recentResults = computed(() => results.value);
+  const sortedActiveJobs = computed(() => {
+    const statusPriority: Record<GenerationJob['status'], number> = {
+      processing: 0,
+      queued: 1,
+      completed: 2,
+      failed: 3,
+    };
 
-        const aCreated = Date.parse(a.created_at ?? a.startTime ?? '');
-        const bCreated = Date.parse(b.created_at ?? b.startTime ?? '');
+    return [...jobs.value].sort((a, b) => {
+      const aPriority = statusPriority[a.status] ?? 4;
+      const bPriority = statusPriority[b.status] ?? 4;
 
-        if (Number.isNaN(aCreated) && Number.isNaN(bCreated)) {
-          return 0;
-        }
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority;
+      }
 
-        if (Number.isNaN(aCreated)) {
-          return 1;
-        }
+      const aCreated = Date.parse(a.created_at ?? a.startTime ?? '');
+      const bCreated = Date.parse(b.created_at ?? b.startTime ?? '');
 
-        if (Number.isNaN(bCreated)) {
-          return -1;
-        }
+      if (Number.isNaN(aCreated) && Number.isNaN(bCreated)) {
+        return 0;
+      }
 
-        return bCreated - aCreated;
+      if (Number.isNaN(aCreated)) {
+        return 1;
+      }
+
+      if (Number.isNaN(bCreated)) {
+        return -1;
+      }
+
+      return bCreated - aCreated;
+    });
+  });
+  const hasActiveJobs = computed(() => activeJobs.value.length > 0);
+
+  function setConnectionState(connected: boolean): void {
+    isConnected.value = connected;
+  }
+
+  function setNotificationAdapter(adapter: GenerationNotificationAdapter | null): void {
+    notificationAdapter.value = adapter ?? null;
+  }
+
+  function setHistoryLimit(limit: number): void {
+    const normalized = Math.max(1, Math.floor(Number(limit) || 0));
+    historyLimit.value = Number.isFinite(normalized) && normalized > 0
+      ? normalized
+      : DEFAULT_HISTORY_LIMIT;
+  }
+
+  function updateSystemStatus(status: Partial<SystemStatusState>): void {
+    Object.assign(systemStatus, status);
+  }
+
+  function resetSystemStatus(): void {
+    Object.assign(systemStatus, { ...DEFAULT_SYSTEM_STATUS });
+  }
+
+  function enqueueJob(job: GenerationJobInput): GenerationJob {
+    const stored = toStoredJob(job);
+    const existingIndex = jobs.value.findIndex((item) => item.id === stored.id);
+    if (existingIndex >= 0) {
+      jobs.value.splice(existingIndex, 1, stored);
+    } else {
+      jobs.value.push(stored);
+    }
+    return stored;
+  }
+
+  function setActiveJobs(list: GenerationJobInput[]): void {
+    jobs.value = list.map((job) => toStoredJob(job));
+  }
+
+  function updateJob(jobId: string, updates: Partial<GenerationJob>): void {
+    const index = jobs.value.findIndex((job) => job.id === jobId);
+    if (index >= 0) {
+      const merged = { ...jobs.value[index], ...updates } as GenerationJob;
+      merged.progress = normalizeGenerationProgress(merged.progress);
+      merged.status = normalizeJobStatus(merged.status);
+      jobs.value.splice(index, 1, merged);
+    }
+  }
+
+  function removeJob(jobId: string): void {
+    jobs.value = jobs.value.filter((job) => job.id !== jobId);
+  }
+
+  function clearCompletedJobs(): void {
+    jobs.value = jobs.value.filter((job) => !['completed', 'failed'].includes(job.status));
+  }
+
+  function addResult(result: GenerationResult): void {
+    const sanitized = sanitizeResult(result);
+    results.value = [sanitized, ...results.value].slice(0, MAX_RESULTS);
+  }
+
+  function setRecentResults(list: GenerationResult[]): void {
+    results.value = list.slice(0, MAX_RESULTS).map(sanitizeResult);
+  }
+
+  function removeResult(resultId: string | number): void {
+    results.value = results.value.filter((result) => result.id !== resultId);
+  }
+
+  function applySystemStatusPayload(payload: SystemStatusPayload | Partial<SystemStatusState>): void {
+    const {
+      metrics: _metrics,
+      message: _message,
+      updated_at: _updatedAt,
+      type: _type,
+      ...status
+    } = payload as Record<string, unknown>;
+    updateSystemStatus(status as Partial<SystemStatusState>);
+  }
+
+  function handleProgressMessage(message: GenerationProgressMessage | ProgressUpdate): void {
+    const jobId = message.job_id;
+    const job = jobs.value.find((item) => item.id === jobId);
+    const updates: Partial<GenerationJob> = {
+      status: normalizeJobStatus(message.status),
+      progress: normalizeGenerationProgress(message.progress),
+      current_step: typeof message.current_step === 'number' ? message.current_step : job?.current_step,
+      total_steps: typeof message.total_steps === 'number' ? message.total_steps : job?.total_steps,
+    };
+
+    if (!job) {
+      enqueueJob({ id: jobId, ...updates });
+      return;
+    }
+
+    updateJob(jobId, updates);
+  }
+
+  function handleCompletionMessage(message: GenerationCompleteMessage): GenerationResult {
+    removeJob(message.job_id);
+
+    const createdAt = message.created_at ?? new Date().toISOString();
+    const imageUrl = message.image_url ?? (Array.isArray(message.images) ? message.images[0] ?? null : null);
+
+    const result: GenerationResult = {
+      id: message.result_id ?? message.job_id,
+      job_id: message.job_id,
+      result_id: message.result_id,
+      prompt: message.prompt,
+      negative_prompt: message.negative_prompt,
+      image_url: imageUrl,
+      width: message.width,
+      height: message.height,
+      steps: message.steps,
+      cfg_scale: message.cfg_scale,
+      seed: message.seed ?? null,
+      created_at: createdAt,
+    };
+
+    addResult(result);
+    return result;
+  }
+
+  function handleErrorMessage(message: GenerationErrorMessage): void {
+    removeJob(message.job_id);
+  }
+
+  function ingestQueue(list: GenerationJobInput[] | undefined | null): void {
+    if (!Array.isArray(list)) {
+      return;
+    }
+    setActiveJobs(list);
+  }
+
+  function configureGenerationServices(options: GenerationServiceConfiguration): void {
+    const { getBackendUrl } = options;
+
+    if (options.notificationAdapter !== undefined) {
+      setNotificationAdapter(options.notificationAdapter);
+    }
+
+    if (typeof options.pollIntervalMs === 'number') {
+      pollIntervalMs.value = options.pollIntervalMs;
+    }
+
+    if (typeof options.historyLimit === 'number') {
+      setHistoryLimit(options.historyLimit);
+    }
+
+    queueClient.value = options.queueClient ?? createGenerationQueueClient({ getBackendUrl });
+
+    const manager =
+      options.websocketManager
+      ?? createGenerationWebSocketManager({
+        getBackendUrl,
+        logger: (...args: unknown[]) => {
+          notificationAdapter.value?.debug?.(...args);
+        },
+        onConnectionChange: (connected) => {
+          setConnectionState(connected);
+        },
+        onProgress: (message) => {
+          handleProgressMessage(message);
+        },
+        onComplete: (message) => {
+          const result = handleCompletionMessage(message);
+          notificationAdapter.value?.notify('Generation completed successfully', 'success');
+          return result;
+        },
+        onError: (message) => {
+          handleErrorMessage(message);
+          const errorMessage = extractGenerationErrorMessage(message);
+          notificationAdapter.value?.notify(`Generation failed: ${errorMessage}`, 'error');
+        },
+        onQueueUpdate: (jobsUpdate) => {
+          const list = Array.isArray(jobsUpdate) ? jobsUpdate : [];
+          ingestQueue(list as GenerationJobInput[]);
+        },
+        onSystemStatus: (payload) => {
+          applySystemStatusPayload(payload);
+        },
       });
-    },
-    hasActiveJobs: (state): boolean => state.jobs.length > 0,
-  },
 
-  actions: {
-    setConnectionState(connected: boolean): void {
-      this.isConnected = connected;
-    },
+    if (websocketManager.value && websocketManager.value !== manager) {
+      websocketManager.value.stop();
+    }
 
-    setNotificationAdapter(adapter: GenerationNotificationAdapter | null): void {
-      this.notificationAdapter = adapter ?? null;
-    },
+    websocketManager.value = manager;
+  }
 
-    setHistoryLimit(limit: number): void {
-      const normalized = Math.max(1, Math.floor(Number(limit) || 0));
-      this.historyLimit = Number.isFinite(normalized) && normalized > 0 ? normalized : DEFAULT_HISTORY_LIMIT;
-    },
+  function getQueueClient(): GenerationQueueClient {
+    if (!queueClient.value) {
+      throw new Error('Generation queue client is not configured');
+    }
+    return queueClient.value;
+  }
 
-    configureGenerationServices(options: GenerationServiceConfiguration): void {
-      const { getBackendUrl } = options;
+  function getWebSocketManager(): GenerationWebSocketManager {
+    if (!websocketManager.value) {
+      throw new Error('Generation WebSocket manager is not configured');
+    }
+    return websocketManager.value;
+  }
 
-      if (options.notificationAdapter !== undefined) {
-        this.setNotificationAdapter(options.notificationAdapter);
+  function startPolling(): void {
+    if (typeof window === 'undefined' || pollTimer != null) {
+      return;
+    }
+
+    pollTimer = window.setInterval(async () => {
+      try {
+        if (hasActiveJobs.value) {
+          await refreshActiveJobs();
+        }
+        await refreshSystemStatus();
+      } catch (error) {
+        console.error('Failed to refresh generation data during polling:', error);
       }
+    }, pollIntervalMs.value);
+  }
 
-      if (typeof options.pollIntervalMs === 'number') {
-        this.pollIntervalMs = options.pollIntervalMs;
+  function stopPolling(): void {
+    if (pollTimer != null && typeof window !== 'undefined') {
+      window.clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
+
+  async function refreshSystemStatus(): Promise<void> {
+    try {
+      const status = await getQueueClient().fetchSystemStatus();
+      if (status) {
+        applySystemStatusPayload(status);
       }
+    } catch (error) {
+      console.error('Failed to refresh system status:', error);
+    }
+  }
 
-      if (typeof options.historyLimit === 'number') {
-        this.setHistoryLimit(options.historyLimit);
+  async function refreshActiveJobs(): Promise<void> {
+    try {
+      const active = await getQueueClient().fetchActiveJobs();
+      setActiveJobs(active as GenerationJobInput[]);
+    } catch (error) {
+      console.error('Failed to refresh active jobs:', error);
+    }
+  }
+
+  async function refreshRecentResults(notifySuccess = false): Promise<void> {
+    try {
+      const recent = await getQueueClient().fetchRecentResults(historyLimit.value);
+      setRecentResults(recent);
+      if (notifySuccess) {
+        notificationAdapter.value?.notify('Results refreshed', 'success');
       }
+    } catch (error) {
+      console.error('Failed to refresh recent results:', error);
+      if (notifySuccess) {
+        notificationAdapter.value?.notify('Failed to refresh results', 'error');
+      }
+    }
+  }
 
-      const queueClient =
-        options.queueClient ?? createGenerationQueueClient({ getBackendUrl });
-      const websocketManager =
-        options.websocketManager
-        ?? createGenerationWebSocketManager({
-          getBackendUrl,
-          logger: (...args: unknown[]) => {
-            this.notificationAdapter?.debug?.(...args);
-          },
-          onConnectionChange: (connected) => {
-            this.setConnectionState(connected);
-          },
-          onProgress: (message) => {
-            this.handleProgressMessage(message);
-          },
-          onComplete: (message) => {
-            const result = this.handleCompletionMessage(message);
-            this.notificationAdapter?.notify('Generation completed successfully', 'success');
-            return result;
-          },
-          onError: (message) => {
-            this.handleErrorMessage(message);
-            const errorMessage = extractGenerationErrorMessage(message);
-            this.notificationAdapter?.notify(`Generation failed: ${errorMessage}`, 'error');
-          },
-          onQueueUpdate: (jobs) => {
-            const list = Array.isArray(jobs) ? jobs : [];
-            this.ingestQueue(list as GenerationJobInput[]);
-          },
-          onSystemStatus: (payload) => {
-            this.applySystemStatusPayload(payload);
-          },
+  async function refreshAllData(): Promise<void> {
+    await Promise.all([
+      refreshSystemStatus(),
+      refreshActiveJobs(),
+      refreshRecentResults(),
+    ]);
+  }
+
+  async function initializeUpdates(): Promise<void> {
+    await refreshAllData();
+    websocketManager.value?.start();
+    startPolling();
+  }
+
+  function stopUpdates(): void {
+    stopPolling();
+    websocketManager.value?.stop();
+  }
+
+  function reconnectUpdates(): void {
+    websocketManager.value?.reconnect();
+  }
+
+  function isJobCancellable(job: GenerationJob): boolean {
+    return CANCELLABLE_STATUSES.has(job.status);
+  }
+
+  async function startGeneration(payload: GenerationRequestPayload): Promise<GenerationStartResponse> {
+    try {
+      const response = await getQueueClient().startGeneration(payload);
+
+      if (response.job_id) {
+        const createdAt = new Date().toISOString();
+        enqueueJob({
+          id: response.job_id,
+          prompt: payload.prompt,
+          status: response.status,
+          progress: response.progress ?? 0,
+          startTime: createdAt,
+          created_at: createdAt,
+          width: payload.width,
+          height: payload.height,
+          steps: payload.steps,
+          total_steps: payload.steps,
+          cfg_scale: payload.cfg_scale,
+          seed: payload.seed,
         });
-
-      this.queueClient = queueClient;
-      this.websocketManager = websocketManager;
-    },
-
-    getQueueClient(): GenerationQueueClient {
-      if (!this.queueClient) {
-        throw new Error('Generation queue client is not configured');
-      }
-      return this.queueClient;
-    },
-
-    getWebSocketManager(): GenerationWebSocketManager {
-      if (!this.websocketManager) {
-        throw new Error('Generation WebSocket manager is not configured');
-      }
-      return this.websocketManager;
-    },
-
-    startPolling(): void {
-      if (typeof window === 'undefined' || this.pollTimer != null) {
-        return;
+        notificationAdapter.value?.notify('Generation started successfully', 'success');
       }
 
-      this.pollTimer = window.setInterval(async () => {
-        try {
-          if (this.hasActiveJobs) {
-            await this.refreshActiveJobs();
-          }
-          await this.refreshSystemStatus();
-        } catch (error) {
-          console.error('Failed to refresh generation data during polling:', error);
-        }
-      }, this.pollIntervalMs);
-    },
+      return response;
+    } catch (error) {
+      console.error('Error starting generation:', error);
+      notificationAdapter.value?.notify('Error starting generation', 'error');
+      throw error;
+    }
+  }
 
-    stopPolling(): void {
-      if (this.pollTimer != null && typeof window !== 'undefined') {
-        window.clearInterval(this.pollTimer);
-        this.pollTimer = null;
-      }
-    },
+  async function cancelJob(jobId: string): Promise<void> {
+    try {
+      await getQueueClient().cancelJob(jobId);
+      removeJob(jobId);
+      notificationAdapter.value?.notify('Generation cancelled', 'success');
+    } catch (error) {
+      console.error('Error cancelling job:', error);
+      notificationAdapter.value?.notify('Error cancelling generation', 'error');
+      throw error;
+    }
+  }
 
-    async initializeUpdates(): Promise<void> {
-      await Promise.all([
-        this.refreshSystemStatus(),
-        this.refreshActiveJobs(),
-        this.refreshRecentResults(),
-      ]);
-      this.websocketManager?.start();
-      this.startPolling();
-    },
+  async function clearQueue(): Promise<void> {
+    const cancellableJobs = jobs.value.filter((job) => isJobCancellable(job));
+    if (cancellableJobs.length === 0) {
+      return;
+    }
 
-    stopUpdates(): void {
-      this.stopPolling();
-      this.websocketManager?.stop();
-    },
+    await Promise.allSettled(cancellableJobs.map((job) => cancelJob(job.id)));
+  }
 
-    reconnectUpdates(): void {
-      this.websocketManager?.reconnect();
-    },
+  async function deleteResult(resultId: string | number): Promise<void> {
+    try {
+      await getQueueClient().deleteResult(resultId);
+      removeResult(resultId);
+      notificationAdapter.value?.notify('Result deleted', 'success');
+    } catch (error) {
+      console.error('Error deleting result:', error);
+      notificationAdapter.value?.notify('Error deleting result', 'error');
+      throw error;
+    }
+  }
 
-    async refreshSystemStatus(): Promise<void> {
-      try {
-        const status = await this.getQueueClient().fetchSystemStatus();
-        if (status) {
-          this.applySystemStatusPayload(status);
-        }
-      } catch (error) {
-        console.error('Failed to refresh system status:', error);
-      }
-    },
+  function $reset(): void {
+    stopPolling();
+    websocketManager.value?.stop();
+    websocketManager.value = null;
+    queueClient.value = null;
+    notificationAdapter.value = null;
+    jobs.value = [];
+    results.value = [];
+    resetSystemStatus();
+    isConnected.value = false;
+    historyLimit.value = DEFAULT_HISTORY_LIMIT;
+    pollIntervalMs.value = DEFAULT_POLL_INTERVAL;
+  }
 
-    async refreshActiveJobs(): Promise<void> {
-      try {
-        const jobs = await this.getQueueClient().fetchActiveJobs();
-        this.setActiveJobs(jobs);
-      } catch (error) {
-        console.error('Failed to refresh active jobs:', error);
-      }
-    },
-
-    async refreshRecentResults(notifySuccess = false): Promise<void> {
-      try {
-        const results = await this.getQueueClient().fetchRecentResults(this.historyLimit);
-        this.setRecentResults(results);
-        if (notifySuccess) {
-          this.notificationAdapter?.notify('Results refreshed', 'success');
-        }
-      } catch (error) {
-        console.error('Failed to refresh recent results:', error);
-        if (notifySuccess) {
-          this.notificationAdapter?.notify('Failed to refresh results', 'error');
-        }
-      }
-    },
-
-    isJobCancellable(job: GenerationJob): boolean {
-      return CANCELLABLE_STATUSES.has(job.status);
-    },
-
-    async startGeneration(payload: GenerationRequestPayload): Promise<GenerationStartResponse> {
-      try {
-        const response = await this.getQueueClient().startGeneration(payload);
-
-        if (response.job_id) {
-          const createdAt = new Date().toISOString();
-          this.enqueueJob({
-            id: response.job_id,
-            prompt: payload.prompt,
-            status: response.status,
-            progress: response.progress ?? 0,
-            startTime: createdAt,
-            created_at: createdAt,
-            width: payload.width,
-            height: payload.height,
-            steps: payload.steps,
-            total_steps: payload.steps,
-            cfg_scale: payload.cfg_scale,
-            seed: payload.seed,
-          });
-          this.notificationAdapter?.notify('Generation started successfully', 'success');
-        }
-
-        return response;
-      } catch (error) {
-        console.error('Error starting generation:', error);
-        this.notificationAdapter?.notify('Error starting generation', 'error');
-        throw error;
-      }
-    },
-
-    async cancelJob(jobId: string): Promise<void> {
-      try {
-        await this.getQueueClient().cancelJob(jobId);
-        this.removeJob(jobId);
-        this.notificationAdapter?.notify('Generation cancelled', 'success');
-      } catch (error) {
-        console.error('Error cancelling job:', error);
-        this.notificationAdapter?.notify('Error cancelling generation', 'error');
-        throw error;
-      }
-    },
-
-    async clearQueue(): Promise<void> {
-      const cancellableJobs = this.jobs.filter((job) => this.isJobCancellable(job));
-      if (cancellableJobs.length === 0) {
-        return;
-      }
-
-      await Promise.allSettled(cancellableJobs.map((job) => this.cancelJob(job.id)));
-    },
-
-    async deleteResult(resultId: string | number): Promise<void> {
-      try {
-        await this.getQueueClient().deleteResult(resultId);
-        this.removeResult(resultId);
-        this.notificationAdapter?.notify('Result deleted', 'success');
-      } catch (error) {
-        console.error('Error deleting result:', error);
-        this.notificationAdapter?.notify('Error deleting result', 'error');
-        throw error;
-      }
-    },
-
-    resetSystemStatus(): void {
-      this.systemStatus = { ...DEFAULT_SYSTEM_STATUS };
-    },
-
-    updateSystemStatus(status: Partial<SystemStatusState>): void {
-      this.systemStatus = { ...this.systemStatus, ...status };
-    },
-
-    applySystemStatusPayload(payload: SystemStatusPayload | Partial<SystemStatusState>): void {
-      const {
-        metrics: _metrics,
-        message: _message,
-        updated_at: _updatedAt,
-        type: _type,
-        ...status
-      } = payload as Record<string, unknown>;
-      this.updateSystemStatus(status as Partial<SystemStatusState>);
-    },
-
-    enqueueJob(job: GenerationJobInput): GenerationJob {
-      const stored = toStoredJob(job);
-      const existingIndex = this.jobs.findIndex((item) => item.id === stored.id);
-      if (existingIndex >= 0) {
-        this.jobs.splice(existingIndex, 1, stored);
-      } else {
-        this.jobs.push(stored);
-      }
-      return stored;
-    },
-
-    setActiveJobs(jobs: GenerationJobInput[]): void {
-      this.jobs = jobs.map((job) => toStoredJob(job));
-    },
-
-    updateJob(jobId: string, updates: Partial<GenerationJob>): void {
-      const index = this.jobs.findIndex((job) => job.id === jobId);
-      if (index >= 0) {
-        const merged = { ...this.jobs[index], ...updates } as GenerationJob;
-        merged.progress = normalizeGenerationProgress(merged.progress);
-        merged.status = normalizeJobStatus(merged.status);
-        this.jobs.splice(index, 1, merged);
-      }
-    },
-
-    removeJob(jobId: string): void {
-      this.jobs = this.jobs.filter((job) => job.id !== jobId);
-    },
-
-    clearCompletedJobs(): void {
-      this.jobs = this.jobs.filter((job) => !['completed', 'failed'].includes(job.status));
-    },
-
-    addResult(result: GenerationResult): void {
-      const sanitized = sanitizeResult(result);
-      this.results = [sanitized, ...this.results].slice(0, MAX_RESULTS);
-    },
-
-    setRecentResults(results: GenerationResult[]): void {
-      this.results = results.slice(0, MAX_RESULTS).map(sanitizeResult);
-    },
-
-    removeResult(resultId: string | number): void {
-      this.results = this.results.filter((result) => result.id !== resultId);
-    },
-
-    handleProgressMessage(message: GenerationProgressMessage | ProgressUpdate): void {
-      const jobId = message.job_id;
-      const job = this.jobs.find((item) => item.id === jobId);
-      const updates: Partial<GenerationJob> = {
-        status: normalizeJobStatus(message.status),
-        progress: normalizeGenerationProgress(message.progress),
-        current_step: typeof message.current_step === 'number' ? message.current_step : job?.current_step,
-        total_steps: typeof message.total_steps === 'number' ? message.total_steps : job?.total_steps,
-      };
-
-      if (!job) {
-        this.enqueueJob({ id: jobId, ...updates });
-        return;
-      }
-
-      this.updateJob(jobId, updates);
-    },
-
-    handleCompletionMessage(message: GenerationCompleteMessage): GenerationResult {
-      this.removeJob(message.job_id);
-
-      const createdAt = message.created_at ?? new Date().toISOString();
-      const imageUrl = message.image_url ?? (Array.isArray(message.images) ? message.images[0] ?? null : null);
-
-      const result: GenerationResult = {
-        id: message.result_id ?? message.job_id,
-        job_id: message.job_id,
-        result_id: message.result_id,
-        prompt: message.prompt,
-        negative_prompt: message.negative_prompt,
-        image_url: imageUrl,
-        width: message.width,
-        height: message.height,
-        steps: message.steps,
-        cfg_scale: message.cfg_scale,
-        seed: message.seed ?? null,
-        created_at: createdAt,
-      };
-
-      this.addResult(result);
-      return result;
-    },
-
-    handleErrorMessage(message: GenerationErrorMessage): void {
-      this.removeJob(message.job_id);
-    },
-
-    ingestQueue(jobs: GenerationJobInput[] | undefined | null): void {
-      if (!Array.isArray(jobs)) {
-        return;
-      }
-      this.setActiveJobs(jobs);
-    },
-  },
+  return {
+    systemStatus,
+    jobs,
+    results,
+    isConnected,
+    historyLimit,
+    pollIntervalMs,
+    activeJobs,
+    recentResults,
+    sortedActiveJobs,
+    hasActiveJobs,
+    setConnectionState,
+    setNotificationAdapter,
+    setHistoryLimit,
+    configureGenerationServices,
+    getQueueClient,
+    getWebSocketManager,
+    startPolling,
+    stopPolling,
+    refreshSystemStatus,
+    refreshActiveJobs,
+    refreshRecentResults,
+    refreshAllData,
+    initializeUpdates,
+    stopUpdates,
+    reconnectUpdates,
+    isJobCancellable,
+    startGeneration,
+    cancelJob,
+    clearQueue,
+    deleteResult,
+    resetSystemStatus,
+    updateSystemStatus,
+    applySystemStatusPayload,
+    enqueueJob,
+    setActiveJobs,
+    updateJob,
+    removeJob,
+    clearCompletedJobs,
+    addResult,
+    setRecentResults,
+    removeResult,
+    handleProgressMessage,
+    handleCompletionMessage,
+    handleErrorMessage,
+    ingestQueue,
+    $reset,
+  };
 });
 
 export type GenerationStore = ReturnType<typeof useGenerationStore>;

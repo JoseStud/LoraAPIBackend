@@ -47,6 +47,7 @@ export const useGenerationUpdates = ({
   const loadSystemStatusData = (): Promise<void> => generationStore.refreshSystemStatus();
   const loadActiveJobsData = (): Promise<void> => generationStore.refreshActiveJobs();
   const loadRecentResultsData = (): Promise<void> => generationStore.refreshRecentResults();
+  const loadAllQueueData = (): Promise<void> => generationStore.refreshAllData();
 
   const initialize = async (): Promise<void> => {
     await generationStore.initializeUpdates();
@@ -68,11 +69,7 @@ export const useGenerationUpdates = ({
     }
 
     generationStore.reconnectUpdates();
-    void Promise.all([
-      loadSystemStatusData(),
-      loadActiveJobsData(),
-      loadRecentResultsData(),
-    ]);
+    void loadAllQueueData();
   });
 
   onUnmounted(() => {
