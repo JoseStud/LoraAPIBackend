@@ -6,14 +6,13 @@ from sqlmodel import Session
 
 # Import file_exists for test compatibility - use root level for backward compatibility
 from backend.services.storage import get_storage_service
-from backend.core.config import settings
 
 from .adapters import AdapterService
 from .archive import ArchiveService
 from .composition import ComposeService
-from .deliveries import DeliveryService, process_delivery_job
+from .deliveries import DeliveryService
 from .generation import GenerationService
-from .queue import BackgroundTaskQueueBackend, QueueBackend, RedisQueueBackend
+from .queue import QueueBackend, get_queue_backends
 from .storage import StorageService
 from .system import SystemService
 from .websocket import WebSocketService, websocket_service
@@ -89,12 +88,14 @@ class ServiceContainer:
 
         if self._delivery_service is None:
             primary_queue = self._queue_backend
-            if primary_queue is None and settings.REDIS_URL:
-                primary_queue = RedisQueueBackend(settings.REDIS_URL)
-
             fallback_queue = self._fallback_queue_backend
-            if fallback_queue is None:
-                fallback_queue = BackgroundTaskQueueBackend(process_delivery_job)
+
+            if primary_queue is None or fallback_queue is None:
+                default_primary, default_fallback = get_queue_backends()
+                if primary_queue is None:
+                    primary_queue = default_primary
+                if fallback_queue is None:
+                    fallback_queue = default_fallback
 
             self._delivery_service = DeliveryService(
                 self.db_session,
