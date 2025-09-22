@@ -1,21 +1,16 @@
 """Recommendation service for LoRA adapter discovery and learning."""
 
-import asyncio
 import pickle
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import numpy as np
-from sqlalchemy import func
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from backend.models import (
-    Adapter,
     LoRAEmbedding,
     RecommendationFeedback,
-    RecommendationSession,
     UserPreference,
 )
 from backend.schemas.recommendations import (
@@ -28,8 +23,13 @@ from backend.schemas.recommendations import (
 )
 
 from .embedding_manager import EmbeddingManager
+from .metrics import RecommendationMetrics
 from .model_registry import RecommendationModelRegistry
 from .repository import RecommendationRepository
+from .strategies import (
+    get_recommendations_for_prompt as prompt_strategy,
+    get_similar_loras as similar_loras_strategy,
+)
 
 
 class RecommendationService:
@@ -61,12 +61,7 @@ class RecommendationService:
         )
         self._embedding_manager = embedding_manager
         self._repository = repository
-        
-        # Performance tracking
-        self._total_queries = 0
-        self._total_query_time = 0.0
-        self._cache_hits = 0
-        self._cache_misses = 0
+        self._metrics = RecommendationMetrics()
         
         # Configuration
         self.embedding_cache_dir = "cache/embeddings"
@@ -142,85 +137,22 @@ class RecommendationService:
         similarity_threshold: float = 0.1,
         weights: Optional[Dict[str, float]] = None,
     ) -> List[RecommendationItem]:
-        """Get LoRAs similar to the target LoRA.
-        
-        Args:
-            target_lora_id: ID of the target LoRA
-            limit: Maximum number of recommendations
-            similarity_threshold: Minimum similarity score
-            weights: Custom weights for similarity components
-            
-        Returns:
-            List of recommendation items
+        """Get LoRAs similar to the target LoRA."""
 
-        """
-        start_time = time.time()
-        
-        # Get target LoRA
-        target_lora = self.db_session.get(Adapter, target_lora_id)
-        if not target_lora:
-            raise ValueError(f"LoRA {target_lora_id} not found")
-        
-        # Ensure embeddings exist
-        await self._get_embedding_manager().ensure_embeddings_exist([target_lora])
-        
-        # Get recommendation engine
+        repository = self._get_repository()
+        embedding_manager = self._get_embedding_manager()
         engine = self._get_recommendation_engine()
-        
-        # Check if index is built
-        if not hasattr(engine, 'lora_ids') or not engine.lora_ids:
-            await self._get_embedding_manager().build_similarity_index()
 
-        # If the index still has no items (e.g. embeddings couldn't be generated)
-        if not engine.lora_ids:
-            return []
-
-        # Generate recommendations
-        recommendations = await asyncio.to_thread(
-            engine.get_recommendations,
-            target_lora,
-            limit * 2,  # Get more candidates for filtering
-            weights,
+        return await similar_loras_strategy(
+            target_lora_id=target_lora_id,
+            limit=limit,
+            similarity_threshold=similarity_threshold,
+            weights=weights,
+            repository=repository,
+            embedding_manager=embedding_manager,
+            engine=engine,
+            metrics=self._metrics,
         )
-        
-        # Filter by similarity threshold and convert to schema
-        filtered_recommendations = []
-        for rec in recommendations:
-            if rec['similarity_score'] >= similarity_threshold:
-                candidate_lora = self.db_session.get(Adapter, rec['lora_id'])
-                if candidate_lora:
-                    filtered_recommendations.append(
-                        RecommendationItem(
-                            lora_id=rec['lora_id'],
-                            lora_name=candidate_lora.name,
-                            lora_description=candidate_lora.description,
-                            similarity_score=rec['similarity_score'],
-                            final_score=rec['final_score'],
-                            explanation=rec['explanation'],
-                            semantic_similarity=rec.get('semantic_similarity'),
-                            artistic_similarity=rec.get('artistic_similarity'),
-                            technical_similarity=rec.get('technical_similarity'),
-                            quality_boost=rec.get('quality_boost'),
-                            popularity_boost=rec.get('popularity_boost'),
-                            recency_boost=rec.get('recency_boost'),
-                            metadata={
-                                'tags': candidate_lora.tags[:5],  # Limit tags
-                                'author': candidate_lora.author_username,
-                                'sd_version': candidate_lora.sd_version,
-                                'nsfw_level': candidate_lora.nsfw_level,
-                            },
-                        ),
-                    )
-                    
-                    if len(filtered_recommendations) >= limit:
-                        break
-        
-        # Track performance
-        query_time = (time.time() - start_time) * 1000
-        self._total_queries += 1
-        self._total_query_time += query_time
-        
-        return filtered_recommendations
 
     async def get_recommendations_for_prompt(
         self,
@@ -229,103 +161,21 @@ class RecommendationService:
         limit: int = 10,
         style_preference: Optional[str] = None,
     ) -> List[RecommendationItem]:
-        """Get LoRA recommendations that enhance a given prompt.
-        
-        Args:
-            prompt: Text prompt to enhance
-            active_loras: Currently active LoRA IDs to exclude
-            limit: Maximum number of recommendations
-            style_preference: Preferred art style
-            
-        Returns:
-            List of recommendation items
+        """Get LoRA recommendations that enhance a given prompt."""
 
-        """
-        start_time = time.time()
-        active_loras = active_loras or []
-        
-        # Get semantic embedder
+        repository = self._get_repository()
         embedder = self._get_semantic_embedder()
-        
-        # Generate prompt embedding
-        prompt_embedding = await asyncio.to_thread(
-            embedder.primary_model.encode,
-            prompt,
+
+        return await prompt_strategy(
+            prompt=prompt,
+            active_loras=active_loras,
+            limit=limit,
+            style_preference=style_preference,
+            repository=repository,
+            embedder=embedder,
             device=self.device,
-            convert_to_numpy=True,
+            metrics=self._metrics,
         )
-        
-        # Get all LoRAs with embeddings
-        stmt = select(Adapter, LoRAEmbedding).join(
-            LoRAEmbedding, Adapter.id == LoRAEmbedding.adapter_id,
-        ).where(
-            Adapter.active,
-            ~Adapter.id.in_(active_loras),  # Exclude active LoRAs
-        )
-        
-        results = self.db_session.exec(stmt).all()
-        
-        # Calculate similarities
-        recommendations = []
-        for adapter, embedding in results:
-            if embedding.semantic_embedding:
-                # Deserialize embedding
-                lora_embedding = pickle.loads(embedding.semantic_embedding)
-                
-                # Calculate cosine similarity, guarding against zero vectors to avoid NaN
-                prompt_norm = float(np.linalg.norm(prompt_embedding))
-                lora_norm = float(np.linalg.norm(lora_embedding))
-                denominator = prompt_norm * lora_norm
-                if denominator == 0.0:
-                    similarity = 0.0
-                else:
-                    similarity = float(np.dot(prompt_embedding, lora_embedding) / denominator)
-                
-                # Apply style preference boost
-                style_boost = 0.0
-                if style_preference and embedding.predicted_style:
-                    if style_preference.lower() in embedding.predicted_style.lower():
-                        style_boost = 0.2
-                
-                # Calculate final score
-                final_score = similarity + style_boost
-                
-                # Generate explanation
-                explanation_parts = [f"Prompt similarity: {similarity:.2f}"]
-                if style_boost > 0:
-                    style_text = f"Style match: {embedding.predicted_style}"
-                    explanation_parts.append(style_text)
-                if adapter.tags:
-                    explanation_parts.append(f"Tags: {', '.join(adapter.tags[:3])}")
-                
-                recommendations.append(
-                    RecommendationItem(
-                        lora_id=adapter.id,
-                        lora_name=adapter.name,
-                        lora_description=adapter.description,
-                        similarity_score=similarity,
-                        final_score=final_score,
-                        explanation=" | ".join(explanation_parts),
-                        semantic_similarity=similarity,
-                        metadata={
-                            'tags': adapter.tags[:5],
-                            'author': adapter.author_username,
-                            'sd_version': adapter.sd_version,
-                            'nsfw_level': adapter.nsfw_level,
-                            'predicted_style': embedding.predicted_style,
-                        },
-                    ),
-                )
-        
-        # Sort by final score and limit results
-        recommendations.sort(key=lambda x: x.final_score, reverse=True)
-        
-        # Track performance
-        query_time = (time.time() - start_time) * 1000
-        self._total_queries += 1
-        self._total_query_time += query_time
-        
-        return recommendations[:limit]
 
     async def compute_embeddings_for_lora(
         self,
@@ -429,51 +279,21 @@ class RecommendationService:
 
     def get_recommendation_stats(self) -> RecommendationStats:
         """Get comprehensive recommendation system statistics."""
-        session = self._require_db_session()
+        repository = self._get_repository()
 
-        # Count total LoRAs
-        total_loras = len(list(session.exec(
-            select(Adapter).where(Adapter.active),
-        )))
-
-        # Count LoRAs with embeddings
-        loras_with_embeddings = len(list(session.exec(
-            select(LoRAEmbedding),
-        )))
-        
-        # Calculate coverage
+        total_loras = repository.count_active_adapters()
+        loras_with_embeddings = repository.count_lora_embeddings()
         embedding_coverage = (
             loras_with_embeddings / total_loras if total_loras > 0 else 0.0
         )
-        
-        # Get user preference count
-        user_preferences_count = len(list(session.exec(
-            select(UserPreference),
-        )))
 
-        # Get session count
-        session_count = len(list(session.exec(
-            select(RecommendationSession),
-        )))
+        user_preferences_count = repository.count_user_preferences()
+        session_count = repository.count_recommendation_sessions()
+        feedback_count = repository.count_feedback()
 
-        feedback_count = session.exec(
-            select(func.count()).select_from(RecommendationFeedback),
-        ).one()
-        
-        # Calculate average query time
-        avg_query_time = (
-            self._total_query_time / self._total_queries 
-            if self._total_queries > 0 else 0.0
-        )
-        
-        # Calculate cache hit rate
-        total_cache_requests = self._cache_hits + self._cache_misses
-        cache_hit_rate = (
-            self._cache_hits / total_cache_requests 
-            if total_cache_requests > 0 else 0.0
-        )
-        
-        # Get GPU memory usage if available
+        avg_query_time = self._metrics.average_query_time
+        cache_hit_rate = self._metrics.cache_hit_rate
+
         memory_usage = 0.0
         if self.gpu_enabled:
             try:
@@ -482,16 +302,12 @@ class RecommendationService:
                     memory_usage = torch.cuda.memory_allocated() / 1024**3
             except ImportError:
                 pass
-        
-        # Get last embedding update
-        last_embedding = session.exec(
-            select(LoRAEmbedding).order_by(LoRAEmbedding.last_computed.desc()),
-        ).first()
+
         last_index_update = (
-            last_embedding.last_computed if last_embedding 
-            else datetime.now(timezone.utc)
+            repository.get_last_embedding_update()
+            or datetime.now(timezone.utc)
         )
-        
+
         return RecommendationStats(
             total_loras=total_loras,
             loras_with_embeddings=loras_with_embeddings,
@@ -504,6 +320,23 @@ class RecommendationService:
             model_memory_usage_gb=memory_usage,
             last_index_update=last_index_update,
         )
+
+    @property
+    def _total_queries(self) -> int:
+        """Backwards compatibility for legacy metrics access."""
+        return self._metrics.total_queries
+
+    @property
+    def _total_query_time(self) -> float:
+        return self._metrics.total_query_time_ms
+
+    @property
+    def _cache_hits(self) -> int:
+        return self._metrics.cache_hits
+
+    @property
+    def _cache_misses(self) -> int:
+        return self._metrics.cache_misses
 
     def get_embedding_status(self, adapter_id: str) -> EmbeddingStatus:
         """Get embedding status for a specific adapter."""
