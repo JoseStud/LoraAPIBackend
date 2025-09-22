@@ -1,4 +1,4 @@
-import { watch, type Ref } from 'vue'
+import { onUnmounted, watch, type Ref } from 'vue'
 
 import type { GenerationFormState, NotificationType } from '@/types'
 
@@ -48,12 +48,34 @@ export const useGenerationPersistence = ({
     }
   }
 
-  const saveParams = (value: GenerationFormState = params.value): void => {
+  const persistParams = (value: GenerationFormState = params.value): void => {
     try {
       localStorage.setItem('generation_params', JSON.stringify(value))
     } catch (error) {
       console.error('Error saving parameters:', error)
     }
+  }
+
+  let saveDebounceTimeout: ReturnType<typeof setTimeout> | null = null
+
+  const scheduleSaveParams = (value: GenerationFormState = params.value): void => {
+    if (saveDebounceTimeout) {
+      clearTimeout(saveDebounceTimeout)
+    }
+
+    saveDebounceTimeout = setTimeout(() => {
+      persistParams(value)
+      saveDebounceTimeout = null
+    }, 200)
+  }
+
+  const saveParams = (value: GenerationFormState = params.value): void => {
+    if (saveDebounceTimeout) {
+      clearTimeout(saveDebounceTimeout)
+      saveDebounceTimeout = null
+    }
+
+    persistParams(value)
   }
 
   const savePreset = (): void => {
@@ -99,9 +121,18 @@ export const useGenerationPersistence = ({
     showToast('Random prompt generated', 'success')
   }
 
-  watch(params, (newParams) => {
-    saveParams(newParams)
+  const stopWatching = watch(params, (newParams) => {
+    scheduleSaveParams(newParams)
   }, { deep: true })
+
+  onUnmounted(() => {
+    if (saveDebounceTimeout) {
+      clearTimeout(saveDebounceTimeout)
+      saveDebounceTimeout = null
+    }
+
+    stopWatching()
+  })
 
   return {
     loadSavedParams,
