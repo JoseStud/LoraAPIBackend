@@ -3,6 +3,7 @@ import { nextTick } from 'vue';
 
 import JobQueue from '../../app/frontend/src/components/JobQueue.vue';
 import { useAppStore } from '../../app/frontend/src/stores/app';
+import { useGenerationStore } from '../../app/frontend/src/stores/generation';
 import { useSettingsStore } from '../../app/frontend/src/stores/settings';
 
 const flush = async () => {
@@ -13,6 +14,7 @@ const flush = async () => {
 };
 
 let appStore;
+let generationStore;
 let removeJobSpy;
 let updateJobSpy;
 let addResultSpy;
@@ -21,11 +23,13 @@ let addNotificationSpy;
 beforeEach(() => {
   appStore = useAppStore();
   appStore.$reset();
+  generationStore = useGenerationStore();
+  generationStore.$reset();
   const settingsStore = useSettingsStore();
   settingsStore.setSettings({ backendUrl: '/api/v1' });
-  removeJobSpy = vi.spyOn(appStore, 'removeJob');
-  updateJobSpy = vi.spyOn(appStore, 'updateJob');
-  addResultSpy = vi.spyOn(appStore, 'addResult');
+  removeJobSpy = vi.spyOn(generationStore, 'removeJob');
+  updateJobSpy = vi.spyOn(generationStore, 'updateJob');
+  addResultSpy = vi.spyOn(generationStore, 'addResult');
   addNotificationSpy = vi.spyOn(appStore, 'addNotification');
 
   global.window = {
@@ -53,7 +57,7 @@ describe('JobQueue.vue', () => {
 
   it('renders jobs when they are present in the store', async () => {
     // Add mock jobs to the store
-    appStore.activeJobs = [
+    generationStore.setActiveJobs([
       {
         id: 'job1',
         name: 'Test Generation',
@@ -71,7 +75,7 @@ describe('JobQueue.vue', () => {
         startTime: new Date('2023-01-01T09:30:00Z'),
         params: { width: 768, height: 768, steps: 30 }
       }
-    ];
+    ]);
 
     const wrapper = mount(JobQueue, { props: { disabled: true } });
     await flush();
@@ -91,12 +95,12 @@ describe('JobQueue.vue', () => {
   });
 
   it('applies correct status color classes', async () => {
-    appStore.activeJobs = [
+    generationStore.setActiveJobs([
       { id: 'job1', status: 'processing', startTime: new Date() },
       { id: 'job2', status: 'queued', startTime: new Date() },
       { id: 'job3', status: 'completed', startTime: new Date() },
       { id: 'job4', status: 'failed', startTime: new Date() }
-    ];
+    ]);
 
     const wrapper = mount(JobQueue, { props: { disabled: true } });
     await flush();
@@ -111,12 +115,12 @@ describe('JobQueue.vue', () => {
   });
 
   it('shows cancel button only for running/starting jobs', async () => {
-    appStore.activeJobs = [
+    generationStore.setActiveJobs([
       { id: 'job1', status: 'processing', startTime: new Date() },
       { id: 'job2', status: 'queued', startTime: new Date() },
       { id: 'job3', status: 'completed', startTime: new Date() },
       { id: 'job4', status: 'failed', startTime: new Date() }
-    ];
+    ]);
 
     const wrapper = mount(JobQueue, { props: { disabled: true } });
     await flush();
@@ -137,14 +141,14 @@ describe('JobQueue.vue', () => {
       status: 200
     }));
 
-    appStore.activeJobs = [
+    generationStore.setActiveJobs([
       {
         id: 'job1',
         // No jobId property, should fallback to id
         status: 'processing',
         startTime: new Date()
       }
-    ];
+    ]);
 
     const wrapper = mount(JobQueue, { props: { disabled: true } });
     await flush();
@@ -169,14 +173,14 @@ describe('JobQueue.vue', () => {
       status: 200
     }));
 
-    appStore.activeJobs = [
+    generationStore.setActiveJobs([
       {
         id: 'job1',
         jobId: 'backend-job-1',
         status: 'processing',
         startTime: new Date()
       }
-    ];
+    ]);
 
     const wrapper = mount(JobQueue);
     await flush();
@@ -225,11 +229,11 @@ describe('JobQueue.vue', () => {
   });
 
   it('shows and handles clear completed button when enabled', async () => {
-    appStore.activeJobs = [
+    generationStore.setActiveJobs([
       { id: 'job1', status: 'processing', startTime: new Date() },
       { id: 'job2', status: 'completed', startTime: new Date() },
       { id: 'job3', status: 'failed', startTime: new Date() }
-    ];
+    ]);
 
     const wrapper = mount(JobQueue, {
       props: {
@@ -250,8 +254,8 @@ describe('JobQueue.vue', () => {
     await flush();
 
     // Completed and failed jobs removed from store
-    expect(appStore.activeJobs).toHaveLength(1);
-    expect(appStore.activeJobs[0].id).toBe('job1');
+    expect(generationStore.activeJobs).toHaveLength(1);
+    expect(generationStore.activeJobs[0].id).toBe('job1');
 
     wrapper.unmount();
   });
@@ -261,10 +265,10 @@ describe('JobQueue.vue', () => {
     const oneMinuteAgo = new Date(now.getTime() - 65000); // 65 seconds ago
     const oneHourAgo = new Date(now.getTime() - 3665000); // 1 hour, 1 minute, 5 seconds ago
 
-    appStore.activeJobs = [
+    generationStore.setActiveJobs([
       { id: 'job1', status: 'processing', startTime: oneMinuteAgo },
       { id: 'job2', status: 'processing', startTime: oneHourAgo }
-    ];
+    ]);
 
     const wrapper = mount(JobQueue, { props: { disabled: true } });
     await flush();

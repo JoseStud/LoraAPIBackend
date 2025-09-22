@@ -6,6 +6,7 @@ import { mount } from '@vue/test-utils'
 
 import GenerationStudio from '../../app/frontend/src/components/GenerationStudio.vue'
 import { useAppStore } from '../../app/frontend/src/stores/app'
+import { useGenerationStore } from '../../app/frontend/src/stores/generation'
 
 const mocks = vi.hoisted(() => ({
   startGenerationMock: vi.fn(),
@@ -14,12 +15,20 @@ const mocks = vi.hoisted(() => ({
   loadSystemStatusMock: vi.fn(),
   loadActiveJobsMock: vi.fn(),
   loadRecentResultsMock: vi.fn(),
+  startUpdatesMock: vi.fn(),
+  stopUpdatesMock: vi.fn(),
+  reconnectUpdatesMock: vi.fn(),
 }))
 
-vi.mock('../../app/frontend/src/composables/apiClients.ts', () => ({
-  useSystemStatusApi: vi.fn(() => ({ fetchData: mocks.loadSystemStatusMock })),
-  useActiveJobsApi: vi.fn(() => ({ fetchData: mocks.loadActiveJobsMock })),
-  useRecentResultsApi: vi.fn(() => ({ fetchData: mocks.loadRecentResultsMock })),
+vi.mock('../../app/frontend/src/services/generationUpdates.ts', () => ({
+  createGenerationUpdatesService: vi.fn(() => ({
+    start: mocks.startUpdatesMock,
+    stop: mocks.stopUpdatesMock,
+    reconnect: mocks.reconnectUpdatesMock,
+    refreshSystemStatus: mocks.loadSystemStatusMock,
+    refreshActiveJobs: mocks.loadActiveJobsMock,
+    refreshRecentResults: mocks.loadRecentResultsMock,
+  })),
 }))
 
 vi.mock('../../app/frontend/src/services/generationService.ts', async () => {
@@ -67,22 +76,24 @@ global.fetch = vi.fn()
 describe('GenerationStudio.vue', () => {
   let wrapper
   let appStore
+  let generationStore
 
   beforeEach(() => {
     vi.clearAllMocks()
     appStore = useAppStore()
     appStore.$reset()
+    generationStore = useGenerationStore()
+    generationStore.$reset()
     localStorageMock.getItem.mockReturnValue(null)
     mocks.startGenerationMock.mockResolvedValue({ job_id: 'job-123', status: 'queued', progress: 0 })
     mocks.cancelGenerationJobMock.mockResolvedValue(undefined)
     mocks.deleteGenerationResultMock.mockResolvedValue(undefined)
-    mocks.loadSystemStatusMock.mockResolvedValue({
-      status: 'ready',
-      queue_length: 0,
-      gpu_status: 'Available',
-    })
-    mocks.loadActiveJobsMock.mockResolvedValue([])
-    mocks.loadRecentResultsMock.mockResolvedValue([])
+    mocks.startUpdatesMock.mockResolvedValue(undefined)
+    mocks.stopUpdatesMock.mockImplementation(() => {})
+    mocks.reconnectUpdatesMock.mockImplementation(() => {})
+    mocks.loadSystemStatusMock.mockResolvedValue(undefined)
+    mocks.loadActiveJobsMock.mockResolvedValue(undefined)
+    mocks.loadRecentResultsMock.mockResolvedValue(undefined)
   })
 
   afterEach(() => {

@@ -3,7 +3,7 @@ import { storeToRefs } from 'pinia';
 
 import { ApiError } from '@/composables/useApi';
 import { fetchSystemStatus } from '@/services/systemService';
-import { useAppStore } from '@/stores/app';
+import { useGenerationStore } from '@/stores/generation';
 import { useBackendBase } from '@/utils/backend';
 
 import type { SystemStatusState } from '@/types';
@@ -94,8 +94,8 @@ interface UseSystemStatusOptions {
 export const useSystemStatus = (options: UseSystemStatusOptions = {}) => {
   const pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
 
-  const appStore = useAppStore();
-  const { systemStatus } = storeToRefs(appStore);
+  const generationStore = useGenerationStore();
+  const { systemStatus } = storeToRefs(generationStore);
   const backendBase = useBackendBase();
 
   const apiAvailable = ref<boolean>(true);
@@ -126,7 +126,7 @@ export const useSystemStatus = (options: UseSystemStatusOptions = {}) => {
   const pollHandle = ref<ReturnType<typeof setInterval> | null>(null);
 
   const applyStatus = (next: Partial<SystemStatusState> = {}): void => {
-    appStore.updateSystemStatus(next);
+    generationStore.updateSystemStatus(next);
   };
 
   const applyFallback = (): void => {

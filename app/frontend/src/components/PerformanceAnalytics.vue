@@ -343,7 +343,7 @@ import { usePerformanceAnalytics } from '@/composables/usePerformanceAnalytics';
 import { downloadFile } from '@/utils/browser';
 
 import type { PerformanceInsightEntry } from '@/types';
-import type { Chart as ChartJS } from 'chart.js';
+import type { Chart as ChartJS, ChartItem } from 'chart.js';
 
 export default {
   name: 'PerformanceAnalytics',
@@ -395,7 +395,7 @@ export default {
       try {
         // Generation Volume Chart
         if (generationVolumeChart.value) {
-          charts.value.volume = new Chart(generationVolumeChart.value, {
+          charts.value.volume = new Chart(generationVolumeChart.value as ChartItem, {
             type: 'line',
             data: {
               labels: [],
@@ -427,7 +427,7 @@ export default {
 
         // Performance Chart
         if (performanceChart.value) {
-          charts.value.performance = new Chart(performanceChart.value, {
+          charts.value.performance = new Chart(performanceChart.value as ChartItem, {
             type: 'line',
             data: {
               labels: [],
@@ -474,7 +474,7 @@ export default {
 
         // LoRA Usage Chart
         if (loraUsageChart.value) {
-          charts.value.loraUsage = new Chart(loraUsageChart.value, {
+          charts.value.loraUsage = new Chart(loraUsageChart.value as ChartItem, {
             type: 'doughnut',
             data: {
               labels: [],
@@ -508,7 +508,7 @@ export default {
 
         // Resource Usage Chart
         if (resourceUsageChart.value) {
-          charts.value.resourceUsage = new Chart(resourceUsageChart.value, {
+          charts.value.resourceUsage = new Chart(resourceUsageChart.value as ChartItem, {
             type: 'line',
             data: {
               labels: [],
