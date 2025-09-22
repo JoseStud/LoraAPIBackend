@@ -5,7 +5,6 @@ import pickle
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from threading import Lock
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -28,18 +27,23 @@ from backend.schemas.recommendations import (
     UserPreferenceRequest,
 )
 
+from .embedding_manager import EmbeddingManager
+from .model_registry import RecommendationModelRegistry
+from .repository import RecommendationRepository
+
 
 class RecommendationService:
     """Service for generating intelligent LoRA recommendations."""
 
-    # Shared model caches to avoid reloading transformers for every request
-    _shared_lock: Lock = Lock()
-    _shared_device: Optional[str] = None
-    _shared_semantic_embedder = None
-    _shared_feature_extractor = None
-    _shared_recommendation_engine = None
-
-    def __init__(self, db_session: Session, gpu_enabled: bool = False):
+    def __init__(
+        self,
+        db_session: Optional[Session],
+        gpu_enabled: bool = False,
+        *,
+        model_registry: Optional[RecommendationModelRegistry] = None,
+        embedding_manager: Optional[EmbeddingManager] = None,
+        repository: Optional[RecommendationRepository] = None,
+    ):
         """Initialize recommendation service.
         
         Args:
@@ -50,11 +54,13 @@ class RecommendationService:
         self.db_session = db_session
         self.gpu_enabled = gpu_enabled
         self.device = 'cuda' if gpu_enabled else 'cpu'
-        
-        # Initialize embedding models lazily (per-instance references)
-        self._semantic_embedder = None
-        self._feature_extractor = None
-        self._recommendation_engine = None
+
+        self._model_registry = model_registry or RecommendationModelRegistry(
+            device=self.device,
+            gpu_enabled=self.gpu_enabled,
+        )
+        self._embedding_manager = embedding_manager
+        self._repository = repository
         
         # Performance tracking
         self._total_queries = 0
@@ -84,45 +90,29 @@ class RecommendationService:
         except ImportError:
             return False
 
-    @classmethod
-    def _ensure_shared_models(cls, device: str, gpu_enabled: bool) -> None:
-        """Ensure heavy models are loaded once per process for the given device."""
-        with cls._shared_lock:
-            if cls._shared_device != device:
-                # Device changed; drop existing caches so we reload with the new target
-                cls._shared_semantic_embedder = None
-                cls._shared_feature_extractor = None
-                cls._shared_recommendation_engine = None
-                cls._shared_device = device
+    def _get_model_registry(self) -> RecommendationModelRegistry:
+        return self._model_registry
 
-            if cls._shared_semantic_embedder is None:
-                from .recommendation_models import LoRASemanticEmbedder
+    def _get_embedding_manager(self) -> EmbeddingManager:
+        if self._embedding_manager is None:
+            session = self._require_db_session()
+            self._embedding_manager = EmbeddingManager(
+                session,
+                self._model_registry,
+                feature_extractor_getter=self._get_feature_extractor,
+                recommendation_engine_getter=self._get_recommendation_engine,
+                single_embedding_compute=self.compute_embeddings_for_lora,
+            )
+        return self._embedding_manager
 
-                batch_size = 32 if gpu_enabled else 16
-                cls._shared_semantic_embedder = LoRASemanticEmbedder(
-                    device=device,
-                    batch_size=batch_size,
-                )
-
-            if cls._shared_feature_extractor is None:
-                from .recommendation_models import GPULoRAFeatureExtractor
-
-                cls._shared_feature_extractor = GPULoRAFeatureExtractor(device=device)
-
-            if cls._shared_recommendation_engine is None:
-                from .recommendation_models import LoRARecommendationEngine
-
-                cls._shared_recommendation_engine = LoRARecommendationEngine(
-                    cls._shared_feature_extractor,
-                    device=device,
-                )
+    def _get_repository(self) -> RecommendationRepository:
+        if self._repository is None:
+            session = self._require_db_session()
+            self._repository = RecommendationRepository(session)
+        return self._repository
 
     def _get_semantic_embedder(self):
-        """Lazy initialization of semantic embedding models."""
-        if self._semantic_embedder is None:
-            type(self)._ensure_shared_models(self.device, self.gpu_enabled)
-            self._semantic_embedder = type(self)._shared_semantic_embedder
-        return self._semantic_embedder
+        return self._model_registry.get_semantic_embedder()
 
     def _require_db_session(self) -> Session:
         """Return the active database session or raise if unavailable."""
@@ -131,18 +121,10 @@ class RecommendationService:
         return self.db_session
 
     def _get_feature_extractor(self):
-        """Lazy initialization of feature extraction models."""
-        if self._feature_extractor is None:
-            type(self)._ensure_shared_models(self.device, self.gpu_enabled)
-            self._feature_extractor = type(self)._shared_feature_extractor
-        return self._feature_extractor
+        return self._model_registry.get_feature_extractor()
 
     def _get_recommendation_engine(self):
-        """Lazy initialization of recommendation engine."""
-        if self._recommendation_engine is None:
-            type(self)._ensure_shared_models(self.device, self.gpu_enabled)
-            self._recommendation_engine = type(self)._shared_recommendation_engine
-        return self._recommendation_engine
+        return self._model_registry.get_recommendation_engine()
 
     @classmethod
     def preload_models(cls, gpu_enabled: Optional[bool] = None) -> None:
@@ -150,11 +132,8 @@ class RecommendationService:
         if gpu_enabled is None:
             gpu_enabled = cls.is_gpu_available()
 
-        # We don't need a DB session to warm the caches
-        temp = cls(db_session=None, gpu_enabled=gpu_enabled)  # type: ignore[arg-type]
-        temp._get_semantic_embedder()
-        temp._get_feature_extractor()
-        temp._get_recommendation_engine()
+        device = 'cuda' if gpu_enabled else 'cpu'
+        RecommendationModelRegistry.preload_models(device=device, gpu_enabled=gpu_enabled)
 
     async def get_similar_loras(
         self,
@@ -183,14 +162,14 @@ class RecommendationService:
             raise ValueError(f"LoRA {target_lora_id} not found")
         
         # Ensure embeddings exist
-        await self._ensure_embeddings_exist([target_lora])
+        await self._get_embedding_manager().ensure_embeddings_exist([target_lora])
         
         # Get recommendation engine
         engine = self._get_recommendation_engine()
         
         # Check if index is built
         if not hasattr(engine, 'lora_ids') or not engine.lora_ids:
-            await self._build_similarity_index()
+            await self._get_embedding_manager().build_similarity_index()
 
         # If the index still has no items (e.g. embeddings couldn't be generated)
         if not engine.lora_ids:
@@ -353,85 +332,11 @@ class RecommendationService:
         adapter_id: str,
         force_recompute: bool = False,
     ) -> bool:
-        """Compute and store embeddings for a single LoRA.
-        
-        Args:
-            adapter_id: ID of the adapter
-            force_recompute: Whether to recompute existing embeddings
-            
-        Returns:
-            True if embeddings were computed successfully
-
-        """
-        # Get adapter
-        adapter = self.db_session.get(Adapter, adapter_id)
-        if not adapter:
-            raise ValueError(f"Adapter {adapter_id} not found")
-        
-        # Check if embeddings already exist
-        existing_embedding = self.db_session.get(LoRAEmbedding, adapter_id)
-        if existing_embedding and not force_recompute:
-            return True
-        
-        try:
-            # Get feature extractor
-            extractor = self._get_feature_extractor()
-            
-            # Extract features
-            features = await asyncio.to_thread(
-                extractor.extract_advanced_features,
-                adapter,
-            )
-            
-            # Serialize embeddings
-            semantic_bytes = pickle.dumps(features['semantic_embedding'])
-            artistic_bytes = pickle.dumps(features['artistic_embedding'])
-            technical_bytes = pickle.dumps(features['technical_embedding'])
-            
-            # Create or update embedding record
-            if existing_embedding:
-                existing_embedding.semantic_embedding = semantic_bytes
-                existing_embedding.artistic_embedding = artistic_bytes
-                existing_embedding.technical_embedding = technical_bytes
-                keywords = features.get('extracted_keywords', [])
-                existing_embedding.extracted_keywords = keywords
-                existing_embedding.keyword_scores = features.get('keyword_scores', [])
-                existing_embedding.predicted_style = features.get('predicted_style')
-                existing_embedding.style_confidence = features.get('style_confidence')
-                existing_embedding.sentiment_label = features.get('sentiment_label')
-                existing_embedding.sentiment_score = features.get('sentiment_score')
-                existing_embedding.quality_score = features.get('quality_score')
-                existing_embedding.popularity_score = features.get('popularity_score')
-                existing_embedding.recency_score = features.get('recency_score')
-                compat_score = features.get('sd_compatibility_score')
-                existing_embedding.compatibility_score = compat_score
-                existing_embedding.last_computed = datetime.now(timezone.utc)
-                existing_embedding.updated_at = datetime.now(timezone.utc)
-            else:
-                new_embedding = LoRAEmbedding(
-                    adapter_id=adapter_id,
-                    semantic_embedding=semantic_bytes,
-                    artistic_embedding=artistic_bytes,
-                    technical_embedding=technical_bytes,
-                    extracted_keywords=features.get('extracted_keywords', []),
-                    keyword_scores=features.get('keyword_scores', []),
-                    predicted_style=features.get('predicted_style'),
-                    style_confidence=features.get('style_confidence'),
-                    sentiment_label=features.get('sentiment_label'),
-                    sentiment_score=features.get('sentiment_score'),
-                    quality_score=features.get('quality_score'),
-                    popularity_score=features.get('popularity_score'),
-                    recency_score=features.get('recency_score'),
-                    compatibility_score=features.get('sd_compatibility_score'),
-                )
-                self.db_session.add(new_embedding)
-            
-            self.db_session.commit()
-            return True
-            
-        except Exception as e:
-            self.db_session.rollback()
-            raise RuntimeError(f"Failed to compute embeddings for {adapter_id}: {e}")
+        """Compute and store embeddings for a single LoRA."""
+        return await self._get_embedding_manager().compute_embeddings_for_lora(
+            adapter_id,
+            force_recompute=force_recompute,
+        )
 
     async def batch_compute_embeddings(
         self,
@@ -439,200 +344,27 @@ class RecommendationService:
         force_recompute: bool = False,
         batch_size: int = 32,
     ) -> Dict[str, Any]:
-        """Compute embeddings for multiple LoRAs efficiently.
-        
-        Args:
-            adapter_ids: Specific adapter IDs to process (None for all)
-            force_recompute: Whether to recompute existing embeddings
-            batch_size: Number of adapters to process in each batch
-            
-        Returns:
-            Processing statistics
-
-        """
-        start_time = time.time()
-        
-        # Get adapters to process
-        if adapter_ids:
-            stmt = select(Adapter).where(Adapter.id.in_(adapter_ids))
-        else:
-            stmt = select(Adapter).where(Adapter.active)
-        
-        adapters = list(self.db_session.exec(stmt))
-
-        skipped_due_to_existing = 0
-
-        # Filter out adapters that already have embeddings
-        if not force_recompute:
-            pre_filter_count = len(adapters)
-            adapter_ids_to_check = [a.id for a in adapters]
-
-            existing_ids = set()
-            if adapter_ids_to_check:
-                stmt = select(LoRAEmbedding.adapter_id).where(
-                    LoRAEmbedding.adapter_id.in_(adapter_ids_to_check),
-                )
-                existing_ids.update(
-                    self.db_session.exec(stmt).all()
-                )
-
-            adapters = [a for a in adapters if a.id not in existing_ids]
-            skipped_due_to_existing = pre_filter_count - len(adapters)
-
-        processed_count = 0
-        error_count = 0
-        errors = []
-        
-        # Process in batches
-        for i in range(0, len(adapters), batch_size):
-            batch = adapters[i:i + batch_size]
-            
-            try:
-                # Process batch
-                for adapter in batch:
-                    try:
-                        await self.compute_embeddings_for_lora(
-                            adapter.id, 
-                            force_recompute,
-                        )
-                        processed_count += 1
-                    except Exception as e:
-                        error_count += 1
-                        errors.append({
-                            'adapter_id': adapter.id,
-                            'error': str(e),
-                        })
-                        
-            except Exception as e:
-                error_count += len(batch)
-                for adapter in batch:
-                    errors.append({
-                        'adapter_id': adapter.id,
-                        'error': f"Batch processing failed: {e}",
-                    })
-
-        processing_time = time.time() - start_time
-
-        return {
-            'processed_count': processed_count,
-            'skipped_count': skipped_due_to_existing,
-            'error_count': error_count,
-            'processing_time_seconds': processing_time,
-            'errors': errors,
-            'completed_at': datetime.now(timezone.utc),
-        }
-
-    async def _ensure_embeddings_exist(self, adapters: List[Adapter]):
-        """Ensure embeddings exist for given adapters."""
-        adapter_ids = [a.id for a in adapters]
-        
-        # Check which adapters need embeddings
-        stmt = select(LoRAEmbedding.adapter_id).where(
-            LoRAEmbedding.adapter_id.in_(adapter_ids),
+        """Compute embeddings for multiple LoRAs efficiently."""
+        return await self._get_embedding_manager().batch_compute_embeddings(
+            adapter_ids,
+            force_recompute=force_recompute,
+            batch_size=batch_size,
         )
-        existing_ids = set(self.db_session.exec(stmt))
-        
-        missing_ids = [aid for aid in adapter_ids if aid not in existing_ids]
-        
-        if missing_ids:
-            await self.batch_compute_embeddings(missing_ids)
 
     async def _build_similarity_index(self):
         """Build or rebuild the similarity index for fast recommendations."""
-        session = self._require_db_session()
-        # Get all LoRAs with embeddings
-        stmt = select(Adapter).join(
-            LoRAEmbedding, Adapter.id == LoRAEmbedding.adapter_id,
-        ).where(Adapter.active)
-
-        adapters = list(session.exec(stmt))
-
-        if adapters:
-            engine = self._get_recommendation_engine()
-            await asyncio.to_thread(engine.build_similarity_index, adapters)
+        await self._get_embedding_manager().build_similarity_index()
 
     def record_feedback(self, feedback: UserFeedbackRequest) -> RecommendationFeedback:
         """Persist recommendation feedback for later learning."""
-
-        session = self._require_db_session()
-
-        recommendation_session = session.get(RecommendationSession, feedback.session_id)
-        if recommendation_session is None:
-            raise ValueError(
-                f"Recommendation session {feedback.session_id} not found",
-            )
-
-        adapter = session.get(Adapter, feedback.recommended_lora_id)
-        if adapter is None:
-            raise ValueError(
-                f"Adapter {feedback.recommended_lora_id} not found",
-            )
-
-        feedback_record = RecommendationFeedback(
-            session_id=feedback.session_id,
-            recommended_lora_id=feedback.recommended_lora_id,
-            feedback_type=feedback.feedback_type,
-            feedback_reason=feedback.feedback_reason,
-            implicit_signal=feedback.implicit_signal,
-        )
-
-        session.add(feedback_record)
-
-        # Track most recent feedback per recommendation in the session payload
-        feedback_map = recommendation_session.user_feedback or {}
-        feedback_map[feedback.recommended_lora_id] = {
-            'feedback_type': feedback.feedback_type,
-            'implicit_signal': feedback.implicit_signal,
-            'feedback_reason': feedback.feedback_reason,
-            'recorded_at': datetime.now(timezone.utc).isoformat(),
-        }
-        recommendation_session.user_feedback = feedback_map
-        session.add(recommendation_session)
-
-        session.commit()
-        session.refresh(feedback_record)
-
-        return feedback_record
+        return self._get_repository().record_feedback(feedback)
 
     def update_user_preference(
         self,
         preference: UserPreferenceRequest,
     ) -> UserPreference:
         """Create or update a persisted user preference record."""
-
-        session = self._require_db_session()
-        stmt = select(UserPreference).where(
-            UserPreference.preference_type == preference.preference_type,
-            UserPreference.preference_value == preference.preference_value,
-        )
-
-        existing = session.exec(stmt).first()
-        now = datetime.now(timezone.utc)
-        learned_from = 'explicit' if preference.explicit else 'feedback'
-
-        if existing:
-            existing.confidence = preference.confidence
-            existing.learned_from = learned_from
-            existing.evidence_count += 1
-            existing.last_evidence_at = now
-            existing.updated_at = now
-            session.add(existing)
-            session.commit()
-            session.refresh(existing)
-            return existing
-
-        new_preference = UserPreference(
-            preference_type=preference.preference_type,
-            preference_value=preference.preference_value,
-            confidence=preference.confidence,
-            learned_from=learned_from,
-            evidence_count=1,
-            last_evidence_at=now,
-        )
-        session.add(new_preference)
-        session.commit()
-        session.refresh(new_preference)
-        return new_preference
+        return self._get_repository().update_user_preference(preference)
 
     async def rebuild_similarity_index(
         self,
