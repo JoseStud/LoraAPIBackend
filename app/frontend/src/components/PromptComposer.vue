@@ -127,7 +127,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue';
 
 import { useAdapterListApi } from '@/services/loraService';
 import { createGenerationParams, requestGeneration } from '@/services/generationService';
@@ -341,6 +341,35 @@ const toSavedComposition = (value: unknown): SavedComposition | null => {
   return { items, base, neg };
 };
 
+const PERSIST_DEBOUNCE_MS = 250;
+
+let persistTimeout: ReturnType<typeof setTimeout> | null = null;
+
+const cancelScheduledPersist = (): void => {
+  if (persistTimeout !== null) {
+    clearTimeout(persistTimeout);
+    persistTimeout = null;
+  }
+};
+
+const persistComposition = (payload: SavedComposition): void => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('Failed to persist composition', error);
+    }
+  }
+};
+
+const schedulePersist = (payload: SavedComposition): void => {
+  cancelScheduledPersist();
+  persistTimeout = setTimeout(() => {
+    persistTimeout = null;
+    persistComposition(payload);
+  }, PERSIST_DEBOUNCE_MS);
+};
+
 const saveComposition = (): void => {
   const payload: SavedComposition = {
     items: activeLoras.value.map((entry) => ({ ...entry })),
@@ -350,13 +379,8 @@ const saveComposition = (): void => {
 
   lastSaved.value = payload;
 
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn('Failed to persist composition', error);
-    }
-  }
+  cancelScheduledPersist();
+  persistComposition(payload);
 };
 
 const loadComposition = (): void => {
@@ -450,15 +474,13 @@ watch<[CompositionEntry[], string, string]>(
 
     lastSaved.value = payload;
 
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.warn('Failed to persist composition', error);
-      }
-    }
+    schedulePersist(payload);
   },
   { deep: true },
 );
+
+onBeforeUnmount(() => {
+  cancelScheduledPersist();
+});
 
 </script>
