@@ -38,6 +38,7 @@ class ServiceContainer:
         *,
         queue_backend: Optional[QueueBackend] = None,
         fallback_queue_backend: Optional[QueueBackend] = None,
+        recommendation_gpu_available: Optional[bool] = None,
     ):
         """Initialize service container.
 
@@ -57,7 +58,7 @@ class ServiceContainer:
         self._archive_service: Optional[ArchiveService] = None
         self._analytics_service: Optional[AnalyticsService] = None
         self._recommendation_service: Optional[RecommendationService] = None
-        self._recommendation_gpu_available: Optional[bool] = None
+        self._recommendation_gpu_available: Optional[bool] = recommendation_gpu_available
         self._queue_backend = queue_backend
         self._fallback_queue_backend = fallback_queue_backend
     

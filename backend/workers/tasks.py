@@ -1,16 +1,11 @@
-"""Background worker helpers for enqueueing and processing deliveries and recommendations.
+"""Background worker helpers for enqueueing and processing jobs."""
 
-This module integrates with RQ (Redis Queue) and updates DeliveryJob
-records in the database as the worker processes jobs.
-"""
-
-import asyncio
 import json
 import logging
 from dataclasses import dataclass
 from typing import List, Optional
 
-from rq import Queue, get_current_job
+from rq import get_current_job
 
 try:
     from rq.retry import Retry
@@ -28,10 +23,7 @@ except Exception:
 
 
 from backend.core.database import get_session_context
-from backend.delivery.base import delivery_registry
-from backend.services import create_service_container
-from backend.services.queue import QueueBackend, RedisQueueBackend, get_queue_backends
-from backend.workers.delivery_runner import DeliveryRunner
+from backend.workers.context import AsyncRunner, WorkerContext
 
 # Basic structured-ish logger for worker events
 logger = logging.getLogger("lora.tasks")
@@ -42,55 +34,67 @@ if not logger.handlers:
     logger.addHandler(h)
 logger.setLevel(logging.INFO)
 
-primary_queue_backend: Optional[RedisQueueBackend]
-fallback_queue_backend: QueueBackend
-queue_backend: QueueBackend
-q: Optional[Queue]
-delivery_runner = DeliveryRunner(delivery_registry)
+_worker_context: Optional[WorkerContext] = None
 
 
-def initialize_queue_backends() -> None:
-    """Initialize the worker queue backends from the shared factory."""
+def build_worker_context(
+    *,
+    async_runner: Optional[AsyncRunner] = None,
+    recommendation_gpu_available: Optional[bool] = None,
+) -> WorkerContext:
+    """Create a new :class:`WorkerContext` instance."""
 
-    global primary_queue_backend, fallback_queue_backend, queue_backend, q
-
-    primary, fallback = get_queue_backends()
-    primary_queue_backend = primary if isinstance(primary, RedisQueueBackend) else None
-    fallback_queue_backend = fallback
-
-    queue_backend_candidate: Optional[QueueBackend] = primary or fallback
-    if queue_backend_candidate is None:  # pragma: no cover - defensive guard
-        raise RuntimeError("No queue backend is available for worker tasks")
-
-    queue_backend = queue_backend_candidate
-
-    if isinstance(queue_backend, RedisQueueBackend):
-        q_candidate: Optional[Queue]
-        try:
-            q_candidate = queue_backend.queue
-        except Exception:  # pragma: no cover - defensive branch
-            q_candidate = None
-        q = q_candidate
-    else:
-        q = None
+    return WorkerContext.build_default(
+        async_runner=async_runner,
+        recommendation_gpu_available=recommendation_gpu_available,
+    )
 
 
-initialize_queue_backends()
+def get_worker_context() -> WorkerContext:
+    """Return the shared worker context, constructing it on first use."""
+
+    global _worker_context
+    if _worker_context is None:
+        _worker_context = build_worker_context()
+    return _worker_context
 
 
-def enqueue_delivery(prompt: str, mode: str, params: dict, max_retries: int = 3):
+def set_worker_context(context: WorkerContext) -> None:
+    """Replace the shared worker context (used primarily for tests)."""
+
+    global _worker_context
+    _worker_context = context
+
+
+def reset_worker_context() -> None:
+    """Reset the cached worker context forcing re-construction on next access."""
+
+    global _worker_context
+    _worker_context = None
+
+
+def enqueue_delivery(
+    prompt: str,
+    mode: str,
+    params: dict,
+    max_retries: int = 3,
+    *,
+    context: Optional[WorkerContext] = None,
+):
     """Create a DeliveryJob and enqueue it with exponential backoff retry intervals.
 
     max_retries is the number of retry attempts (not counting the first try).
     """
     # Create delivery job using the service layer
+    ctx = context or get_worker_context()
+
     with get_session_context() as sess:
-        services = create_service_container(sess)
+        services = ctx.create_service_container(sess)
         dj = services.deliveries.create_job(prompt, mode, params)
     
     intervals = [2**i for i in range(max_retries)] if max_retries > 0 else []
     retry = Retry(max=max_retries, interval=intervals) if max_retries > 0 else None
-    job = queue_backend.enqueue_delivery(dj.id, retry=retry)
+    job = ctx.queue_backend.enqueue_delivery(dj.id, retry=retry)
     logger.info(
         json.dumps(
             {
@@ -105,7 +109,7 @@ def enqueue_delivery(prompt: str, mode: str, params: dict, max_retries: int = 3)
     return dj.id
 
 
-def process_delivery(delivery_id: str):
+def process_delivery(delivery_id: str, *, context: Optional[WorkerContext] = None):
     """Worker entrypoint.
 
     Updates the DeliveryJob status/result. Exceptions are re-raised so RQ
@@ -113,8 +117,10 @@ def process_delivery(delivery_id: str):
     """
     logger.info(json.dumps({"event": "start", "delivery_id": delivery_id}))
 
+    ctx = context or get_worker_context()
+
     with get_session_context() as sess:
-        services = create_service_container(sess)
+        services = ctx.create_service_container(sess)
         if services.deliveries.get_job(delivery_id) is None:
             logger.warning(json.dumps({"event": "missing", "delivery_id": delivery_id}))
             return
@@ -126,7 +132,7 @@ def process_delivery(delivery_id: str):
         except Exception:  # pragma: no cover - defensive branch
             retries_left = None
 
-        delivery_runner.process_delivery_job(
+        ctx.delivery_runner.process_delivery_job(
             delivery_id,
             retries_left=retries_left,
             raise_on_error=True,
@@ -152,10 +158,12 @@ def process_delivery(delivery_id: str):
         raise
 
 
-def process_embeddings_batch(
+async def process_embeddings_batch_async(
     adapter_ids: Optional[List[str]] = None,
     force_recompute: bool = False,
     batch_size: int = 32,
+    *,
+    context: Optional[WorkerContext] = None,
 ) -> dict:
     """Background task to compute embeddings for LoRAs.
     
@@ -168,45 +176,70 @@ def process_embeddings_batch(
         Processing results
 
     """
+    ctx = context or get_worker_context()
     logger = logging.getLogger(__name__)
-    
+
     try:
-        # Create database session and services
         with get_session_context() as sess:
-            services = create_service_container(sess)
+            services = ctx.create_service_container(sess)
             recommendation_service = services.recommendations
 
-            gpu_enabled = recommendation_service.gpu_enabled
-            if gpu_enabled:
+            if recommendation_service.gpu_enabled:
                 logger.info("GPU detected, using GPU acceleration for embeddings")
             else:
                 logger.info("No GPU detected, using CPU for embeddings")
 
-            # Create recommendation service
-            # Process embeddings
-            logger.info(f"Starting batch embedding computation for {len(adapter_ids) if adapter_ids else 'all'} adapters")
-
-            result = asyncio.run(
-                recommendation_service.batch_compute_embeddings(
-                    adapter_ids=adapter_ids,
-                    force_recompute=force_recompute,
-                    batch_size=batch_size,
-                ),
-            )
-            
             logger.info(
-                f"Embedding computation completed: {result['processed_count']} processed, "
-                f"{result['error_count']} errors in {result['processing_time_seconds']:.2f}s",
+                "Starting batch embedding computation for %s adapters",
+                len(adapter_ids) if adapter_ids else "all",
             )
-            
+
+            result = await recommendation_service.batch_compute_embeddings(
+                adapter_ids=adapter_ids,
+                force_recompute=force_recompute,
+                batch_size=batch_size,
+            )
+
+            logger.info(
+                "Embedding computation completed: %s processed, %s errors in %.2fs",
+                result["processed_count"],
+                result["error_count"],
+                result["processing_time_seconds"],
+            )
+
             return result
-            
+
     except Exception as exc:
         logger.error(f"Embedding computation failed: {exc}")
         raise
 
 
-def compute_single_embedding(adapter_id: str, force_recompute: bool = False) -> bool:
+def process_embeddings_batch(
+    adapter_ids: Optional[List[str]] = None,
+    force_recompute: bool = False,
+    batch_size: int = 32,
+    *,
+    context: Optional[WorkerContext] = None,
+):
+    """Synchronously execute :func:`process_embeddings_batch_async`."""
+
+    ctx = context or get_worker_context()
+    return ctx.run_async(
+        process_embeddings_batch_async(
+            adapter_ids=adapter_ids,
+            force_recompute=force_recompute,
+            batch_size=batch_size,
+            context=ctx,
+        )
+    )
+
+
+async def compute_single_embedding_async(
+    adapter_id: str,
+    force_recompute: bool = False,
+    *,
+    context: Optional[WorkerContext] = None,
+) -> bool:
     """Background task to compute embeddings for a single LoRA.
     
     Args:
@@ -217,37 +250,56 @@ def compute_single_embedding(adapter_id: str, force_recompute: bool = False) -> 
         Success status
 
     """
+    ctx = context or get_worker_context()
     logger = logging.getLogger(__name__)
-    
+
     try:
         with get_session_context() as sess:
-            services = create_service_container(sess)
+            services = ctx.create_service_container(sess)
             recommendation_service = services.recommendations
 
-            gpu_enabled = recommendation_service.gpu_enabled
+            logger.info("Computing embeddings for adapter %s", adapter_id)
 
-            logger.info(f"Computing embeddings for adapter {adapter_id}")
-
-            result = asyncio.run(
-                recommendation_service.compute_embeddings_for_lora(
-                    adapter_id=adapter_id,
-                    force_recompute=force_recompute,
-                ),
+            result = await recommendation_service.compute_embeddings_for_lora(
+                adapter_id=adapter_id,
+                force_recompute=force_recompute,
             )
-            
+
             if result:
-                logger.info(f"Successfully computed embeddings for {adapter_id}")
+                logger.info("Successfully computed embeddings for %s", adapter_id)
             else:
-                logger.warning(f"Failed to compute embeddings for {adapter_id}")
-                
+                logger.warning("Failed to compute embeddings for %s", adapter_id)
+
             return result
-            
+
     except Exception as exc:
         logger.error(f"Single embedding computation failed for {adapter_id}: {exc}")
         raise
 
 
-def rebuild_similarity_index(force: bool = False) -> dict:
+def compute_single_embedding(
+    adapter_id: str,
+    force_recompute: bool = False,
+    *,
+    context: Optional[WorkerContext] = None,
+) -> bool:
+    """Synchronously execute :func:`compute_single_embedding_async`."""
+
+    ctx = context or get_worker_context()
+    return ctx.run_async(
+        compute_single_embedding_async(
+            adapter_id=adapter_id,
+            force_recompute=force_recompute,
+            context=ctx,
+        )
+    )
+
+
+def rebuild_similarity_index(
+    force: bool = False,
+    *,
+    context: Optional[WorkerContext] = None,
+) -> dict:
     """Background task to rebuild the similarity index.
     
     Args:
@@ -260,12 +312,14 @@ def rebuild_similarity_index(force: bool = False) -> dict:
     logger = logging.getLogger(__name__)
     
     try:
+        ctx = context or get_worker_context()
+
         with get_session_context() as sess:
             from sqlmodel import select
 
             from backend.models import Adapter
 
-            services = create_service_container(sess)
+            services = ctx.create_service_container(sess)
             recommendation_service = services.recommendations
             gpu_enabled = recommendation_service.gpu_enabled
 
