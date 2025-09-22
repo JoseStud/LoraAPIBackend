@@ -9,7 +9,7 @@ from backend.services.storage import get_storage_service
 
 from .adapters import AdapterService
 from .analytics import AnalyticsService
-from .archive import ArchiveService
+from .archive import ArchiveExportPlanner, ArchiveImportExecutor, ArchiveService
 from .composition import ComposeService
 from .deliveries import DeliveryService
 from .generation import GenerationService
@@ -79,7 +79,16 @@ class ServiceContainer:
         """Get archive service instance."""
 
         if self._archive_service is None:
-            self._archive_service = ArchiveService(self.adapters, self.storage)
+            adapter_service = self.adapters
+            storage_service = self.storage
+            planner = ArchiveExportPlanner(adapter_service, storage_service)
+            executor = ArchiveImportExecutor(adapter_service)
+            self._archive_service = ArchiveService(
+                adapter_service,
+                storage_service,
+                planner=planner,
+                executor=executor,
+            )
         return self._archive_service
     
     @property
