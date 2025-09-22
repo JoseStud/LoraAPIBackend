@@ -8,6 +8,7 @@ from sqlmodel import Session
 from backend.services.storage import get_storage_service
 
 from .adapters import AdapterService
+from .analytics import AnalyticsService
 from .archive import ArchiveService
 from .composition import ComposeService
 from .deliveries import DeliveryService
@@ -52,6 +53,7 @@ class ServiceContainer:
         self._websocket_service: Optional[WebSocketService] = None
         self._system_service: Optional[SystemService] = None
         self._archive_service: Optional[ArchiveService] = None
+        self._analytics_service: Optional[AnalyticsService] = None
         self._queue_backend = queue_backend
         self._fallback_queue_backend = fallback_queue_backend
     
@@ -132,6 +134,17 @@ class ServiceContainer:
         if self._system_service is None:
             self._system_service = SystemService(self.deliveries)
         return self._system_service
+
+    @property
+    def analytics(self) -> AnalyticsService:
+        """Get analytics service instance."""
+
+        if self.db_session is None:
+            raise ValueError("AnalyticsService requires an active database session")
+
+        if self._analytics_service is None:
+            self._analytics_service = AnalyticsService(self.db_session)
+        return self._analytics_service
 
 
 # Factory function for creating service containers
@@ -229,7 +242,8 @@ __all__ = [
     'ServiceContainer',
     'create_service_container',
     'AdapterService',
-    'DeliveryService', 
+    'AnalyticsService',
+    'DeliveryService',
     'ComposeService',
     'GenerationService',
     'StorageService',

@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from backend.api.v1 import (
     adapters,
+    analytics,
     compose,
     dashboard,
     deliveries,
@@ -108,6 +109,7 @@ def create_app() -> FastAPI:
 
     # Include API routers with consistent /v1 prefix
     app.include_router(adapters.router, prefix="/v1", dependencies=[Depends(get_api_key)])
+    app.include_router(analytics.router, prefix="/v1", dependencies=[Depends(get_api_key)])
     app.include_router(compose.router, prefix="/v1", dependencies=[Depends(get_api_key)])
     app.include_router(deliveries.router, prefix="/v1", dependencies=[Depends(get_api_key)])
     app.include_router(generation.router, prefix="/v1", dependencies=[Depends(get_api_key)])
