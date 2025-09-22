@@ -20,7 +20,7 @@ This project follows a modern, decoupled architecture with a distinct backend AP
 │   │   ├── static/   # Static assets (CSS input, icons)
 │   │   ├── public/   # Static assets copied verbatim by Vite
 │   │   ├── index.html  # SPA entrypoint served by FastAPI
-│   │   └── utils/    # Shared helpers, including the legacy bridge
+│   │   └── utils/    # FastAPI helpers for serving built SPA assets
 │   └── main.py       # Main FastAPI entrypoint to serve frontend & mount backend
 │
 ├── backend/          # Self-contained backend FastAPI application
@@ -34,7 +34,7 @@ This project follows a modern, decoupled architecture with a distinct backend AP
 ├── tests/            # Automated tests
 │   ├── e2e/          # End-to-end tests (Playwright)
 │   ├── integration/  # Integration tests (Pytest)
-│   └── unit/         # Unit tests (Pytest for backend, Jest for frontend)
+│   └── unit/         # Unit tests (Pytest for backend, Vitest for frontend)
 │
 ├── infrastructure/   # Docker, Alembic, and deployment scripts
 └── scripts/          # Helper scripts (e.g., importer.py)
@@ -54,12 +54,18 @@ This project follows a modern, decoupled architecture with a distinct backend AP
 
 ### Frontend (`app/frontend/`)
 
+-   **Primary Router Workflows**:
+    - `DashboardView` aggregates system metrics, queue telemetry, and quick actions.
+    - `GenerateView` hosts the studio, live WebSocket status, and prompt tooling.
+    - `AdminView` contains import/export, delivery configuration, and system health tools.
+    - `LorasView` and `RecommendationsView` surface gallery discovery and similarity exploration.
 -   **Build Tool**: Vite for fast development and optimized builds.
--   **Frameworks**: Vue 3 SPA with Pinia for global state management.
--   **Styling**: Tailwind CSS for utility-first styling shared across both frameworks.
+-   **Frameworks**: Vue 3 SPA orchestrated by Vue Router with Pinia for global state management.
+-   **Styling**: Tailwind CSS compiled from `static/css/input.css` into the Vite bundle.
 -   **Entrypoint (`src/main.ts`)**: Boots Vue Router, Pinia, and global styles for the application.
--   **Compatibility Layer (`src/utils/legacy.ts`)**: Provides helper shims for any vanilla DOM utilities that still call into Vue stores.
--   **Components (`src/components/`)**: Vue single-file components covering dashboard widgets, tools, and layout.
+-   **Routing (`src/router/`)**: Defines Dashboard, Generate, Compose, History, LoRA management, and Admin views.
+-   **Stores (`src/stores/`)**: Centralize queue telemetry, generation state, recommendations, and system status.
+-   **Components (`src/components/`)**: Vue single-file components covering dashboard widgets, admin tools, and layout.
 -   **Composables (`src/composables/`)**: Shared logic for API access, notifications, and system status polling.
 
 ---

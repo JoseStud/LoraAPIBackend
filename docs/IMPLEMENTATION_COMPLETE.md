@@ -101,7 +101,7 @@ python websocket_client_example.py                  # Python client
 
 1. **ControlNet Advanced Features**: Extend ControlNet integration with preprocessing
 2. **Batch Processing**: Queue management for multiple concurrent generations
-3. **Frontend Modernization**: Continue migrating remaining Alpine.js surfaces into the Vue SPA and retire the legacy compatibility layer once complete
+3. **Frontend Optimization**: Expand SPA performance profiling, tighten Pinia store coverage, and monitor bundle size growth
 4. **Production Hardening**: SSL/TLS, rate limiting, authentication improvements
 5. **Monitoring**: Prometheus metrics, logging aggregation
 
