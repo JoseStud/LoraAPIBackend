@@ -10,6 +10,10 @@ from sqlmodel import Session, select
 
 from backend.models import Adapter, LoRAEmbedding
 from .model_registry import RecommendationModelRegistry
+from .components.interfaces import (
+    FeatureExtractorProtocol,
+    RecommendationEngineProtocol,
+)
 
 
 class EmbeddingManager:
@@ -20,8 +24,9 @@ class EmbeddingManager:
         session: Session,
         model_registry: RecommendationModelRegistry,
         *,
-        feature_extractor_getter: Callable[[], Any] | None = None,
-        recommendation_engine_getter: Callable[[], Any] | None = None,
+        feature_extractor_getter: Callable[[], FeatureExtractorProtocol] | None = None,
+        recommendation_engine_getter: Callable[[], RecommendationEngineProtocol]
+        | None = None,
         single_embedding_compute: Callable[[str, bool], Awaitable[bool]] | None = None,
     ):
         self._session = session
@@ -35,10 +40,10 @@ class EmbeddingManager:
         )
         self._single_embedding_compute = single_embedding_compute
 
-    def _get_feature_extractor(self):
+    def _get_feature_extractor(self) -> FeatureExtractorProtocol:
         return self._feature_extractor_getter()
 
-    def _get_recommendation_engine(self):
+    def _get_recommendation_engine(self) -> RecommendationEngineProtocol:
         return self._recommendation_engine_getter()
 
     async def compute_embeddings_for_lora(

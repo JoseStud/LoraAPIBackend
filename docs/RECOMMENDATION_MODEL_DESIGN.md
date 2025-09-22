@@ -41,7 +41,7 @@ To capture different aspects of a LoRA, we use a multi-modal embedding approach.
 These models are chosen for their high performance and reasonable VRAM footprint (manageable on an 8GB consumer GPU).
 
 ```python
-# From: backend/services/recommendation_models.py
+# From: backend/services/recommendations/components/embedder.py
 
 class LoRASemanticEmbedder:
     def __init__(self, device='cuda', batch_size=32):
@@ -73,7 +73,7 @@ class LoRASemanticEmbedder:
 Once embeddings are generated, they are normalized and stored in a set of `numpy` arrays, which act as our similarity search index. For a given LoRA, we find similar items by computing the dot product between its embeddings and the embeddings of all other LoRAs in the collection.
 
 ```python
-# From: backend/services/recommendation_models.py
+# From: backend/services/recommendations/components/engine.py
 
 class LoRARecommendationEngine:
     def build_similarity_index(self, loras: List):
@@ -105,7 +105,7 @@ Simple similarity is not enough. The final recommendation score is a weighted co
 -   **Recency Boost**: A small bonus for newer LoRAs.
 
 ```python
-# From: backend/services/recommendation_models.py
+# From: backend/services/recommendations/components/engine.py
 
 # Combine similarities using weights
 combined_similarities = (
