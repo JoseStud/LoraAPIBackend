@@ -23,12 +23,15 @@ export const exportAnalyticsReport = async (
     ...options,
   };
 
-  const { blob, response } = await requestBlob(resolveBackendUrl('/export', baseUrl ?? undefined), {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  const { blob, response } = await requestBlob(
+    resolveBackendUrl('/import-export/export', baseUrl ?? undefined),
+    {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  );
 
   const filename =
     getFilenameFromContentDisposition(response.headers.get('content-disposition'))
