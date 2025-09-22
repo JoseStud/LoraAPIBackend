@@ -48,5 +48,6 @@ async def compose(
     return ComposeResponse(
         prompt=composition.prompt,
         tokens=composition.tokens,
+        warnings=composition.warnings,
         delivery=delivery_info,
     )

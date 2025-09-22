@@ -29,6 +29,7 @@ export interface ComposeDeliveryInfo {
 export interface ComposeResponse {
   prompt: string;
   tokens: string[];
+  warnings: string[];
   delivery?: ComposeDeliveryInfo | null;
 }
 
