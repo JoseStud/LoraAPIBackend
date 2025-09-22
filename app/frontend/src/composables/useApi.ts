@@ -14,16 +14,24 @@ export function useApi<T = unknown, TError = unknown>(
   const error = ref<ApiError<TError> | unknown>(null);
   const isLoading = ref(false);
   const lastResponse = ref<ApiResponseMeta | null>(null);
+  const activeRequestId = ref(0);
 
-  const applyState = ({
-    data: nextData,
-    error: nextError,
-    meta,
-  }: {
-    data: T | null;
-    error: ApiError<TError> | unknown | null;
-    meta: ApiResponseMeta;
-  }) => {
+  const applyState = (
+    requestId: number,
+    {
+      data: nextData,
+      error: nextError,
+      meta,
+    }: {
+      data: T | null;
+      error: ApiError<TError> | unknown | null;
+      meta: ApiResponseMeta;
+    },
+  ) => {
+    if (requestId !== activeRequestId.value) {
+      return;
+    }
+
     data.value = nextData;
     error.value = nextError;
     lastResponse.value = meta;
@@ -120,6 +128,9 @@ export function useApi<T = unknown, TError = unknown>(
       throw new Error('Invalid API URL');
     }
 
+    const requestId = activeRequestId.value + 1;
+    activeRequestId.value = requestId;
+
     isLoading.value = true;
     error.value = null;
 
@@ -144,11 +155,11 @@ export function useApi<T = unknown, TError = unknown>(
           meta: metaInfo,
           response,
         });
-        applyState({ error: apiError, data: null, meta: metaInfo });
+        applyState(requestId, { error: apiError, data: null, meta: metaInfo });
         throw apiError;
       }
 
-      applyState({ data: (payload as T | null) ?? null, error: null, meta: metaInfo });
+      applyState(requestId, { data: (payload as T | null) ?? null, error: null, meta: metaInfo });
       return data.value;
     } catch (err) {
       if (!(err instanceof ApiError)) {
@@ -158,11 +169,13 @@ export function useApi<T = unknown, TError = unknown>(
           statusText: err instanceof Response ? err.statusText ?? '' : '',
           headers: err instanceof Response ? err.headers : undefined,
         };
-        applyState({ data: null, error: err, meta: fallbackMeta });
+        applyState(requestId, { data: null, error: err, meta: fallbackMeta });
       }
       throw err;
     } finally {
-      isLoading.value = false;
+      if (requestId === activeRequestId.value) {
+        isLoading.value = false;
+      }
     }
   };
 
