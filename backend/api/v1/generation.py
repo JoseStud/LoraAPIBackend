@@ -120,27 +120,22 @@ async def compose_and_generate(
     
     This endpoint combines the compose and generate operations for convenience.
     """
-    # Step 1: Get active adapters and compose prompt
-    active_adapters = services.adapters.list_active_ordered()
-    
-    if not active_adapters:
-        raise HTTPException(status_code=400, detail="No active adapters found")
-    
-    # Validate adapters
-    warnings = services.compose.validate_adapters(active_adapters)
-    if warnings:
-        print(f"Composition warnings: {warnings}")
-    
-    # Compose prompt
-    full_prompt, tokens = services.compose.compose_prompt(
-        active_adapters,
-        compose_request.prefix or "",
-        compose_request.suffix or "",
+    # Step 1: Compose prompt via shared helper
+    composition = services.compose.compose_from_adapter_service(
+        services.adapters,
+        prefix=compose_request.prefix or "",
+        suffix=compose_request.suffix or "",
     )
-    
+
+    if not composition.tokens:
+        raise HTTPException(status_code=400, detail="No active adapters found")
+
+    if composition.warnings:
+        print(f"Composition warnings: {composition.warnings}")
+
     # Step 2: Generate with composed prompt
     # Update generation params with composed prompt
-    generation_params.prompt = full_prompt
+    generation_params.prompt = composition.prompt
     
     # Validate generation parameters
     gen_warnings = await services.generation.validate_generation_params(generation_params)
@@ -155,7 +150,7 @@ async def compose_and_generate(
     }
     
     result = await services.generation.generate_image(
-        full_prompt,
+        composition.prompt,
         backend,
         generation_params,
         **params,
