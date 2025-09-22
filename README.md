@@ -1,6 +1,6 @@
 # LoRA Manager
 
-A comprehensive FastAPI-based backend with modern Vite frontend for managing LoRA adapters with AI-powered recommendations, real-time generation monitoring, and multi-backend delivery support.
+An in-progress FastAPI backend with a Vite-powered Vue frontend for managing LoRA adapters, composing prompts, and experimenting with SDNext-powered image generation. The project already exposes usable APIs, but several features (especially recommendations and long-running queue processing) still require manual setup or additional development before they are production ready.
 
 ## 🚀 Quick Start
 
@@ -59,16 +59,13 @@ ENVIRONMENT=production uvicorn app.main:app --host 0.0.0.0 --port 8000
 - **[WebSocket Implementation](docs/WEBSOCKET_IMPLEMENTATION.md)** - Real-time features documentation
 - **[Release Notes](docs/RELEASE_NOTES.md)** - Highlights of recent platform updates
 
-## ✨ Key Features
+## ✨ Current highlights
 
-- ✅ **AI-Powered Recommendations** - Semantic similarity and prompt-based LoRA discovery
-- ✅ **Real-time Generation** - WebSocket progress monitoring for image generation
-- ✅ **Multi-Backend Support** - HTTP, CLI, and SDNext delivery modes
-- ✅ **GPU Acceleration** - AMD ROCm and NVIDIA CUDA support
-- ✅ **Comprehensive API** - 28+ endpoints with full CRUD operations
-- ✅ **Background Processing** - Redis/RQ for async operations
-- ✅ **Modern Frontend** - Vue 3 single-page application with Vue Router + Pinia powering dashboard, generation, admin, and import/export workflows
-- ✅ **Progressive Web App** - Offline capabilities and mobile-optimized interface
+- **Adapter management API** – CRUD endpoints for LoRA metadata, tag search, and activation workflows are implemented in the backend service layer.【F:backend/api/v1/adapters.py†L1-L187】
+- **Prompt composition & delivery queue** – Active adapters can be composed into prompts and optionally scheduled as delivery jobs using the shared queue helpers.【F:backend/api/v1/compose.py†L1-L45】【F:backend/services/deliveries.py†L16-L205】
+- **SDNext integration (experimental)** – Generation endpoints talk to an external SDNext server and reuse the delivery infrastructure for deferred jobs. The feature works but still requires manual SDNext setup and a running queue worker for long jobs.【F:backend/api/v1/generation.py†L1-L373】【F:backend/delivery/sdnext.py†L1-L205】
+- **Recommendation service (optional)** – Recommendation routes are wired to the service layer, but they expect torch/embedding models to be present; environments without those dependencies will see runtime errors.【F:backend/api/v1/recommendations.py†L1-L119】【F:backend/services/recommendations/service.py†L33-L153】
+- **Vue 3 frontend** – The Vite-built SPA lives under `app/frontend` and consumes the API for dashboard metrics, generation controls, and adapter management flows.【F:app/frontend/src/main.ts†L1-L20】【F:app/frontend/src/router/index.ts†L1-L120】
 
 ## 🧭 Vue SPA Workflows
 
@@ -145,32 +142,30 @@ app/frontend/
 
 ## 🧪 Testing
 
+The repository contains extensive test scaffolding, but many suites depend on optional services (Redis, SDNext, Playwright browsers, Lighthouse) or large ML models. Use targeted commands when developing locally and expect to configure additional tooling before everything passes.
+
 ### Backend Tests (Python)
 ```bash
-# Run all Python tests
+# Run all Python tests (requires optional services for queue & SDNext flows)
 pytest -v
 
-# Run specific test suites
-pytest tests/test_recommendations.py -v  # AI recommendations (13/13 passing)
-pytest tests/test_services.py -v         # Core services
-pytest tests/test_main.py -v            # API endpoints
+# Focused suites
+pytest tests/test_services.py -v         # Core services and adapters
+pytest tests/test_generation_jobs.py -v  # SDNext queue helpers (needs SDNext/Redis)
 ```
 
 ### Frontend Tests (JavaScript)
-The frontend test suite now runs entirely on Vitest. Vue single-file components, Pinia stores, and API-facing integration tests share the same runner and mocks.
 ```bash
-# Run all frontend tests
-npm test
+# Run Vitest unit tests
+npm run test:unit
 
-# Run specific test types
-npm run test:unit          # Vitest suite for Vue components and shared utilities
-npm run test:integration   # Vitest-driven API integration tests
-npm run test:e2e          # Playwright end-to-end tests
-npm run test:performance  # Lighthouse performance audits
+# Integration & browser-driven suites (require Playwright deps)
+npm run test:integration
+npm run test:e2e
 
-# Development testing
-npm run test:watch        # Vitest watch mode
-npm run test:coverage     # Generate coverage and send to Coveralls
+# Optional tooling
+npm run test:performance  # Lighthouse (needs Chrome & credentials)
+npm run test:coverage     # Vitest coverage + Coveralls upload
 ```
 
 ### Code Quality
@@ -244,6 +239,4 @@ See [Docker Setup Guide](infrastructure/docker/README.md) for comprehensive depl
 
 ## 🎯 Status
 
-**Production Ready** - All core features implemented with comprehensive test coverage (28/28 tests passing).
-
-See [IMPLEMENTATION_COMPLETE.md](docs/IMPLEMENTATION_COMPLETE.md) for detailed feature status and [contract.md](docs/contract.md) for complete API documentation.
+**Work in progress** – The backend and frontend are usable today, but the SDNext integration, recommendation flows, and long-running queue processing still need additional hardening and documentation before they can be called production ready. Review the updated implementation status note and API contract for details on what currently works and where the gaps remain.【F:docs/IMPLEMENTATION_COMPLETE.md†L1-L49】【F:docs/contract.md†L1-L153】

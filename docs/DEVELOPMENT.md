@@ -8,6 +8,8 @@ This project follows a modern, decoupled architecture with a distinct backend AP
 -   **Frontend**: A Vite-powered Vue 3 single-page application in `app/frontend/src/`. The historic Alpine.js compatibility layer has been removed; FastAPI now serves only the compiled SPA from `index.html`.
 -   **Main Entrypoint**: The `app/main.py` file acts as a wrapper that serves the SPA shell and mounts the backend API under the versioned `/v1` path.
 
+> **Status reminder:** The codebase is still evolving. Several integrations—most notably SDNext generation, queue processing, and the recommendation models—need additional setup or hardening before they are production ready. See the updated API contract and implementation status notes for the latest truth on what works end-to-end.【F:docs/contract.md†L1-L153】【F:docs/IMPLEMENTATION_COMPLETE.md†L1-L49】
+
 ---
 
 ## Project Structure
@@ -108,24 +110,32 @@ Access the application at `http://localhost:5173` (Vite dev server) or `http://l
 
 ## Testing
 
-The project has a comprehensive testing suite.
+The repository contains a large test suite, but many pieces require optional services or heavyweight tooling (Redis/RQ, an SDNext server, Playwright browsers, Lighthouse, GPU-enabled torch builds). Plan to run targeted subsets locally unless you have all dependencies available.
 
 ### Backend Testing (Pytest)
 
--   **Run all backend tests:**
+-   **Run all backend tests** (requires Redis/SDNext for queue coverage):
     ```bash
-    pytest
+    pytest -v
     ```
--   Tests are located in `tests/integration` and `tests/unit`. They use an in-memory SQLite database and mock external services.
+-   **Focused suites**:
+    ```bash
+    pytest tests/test_services.py -v         # Core adapters & services
+    pytest tests/test_generation_jobs.py -v  # SDNext queue helpers
+    ```
 
 ### Frontend Testing (Vitest & Playwright)
 
--   **Run all frontend tests:**
+-   **Unit tests**:
     ```bash
-    npm test
+    npm run test:unit
     ```
--   **Unit & Integration (`npm run test:unit`)**: Runs the unified Vitest suite covering Vue SFCs, composables, and API helpers.
--   **End-to-End Tests (`tests/e2e/`)**: Use Playwright to simulate user interactions in a real browser.
+-   **Browser-driven suites** (require Playwright browsers and credentials where applicable):
+    ```bash
+    npm run test:integration
+    npm run test:e2e
+    npm run test:performance  # Lighthouse CI
+    ```
 
 ---
 
@@ -135,9 +145,12 @@ The project has a comprehensive testing suite.
 -   **Type Hinting**: The Python codebase is fully type-hinted.
 -   **Configuration**: All configuration is managed via environment variables (`.env` file) and loaded by Pydantic's `BaseSettings`. See `.env.example` for all available options.
 -   **Database Migrations**: Alembic is used for schema migrations. To create a new migration, run `alembic revision --autogenerate -m "Your migration message"`.
-8. **Batch workflows**: A/B testing and bulk generation capabilities
-9. **Image management**: Thumbnails, metadata extraction, automatic cleanup
-10. **Analytics dashboard**: Usage metrics and performance monitoring
+
+## Open areas for follow-up
+
+1. **Batch workflows** – A/B testing and bulk generation orchestration are still on the roadmap.
+2. **Image management** – Thumbnails, metadata extraction, and cleanup policies need design and implementation.
+3. **Analytics dashboard** – Usage metrics and performance monitoring require additional instrumentation beyond the current dashboard stats endpoints.【F:backend/api/v1/dashboard.py†L1-L40】
 
 ## Usage Examples
 

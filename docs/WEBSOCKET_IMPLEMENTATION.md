@@ -130,12 +130,19 @@ The following Pydantic schemas are used for WebSocket communication (`backend/sc
 - **Batch Operations**: Multi-job queue management via WebSocket
 - **Performance Metrics**: Real-time generation statistics and monitoring
 
-## 🚀 Production Ready!
+## Current status
 
-The WebSocket progress monitoring implementation is:
-- ✅ Fully functional with comprehensive test coverage
-- ✅ Integrated with existing architecture and backward compatible  
-- ✅ Production-ready with proper error handling and cleanup
-- ✅ Well-documented with test clients and examples
+The progress WebSocket works with the existing queue pipeline and SDNext
+monitor, but it should still be considered experimental until the surrounding
+delivery infrastructure is hardened.
 
-This completes **Phase 2 Advanced Features** milestone for WebSocket progress monitoring!
+- ✅ Endpoint wiring is complete: `/ws/progress` delegates to the shared
+  `WebSocketService`, which subscribes to delivery and generation updates.【F:backend/api/v1/websocket.py†L1-L43】
+- ✅ The service layer can start and stop job monitors, broadcasting structured
+  events as jobs transition states.【F:backend/services/websocket.py†L1-L200】
+- ⚠️ Load and failure-mode testing is limited; queue backpressure and
+  disconnect handling still need real-world validation alongside the delivery
+  worker.【F:backend/services/deliveries.py†L16-L205】
+- ⚠️ The HTML and Python test clients are useful for manual checks, but an
+  automated end-to-end suite that exercises the socket alongside SDNext is still
+  on the wishlist.【F:infrastructure/scripts/setup_sdnext_docker.sh†L1-L180】【F:tests/test_generation_jobs.py†L1-L200】
