@@ -4,11 +4,15 @@ This module exposes a single POST /compose endpoint that builds a prompt
 from active adapters and optionally schedules a delivery.
 """
 
+import structlog
+
 from fastapi import APIRouter, BackgroundTasks, Depends
 
 from backend.core.dependencies import get_service_container
 from backend.schemas import ComposeRequest, ComposeResponse
 from backend.services import ServiceContainer
+
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
@@ -29,7 +33,7 @@ async def compose(
 
     if composition.warnings:
         # Log warnings but continue
-        print(f"Composition warnings: {composition.warnings}")
+        logger.warning("composition warnings", warnings=composition.warnings)
 
     delivery_info = None
     if req.delivery:

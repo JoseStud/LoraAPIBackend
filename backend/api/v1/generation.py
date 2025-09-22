@@ -3,6 +3,8 @@
 import json
 from typing import Any, Dict, List
 
+import structlog
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
 from backend.core.dependencies import get_service_container
@@ -23,6 +25,8 @@ from backend.services import ServiceContainer
 
 ACTIVE_JOB_STATUSES = {"pending", "running"}
 CANCELLABLE_STATUSES = {"pending", "running"}
+
+logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/generation", tags=["generation"])
 
@@ -58,7 +62,12 @@ async def generate_image(
     warnings = await services.generation.validate_generation_params(generation_params)
     if warnings:
         # For now, just log warnings but continue
-        print(f"Generation warnings: {warnings}")
+        logger.warning(
+            "generation parameter validation warnings",
+            warnings=warnings,
+            backend=backend,
+            mode=mode,
+        )
     
     # Prepare parameters
     params = {
@@ -131,7 +140,12 @@ async def compose_and_generate(
         raise HTTPException(status_code=400, detail="No active adapters found")
 
     if composition.warnings:
-        print(f"Composition warnings: {composition.warnings}")
+        logger.warning(
+            "composition warnings during compose-and-generate",
+            warnings=composition.warnings,
+            backend=backend,
+            mode=mode,
+        )
 
     # Step 2: Generate with composed prompt
     # Update generation params with composed prompt
@@ -140,7 +154,12 @@ async def compose_and_generate(
     # Validate generation parameters
     gen_warnings = await services.generation.validate_generation_params(generation_params)
     if gen_warnings:
-        print(f"Generation warnings: {gen_warnings}")
+        logger.warning(
+            "generation parameter validation warnings",
+            warnings=gen_warnings,
+            backend=backend,
+            mode=mode,
+        )
     
     # Prepare parameters
     params = {
