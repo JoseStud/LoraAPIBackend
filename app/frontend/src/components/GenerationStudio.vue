@@ -6,6 +6,14 @@
         <div>
           <h1 class="page-title">Generation Studio</h1>
           <p class="page-subtitle">Generate images with AI-powered LoRA integration</p>
+          <div class="mt-2 flex items-center text-sm text-gray-500 gap-2">
+            <span
+              class="inline-flex h-2 w-2 rounded-full"
+              :class="isConnected ? 'bg-green-500' : 'bg-red-500'"
+            ></span>
+            <span v-if="isConnected">Live updates connected</span>
+            <span v-else>Reconnecting to updates…</span>
+          </div>
         </div>
         <div class="header-actions flex gap-2">
           <button 
@@ -445,6 +453,7 @@ const {
   activeJobs,
   recentResults,
   sortedActiveJobs,
+  isConnected,
   startGeneration,
   cancelJob,
   clearQueue,
