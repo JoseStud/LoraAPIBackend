@@ -3,14 +3,9 @@ import { storeToRefs } from 'pinia';
 
 import { useGenerationPersistence } from '@/composables/useGenerationPersistence';
 import { useGenerationUpdates } from '@/composables/useGenerationUpdates';
-import {
-  cancelGenerationJob,
-  deleteGenerationResult,
-  startGeneration as startGenerationRequest,
-  toGenerationRequestPayload,
-} from '@/services/generationService';
+import { toGenerationRequestPayload } from '@/services/generationService';
 import { useAppStore } from '@/stores/app';
-import { useGenerationStore } from '@/stores/generation';
+import { useGenerationStore, type GenerationNotificationAdapter } from '@/stores/generation';
 import { useSettingsStore } from '@/stores/settings';
 import type { GenerationFormState, GenerationJob, GenerationResult, NotificationType } from '@/types';
 
@@ -46,27 +41,31 @@ export const useGenerationStudio = () => {
     }
   };
 
-  const showToast = (message: string, type: NotificationType = 'success'): void => {
-    logDebug(`[${type.toUpperCase()}] ${message}`);
-    appStore.addNotification(message, type);
+  const notificationAdapter: GenerationNotificationAdapter = {
+    notify: (message: string, type: NotificationType = 'success') => {
+      logDebug(`[${type.toUpperCase()}] ${message}`);
+      appStore.addNotification(message, type);
+    },
+    debug: logDebug,
   };
+
+  generationStore.setNotificationAdapter(notificationAdapter);
 
   const { loadSavedParams, saveParams, savePreset, loadFromComposer, useRandomPrompt } = useGenerationPersistence({
     params,
-    showToast,
+    showToast: notificationAdapter.notify,
   });
 
-  const { initialize: initializeUpdates, loadRecentResultsData } = useGenerationUpdates({
+  const { initialize: initializeUpdates } = useGenerationUpdates({
     showHistory,
     configuredBackendUrl,
-    logDebug,
-    showToast,
+    notificationAdapter,
   });
 
   const startGeneration = async (): Promise<void> => {
     const trimmedPrompt = params.value.prompt.trim();
     if (!trimmedPrompt) {
-      showToast('Please enter a prompt', 'error');
+      notificationAdapter.notify('Please enter a prompt', 'error');
       return;
     }
 
@@ -75,44 +74,15 @@ export const useGenerationStudio = () => {
     try {
       params.value.prompt = trimmedPrompt;
       const payload = toGenerationRequestPayload({ ...params.value, prompt: trimmedPrompt });
-      const response = await startGenerationRequest(payload, configuredBackendUrl.value ?? undefined);
-
-      if (response.job_id) {
-        const createdAt = new Date().toISOString();
-        generationStore.enqueueJob({
-          id: response.job_id,
-          prompt: payload.prompt,
-          status: response.status,
-          progress: response.progress ?? 0,
-          startTime: createdAt,
-          created_at: createdAt,
-          width: payload.width,
-          height: payload.height,
-          steps: payload.steps,
-          total_steps: payload.steps,
-          cfg_scale: payload.cfg_scale,
-          seed: payload.seed,
-        });
-        showToast('Generation started successfully', 'success');
-        saveParams(params.value);
-      }
-    } catch (error) {
-      console.error('Error starting generation:', error);
-      showToast('Error starting generation', 'error');
+      await generationStore.startGeneration(payload);
+      saveParams(params.value);
     } finally {
       isGenerating.value = false;
     }
   };
 
   const cancelJob = async (jobId: string): Promise<void> => {
-    try {
-      await cancelGenerationJob(jobId, configuredBackendUrl.value ?? undefined);
-      generationStore.removeJob(jobId);
-      showToast('Generation cancelled', 'success');
-    } catch (error) {
-      console.error('Error cancelling job:', error);
-      showToast('Error cancelling generation', 'error');
-    }
+    await generationStore.cancelJob(jobId);
   };
 
   const clearQueue = async (): Promise<void> => {
@@ -125,7 +95,11 @@ export const useGenerationStudio = () => {
     }
 
     const cancellableJobs = activeJobs.value.filter((job) => canCancelJob(job));
-    await Promise.allSettled(cancellableJobs.map((job) => cancelJob(job.id)));
+    if (cancellableJobs.length === 0) {
+      return;
+    }
+
+    await generationStore.clearQueue();
   };
 
   const showImageModal = (result: GenerationResult | null): void => {
@@ -162,7 +136,7 @@ export const useGenerationStudio = () => {
       params.value.seed = result.seed;
     }
 
-    showToast('Parameters loaded from result', 'success');
+    notificationAdapter.notify('Parameters loaded from result', 'success');
   };
 
   const deleteResult = async (resultId: string | number): Promise<void> => {
@@ -170,19 +144,11 @@ export const useGenerationStudio = () => {
       return;
     }
 
-    try {
-      await deleteGenerationResult(resultId, configuredBackendUrl.value ?? undefined);
-      generationStore.removeResult(resultId);
-      showToast('Result deleted', 'success');
-    } catch (error) {
-      console.error('Error deleting result:', error);
-      showToast('Error deleting result', 'error');
-    }
+    await generationStore.deleteResult(resultId);
   };
 
   const refreshResults = async (): Promise<void> => {
-    await loadRecentResultsData();
-    showToast('Results refreshed', 'success');
+    await generationStore.refreshRecentResults(true);
   };
 
   const formatTime = (dateString?: string): string => {
@@ -222,7 +188,7 @@ export const useGenerationStudio = () => {
 
   const getJobStatusText = (status: GenerationJob['status']): string => STATUS_TEXT_MAP[status];
 
-  const canCancelJob = (job: GenerationJob): boolean => job.status === 'queued' || job.status === 'processing';
+  const canCancelJob = (job: GenerationJob): boolean => generationStore.isJobCancellable(job);
 
   const getSystemStatusClasses = (status?: string): string => {
     switch (status) {

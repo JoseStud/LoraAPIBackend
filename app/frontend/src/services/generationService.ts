@@ -37,7 +37,7 @@ export { resolveBackendUrlHelper as resolveBackendUrl };
 
 type JobStatusRecord = Record<string, unknown>;
 
-const resolveGenerationRoute = (path: string, baseOverride?: string | null): string =>
+export const resolveGenerationRoute = (path: string, baseOverride?: string | null): string =>
   resolveBackendUrlHelper(`/generation/${trimLeadingSlash(path)}`, baseOverride);
 
 export const createGenerationParams = (
