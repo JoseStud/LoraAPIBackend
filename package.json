@@ -67,10 +67,11 @@
     "ai",
     "machine-learning",
     "fastapi",
-    "frontend",
+    "vue",
+    "pinia",
+    "spa",
     "tailwind",
-    "pwa",
-    "testing"
+    "pwa"
   ],
   "author": "LoRA Manager Team",
   "license": "MIT"

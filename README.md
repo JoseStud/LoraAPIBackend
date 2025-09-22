@@ -57,6 +57,7 @@ ENVIRONMENT=production uvicorn app.main:app --host 0.0.0.0 --port 8000
 - **[GPU Setup](docs/ROCM_TROUBLESHOOTING.md)** - AMD ROCm GPU acceleration setup
 - **[PostgreSQL Setup](docs/POSTGRES_SETUP.md)** - Database configuration guide
 - **[WebSocket Implementation](docs/WEBSOCKET_IMPLEMENTATION.md)** - Real-time features documentation
+- **[Release Notes](docs/RELEASE_NOTES.md)** - Highlights of recent platform updates
 
 ## ✨ Key Features
 
@@ -66,8 +67,15 @@ ENVIRONMENT=production uvicorn app.main:app --host 0.0.0.0 --port 8000
 - ✅ **GPU Acceleration** - AMD ROCm and NVIDIA CUDA support
 - ✅ **Comprehensive API** - 28+ endpoints with full CRUD operations
 - ✅ **Background Processing** - Redis/RQ for async operations
-- ✅ **Modern Frontend** - Vue 3 single-page application built with Vite, complemented by a legacy Alpine.js layer for unchanged modules
+- ✅ **Modern Frontend** - Vue 3 single-page application with Vue Router + Pinia powering dashboard, generation, admin, and import/export workflows
 - ✅ **Progressive Web App** - Offline capabilities and mobile-optimized interface
+
+## 🧭 Vue SPA Workflows
+
+- **Dashboard** – Consolidated system status, queue metrics, and quick actions delivered via the `DashboardView` router view.
+- **Generate** – Full-screen generation studio with live WebSocket telemetry, prompt tooling, and recommendation feed.
+- **Admin & System** – Administrative controls, import/export consoles, and health monitoring packaged under the Admin route.
+- **LoRA Management** – Gallery browsing, similarity recommendations, and history insights surfaced through dedicated Vue views.
 
 ## 🏗️ Architecture
 
@@ -79,7 +87,7 @@ The project uses a modular architecture with a clear separation between the back
 ├── app/              # Main application: FastAPI wrapper and frontend assets
 │   ├── frontend/
 │   │   ├── src/      # Vue 3 SPA source (components, composables, router)
-│   │   ├── static/   # Legacy Alpine.js modules and supporting assets
+│   │   ├── static/   # Tailwind input CSS, icons, service worker
 │   │   ├── public/   # Static assets copied verbatim by Vite
 │   │   └── index.html  # SPA entrypoint served by FastAPI
 │   └── main.py       # Main FastAPI app entry point
@@ -117,19 +125,22 @@ The frontend now centers on a Vue 3 single-page application compiled by Vite. Fa
 app/frontend/
 ├── src/               # Vue SPA source (components, composables, router, stores)
 ├── static/
-│   └── js/             # (removed) legacy Alpine bundles previously lived here
+│   ├── css/           # Tailwind input styles processed by Vite
+│   ├── images/        # Icons and share images bundled with the PWA
+│   ├── manifest.json  # PWA manifest consumed by Vite build
+│   └── sw.js          # Service worker registered by the SPA shell
 ├── public/            # Static assets copied verbatim during build
 ├── index.html         # SPA entrypoint served by FastAPI
-└── utils/             # Shared utilities (including legacy compatibility helpers)
+└── utils/             # FastAPI helpers for serving built SPA assets
 ```
 
 ### Frontend Technology Stack
 
 - **Vue 3 + Pinia** - Primary SPA framework and state management
 - **Vite** - Modern build tool with hot module replacement
-- **Tailwind CSS** - Utility-first CSS framework shared by both stacks
+- **Tailwind CSS** - Utility-first styling compiled from `static/css/input.css` into the Vite bundle
 - **Vue SPA Only** - Alpine.js bundles have been removed; Vue components own every workflow
-- **Compatibility Layer** - `app/frontend/src/utils/legacy.ts` keeps helper APIs available for any remaining vanilla scripts
+- **Vue Router + Pinia Tooling** - Router views coordinate navigation while Pinia stores centralize queue, admin, and generation state
 - **PWA** - Progressive Web App with offline support and mobile optimization
 
 ## 🧪 Testing

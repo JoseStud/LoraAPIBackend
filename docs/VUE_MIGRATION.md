@@ -1,49 +1,43 @@
-# Vue 3 Migration Status
+# Vue 3 Migration Completion Report
 
-The LoRA Manager frontend now ships as a single Vue 3 application. FastAPI serves the built Vite bundle and every workflow is rendered via Vue Router views. The hybrid "Vue islands inside Alpine templates" architecture has been retired.
+The LoRA Manager frontend now runs exclusively as a Vue 3 single-page application. All user workflows – dashboard analytics, generation studio, LoRA administration, import/export, history review, and recommendations – render through Vue Router views that hydrate a single `<div id="app">` root served by FastAPI.
 
-## Current State
+## SPA Architecture Overview
 
-- Vue bootstrap lives in `app/frontend/src/main.ts` and mounts the SPA at `#app`.
-- Routing and layout are handled by `App.vue` + `router/index.ts` with shared navigation components.
-- Pinia stores provide shared state for queue metrics, prompt compositions, recommendations, and system status.
-- Tailwind scans `.vue` files exclusively; the `app/frontend/static/js` directory has been removed.
-- Workflow views exercise the full feature set:
-  - **Dashboard** combines status cards, queue controls, prompt tools, gallery, history, and import/export.
-  - **Generate** pairs the studio with queue telemetry, system status, and recommendations.
-  - **Compose** focuses on the prompt composer with history review.
-  - **History** mixes the archival grid with queue/system context.
-  - **LoRAs & Recommendations** surface the gallery and similarity explorer respectively.
+- **Entry point:** `app/frontend/src/main.ts` mounts the app, registers the router, and attaches a shared Pinia instance for cross-workflow state.
+- **Routing:** `app/frontend/src/router/index.ts` defines top-level routes for Dashboard, Generate, Compose, History, LoRAs, Recommendations, and Admin tooling. Nested layouts keep navigation, toasts, and shared chrome consistent across all screens.
+- **State management:** Pinia stores power queue telemetry, prompt composition, gallery filters, system status, and admin controls. Components subscribe through composables instead of mutating globals.
+- **API access:** Composables in `src/composables/` wrap backend calls with typed helpers, standardized error handling, and automatic backend URL resolution.
+- **Styling:** Tailwind CSS scans Vue single-file components (`.vue`) exclusively. The CSS input pipeline lives in `app/frontend/static/css/input.css` and is compiled into `src/assets/css/styles.css` during development and build.
 
-## Alpine to Vue Component Mapping
+## Legacy Surface Retirement
 
-The last Alpine.js admin and analytics islands now map directly to Vue single-file components:
+The Alpine.js/HTMX era is fully retired. Cleanup included:
 
-| Legacy Alpine feature | Vue successor |
-| --- | --- |
-| System admin status card island | `src/components/SystemAdminStatusCard.vue` |
-| System metrics panel island | `src/components/SystemStatusPanel.vue` |
-| Job queue dashboard widget | `src/components/JobQueue.vue` |
-| Import/export control panel | `src/components/ImportExport.vue` |
-| Analytics overview island | `src/components/PerformanceAnalytics.vue` |
-| Offline experience message | `src/components/OfflineFeatureCard.vue` |
+1. **Code removal:** Deleted `app/frontend/static/js/**/*`, Alpine loaders, and HTMX glue code. `index.html` now references only the Vite-generated bundles.
+2. **Template consolidation:** Removed the legacy `app/frontend/templates/` directory in favor of the Vue SPA shell. FastAPI serves the Vite build from `dist/` in production.
+3. **Testing updates:** Replaced Jest + Alpine mocks with Vitest suites that mount Vue components directly. Shared setup lives in `tests/setup/vitest.setup.js` and Pinia-aware helpers under `tests/mocks/`.
+4. **Tooling:** Dropped npm scripts tied to Alpine asset builds, standardized on Vite commands, and migrated linting to Vue/TypeScript aware rules.
+5. **Documentation:** Updated onboarding docs, architecture guides, and release notes to describe the Vue-only stack.
 
-## Retired Legacy Assets
+## Developer Workflow
 
-- `app/frontend/static/js/components/**/*`
-- `app/frontend/static/js/component-loader.js`
-- `app/frontend/static/js/alpine-config*.js`
-- `app/frontend/static/js/common.js`, `htmx-config.js`, `pwa-manager.js`, `theme-toggle.js`
-- Jest suites that required the Alpine globals and loader stubs
+1. Start the FastAPI backend via `uvicorn app.main:app --reload --port 8000`.
+2. Run the Vite dev server with `npm run dev` to access the SPA on port 5173.
+3. Use Pinia Devtools and Vue Devtools during development; all workflows route through the same SPA entry point.
+4. Build production assets with `npm run build`, then serve them through FastAPI or any static host.
 
-## Tests & Validation
+## Validation & Quality Gates
 
-- Python regression tests in `tests/unit/test_frontend_structure.py` ensure the SPA shell exists, templates stay removed, and each view keeps its feature coverage.
-- Vitest runs against the Vue SFCs and helpers (`npm run test:unit`).
-- Jest remains available for DOM utility smoke tests but no longer depends on Alpine globals.
+- **Static analysis:** `npm run lint`, `npm run type-check`, and Tailwind builds operate solely on Vue sources.
+- **Unit & integration tests:** `npm run test:unit` exercises Vue components, stores, and composables through Vitest.
+- **E2E coverage:** `npm run test:e2e` runs Playwright scenarios against the SPA to ensure router-driven navigation continues to work without Alpine fallbacks.
+- **Backend assertions:** `tests/unit/test_frontend_structure.py` verifies the absence of legacy Alpine bundles and validates the SPA shell.
 
-## Next Steps
+## Next Focus Areas
 
-1. Continue migrating remaining DOM helpers in `src/utils/legacy.ts` into typed Vue composables as they become redundant.
-2. Port Vitest specs to TypeScript for end-to-end type safety.
-3. Expand smoke coverage for queue polling and websocket reconnection paths in the Vue studio components.
+- Expand Pinia store test coverage for long-running queue orchestration and admin workflows.
+- Continue migrating any legacy utility code in `src/utils` into typed composables where practical.
+- Monitor bundle size and shared dependency usage now that every workflow lives under a single Vue entry point.
+
+The migration is complete; Vue Router and Pinia own the entire UI surface and Alpine assets no longer ship with the application.
