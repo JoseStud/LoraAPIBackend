@@ -490,3 +490,18 @@ class TestComposeService:
         assert "Duplicate adapter names" in " ".join(result.warnings)
         assert "Adapters with zero weight" in " ".join(result.warnings)
         assert result.prompt == "start <lora:gamma:0.000> <lora:gamma:0.000> end"
+
+    def test_validate_adapters_reports_each_duplicate_once(self, compose_service):
+        """Duplicate adapter warnings should enumerate each repeated name once."""
+
+        adapters = [
+            Adapter(name="alpha", file_path="/tmp/a", weight=0.5, active=True),
+            Adapter(name="beta", file_path="/tmp/b", weight=0.6, active=True),
+            Adapter(name="alpha", file_path="/tmp/c", weight=0.7, active=True),
+            Adapter(name="beta", file_path="/tmp/d", weight=0.8, active=True),
+            Adapter(name="gamma", file_path="/tmp/e", weight=0.9, active=True),
+        ]
+
+        warnings = compose_service.validate_adapters(adapters)
+
+        assert "Duplicate adapter names found: alpha, beta" in warnings

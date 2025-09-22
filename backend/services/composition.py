@@ -116,7 +116,18 @@ class ComposeService:
         
         # Check for duplicate names
         names = [adapter.name for adapter in adapters]
-        duplicates = set([name for name in names if names.count(name) > 1])
+        seen = set()
+        duplicate_set = set()
+        duplicates: List[str] = []
+
+        for name in names:
+            if name in seen:
+                if name not in duplicate_set:
+                    duplicate_set.add(name)
+                    duplicates.append(name)
+            else:
+                seen.add(name)
+
         if duplicates:
             warnings.append(f"Duplicate adapter names found: {', '.join(duplicates)}")
         
