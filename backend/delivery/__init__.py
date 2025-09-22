@@ -1,9 +1,13 @@
 """Delivery system initialization and registry setup."""
 
+from backend.core.config import settings
+
 from .base import DeliveryBackend, GenerationBackend, delivery_registry
 from .cli import CLIDeliveryBackend
 from .http import HTTPDeliveryBackend
+from .http_client import DeliveryHTTPClient
 from .sdnext import SDNextGenerationBackend
+from .storage import FileSystemImageStorage
 
 
 def initialize_delivery_system() -> None:
@@ -13,7 +17,17 @@ def initialize_delivery_system() -> None:
     delivery_registry.register_delivery_backend("cli", CLIDeliveryBackend())
     
     # Register generation backends
-    delivery_registry.register_generation_backend("sdnext", SDNextGenerationBackend())
+    http_client = DeliveryHTTPClient(
+        settings.SDNEXT_BASE_URL,
+        timeout=settings.SDNEXT_TIMEOUT,
+        username=settings.SDNEXT_USERNAME,
+        password=settings.SDNEXT_PASSWORD,
+    )
+    storage = FileSystemImageStorage(settings.SDNEXT_OUTPUT_DIR)
+    delivery_registry.register_generation_backend(
+        "sdnext",
+        SDNextGenerationBackend(http_client=http_client, storage=storage),
+    )
 
 
 def get_delivery_backend(name: str) -> DeliveryBackend:
