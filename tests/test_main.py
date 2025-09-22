@@ -158,6 +158,7 @@ def test_adapter_lifecycle(client: TestClient, mock_storage: MagicMock):
     js = r.json()
     assert "prompt" in js
     assert "tokens" in js
+    assert js.get("warnings") == []
 
     r = client.post(f"/api/v1/adapters/{aid}/deactivate")
     assert r.status_code == 200
@@ -219,6 +220,7 @@ def test_deliveries_enqueue(client: TestClient, mock_storage: MagicMock):
     r = client.post("/api/v1/compose", json=payload)
     assert r.status_code == 200
     js = r.json()
+    assert js.get("warnings") == []
     assert js.get("delivery") and js["delivery"].get("id")
     did = js["delivery"]["id"]
 
@@ -226,6 +228,16 @@ def test_deliveries_enqueue(client: TestClient, mock_storage: MagicMock):
     assert r.status_code == 200
     dj = r.json()["delivery"]
     assert dj["id"] == did
+
+
+def test_compose_returns_warnings_when_no_active_adapters(client: TestClient):
+    """Compose should surface validation warnings from the composition service."""
+
+    response = client.post("/api/v1/compose", json={"prefix": "hello"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["warnings"], "Expected warnings when no adapters are active"
+    assert "No active adapters" in " ".join(body["warnings"])
 
 
 def test_compose_uses_primary_queue_backend(
@@ -257,6 +269,7 @@ def test_compose_uses_primary_queue_backend(
 
     assert response.status_code == 200
     body = response.json()
+    assert body.get("warnings") == []
     assert body["delivery"]["id"]
 
     assert len(queue_backend.calls) == 1
@@ -295,6 +308,7 @@ def test_compose_falls_back_to_background_queue(
 
     assert response.status_code == 200
     body = response.json()
+    assert body.get("warnings") == []
     assert body["delivery"]["id"]
 
     assert primary_queue.attempts == 1
@@ -367,6 +381,7 @@ def test_compose_sdnext_delivery(
     response = client.post("/api/v1/compose", json=payload)
     assert response.status_code == 200
     body = response.json()
+    assert body.get("warnings") == []
 
     assert body.get("delivery") is not None
     delivery_info = body["delivery"]

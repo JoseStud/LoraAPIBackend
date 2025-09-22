@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .generation import ComposeDeliverySDNext
 
@@ -43,6 +43,7 @@ class ComposeResponse(BaseModel):
 
     prompt: str
     tokens: List[str]
+    warnings: List[str] = Field(default_factory=list)
     delivery: Optional[ComposeDeliveryInfo] = None
 
 
