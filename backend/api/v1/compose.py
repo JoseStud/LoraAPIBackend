@@ -20,30 +20,29 @@ async def compose(
     services: ServiceContainer = Depends(get_service_container),
 ):
     """Compose a prompt from active adapters and optionally schedule delivery."""
-    # Get active adapters
-    adapters = services.adapters.list_active_ordered()
-    
-    # Validate adapters
-    warnings = services.compose.validate_adapters(adapters)
-    if warnings:
-        # Log warnings but continue
-        print(f"Composition warnings: {warnings}")
-    
-    # Compose prompt
-    prompt, tokens = services.compose.compose_prompt(
-        adapters,
-        req.prefix or "",
-        req.suffix or "",
+    # Compose prompt and collect warnings via the shared helper
+    composition = services.compose.compose_from_adapter_service(
+        services.adapters,
+        prefix=req.prefix or "",
+        suffix=req.suffix or "",
     )
+
+    if composition.warnings:
+        # Log warnings but continue
+        print(f"Composition warnings: {composition.warnings}")
 
     delivery_info = None
     if req.delivery:
         job = services.deliveries.schedule_job(
-            prompt,
+            composition.prompt,
             req.delivery.mode,
             req.delivery.model_dump(),
             background_tasks=background_tasks,
         )
         delivery_info = {"id": job.id, "status": job.status}
 
-    return ComposeResponse(prompt=prompt, tokens=tokens, delivery=delivery_info)
+    return ComposeResponse(
+        prompt=composition.prompt,
+        tokens=composition.tokens,
+        delivery=delivery_info,
+    )

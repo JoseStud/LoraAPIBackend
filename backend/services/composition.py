@@ -1,8 +1,22 @@
 """Composition service for LoRA prompt formatting."""
 
-from typing import List
+from dataclasses import dataclass
+from typing import List, TYPE_CHECKING
 
 from backend.models.adapters import Adapter
+
+
+if TYPE_CHECKING:  # pragma: no cover - import used for type hints only
+    from backend.services.adapters import AdapterService
+
+
+@dataclass
+class CompositionResult:
+    """Structured result returned when composing prompts."""
+
+    prompt: str
+    tokens: List[str]
+    warnings: List[str]
 
 
 class ComposeService:
@@ -57,9 +71,33 @@ class ComposeService:
         
         if suffix.strip():
             components.append(suffix.strip())
-        
+
         full_prompt = " ".join(components)
         return full_prompt, tokens
+
+    def compose_from_adapter_service(
+        self,
+        adapter_service: "AdapterService",
+        *,
+        prefix: str = "",
+        suffix: str = "",
+    ) -> CompositionResult:
+        """Compose a prompt using adapters provided by the service.
+
+        Args:
+            adapter_service: Adapter service used to fetch active adapters.
+            prefix: Optional prefix text to include.
+            suffix: Optional suffix text to include.
+
+        Returns:
+            CompositionResult containing the composed prompt, tokens, and warnings.
+
+        """
+
+        adapters = adapter_service.list_active_ordered()
+        warnings = self.validate_adapters(adapters)
+        prompt, tokens = self.compose_prompt(adapters, prefix or "", suffix or "")
+        return CompositionResult(prompt=prompt, tokens=tokens, warnings=warnings)
 
     def validate_adapters(self, adapters: List[Adapter]) -> List[str]:
         """Validate adapters for composition and return any warnings.
