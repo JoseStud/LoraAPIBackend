@@ -1,10 +1,7 @@
 """Recommendation service for LoRA adapter discovery and learning."""
 
 import logging
-import pickle
-import time
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from sqlmodel import Session
@@ -30,7 +27,9 @@ from .components.interfaces import (
 )
 from .embedding_manager import EmbeddingManager
 from .metrics import RecommendationMetrics
+from .model_bootstrap import RecommendationModelBootstrap
 from .model_registry import RecommendationModelRegistry
+from .persistence_manager import RecommendationPersistenceManager
 from .repository import RecommendationRepository
 from .strategies import (
     get_recommendations_for_prompt as prompt_strategy,
@@ -47,9 +46,11 @@ class RecommendationService:
         gpu_enabled: bool = False,
         *,
         logger: Optional[logging.Logger] = None,
+        model_bootstrap: Optional[RecommendationModelBootstrap] = None,
         model_registry: Optional[RecommendationModelRegistry] = None,
         embedding_manager: Optional[EmbeddingManager] = None,
         repository: Optional[RecommendationRepository] = None,
+        persistence_manager: Optional[RecommendationPersistenceManager] = None,
     ):
         """Initialize recommendation service.
         
@@ -59,40 +60,30 @@ class RecommendationService:
 
         """
         self.db_session = db_session
-        self.gpu_enabled = gpu_enabled
-        self.device = 'cuda' if gpu_enabled else 'cpu'
         self._logger = logger or logging.getLogger(__name__)
 
-        self._model_registry = model_registry or RecommendationModelRegistry(
-            device=self.device,
-            gpu_enabled=self.gpu_enabled,
+        self._model_bootstrap = model_bootstrap or RecommendationModelBootstrap(
+            gpu_enabled=gpu_enabled,
             logger=self._logger,
         )
+
+        if model_registry is not None:
+            self._model_bootstrap.set_model_registry(model_registry)
+
+        self._model_registry = self._model_bootstrap.get_model_registry()
+        self.gpu_enabled = self._model_bootstrap.gpu_enabled
+        self.device = self._model_bootstrap.device
+
         self._embedding_manager = embedding_manager
         self._repository = repository
+        self._persistence_manager = persistence_manager
         self._metrics = RecommendationMetrics()
-        
-        # Configuration
-        self.embedding_cache_dir = "cache/embeddings"
-        self.index_cache_path = "cache/similarity_index.pkl"
-        Path(self.embedding_cache_dir).mkdir(parents=True, exist_ok=True)
-        Path(self.index_cache_path).parent.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
     def is_gpu_available() -> bool:
         """Detect GPU availability across CUDA, ROCm, and MPS runtimes."""
-        try:
-            import torch
 
-            if torch.cuda.is_available():
-                return True
-            if getattr(torch.version, "hip", None):
-                return True
-            if torch.backends.mps.is_available():
-                return True
-            return False
-        except ImportError:
-            return False
+        return RecommendationModelBootstrap.is_gpu_available()
 
     def _get_model_registry(self) -> RecommendationModelRegistry:
         return self._model_registry
@@ -115,6 +106,14 @@ class RecommendationService:
             self._repository = RecommendationRepository(session)
         return self._repository
 
+    def _get_persistence_manager(self) -> RecommendationPersistenceManager:
+        if self._persistence_manager is None:
+            self._persistence_manager = RecommendationPersistenceManager(
+                self._get_embedding_manager(),
+                self._get_recommendation_engine,
+            )
+        return self._persistence_manager
+
     def _get_semantic_embedder(self) -> SemanticEmbedderProtocol:
         return self._model_registry.get_semantic_embedder()
 
@@ -133,11 +132,10 @@ class RecommendationService:
     @classmethod
     def preload_models(cls, gpu_enabled: Optional[bool] = None) -> None:
         """Eagerly load heavy shared models so the first request is fast."""
-        if gpu_enabled is None:
-            gpu_enabled = cls.is_gpu_available()
 
-        device = 'cuda' if gpu_enabled else 'cpu'
-        RecommendationModelRegistry.preload_models(device=device, gpu_enabled=gpu_enabled)
+        RecommendationModelBootstrap.preload_models_for_environment(
+            gpu_enabled=gpu_enabled
+        )
 
     async def get_similar_loras(
         self,
@@ -210,10 +208,6 @@ class RecommendationService:
             batch_size=batch_size,
         )
 
-    async def _build_similarity_index(self):
-        """Build or rebuild the similarity index for fast recommendations."""
-        await self._get_embedding_manager().build_similarity_index()
-
     def record_feedback(self, feedback: UserFeedbackRequest) -> RecommendationFeedback:
         """Persist recommendation feedback for later learning."""
         return self._get_repository().record_feedback(feedback)
@@ -232,59 +226,28 @@ class RecommendationService:
     ) -> IndexRebuildResponse:
         """Rebuild the cached similarity index and persist it to disk."""
 
-        engine = self._get_recommendation_engine()
-        index_file = Path(self.index_cache_path)
-        index_file.parent.mkdir(parents=True, exist_ok=True)
+        manager = self._get_persistence_manager()
+        return await manager.rebuild_similarity_index(force=force)
 
-        if not force and getattr(engine, 'lora_ids', None):
-            index_size = index_file.stat().st_size if index_file.exists() else 0
-            return IndexRebuildResponse(
-                status='skipped',
-                indexed_items=len(engine.lora_ids),
-                index_path=str(index_file),
-                index_size_bytes=index_size,
-                processing_time_seconds=0.0,
-                rebuilt_at=datetime.now(timezone.utc),
-                skipped=True,
-                skipped_reason='existing_index',
-            )
+    @property
+    def index_cache_path(self) -> str:
+        """Expose the index cache path for compatibility and testing."""
 
-        start_time = time.time()
+        return str(self._get_persistence_manager().index_cache_path)
 
-        await self._build_similarity_index()
+    @index_cache_path.setter
+    def index_cache_path(self, value: str) -> None:
+        self._get_persistence_manager().index_cache_path = value
 
-        indexed_items = len(getattr(engine, 'lora_ids', []) or [])
-        index_size = 0
-        status = 'empty'
-        skipped_reason = None
+    @property
+    def embedding_cache_dir(self) -> str:
+        """Expose the embedding cache directory for configuration."""
 
-        if indexed_items:
-            payload = {
-                'lora_ids': engine.lora_ids,
-                'semantic_embeddings': engine.semantic_embeddings,
-                'artistic_embeddings': engine.artistic_embeddings,
-                'technical_embeddings': engine.technical_embeddings,
-            }
-            with index_file.open('wb') as handle:
-                pickle.dump(payload, handle)
-            index_size = index_file.stat().st_size
-            status = 'rebuilt'
-        else:
-            if index_file.exists():
-                index_file.unlink()
+        return str(self._get_persistence_manager().embedding_cache_dir)
 
-        processing_time = time.time() - start_time
-
-        return IndexRebuildResponse(
-            status=status,
-            indexed_items=indexed_items,
-            index_path=str(index_file),
-            index_size_bytes=index_size,
-            processing_time_seconds=processing_time,
-            rebuilt_at=datetime.now(timezone.utc),
-            skipped=False,
-            skipped_reason=skipped_reason,
-        )
+    @embedding_cache_dir.setter
+    def embedding_cache_dir(self, value: str) -> None:
+        self._get_persistence_manager().embedding_cache_dir = value
 
     def get_recommendation_stats(self) -> RecommendationStats:
         """Get comprehensive recommendation system statistics."""
