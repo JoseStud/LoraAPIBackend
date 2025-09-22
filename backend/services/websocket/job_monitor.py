@@ -10,7 +10,6 @@ from typing import Any, Awaitable, Callable, Dict, Optional, Protocol
 import structlog
 
 from backend.schemas import GenerationComplete, ProgressUpdate, SDNextGenerationResult
-from backend.services.generation import normalize_generation_status
 
 logger = structlog.get_logger(__name__)
 
@@ -100,7 +99,7 @@ class JobProgressMonitor:
                 result = await self._call_generation_progress(generation_service, job_id)
                 persisted_state = self._safe_load_state(job_id)
 
-                status_value = normalize_generation_status(result.status or "pending")
+                status_value = _normalize_generation_status(result.status or "pending")
                 progress_value = self._normalize_progress(result.progress)
                 error_message = result.error_message
 
@@ -182,7 +181,9 @@ class JobProgressMonitor:
         if not stored_status and isinstance(result_payload, dict):
             stored_status = result_payload.get("status")
 
-        mapped_status = normalize_generation_status(stored_status) if stored_status else None
+        mapped_status = (
+            _normalize_generation_status(stored_status) if stored_status else None
+        )
         if mapped_status is not None:
             status_value = mapped_status
 
@@ -252,7 +253,7 @@ class JobProgressMonitor:
         if not stored_status:
             return False
 
-        normalized = normalize_generation_status(stored_status)
+        normalized = _normalize_generation_status(stored_status)
         return normalized in {"completed", "failed"}
 
     def _build_completion_payload(
@@ -323,3 +324,7 @@ __all__ = [
     "PersistedJobState",
     "ProgressCallback",
 ]
+def _normalize_generation_status(status: Optional[str]) -> str:
+    from backend.services.generation import normalize_generation_status as _normalize
+
+    return _normalize(status)

@@ -1,0 +1,147 @@
+"""Unit tests for the SDNext HTTP client wrapper."""
+
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
+
+import pytest
+
+from backend.core.config import settings
+from backend.delivery.sdnext_client import SDNextClient, SDNextClientError
+
+
+class _FakeResponse:
+    def __init__(self, status: int, json_data: dict | None = None, text: str = "") -> None:
+        self.status = status
+        self._json_data = json_data or {}
+        self._text = text
+
+    async def json(self) -> dict:
+        return self._json_data
+
+    async def text(self) -> str:
+        return self._text
+
+
+class FakeDeliveryHTTPClient:
+    def __init__(self) -> None:
+        self.requests = []
+        self.responses: dict[str, _FakeResponse] = {}
+        self.closed = False
+        self._configured = True
+
+    def is_configured(self) -> bool:
+        return self._configured
+
+    async def close(self) -> None:
+        self.closed = True
+
+    async def health_check(self) -> bool:  # pragma: no cover - not used in tests
+        return True
+
+    async def request(self, method: str, path: str, **kwargs):
+        self.requests.append((method, path, kwargs))
+        response = self.responses[path]
+
+        @asynccontextmanager
+        async def ctx():
+            yield response
+
+        return ctx()
+
+
+@pytest.mark.anyio("asyncio")
+async def test_submit_txt2img_success() -> None:
+    http_client = FakeDeliveryHTTPClient()
+    http_client.responses["/sdapi/v1/txt2img"] = _FakeResponse(200, {"images": ["img"], "info": {}})
+
+    client = SDNextClient(http_client)
+
+    result = await client.submit_txt2img(
+        "A prompt",
+        {
+            "steps": 7,
+            "sampler_name": "sampler",
+            "cfg_scale": 5.5,
+            "width": 320,
+            "height": 256,
+            "seed": 42,
+            "batch_size": 2,
+            "n_iter": 3,
+            "negative_prompt": "neg",
+        },
+    )
+
+    assert result["images"] == ["img"]
+    (method, path, kwargs), *_ = http_client.requests
+    assert method == "POST"
+    assert path == "/sdapi/v1/txt2img"
+
+    payload = kwargs["json"]
+    assert payload["prompt"] == "A prompt"
+    assert payload["steps"] == 7
+    assert payload["sampler_name"] == "sampler"
+    assert payload["cfg_scale"] == 5.5
+    assert payload["width"] == 320
+    assert payload["height"] == 256
+    assert payload["seed"] == 42
+    assert payload["batch_size"] == 2
+    assert payload["n_iter"] == 3
+    assert payload["negative_prompt"] == "neg"
+
+
+@pytest.mark.anyio("asyncio")
+async def test_submit_txt2img_defaults_and_denoising() -> None:
+    http_client = FakeDeliveryHTTPClient()
+    http_client.responses["/sdapi/v1/txt2img"] = _FakeResponse(200, {"images": []})
+
+    client = SDNextClient(http_client)
+
+    await client.submit_txt2img("prompt", {"denoising_strength": 0.3})
+    payload = http_client.requests[0][2]["json"]
+
+    assert payload["steps"] == settings.SDNEXT_DEFAULT_STEPS
+    assert payload["sampler_name"] == settings.SDNEXT_DEFAULT_SAMPLER
+    assert payload["cfg_scale"] == settings.SDNEXT_DEFAULT_CFG_SCALE
+    assert payload["denoising_strength"] == 0.3
+
+
+@pytest.mark.anyio("asyncio")
+async def test_submit_txt2img_error_status() -> None:
+    http_client = FakeDeliveryHTTPClient()
+    http_client.responses["/sdapi/v1/txt2img"] = _FakeResponse(500, text="failure")
+
+    client = SDNextClient(http_client)
+
+    with pytest.raises(SDNextClientError) as exc_info:
+        await client.submit_txt2img("prompt", {})
+
+    assert "500" in str(exc_info.value)
+    assert exc_info.value.status == 500
+
+
+@pytest.mark.anyio("asyncio")
+async def test_get_progress_success() -> None:
+    http_client = FakeDeliveryHTTPClient()
+    http_client.responses["/sdapi/v1/progress"] = _FakeResponse(200, {"progress": 0.6})
+
+    client = SDNextClient(http_client)
+
+    result = await client.get_progress()
+
+    assert result["progress"] == 0.6
+    assert http_client.requests[0][0] == "GET"
+
+
+@pytest.mark.anyio("asyncio")
+async def test_get_progress_error_status() -> None:
+    http_client = FakeDeliveryHTTPClient()
+    http_client.responses["/sdapi/v1/progress"] = _FakeResponse(404, text="missing")
+
+    client = SDNextClient(http_client)
+
+    with pytest.raises(SDNextClientError) as exc_info:
+        await client.get_progress()
+
+    assert exc_info.value.status == 404
+    assert "missing" in str(exc_info.value)
