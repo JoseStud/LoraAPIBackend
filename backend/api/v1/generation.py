@@ -1,7 +1,7 @@
 """Router for SDNext generation endpoints."""
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import structlog
 
@@ -17,7 +17,6 @@ from backend.schemas import (
     GenerationCancelResponse,
     GenerationJobStatus,
     GenerationResultSummary,
-    GenerationStarted,
     SDNextGenerationParams,
     SDNextGenerationResult,
 )
@@ -29,52 +28,6 @@ CANCELLABLE_STATUSES = {"pending", "running"}
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/generation", tags=["generation"])
-
-
-def _serialize_generation_job(job, deliveries) -> Dict[str, Any]:
-    """Return normalized parameters and result payload data for a job."""
-
-    raw_params = deliveries.get_job_params(job)
-    generation_params: Dict[str, Any] = {}
-    if isinstance(raw_params, dict):
-        maybe_generation_params = raw_params.get("generation_params")
-        if isinstance(maybe_generation_params, dict):
-            generation_params = maybe_generation_params
-        else:
-            generation_params = raw_params
-
-    result_payload = deliveries.get_job_result(job) or {}
-    if not isinstance(result_payload, dict):
-        result_payload = {}
-
-    progress_value = result_payload.get("progress")
-    progress = 0.0
-    if isinstance(progress_value, (int, float)):
-        progress = float(progress_value)
-        if progress <= 1:
-            progress *= 100
-
-    message: Optional[str] = None
-    for key in ("message", "detail"):
-        value = result_payload.get(key)
-        if isinstance(value, str):
-            message = value
-            break
-
-    error_text: Optional[str] = None
-    for key in ("error", "error_message"):
-        value = result_payload.get(key)
-        if isinstance(value, str):
-            error_text = value
-            break
-
-    return {
-        "params": generation_params,
-        "result": result_payload,
-        "progress": progress,
-        "message": message,
-        "error": error_text,
-    }
 
 
 @router.get("/backends", response_model=Dict[str, bool])
@@ -131,16 +84,9 @@ async def generate_image(
     
     # Start WebSocket monitoring if job was created
     if result.job_id and mode == "deferred":
-        await services.websocket.start_job_monitoring(result.job_id, services.generation)
-        
-        # Broadcast generation started notification
-        started_notification = GenerationStarted(
-            job_id=result.job_id,
-            params=generation_params,
-        )
-        await services.websocket.manager.broadcast_generation_started(
-            result.job_id, 
-            started_notification,
+        await services.generation_coordinator.broadcast_job_started(
+            result.job_id,
+            generation_params,
         )
     
     return result
@@ -223,16 +169,9 @@ async def compose_and_generate(
     
     # Start WebSocket monitoring if job was created
     if result.job_id and mode == "deferred":
-        await services.websocket.start_job_monitoring(result.job_id, services.generation)
-        
-        # Broadcast generation started notification
-        started_notification = GenerationStarted(
-            job_id=result.job_id,
-            params=generation_params,
-        )
-        await services.websocket.manager.broadcast_generation_started(
-            result.job_id, 
-            started_notification,
+        await services.generation_coordinator.broadcast_job_started(
+            result.job_id,
+            generation_params,
         )
     
     return result
@@ -252,39 +191,18 @@ async def queue_generation_job(
     
     This creates a delivery job that will be processed by a worker.
     """
-    # Prepare delivery parameters
-    delivery_params = {
-        "generation_params": generation_params.model_dump(),
-        "mode": mode,
-        "save_images": save_images,
-        "return_format": return_format,
-        "backend": backend,
-    }
-    
-    # Create delivery job and schedule it via the configured queue backends
-    schedule_kwargs: Dict[str, Any] = {}
-    if background_tasks is not None:
-        schedule_kwargs["background_tasks"] = background_tasks
+    coordinator = services.generation_coordinator
 
-    job = services.deliveries.schedule_job(
-        prompt=generation_params.prompt,
-        mode="sdnext",
-        params=delivery_params,
-        **schedule_kwargs,
+    job = coordinator.schedule_generation_job(
+        generation_params,
+        backend=backend,
+        mode=mode,
+        save_images=save_images,
+        return_format=return_format,
+        background_tasks=background_tasks,
     )
 
-    # Start WebSocket monitoring for the job
-    await services.websocket.start_job_monitoring(job.id, services.generation)
-    
-    # Broadcast generation started notification
-    started_notification = GenerationStarted(
-        job_id=job.id,
-        params=generation_params,
-    )
-    await services.websocket.manager.broadcast_generation_started(
-        job.id, 
-        started_notification,
-    )
+    await coordinator.broadcast_job_started(job.id, generation_params)
     
     return DeliveryCreateResponse(delivery_id=job.id)
 
@@ -309,7 +227,7 @@ async def list_active_generation_jobs(
 
     active_jobs: List[GenerationJobStatus] = []
     for job in ordered_jobs[:limit]:
-        serialized = _serialize_generation_job(job, services.deliveries)
+        serialized = services.generation_coordinator.serialize_delivery_job(job)
         generation_params = serialized["params"]
         result_payload = serialized["result"]
 
@@ -389,7 +307,7 @@ async def list_generation_results(
 
     results: List[GenerationResultSummary] = []
     for job in jobs:
-        serialized = _serialize_generation_job(job, services.deliveries)
+        serialized = services.generation_coordinator.serialize_delivery_job(job)
         generation_params = serialized["params"]
         result_payload = serialized["result"]
 

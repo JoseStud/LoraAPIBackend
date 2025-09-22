@@ -1,9 +1,18 @@
 """Generation service for SDNext integration."""
 
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
+
+from fastapi import BackgroundTasks
 
 from backend.delivery import get_generation_backend
-from backend.schemas import SDNextGenerationParams, SDNextGenerationResult
+from backend.models import DeliveryJob
+from backend.schemas import (
+    GenerationStarted,
+    SDNextGenerationParams,
+    SDNextGenerationResult,
+)
+from backend.services.deliveries import DeliveryService
+from backend.services.websocket import WebSocketService
 
 
 class GenerationService:
@@ -139,10 +148,117 @@ class GenerationService:
 
         """
         from backend.core.config import settings
-        
+
         return SDNextGenerationParams(
             prompt="",
             steps=settings.SDNEXT_DEFAULT_STEPS,
             sampler_name=settings.SDNEXT_DEFAULT_SAMPLER,
             cfg_scale=settings.SDNEXT_DEFAULT_CFG_SCALE,
+        )
+
+
+class GenerationCoordinator:
+    """Helper responsible for coordinating generation job lifecycles."""
+
+    def __init__(
+        self,
+        deliveries: DeliveryService,
+        websocket: WebSocketService,
+        generation_service: GenerationService,
+    ) -> None:
+        self._deliveries = deliveries
+        self._websocket = websocket
+        self._generation_service = generation_service
+
+    def schedule_generation_job(
+        self,
+        generation_params: SDNextGenerationParams,
+        *,
+        backend: str = "sdnext",
+        mode: str = "deferred",
+        save_images: bool = True,
+        return_format: str = "base64",
+        background_tasks: Optional[BackgroundTasks] = None,
+        **enqueue_kwargs: Any,
+    ) -> DeliveryJob:
+        """Create and enqueue a generation delivery job."""
+
+        delivery_params = {
+            "generation_params": generation_params.model_dump(),
+            "mode": mode,
+            "save_images": save_images,
+            "return_format": return_format,
+            "backend": backend,
+        }
+
+        schedule_kwargs: Dict[str, Any] = dict(enqueue_kwargs)
+        if background_tasks is not None:
+            schedule_kwargs["background_tasks"] = background_tasks
+
+        return self._deliveries.schedule_job(
+            prompt=generation_params.prompt,
+            mode="sdnext",
+            params=delivery_params,
+            **schedule_kwargs,
+        )
+
+    def serialize_delivery_job(self, job: DeliveryJob) -> Dict[str, Any]:
+        """Return normalized parameters and result payload data for a job."""
+
+        raw_params = self._deliveries.get_job_params(job)
+        generation_params: Dict[str, Any] = {}
+        if isinstance(raw_params, dict):
+            maybe_generation_params = raw_params.get("generation_params")
+            if isinstance(maybe_generation_params, dict):
+                generation_params = maybe_generation_params
+            else:
+                generation_params = raw_params
+
+        result_payload = self._deliveries.get_job_result(job) or {}
+        if not isinstance(result_payload, dict):
+            result_payload = {}
+
+        progress_value = result_payload.get("progress")
+        progress = 0.0
+        if isinstance(progress_value, (int, float)):
+            progress = float(progress_value)
+            if progress <= 1:
+                progress *= 100
+
+        message: Optional[str] = None
+        for key in ("message", "detail"):
+            value = result_payload.get(key)
+            if isinstance(value, str):
+                message = value
+                break
+
+        error_text: Optional[str] = None
+        for key in ("error", "error_message"):
+            value = result_payload.get(key)
+            if isinstance(value, str):
+                error_text = value
+                break
+
+        return {
+            "params": generation_params,
+            "result": result_payload,
+            "progress": progress,
+            "message": message,
+            "error": error_text,
+        }
+
+    async def broadcast_job_started(
+        self, job_id: str, generation_params: SDNextGenerationParams
+    ) -> None:
+        """Kick off monitoring and fan out job start notifications."""
+
+        await self._websocket.start_job_monitoring(job_id, self._generation_service)
+
+        started_notification = GenerationStarted(
+            job_id=job_id,
+            params=generation_params,
+        )
+        await self._websocket.manager.broadcast_generation_started(
+            job_id,
+            started_notification,
         )
