@@ -40,17 +40,11 @@ def get_compose_service() -> ComposeService:
     return container.compose
 
 
-def _is_gpu_available() -> bool:
-    """Proxy GPU availability check to the recommendation service helper."""
-    return RecommendationService.is_gpu_available()
-
-
 def get_recommendation_service(
-    db_session: Session = Depends(get_session),  # noqa: B008 - FastAPI DI
+    container: ServiceContainer = Depends(get_service_container),  # noqa: B008 - FastAPI DI
 ) -> RecommendationService:
     """Return a RecommendationService instance."""
-    gpu_enabled = _is_gpu_available()
-    return RecommendationService(db_session=db_session, gpu_enabled=gpu_enabled)
+    return container.recommendations
 
 
 def get_archive_service(

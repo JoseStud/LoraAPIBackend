@@ -4,6 +4,7 @@ This module integrates with RQ (Redis Queue) and updates DeliveryJob
 records in the database as the worker processes jobs.
 """
 
+import asyncio
 import json
 import logging
 from dataclasses import dataclass
@@ -151,21 +152,6 @@ def process_delivery(delivery_id: str):
         raise
 
 
-def _is_gpu_available() -> bool:
-    """Check if GPU is available (supports CUDA, ROCm, and MPS)."""
-    try:
-        import torch
-        if torch.cuda.is_available():
-            return True
-        elif hasattr(torch.version, 'hip') and torch.version.hip is not None:
-            return True
-        elif torch.backends.mps.is_available():
-            return True
-        return False
-    except ImportError:
-        return False
-
-
 def process_embeddings_batch(
     adapter_ids: Optional[List[str]] = None,
     force_recompute: bool = False,
@@ -187,24 +173,19 @@ def process_embeddings_batch(
     try:
         # Create database session and services
         with get_session_context() as sess:
-            from backend.services.recommendations import RecommendationService
-            
-            # Check if GPU is available
-            gpu_enabled = _is_gpu_available()
+            services = create_service_container(sess)
+            recommendation_service = services.recommendations
+
+            gpu_enabled = recommendation_service.gpu_enabled
             if gpu_enabled:
                 logger.info("GPU detected, using GPU acceleration for embeddings")
             else:
                 logger.info("No GPU detected, using CPU for embeddings")
-            
+
             # Create recommendation service
-            recommendation_service = RecommendationService(
-                db_session=sess,
-                gpu_enabled=gpu_enabled,
-            )
-            
             # Process embeddings
             logger.info(f"Starting batch embedding computation for {len(adapter_ids) if adapter_ids else 'all'} adapters")
-            
+
             result = asyncio.run(
                 recommendation_service.batch_compute_embeddings(
                     adapter_ids=adapter_ids,
@@ -240,18 +221,13 @@ def compute_single_embedding(adapter_id: str, force_recompute: bool = False) -> 
     
     try:
         with get_session_context() as sess:
-            from backend.services.recommendations import RecommendationService
-            
-            # Check GPU availability
-            gpu_enabled = _is_gpu_available()
-            
-            recommendation_service = RecommendationService(
-                db_session=sess,
-                gpu_enabled=gpu_enabled,
-            )
-            
+            services = create_service_container(sess)
+            recommendation_service = services.recommendations
+
+            gpu_enabled = recommendation_service.gpu_enabled
+
             logger.info(f"Computing embeddings for adapter {adapter_id}")
-            
+
             result = asyncio.run(
                 recommendation_service.compute_embeddings_for_lora(
                     adapter_id=adapter_id,
@@ -288,16 +264,11 @@ def rebuild_similarity_index(force: bool = False) -> dict:
             from sqlmodel import select
 
             from backend.models import Adapter
-            from backend.services.recommendations import RecommendationService
-            
-            # Check GPU availability
-            gpu_enabled = _is_gpu_available()
-            
-            RecommendationService(
-                db_session=sess,
-                gpu_enabled=gpu_enabled,
-            )
-            
+
+            services = create_service_container(sess)
+            recommendation_service = services.recommendations
+            gpu_enabled = recommendation_service.gpu_enabled
+
             # Get all active adapters
             stmt = select(Adapter).where(Adapter.active)
             adapters = list(sess.exec(stmt))
