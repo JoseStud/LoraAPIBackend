@@ -12,34 +12,31 @@ const mocks = vi.hoisted(() => ({
   startGenerationMock: vi.fn(),
   cancelGenerationJobMock: vi.fn(),
   deleteGenerationResultMock: vi.fn(),
-  loadSystemStatusMock: vi.fn(),
-  loadActiveJobsMock: vi.fn(),
-  loadRecentResultsMock: vi.fn(),
+  fetchSystemStatusMock: vi.fn(),
+  fetchActiveJobsMock: vi.fn(),
+  fetchRecentResultsMock: vi.fn(),
   startUpdatesMock: vi.fn(),
   stopUpdatesMock: vi.fn(),
   reconnectUpdatesMock: vi.fn(),
 }))
 
 vi.mock('../../app/frontend/src/services/generationUpdates.ts', () => ({
-  createGenerationUpdatesService: vi.fn(() => ({
+  createGenerationQueueClient: vi.fn(() => ({
+    startGeneration: mocks.startGenerationMock,
+    cancelJob: mocks.cancelGenerationJobMock,
+    deleteResult: mocks.deleteGenerationResultMock,
+    fetchSystemStatus: mocks.fetchSystemStatusMock,
+    fetchActiveJobs: mocks.fetchActiveJobsMock,
+    fetchRecentResults: mocks.fetchRecentResultsMock,
+  })),
+  createGenerationWebSocketManager: vi.fn(() => ({
     start: mocks.startUpdatesMock,
     stop: mocks.stopUpdatesMock,
     reconnect: mocks.reconnectUpdatesMock,
-    refreshSystemStatus: mocks.loadSystemStatusMock,
-    refreshActiveJobs: mocks.loadActiveJobsMock,
-    refreshRecentResults: mocks.loadRecentResultsMock,
   })),
+  DEFAULT_POLL_INTERVAL: 2000,
+  extractGenerationErrorMessage: vi.fn((message) => message.error ?? 'Unknown error'),
 }))
-
-vi.mock('../../app/frontend/src/services/generationService.ts', async () => {
-  const actual = await vi.importActual('../../app/frontend/src/services/generationService.ts')
-  return {
-    ...actual,
-    startGeneration: mocks.startGenerationMock,
-    cancelGenerationJob: mocks.cancelGenerationJobMock,
-    deleteGenerationResult: mocks.deleteGenerationResultMock,
-  }
-})
 
 // Mock WebSocket
 global.WebSocket = vi.fn(() => ({
@@ -91,9 +88,9 @@ describe('GenerationStudio.vue', () => {
     mocks.startUpdatesMock.mockResolvedValue(undefined)
     mocks.stopUpdatesMock.mockImplementation(() => {})
     mocks.reconnectUpdatesMock.mockImplementation(() => {})
-    mocks.loadSystemStatusMock.mockResolvedValue(undefined)
-    mocks.loadActiveJobsMock.mockResolvedValue(undefined)
-    mocks.loadRecentResultsMock.mockResolvedValue(undefined)
+    mocks.fetchSystemStatusMock.mockResolvedValue(null)
+    mocks.fetchActiveJobsMock.mockResolvedValue([])
+    mocks.fetchRecentResultsMock.mockResolvedValue([])
   })
 
   afterEach(() => {
