@@ -12,7 +12,7 @@ from .analytics import AnalyticsService
 from .archive import ArchiveExportPlanner, ArchiveImportExecutor, ArchiveService
 from .composition import ComposeService
 from .deliveries import DeliveryService
-from .generation import GenerationService
+from .generation import GenerationCoordinator, GenerationService
 from .queue import QueueBackend, get_queue_backends
 from .storage import StorageService
 from .system import SystemService
@@ -50,6 +50,7 @@ class ServiceContainer:
         self._delivery_service: Optional[DeliveryService] = None
         self._compose_service: Optional[ComposeService] = None
         self._generation_service: Optional[GenerationService] = None
+        self._generation_coordinator: Optional[GenerationCoordinator] = None
         self._websocket_service: Optional[WebSocketService] = None
         self._system_service: Optional[SystemService] = None
         self._archive_service: Optional[ArchiveService] = None
@@ -128,7 +129,19 @@ class ServiceContainer:
         if self._generation_service is None:
             self._generation_service = GenerationService()
         return self._generation_service
-    
+
+    @property
+    def generation_coordinator(self) -> GenerationCoordinator:
+        """Get generation coordinator helper."""
+
+        if self._generation_coordinator is None:
+            self._generation_coordinator = GenerationCoordinator(
+                self.deliveries,
+                self.websocket,
+                self.generation,
+            )
+        return self._generation_coordinator
+
     @property
     def websocket(self) -> WebSocketService:
         """Get WebSocket service instance."""

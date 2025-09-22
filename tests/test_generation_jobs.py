@@ -2,20 +2,21 @@
 
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, cast
 
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from fastapi import BackgroundTasks
 from fastapi.testclient import TestClient
 
-from backend.api.v1.generation import _serialize_generation_job
 from backend.main import app as backend_app
 from backend.services import ServiceContainer
 from backend.services.deliveries import DeliveryService
+from backend.services.generation import GenerationCoordinator, GenerationService
 from backend.services.queue import QueueBackend
 from backend.services.websocket import WebSocketService
-from backend.schemas import SDNextGenerationResult
+from backend.schemas import SDNextGenerationParams, SDNextGenerationResult
 
 
 def _create_generation_params(prompt: str) -> Dict[str, Dict[str, object]]:
@@ -165,13 +166,99 @@ def test_serialize_generation_job_normalizes_payload(delivery_service: DeliveryS
         },
     )
 
-    serialized = _serialize_generation_job(job, delivery_service)
+    coordinator = GenerationCoordinator(
+        delivery_service,
+        WebSocketService(),
+        GenerationService(),
+    )
+
+    serialized = coordinator.serialize_delivery_job(job)
 
     assert serialized["params"]["prompt"] == "Prompt"
     assert serialized["progress"] == 50.0
     assert serialized["message"] == "Working"
     assert serialized["error"] == "Minor issue"
     assert serialized["result"]["progress"] == 0.5
+
+
+def test_generation_coordinator_schedule_generation_job(db_session):
+    """Coordinator schedules jobs and forwards enqueue kwargs."""
+
+    class RecordingQueue(QueueBackend):
+        def __init__(self) -> None:
+            self.calls = []
+
+        def enqueue_delivery(self, job_id, *, background_tasks=None, **enqueue_kwargs):  # type: ignore[override]
+            self.calls.append((job_id, background_tasks, enqueue_kwargs))
+
+    queue = RecordingQueue()
+    deliveries = DeliveryService(db_session, queue_backend=queue)
+    coordinator = GenerationCoordinator(
+        deliveries,
+        WebSocketService(),
+        GenerationService(),
+    )
+
+    params = SDNextGenerationParams(prompt="Prompt")
+    background_tasks = BackgroundTasks()
+
+    job = coordinator.schedule_generation_job(
+        params,
+        backend="custom",
+        mode="deferred",
+        save_images=False,
+        return_format="url",
+        background_tasks=background_tasks,
+        priority="high",
+    )
+
+    assert job.prompt == "Prompt"
+
+    assert len(queue.calls) == 1
+    call_job_id, call_background, call_kwargs = queue.calls[0]
+    assert call_job_id == job.id
+    assert call_background is background_tasks
+    assert call_kwargs["priority"] == "high"
+
+    stored_params = deliveries.get_job_params(job)
+    assert stored_params["generation_params"]["prompt"] == "Prompt"
+    assert stored_params["backend"] == "custom"
+    assert stored_params["mode"] == "deferred"
+    assert stored_params["save_images"] is False
+    assert stored_params["return_format"] == "url"
+
+
+@pytest.mark.anyio
+async def test_generation_coordinator_broadcast_job_started(monkeypatch: pytest.MonkeyPatch):
+    """Coordinator triggers WebSocket monitoring and broadcasts."""
+
+    deliveries = cast(DeliveryService, MagicMock(spec=DeliveryService))
+    websocket = WebSocketService()
+    coordinator = GenerationCoordinator(
+        deliveries,
+        websocket,
+        GenerationService(),
+    )
+
+    start_mock = AsyncMock()
+    broadcast_mock = AsyncMock()
+    monkeypatch.setattr(websocket, "start_job_monitoring", start_mock)
+    monkeypatch.setattr(websocket.manager, "broadcast_generation_started", broadcast_mock)
+
+    params = SDNextGenerationParams(prompt="Prompt")
+
+    await coordinator.broadcast_job_started("job-1", params)
+
+    start_mock.assert_awaited_once()
+    awaited_job_id, awaited_service = start_mock.await_args.args
+    assert awaited_job_id == "job-1"
+    assert isinstance(awaited_service, GenerationService)
+
+    broadcast_mock.assert_awaited_once()
+    broadcast_args = broadcast_mock.await_args.args
+    assert broadcast_args[0] == "job-1"
+    assert broadcast_args[1].job_id == "job-1"
+    assert broadcast_args[1].params.prompt == "Prompt"
 
 
 def test_queue_generation_job_uses_primary_queue_backend(
