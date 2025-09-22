@@ -11,6 +11,7 @@ from backend.services.queue import (
     reset_queue_backends,
 )
 from backend.workers import tasks as worker_tasks
+from backend.workers.tasks import reset_worker_context, set_worker_context
 
 
 def _restore_queue_state(original_url: str | None) -> None:
@@ -18,7 +19,7 @@ def _restore_queue_state(original_url: str | None) -> None:
 
     settings.REDIS_URL = original_url
     reset_queue_backends()
-    worker_tasks.initialize_queue_backends()
+    reset_worker_context()
 
 
 def test_queue_factory_shared_backend_with_redis(db_session) -> None:
@@ -28,7 +29,9 @@ def test_queue_factory_shared_backend_with_redis(db_session) -> None:
     reset_queue_backends()
     try:
         settings.REDIS_URL = "redis://localhost:6379/0"
-        worker_tasks.initialize_queue_backends()
+        reset_worker_context()
+        context = worker_tasks.build_worker_context()
+        set_worker_context(context)
 
         primary, fallback = get_queue_backends()
         assert isinstance(primary, RedisQueueBackend)
@@ -37,10 +40,10 @@ def test_queue_factory_shared_backend_with_redis(db_session) -> None:
         container = ServiceContainer(db_session)
         deliveries_service = container.deliveries
 
-        assert deliveries_service._queue_backend is primary
-        assert deliveries_service._fallback_queue_backend is fallback
-        assert worker_tasks.queue_backend is primary
-        assert worker_tasks.fallback_queue_backend is fallback
+        assert deliveries_service._queue_backend is context.queue_backend
+        assert deliveries_service._fallback_queue_backend is context.fallback_queue_backend
+        assert context.primary_queue_backend is primary
+        assert context.fallback_queue_backend is fallback
     finally:
         _restore_queue_state(original_url)
 
@@ -52,7 +55,9 @@ def test_queue_factory_shared_backend_without_redis(db_session) -> None:
     reset_queue_backends()
     try:
         settings.REDIS_URL = None
-        worker_tasks.initialize_queue_backends()
+        reset_worker_context()
+        context = worker_tasks.build_worker_context()
+        set_worker_context(context)
 
         primary, fallback = get_queue_backends()
         assert primary is None
@@ -62,10 +67,9 @@ def test_queue_factory_shared_backend_without_redis(db_session) -> None:
         deliveries_service = container.deliveries
 
         assert deliveries_service._queue_backend is None
-        assert deliveries_service._fallback_queue_backend is fallback
-        assert worker_tasks.primary_queue_backend is None
-        assert worker_tasks.queue_backend is fallback
-        assert worker_tasks.fallback_queue_backend is fallback
-        assert worker_tasks.q is None
+        assert deliveries_service._fallback_queue_backend is context.fallback_queue_backend
+        assert context.primary_queue_backend is None
+        assert context.queue_backend is fallback
+        assert context.fallback_queue_backend is fallback
     finally:
         _restore_queue_state(original_url)
