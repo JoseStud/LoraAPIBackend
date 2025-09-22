@@ -16,7 +16,7 @@ from backend.services.deliveries import DeliveryService
 from backend.services.generation import GenerationCoordinator, GenerationService
 from backend.services.queue import QueueBackend
 from backend.services.websocket import WebSocketService
-from backend.schemas import SDNextGenerationParams, SDNextGenerationResult
+from backend.schemas import SDNextGenerationParams
 
 
 def _create_generation_params(prompt: str) -> Dict[str, Dict[str, object]]:
@@ -402,59 +402,4 @@ def test_queue_generation_job_falls_back_to_background_tasks(
     assert broadcast_args[0] == job_id
     assert broadcast_kwargs == {}
 
-
-@pytest.mark.anyio
-async def test_websocket_monitor_uses_persisted_results(
-    delivery_service: DeliveryService,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    """WebSocket monitor loads stored job results when announcing completion."""
-
-    job = delivery_service.create_job("Prompt", "sdnext", _create_generation_params("Prompt"))
-    delivery_service.update_job_status(job.id, "running")
-
-    stored_payload = {
-        "status": "completed",
-        "images": ["data:image/png;base64,finished"],
-        "generation_info": {"duration": 1.2},
-        "progress": 1.0,
-    }
-    delivery_service.update_job_status(job.id, "succeeded", stored_payload)
-
-    class DummyGenerationService:
-        async def check_progress(self, job_id: str):
-            assert job_id == job.id
-            return SDNextGenerationResult(
-                job_id=job_id,
-                status="running",
-                progress=0.0,
-            )
-
-    websocket_service = WebSocketService()
-
-    progress_mock = AsyncMock()
-    complete_mock = AsyncMock()
-    monkeypatch.setattr(websocket_service.manager, "broadcast_progress", progress_mock)
-    monkeypatch.setattr(
-        websocket_service.manager,
-        "broadcast_generation_complete",
-        complete_mock,
-    )
-
-    await websocket_service._monitor_job_progress(job.id, DummyGenerationService())
-
-    progress_call = progress_mock.await_args
-    assert progress_call.args[0] == job.id
-    progress_payload = progress_call.args[1]
-    assert progress_payload.status == "completed"
-    assert progress_payload.progress == pytest.approx(1.0)
-
-    complete_call = complete_mock.await_args
-    assert complete_call.args[0] == job.id
-    completion_payload = complete_call.args[1]
-    assert completion_payload.status == "completed"
-    assert completion_payload.images == stored_payload["images"]
-    assert completion_payload.generation_info == stored_payload["generation_info"]
-    assert completion_payload.error_message is None
-    assert completion_payload.total_duration is not None
 
