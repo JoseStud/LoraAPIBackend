@@ -15,7 +15,10 @@ from .deliveries import DeliveryService
 from .generation import GenerationCoordinator, GenerationService
 from .queue import QueueBackend, get_queue_backends
 from .storage import StorageService
-from .recommendations import RecommendationService
+from .recommendations import (
+    RecommendationModelBootstrap,
+    RecommendationService,
+)
 from .system import SystemService
 from .websocket import WebSocketService, websocket_service
 
@@ -180,12 +183,18 @@ class ServiceContainer:
             raise ValueError("RecommendationService requires an active database session")
 
         if self._recommendation_gpu_available is None:
-            self._recommendation_gpu_available = RecommendationService.is_gpu_available()
+            self._recommendation_gpu_available = (
+                RecommendationModelBootstrap.is_gpu_available()
+            )
 
         if self._recommendation_service is None:
+            model_bootstrap = RecommendationModelBootstrap(
+                gpu_enabled=self._recommendation_gpu_available,
+            )
             self._recommendation_service = RecommendationService(
                 self.db_session,
                 gpu_enabled=self._recommendation_gpu_available,
+                model_bootstrap=model_bootstrap,
             )
 
         return self._recommendation_service

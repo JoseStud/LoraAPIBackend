@@ -22,15 +22,110 @@ from backend.schemas.recommendations import (
     UserPreferenceRequest,
 )
 from backend.services import ServiceContainer
-from backend.services.recommendations import RecommendationService
+from backend.services.recommendations import (
+    RecommendationModelBootstrap,
+    RecommendationPersistenceManager,
+    RecommendationService,
+)
+from backend.services.recommendations.model_registry import RecommendationModelRegistry
 
 
 @pytest.fixture(autouse=True)
 def force_cpu_mode():
     """Ensure tests run with GPU detection disabled unless overridden."""
 
-    with patch.object(RecommendationService, "is_gpu_available", return_value=False):
+    with patch.object(
+        RecommendationModelBootstrap, "is_gpu_available", return_value=False
+    ):
         yield
+
+
+class TestRecommendationModelBootstrap:
+    """Unit tests for the model bootstrap helper."""
+
+    def test_uses_provided_gpu_flag(self):
+        """Explicit GPU flags should determine the selected device."""
+
+        bootstrap = RecommendationModelBootstrap(gpu_enabled=True)
+
+        assert bootstrap.gpu_enabled is True
+        assert bootstrap.device == "cuda"
+
+    def test_preload_models_delegates_to_registry(self):
+        """Preloading should call the registry with the resolved device."""
+
+        with patch.object(RecommendationModelRegistry, "preload_models") as preload:
+            RecommendationModelBootstrap.preload_models_for_environment(
+                gpu_enabled=False
+            )
+
+        preload.assert_called_once_with(device="cpu", gpu_enabled=False)
+
+
+@pytest.mark.anyio("asyncio")
+class TestRecommendationPersistenceManager:
+    """Unit tests for recommendation persistence management."""
+
+    async def test_skip_when_existing_index_present(self, tmp_path):
+        """A populated engine should skip rebuilding unless forced."""
+
+        engine = MagicMock()
+        engine.lora_ids = ["existing"]
+
+        mock_embedding_manager = MagicMock()
+        mock_embedding_manager.build_similarity_index = AsyncMock()
+
+        manager = RecommendationPersistenceManager(
+            mock_embedding_manager,
+            lambda: engine,
+            index_cache_path=tmp_path / "index.pkl",
+        )
+
+        result = await manager.rebuild_similarity_index()
+
+        assert result.skipped is True
+        mock_embedding_manager.build_similarity_index.assert_not_awaited()
+
+    async def test_rebuild_persists_payload_to_disk(self, tmp_path):
+        """Rebuilding should persist the computed embeddings payload."""
+
+        engine = MagicMock()
+        engine.lora_ids = []
+        engine.semantic_embeddings = []
+        engine.artistic_embeddings = []
+        engine.technical_embeddings = []
+
+        async def populate_index():
+            engine.lora_ids = ["a", "b"]
+            engine.semantic_embeddings = np.array([[1.0], [0.5]], dtype=np.float32)
+            engine.artistic_embeddings = np.array([[0.2], [0.3]], dtype=np.float32)
+            engine.technical_embeddings = np.array([[0.9], [0.1]], dtype=np.float32)
+
+        mock_embedding_manager = MagicMock()
+        mock_embedding_manager.build_similarity_index = AsyncMock(
+            side_effect=populate_index
+        )
+
+        manager = RecommendationPersistenceManager(
+            mock_embedding_manager,
+            lambda: engine,
+            index_cache_path=tmp_path / "rebuilt.pkl",
+        )
+
+        result = await manager.rebuild_similarity_index(force=True)
+
+        assert result.status == "rebuilt"
+        assert result.indexed_items == 2
+
+        index_file = Path(result.index_path)
+        assert index_file.exists()
+
+        with index_file.open("rb") as handle:
+            payload = pickle.load(handle)
+
+        assert payload["lora_ids"] == ["a", "b"]
+        np.testing.assert_array_equal(payload["semantic_embeddings"], engine.semantic_embeddings)
+        mock_embedding_manager.build_similarity_index.assert_awaited_once()
 
 
 def create_recommendation_service(db_session):
@@ -127,7 +222,9 @@ class TestRecommendationService:
 
     def test_initialization_with_gpu(self, db_session):
         """Test service initialization with GPU enabled."""
-        with patch.object(RecommendationService, 'is_gpu_available', return_value=True):
+        with patch.object(
+            RecommendationModelBootstrap, 'is_gpu_available', return_value=True
+        ):
             service = create_recommendation_service(db_session)
 
             assert service.gpu_enabled
@@ -498,7 +595,6 @@ class TestRecommendationService:
 
         service = create_recommendation_service(db_session)
         index_path = tmp_path / "index.pkl"
-        service.index_cache_path = str(index_path)
 
         engine = MagicMock()
         engine.lora_ids = ["a", "b"]
@@ -506,8 +602,15 @@ class TestRecommendationService:
         engine.artistic_embeddings = np.array([[1.0], [0.5]], dtype=np.float32)
         engine.technical_embeddings = np.array([[1.0], [0.5]], dtype=np.float32)
 
-        service._get_recommendation_engine = MagicMock(return_value=engine)
-        service._build_similarity_index = AsyncMock()
+        mock_embedding_manager = MagicMock()
+        mock_embedding_manager.build_similarity_index = AsyncMock()
+
+        service._persistence_manager = RecommendationPersistenceManager(
+            mock_embedding_manager,
+            lambda: engine,
+        )
+
+        service.index_cache_path = str(index_path)
 
         result = await service.rebuild_similarity_index(force=True)
 
@@ -521,6 +624,7 @@ class TestRecommendationService:
         assert result.status == "rebuilt"
         assert result.indexed_items == len(engine.lora_ids)
         assert result.index_size_bytes > 0
+        mock_embedding_manager.build_similarity_index.assert_awaited_once()
 
 
 class TestRecommendationModels:
