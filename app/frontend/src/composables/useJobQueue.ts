@@ -14,6 +14,7 @@ import { useBackendBase } from '@/utils/backend';
 import type { GenerationJob, GenerationResult } from '@/types';
 
 const DEFAULT_POLL_INTERVAL = 2000;
+const PRIMARY_FAILURE_LOG_COOLDOWN = 5000;
 
 export interface UseJobQueueOptions {
   pollInterval?: MaybeRefOrGetter<number>;
@@ -104,6 +105,21 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
   const isCancelling = ref(false);
   const apiAvailable = ref(true);
   const pollTimer = ref<ReturnType<typeof setInterval> | null>(null);
+  const lastPrimaryFailureLogAt = ref<number | null>(null);
+  const legacyEndpointMissing = ref(false);
+  const legacyMissingLogged = ref(false);
+
+  const logPrimaryFailure = (error: unknown) => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    const now = Date.now();
+    if (!lastPrimaryFailureLogAt.value || now - lastPrimaryFailureLogAt.value >= PRIMARY_FAILURE_LOG_COOLDOWN) {
+      console.info('[JobQueue] Generation endpoint unavailable, falling back', error);
+      lastPrimaryFailureLogAt.value = now;
+    }
+  };
 
   const applyJobRecord = (record: JobRecord) => {
     const jobId = pickJobId(record);
@@ -195,18 +211,26 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
       try {
         records = await fetchActiveGenerationJobs(backendBase.value);
         apiAvailable.value = true;
+        lastPrimaryFailureLogAt.value = null;
       } catch (error) {
-        if (import.meta.env.DEV) {
-          console.info('[JobQueue] Generation endpoint unavailable, falling back', error);
+        logPrimaryFailure(error);
+
+        if (legacyEndpointMissing.value) {
+          return;
         }
 
         try {
           records = await fetchLegacyJobStatuses(backendBase.value);
           apiAvailable.value = true;
+          legacyEndpointMissing.value = false;
+          legacyMissingLogged.value = false;
         } catch (fallbackError) {
           if (fallbackError instanceof ApiError && fallbackError.status === 404) {
-            apiAvailable.value = false;
-            stopPolling();
+            legacyEndpointMissing.value = true;
+            if (import.meta.env.DEV && !legacyMissingLogged.value) {
+              console.info('[JobQueue] Legacy job endpoint missing, continuing without fallback');
+              legacyMissingLogged.value = true;
+            }
           } else if (import.meta.env.DEV) {
             console.info('[JobQueue] Legacy job endpoint failed', fallbackError);
           }
