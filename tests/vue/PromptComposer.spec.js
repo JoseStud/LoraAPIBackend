@@ -58,7 +58,7 @@ describe('PromptComposer.vue', () => {
     const wrapper = mount(PromptComposer);
     await flush();
     // Click Generate without a base prompt
-    const generateBtn = wrapper.find('button.btn.btn-primary.w-full');
+    const generateBtn = wrapper.find('[data-testid="generate-image"]');
     await generateBtn.trigger('click');
     await flush();
     expect(wrapper.find('[data-testid="base-error"]').text()).toContain('Base prompt is required');
@@ -69,21 +69,21 @@ describe('PromptComposer.vue', () => {
     await flush();
 
     // Click first available lora
-    const firstItem = wrapper.find('[data-testid="lora-list"] > div');
+    const firstItem = wrapper.find('[data-testid="lora-list"] button');
     await firstItem.trigger('click');
     await nextTick();
 
     // Set base prompt
-    const base = wrapper.find('textarea');
+    const base = wrapper.find('[data-testid="base-prompt"]');
     await base.setValue('A scenic view');
     await nextTick();
 
     // Change weight slider
-    const slider = wrapper.find('input[type="range"]');
+    const slider = wrapper.find('[data-testid="weight-slider"]');
     await slider.setValue('1.5');
     await nextTick();
 
-    const finalPrompt = wrapper.findAll('textarea').at(2).element.value;
+    const finalPrompt = wrapper.find('[data-testid="final-prompt"]').element.value;
     expect(finalPrompt).toContain('A scenic view');
     expect(finalPrompt).toContain('<lora:LoraOne:1.5>');
   });
@@ -92,21 +92,21 @@ describe('PromptComposer.vue', () => {
     const wrapper = mount(PromptComposer);
     await flush();
 
-    await wrapper.find('[data-testid="lora-list"] > div').trigger('click');
+    await wrapper.find('[data-testid="lora-list"] button').trigger('click');
     await nextTick();
 
-    const base = wrapper.find('textarea');
+    const base = wrapper.find('[data-testid="base-prompt"]');
     await base.setValue('A base prompt');
     await nextTick();
 
-    let finalPrompt = wrapper.findAll('textarea').at(2).element.value;
+    let finalPrompt = wrapper.find('[data-testid="final-prompt"]').element.value;
     expect(finalPrompt).toContain('<lora:LoraOne:1.0>');
 
-    const slider = wrapper.find('input[type="range"]');
+    const slider = wrapper.find('[data-testid="weight-slider"]');
     await slider.setValue('0');
     await nextTick();
 
-    finalPrompt = wrapper.findAll('textarea').at(2).element.value;
+    finalPrompt = wrapper.find('[data-testid="final-prompt"]').element.value;
     expect(finalPrompt).toContain('<lora:LoraOne:0.0>');
   });
 
@@ -114,15 +114,15 @@ describe('PromptComposer.vue', () => {
     const wrapper = mount(PromptComposer);
     await flush();
 
-    const base = wrapper.find('textarea');
+    const base = wrapper.find('[data-testid="base-prompt"]');
     await base.setValue('Base prompt');
     await nextTick();
 
-    const negative = wrapper.findAll('textarea').at(1);
+    const negative = wrapper.find('[data-testid="negative-prompt"]');
     await negative.setValue('blurry, low quality');
     await nextTick();
 
-    const finalPrompt = wrapper.findAll('textarea').at(2).element.value;
+    const finalPrompt = wrapper.find('[data-testid="final-prompt"]').element.value;
     expect(finalPrompt).toBe('Base prompt');
   });
 
@@ -130,13 +130,13 @@ describe('PromptComposer.vue', () => {
     const wrapper = mount(PromptComposer);
     await flush();
 
-    const firstItem = wrapper.find('[data-testid="lora-list"] > div');
+    const firstItem = wrapper.find('[data-testid="lora-list"] button');
     await firstItem.trigger('click');
     await nextTick();
-    // Validate reactive state restored
-    expect(wrapper.vm.activeLoras?.length || 0).toBeGreaterThan(0);
 
-    const removeBtn = wrapper.find('button.btn.btn-secondary.btn-xs:last-of-type');
+    expect(wrapper.find('[data-testid="composition"]').text()).not.toContain('No LoRAs in composition');
+
+    const removeBtn = wrapper.find('[data-testid="remove-entry"]');
     await removeBtn.trigger('click');
     await nextTick();
     expect(wrapper.find('[data-testid="composition"]').text()).toContain('No LoRAs in composition');
@@ -159,16 +159,16 @@ describe('PromptComposer.vue', () => {
     await flush();
 
     // Add lora and base prompt
-    await wrapper.find('[data-testid="lora-list"] > div').trigger('click');
-    await wrapper.find('textarea').setValue('Base');
+    await wrapper.find('[data-testid="lora-list"] button').trigger('click');
+    await wrapper.find('[data-testid="base-prompt"]').setValue('Base');
     await nextTick();
 
     // Save
-    const saveBtn = wrapper.findAll('button.btn.btn-secondary.w-full').at(1);
+    const saveBtn = wrapper.find('[data-testid="save-composition"]');
     await saveBtn.trigger('click');
 
     // Clear composition by removing item
-    await wrapper.find('button.btn.btn-secondary.btn-xs:last-of-type').trigger('click');
+    await wrapper.find('[data-testid="remove-entry"]').trigger('click');
     await nextTick();
     expect(wrapper.find('[data-testid="composition"]').text()).toContain('No LoRAs');
 
@@ -179,19 +179,20 @@ describe('PromptComposer.vue', () => {
       neg: ''
     }));
 
-    // Load (call component method directly to avoid selector ambiguity)
-    await wrapper.vm.loadComposition();
+    const loadBtn = wrapper.findAll('button').find((btn) => btn.text() === 'Load Composition');
+    expect(loadBtn).toBeDefined();
+    await loadBtn.trigger('click');
     await flush();
-    expect(wrapper.vm.activeLoras?.length || 0).toBeGreaterThan(0);
+    expect(wrapper.find('[data-testid="composition"]').text()).not.toContain('No LoRAs');
   });
 
   it('generates when base prompt is valid', async () => {
     const wrapper = mount(PromptComposer);
     await flush();
 
-    await wrapper.find('textarea').setValue('Hello');
+    await wrapper.find('[data-testid="base-prompt"]').setValue('Hello');
     await nextTick();
-    const generateBtn = wrapper.find('button.btn.btn-primary.w-full');
+    const generateBtn = wrapper.find('[data-testid="generate-image"]');
     await generateBtn.trigger('click');
     await flush();
     // Called at least once for /generate
