@@ -6,9 +6,8 @@
 
 import { ref } from 'vue';
 
-import { exportAnalyticsReport } from '@/services/analyticsService';
+import { exportAnalyticsReport, fetchPerformanceAnalytics } from '@/services/analyticsService';
 import { fetchTopAdapters } from '@/services/loraService';
-import { fetchDashboardStats } from '@/services/systemService';
 import { useBackendBase } from '@/utils/backend';
 import { formatDuration as formatDurationLabel } from '@/utils/format';
 
@@ -83,71 +82,6 @@ const createDevTopLoras = (): TopLoraPerformance[] => [
   },
 ];
 
-const createDevErrorAnalysis = (): ErrorAnalysisEntry[] => [
-  {
-    type: 'GPU Memory Exhausted',
-    count: 28,
-    percentage: 39.4,
-    description: 'Insufficient GPU memory',
-  },
-];
-
-const createDevPerformanceInsights = (): PerformanceInsightEntry[] => [
-  {
-    id: 1,
-    title: 'High GPU Memory Usage',
-    description: 'GPU memory utilization averaging 87%.',
-    severity: 'medium',
-    recommendation: 'enable_memory_optimization',
-  },
-];
-
-const generateMockChartData = (
-  topLoras: TopLoraPerformance[],
-): PerformanceAnalyticsCharts => {
-  const hours = 24;
-  const now = new Date();
-
-  const generationVolume = Array.from({ length: hours }, (_, index) => {
-    const time = new Date(now.getTime() - (hours - index - 1) * 60 * 60 * 1000);
-    return {
-      timestamp: time.toISOString(),
-      count: Math.floor(Math.random() * 50) + 10,
-    };
-  });
-
-  const performance = Array.from({ length: hours }, (_, index) => {
-    const time = new Date(now.getTime() - (hours - index - 1) * 60 * 60 * 1000);
-    return {
-      timestamp: time.toISOString(),
-      avg_time: Math.random() * 30 + 30,
-      success_rate: Math.random() * 10 + 90,
-    };
-  });
-
-  const loraUsage = topLoras.slice(0, 10).map((lora) => ({
-    name: lora.name,
-    usage_count: lora.usage_count,
-  }));
-
-  const resourceUsage = Array.from({ length: hours }, (_, index) => {
-    const time = new Date(now.getTime() - (hours - index - 1) * 60 * 60 * 1000);
-    return {
-      timestamp: time.toISOString(),
-      cpu_percent: Math.random() * 40 + 30,
-      memory_percent: Math.random() * 30 + 50,
-      gpu_percent: Math.random() * 50 + 40,
-    };
-  });
-
-  return {
-    generationVolume,
-    performance,
-    loraUsage,
-    resourceUsage,
-  };
-};
-
 export function usePerformanceAnalytics() {
   const backendBase = useBackendBase();
 
@@ -162,34 +96,6 @@ export function usePerformanceAnalytics() {
   const performanceInsights = ref<PerformanceInsightEntry[]>([]);
   const chartData = ref<PerformanceAnalyticsCharts>(createEmptyCharts());
 
-  const loadKPIs = async (): Promise<void> => {
-    try {
-      const summary = await fetchDashboardStats(backendBase.value);
-      const stats = summary?.stats;
-      kpis.value = {
-        ...DEFAULT_KPIS,
-        active_loras: stats?.active_loras ?? 0,
-        total_loras: stats?.total_loras ?? 0,
-      };
-    } catch (error) {
-      console.error('Error loading KPIs:', error);
-      if (import.meta.env.DEV) {
-        kpis.value = {
-          total_generations: 1247,
-          generation_growth: 12.5,
-          avg_generation_time: 45.3,
-          time_improvement: 8.2,
-          success_rate: 94.3,
-          total_failed: 71,
-          active_loras: 34,
-          total_loras: 127,
-        } satisfies PerformanceKpiSummary;
-      } else {
-        kpis.value = { ...DEFAULT_KPIS };
-      }
-    }
-  };
-
   const loadTopLoras = async (): Promise<void> => {
     try {
       const adapters = await fetchTopAdapters(backendBase.value, 10);
@@ -197,6 +103,16 @@ export function usePerformanceAnalytics() {
 
       if (!topLoras.value.length && import.meta.env.DEV) {
         topLoras.value = createDevTopLoras();
+      }
+
+      if (topLoras.value.length && chartData.value.loraUsage.length === 0) {
+        chartData.value = {
+          ...chartData.value,
+          loraUsage: topLoras.value.map((lora) => ({
+            name: lora.name,
+            usage_count: lora.usage_count,
+          })),
+        } satisfies PerformanceAnalyticsCharts;
       }
     } catch (error) {
       console.error('Error loading top LoRAs:', error);
@@ -208,37 +124,36 @@ export function usePerformanceAnalytics() {
     }
   };
 
-  const loadErrorAnalysis = async (): Promise<void> => {
-    errorAnalysis.value = [];
-    if (import.meta.env.DEV) {
-      errorAnalysis.value = createDevErrorAnalysis();
-    }
-  };
+  const loadAnalyticsSummary = async (): Promise<void> => {
+    try {
+      const summary = await fetchPerformanceAnalytics(backendBase.value, timeRange.value);
 
-  const loadPerformanceInsights = async (): Promise<void> => {
-    performanceInsights.value = [];
-    if (import.meta.env.DEV) {
-      performanceInsights.value = createDevPerformanceInsights();
-    }
-  };
+      kpis.value = {
+        ...DEFAULT_KPIS,
+        ...(summary.kpis ?? {}),
+      } satisfies PerformanceKpiSummary;
 
-  const loadChartData = async (): Promise<void> => {
-    chartData.value = createEmptyCharts();
-    if (import.meta.env.DEV) {
-      chartData.value = generateMockChartData(topLoras.value);
+      chartData.value = {
+        ...createEmptyCharts(),
+        ...summary.chartData,
+      } satisfies PerformanceAnalyticsCharts;
+
+      errorAnalysis.value = [...summary.errorAnalysis];
+      performanceInsights.value = [...summary.performanceInsights];
+    } catch (error) {
+      console.error('Error loading analytics summary:', error);
+      kpis.value = { ...DEFAULT_KPIS };
+      chartData.value = createEmptyCharts();
+      errorAnalysis.value = [];
+      performanceInsights.value = [];
     }
   };
 
   const loadAllData = async (): Promise<void> => {
     isLoading.value = true;
     try {
-      await Promise.all([
-        loadKPIs(),
-        loadTopLoras(),
-        loadErrorAnalysis(),
-        loadPerformanceInsights(),
-      ]);
-      await loadChartData();
+      await loadAnalyticsSummary();
+      await loadTopLoras();
     } finally {
       isLoading.value = false;
     }

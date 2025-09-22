@@ -6,6 +6,17 @@ from .adapters import (
     AdapterRead,
     AdapterWrapper,
 )
+from .analytics import (
+    ErrorAnalysisEntry,
+    GenerationVolumePoint,
+    PerformanceAnalyticsCharts,
+    PerformanceAnalyticsSummary,
+    PerformanceInsightEntry,
+    PerformanceKpiSummary,
+    PerformanceSeriesPoint,
+    PerformanceTimeRange,
+    ResourceUsagePoint,
+)
 from .common import (
     WebSocketMessage,
     WebSocketSubscription,
@@ -54,9 +65,19 @@ from .recommendations import (
 __all__ = [
     # Adapters
     "AdapterCreate",
-    "AdapterRead", 
+    "AdapterRead",
     "AdapterWrapper",
     "AdapterListResponse",
+    # Analytics
+    "PerformanceAnalyticsSummary",
+    "PerformanceAnalyticsCharts",
+    "PerformanceKpiSummary",
+    "PerformanceInsightEntry",
+    "ErrorAnalysisEntry",
+    "PerformanceTimeRange",
+    "GenerationVolumePoint",
+    "PerformanceSeriesPoint",
+    "ResourceUsagePoint",
     # Deliveries
     "ComposeDeliveryHTTP",
     "ComposeDeliveryCLI",
