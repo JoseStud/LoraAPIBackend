@@ -140,16 +140,16 @@ const formatDuration = (startTime?: string) => {
 
 const getStatusColorClass = (status: string) => {
   switch (status) {
-    case 'running':
+    case 'processing':
       return 'text-blue-600';
+    case 'queued':
+      return 'text-yellow-600';
     case 'completed':
       return 'text-green-600';
     case 'failed':
       return 'text-red-600';
-    case 'cancelled':
-      return 'text-gray-600';
     default:
-      return 'text-yellow-600';
+      return 'text-gray-600';
   }
 };
 
@@ -164,7 +164,7 @@ const getJobDetailsText = (job: GenerationJob) => {
 };
 
 const canCancelJob = (job: GenerationJob) => {
-  return job.status === 'running' || job.status === 'starting' || job.status === 'queued' || job.status === 'processing';
+  return job.status === 'queued' || job.status === 'processing';
 };
 
 const handleClearCompleted = () => {

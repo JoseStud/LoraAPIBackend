@@ -21,6 +21,7 @@ from backend.schemas import (
     SDNextGenerationResult,
 )
 from backend.services import ServiceContainer
+from backend.services.generation import normalize_generation_status
 
 ACTIVE_JOB_STATUSES = {"pending", "running"}
 CANCELLABLE_STATUSES = {"pending", "running"}
@@ -104,6 +105,9 @@ async def check_generation_progress(
         raise HTTPException(status_code=404, detail=f"Backend '{backend}' not found")
     
     result = await generation_backend.check_progress(job_id)
+    normalized_status = normalize_generation_status(result.status)
+    if normalized_status != result.status:
+        result = result.model_copy(update={"status": normalized_status})
     return result
 
 
@@ -236,7 +240,7 @@ async def list_active_generation_jobs(
                 id=job.id,
                 jobId=job.id,
                 prompt=generation_params.get("prompt") or job.prompt,
-                status=job.status,
+                status=normalize_generation_status(job.status),
                 progress=serialized["progress"],
                 message=serialized["message"],
                 error=serialized["error"],
@@ -267,7 +271,7 @@ async def get_generation_job(
         prompt=job.prompt,
         mode=job.mode,
         params=services.deliveries.get_job_params(job),
-        status=job.status,
+                status=normalize_generation_status(job.status),
         result=services.deliveries.get_job_result(job),
         created_at=job.created_at,
         started_at=job.started_at,
@@ -337,7 +341,7 @@ async def list_generation_results(
                 job_id=job.id,
                 prompt=generation_params.get("prompt") or job.prompt,
                 negative_prompt=generation_params.get("negative_prompt"),
-                status=job.status,
+                status=normalize_generation_status(job.status),
                 image_url=image_url,
                 thumbnail_url=thumbnail_url,
                 width=generation_params.get("width"),

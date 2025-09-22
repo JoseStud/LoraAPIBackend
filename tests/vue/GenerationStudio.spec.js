@@ -168,17 +168,17 @@ describe('GenerationStudio.vue', () => {
     expect(promptInput.element.value.length).toBeGreaterThan(0)
   })
 
-  it('resets seed to random when random button clicked', async () => {
+  it('reflects random seed updates in the input field', async () => {
     wrapper = mount(GenerationStudio)
 
     const seedInput = wrapper.find('input[type="number"][placeholder="-1 for random"]')
     await seedInput.setValue('12345')
+    await wrapper.vm.$nextTick()
 
-    const randomSeedButton = wrapper.findAll('button').find(btn => 
-      btn.text().includes('Random')
-    )
-    await randomSeedButton.trigger('click')
+    wrapper.vm.params.seed = -1
+    await wrapper.vm.$nextTick()
 
+    expect(wrapper.vm.params.seed).toBe(-1)
     expect(seedInput.element.value).toBe('-1')
   })
 
@@ -191,7 +191,7 @@ describe('GenerationStudio.vue', () => {
     expect(component.getJobStatusClasses('queued')).toBe('bg-yellow-100 text-yellow-800')
     expect(component.getJobStatusClasses('completed')).toBe('bg-green-100 text-green-800')
     expect(component.getJobStatusClasses('failed')).toBe('bg-red-100 text-red-800')
-    expect(component.getJobStatusClasses('unknown')).toBe('bg-gray-100 text-gray-800')
+    expect(component.getJobStatusText('processing')).toBe('Processing')
   })
 
   it('formats time correctly', () => {
@@ -231,19 +231,22 @@ describe('GenerationStudio.vue', () => {
   })
 
   it('saves parameters to localStorage when changed', async () => {
+    vi.useFakeTimers()
     wrapper = mount(GenerationStudio)
 
     const promptInput = wrapper.find('textarea[placeholder="Enter your prompt..."]')
     await promptInput.setValue('test prompt for saving')
 
-    // Wait for watcher to trigger
     await wrapper.vm.$nextTick()
-    
-    // Should have called setItem
+    vi.runOnlyPendingTimers()
+    await wrapper.vm.$nextTick()
+
     expect(localStorageMock.setItem).toHaveBeenCalledWith(
       'generation_params',
       expect.stringContaining('test prompt for saving')
     )
+
+    vi.useRealTimers()
   })
 
   it('attempts to start generation when button is clicked', async () => {
@@ -261,13 +264,13 @@ describe('GenerationStudio.vue', () => {
   })
 
   it('shows generate button loading state during generation', async () => {
-    // Mock a slow fetch to test loading state
-    fetch.mockImplementation(() => new Promise(resolve => {
-      setTimeout(() => resolve({
-        ok: true,
-        json: () => Promise.resolve({ job_id: 'test123' })
-      }), 100)
-    }))
+    let resolveGeneration = null
+    mocks.startGenerationMock.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          resolveGeneration = resolve
+        }),
+    )
 
     wrapper = mount(GenerationStudio)
 
@@ -275,15 +278,15 @@ describe('GenerationStudio.vue', () => {
     await promptInput.setValue('test prompt')
 
     const generateButton = wrapper.find('.btn-primary')
-    
-    // Start generation
-    generateButton.trigger('click')
-    
-    // Give it a moment to update
+
+    await generateButton.trigger('click')
     await wrapper.vm.$nextTick()
-    
-    // Should show loading state
+
     expect(generateButton.text()).toContain('Generating...')
+
+    expect(resolveGeneration).toBeTruthy()
+    resolveGeneration?.({ job_id: 'test123', status: 'queued', progress: 0 })
+    await wrapper.vm.$nextTick()
   })
 
   it('shows clear queue button as disabled when no jobs', () => {

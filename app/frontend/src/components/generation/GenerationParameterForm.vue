@@ -185,13 +185,14 @@
 </template>
 
 <script setup lang="ts">
+import { toRef } from 'vue'
 import type { Ref } from 'vue'
 
 import type { GenerationFormState } from '@/types'
 
 const props = defineProps<{
   params: Ref<GenerationFormState>
-  isGenerating: Ref<boolean>
+  isGenerating: boolean
 }>()
 
 const emit = defineEmits<{
@@ -202,7 +203,7 @@ const emit = defineEmits<{
 }>()
 
 const params = props.params
-const isGenerating = props.isGenerating
+const isGenerating = toRef(props, 'isGenerating')
 
 const setRandomSeed = (): void => {
   params.value.seed = -1

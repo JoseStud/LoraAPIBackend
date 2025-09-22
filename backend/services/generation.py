@@ -15,6 +15,36 @@ from backend.services.deliveries import DeliveryService
 from backend.services.websocket import WebSocketService
 
 
+NORMALIZED_JOB_STATUSES = {"queued", "processing", "completed", "failed"}
+
+DELIVERY_TO_UI_STATUS_MAP = {
+    "pending": "queued",
+    "running": "processing",
+    "retrying": "processing",
+    "succeeded": "completed",
+    "failed": "failed",
+    "cancelled": "failed",
+}
+
+
+def normalize_generation_status(status: Optional[str]) -> str:
+    """Convert a delivery/job status into the UI vocabulary."""
+
+    if not status:
+        return "processing"
+
+    normalized = status.lower()
+
+    mapped = DELIVERY_TO_UI_STATUS_MAP.get(normalized)
+    if mapped is not None:
+        return mapped
+
+    if normalized in NORMALIZED_JOB_STATUSES:
+        return normalized
+
+    return "processing"
+
+
 class GenerationService:
     """Service for image generation operations."""
 
@@ -22,9 +52,19 @@ class GenerationService:
         """Initialize GenerationService."""
         pass
 
+    @staticmethod
+    def _with_normalized_status(
+        result: SDNextGenerationResult,
+    ) -> SDNextGenerationResult:
+        normalized_status = normalize_generation_status(result.status)
+        if normalized_status == result.status:
+            return result
+
+        return result.model_copy(update={"status": normalized_status})
+
     async def generate_image(
-        self, 
-        prompt: str, 
+        self,
+        prompt: str,
         backend_name: str = "sdnext",
         generation_params: Optional[SDNextGenerationParams] = None,
         **kwargs,
@@ -55,7 +95,8 @@ class GenerationService:
         if generation_params:
             params["generation_params"] = generation_params.model_dump()
         
-        return await backend.generate_image(prompt, params)
+        backend_result = await backend.generate_image(prompt, params)
+        return self._with_normalized_status(backend_result)
 
     async def check_generation_progress(
         self, 
@@ -81,7 +122,8 @@ class GenerationService:
                 error_message=str(e),
             )
         
-        return await backend.check_progress(job_id)
+        backend_result = await backend.check_progress(job_id)
+        return self._with_normalized_status(backend_result)
 
     async def list_available_backends(self) -> Dict[str, bool]:
         """List available generation backends and their status.

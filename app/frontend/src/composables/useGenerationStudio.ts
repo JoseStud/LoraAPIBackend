@@ -12,6 +12,7 @@ import {
 import { useAppStore } from '@/stores/app'
 import { useSettingsStore } from '@/stores/settings'
 import { normalizeGenerationProgress } from '@/utils/progress'
+import { normalizeJobStatus } from '@/utils/status'
 import type {
   GenerationFormState,
   GenerationJob,
@@ -96,7 +97,7 @@ export const useGenerationStudio = () => {
         const newJob: GenerationJob = {
           id: response.job_id,
           prompt: payload.prompt,
-          status: response.status as GenerationJob['status'],
+          status: normalizeJobStatus(response.status),
           progress: normalizeGenerationProgress(response.progress),
           startTime: createdAt,
           created_at: createdAt,
@@ -221,35 +222,23 @@ export const useGenerationStudio = () => {
     }
   }
 
-  const getJobStatusClasses = (status: GenerationJob['status']): string => {
-    switch (status) {
-      case 'processing':
-        return 'bg-blue-100 text-blue-800'
-      case 'queued':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'completed':
-        return 'bg-green-100 text-green-800'
-      case 'failed':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
+  const STATUS_CLASS_MAP: Record<GenerationJob['status'], string> = {
+    processing: 'bg-blue-100 text-blue-800',
+    queued: 'bg-yellow-100 text-yellow-800',
+    completed: 'bg-green-100 text-green-800',
+    failed: 'bg-red-100 text-red-800',
   }
 
-  const getJobStatusText = (status: GenerationJob['status']): string => {
-    switch (status) {
-      case 'processing':
-        return 'Processing'
-      case 'queued':
-        return 'Queued'
-      case 'completed':
-        return 'Completed'
-      case 'failed':
-        return 'Failed'
-      default:
-        return 'Unknown'
-    }
+  const STATUS_TEXT_MAP: Record<GenerationJob['status'], string> = {
+    processing: 'Processing',
+    queued: 'Queued',
+    completed: 'Completed',
+    failed: 'Failed',
   }
+
+  const getJobStatusClasses = (status: GenerationJob['status']): string => STATUS_CLASS_MAP[status]
+
+  const getJobStatusText = (status: GenerationJob['status']): string => STATUS_TEXT_MAP[status]
 
   const canCancelJob = (job: GenerationJob): boolean => {
     return job.status === 'queued' || job.status === 'processing'

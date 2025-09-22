@@ -67,7 +67,7 @@ describe('useJobQueue', () => {
       .mockResolvedValueOnce([
         {
           id: 'job-1',
-          status: 'running',
+          status: 'processing',
           progress: 25,
           message: 'Working',
         },
@@ -87,7 +87,7 @@ describe('useJobQueue', () => {
       expect(serviceMocks.fetchActiveGenerationJobs).toHaveBeenCalledTimes(2);
       expect(serviceMocks.fetchLegacyJobStatuses).toHaveBeenCalledTimes(1);
       expect(queue.jobs.value).toHaveLength(1);
-      expect(queue.jobs.value[0]).toMatchObject({ id: 'job-1', status: 'running', progress: 25 });
+      expect(queue.jobs.value[0]).toMatchObject({ id: 'job-1', status: 'processing', progress: 25 });
     });
   });
 });

@@ -5,6 +5,7 @@ import { useActiveJobsApi, useRecentResultsApi, useSystemStatusApi } from '@/com
 import { resolveBackendUrl, resolveGenerationBaseUrl } from '@/services/generationService'
 import { useAppStore } from '@/stores/app'
 import { normalizeGenerationProgress } from '@/utils/progress'
+import { normalizeJobStatus } from '@/utils/status'
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,
@@ -115,7 +116,7 @@ export const useGenerationUpdates = ({
   })
 
   const sortedActiveJobs: ComputedRef<GenerationJob[]> = computed(() => {
-    const statusPriority: Record<string, number> = {
+    const statusPriority: Record<GenerationJob['status'], number> = {
       processing: 0,
       queued: 1,
       completed: 2,
@@ -183,7 +184,7 @@ export const useGenerationUpdates = ({
     }
 
     job.progress = normalizeGenerationProgress(update.progress)
-    job.status = update.status as GenerationJob['status']
+    job.status = normalizeJobStatus(update.status)
 
     if (typeof update.current_step === 'number') {
       job.current_step = update.current_step

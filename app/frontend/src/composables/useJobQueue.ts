@@ -12,6 +12,7 @@ import { useAppStore } from '@/stores/app';
 import { useNotifications } from '@/composables/useNotifications';
 import { useBackendBase } from '@/utils/backend';
 import type { GenerationJob, GenerationResult } from '@/types';
+import { normalizeJobStatus } from '@/utils/status';
 
 const DEFAULT_POLL_INTERVAL = 2000;
 const PRIMARY_FAILURE_LOG_COOLDOWN = 5000;
@@ -129,7 +130,8 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
 
     const existing = activeJobs.value.find((job) => job.id === jobId || job.jobId === jobId);
     const wasTracked = Boolean(existing);
-    const status = String(record.status ?? existing?.status ?? 'running');
+    const rawStatus = typeof record.status === 'string' ? record.status : null;
+    const status = normalizeJobStatus(rawStatus ?? (existing?.status ?? undefined));
 
     if (status === 'completed') {
       if (record.result) {
@@ -146,7 +148,11 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
       if (wasTracked) {
         appStore.removeJob(existing!.id);
         const errorMessage = extractErrorMessage(record);
-        notifications.showError(`Generation failed: ${errorMessage}`);
+        if (rawStatus?.toLowerCase() === 'cancelled') {
+          notifications.showInfo('Generation cancelled');
+        } else {
+          notifications.showError(`Generation failed: ${errorMessage}`);
+        }
       }
       return;
     }
@@ -183,12 +189,6 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
             : new Date().toISOString(),
         ...updates,
       });
-      return;
-    }
-
-    if (status === 'cancelled') {
-      appStore.removeJob(existing!.id);
-      notifications.showInfo('Generation cancelled');
       return;
     }
 
