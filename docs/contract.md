@@ -1,497 +1,149 @@
-API contract — LoRA Manager Backend (IMPLEMENTED)
+API contract — LoRA Manager Backend (current status)
+===================================================
 
 ## Overview
 
-This document defines the core HTTP endpoints and operational responsibilities of the **implemented** LoRA Manager Backend. All primary features have been successfully built and are production-ready with comprehensive test coverage (28/28 tests passing across all modules).
-
-**Implementation Status: ✅ COMPLETE** - All core functionality implemented with additional SDNext integration, WebSocket support, and AI-powered recommendation system.
-
-## ✅ Primary responsibilities (IMPLEMENTED)
-
-- ✅ **Adapter metadata lifecycle** (create, read, update, delete) - Full CRUD with 25+ Civitai fields
-- ✅ **File registration and verification** for LoRA files with storage abstraction
-- ✅ **Activation state and ordered lists** of active adapters for prompt composition
-- ✅ **Prompt composition** (token formatting, prefix/suffix injection, ordering rules)
-- ✅ **Delivery orchestration** (HTTP, CLI, and **SDNext backends**)
-- ✅ **Background jobs** with Redis/RQ for asynchronous deliveries and generation
-- ✅ **Persistence** with SQLite/PostgreSQL + Alembic migrations + performance indexes
-- ✅ **Storage abstraction** for local FS (S3/MinIO ready)
-- ✅ **Observability** with structured logging and API key authentication
-- ✅ **Real-time progress monitoring** via WebSocket integration
-- ✅ **Automated metadata ingestion** from Civitai JSON files with smart resync
-- ✅ **AI-powered recommendation system** with semantic similarity, prompt-based recommendations, and GPU acceleration support
-
-## ✅ Models (IMPLEMENTED & EXTENDED)
-
-### Adapter (Enhanced with 25+ Civitai fields)
-- ✅ id: string (uuid)
-- ✅ name: string (unique per adapter name + version)
-- ✅ version: string
-- ✅ canonical_version_name: string | null
-- ✅ description: string | null  
-- ✅ author_username: string | null
-- ✅ visibility: string (default: "Public")
-- ✅ published_at: timestamp | null
-- ✅ tags: [string] (JSON column)
-- ✅ trained_words: [string] (JSON column)
-- ✅ triggers: [string] (JSON column)
-- ✅ file_path: string (validated at creation)
-- ✅ weight: float (default 1.0)
-- ✅ active: boolean (indexed for performance)
-- ✅ ordinal: integer | null (indexed for composition ordering)
-- ✅ archetype: string | null
-- ✅ archetype_confidence: float | null
-- ✅ primary_file_name: string | null
-- ✅ primary_file_size_kb: integer | null
-- ✅ primary_file_sha256: string | null
-- ✅ primary_file_download_url: string | null
-- ✅ primary_file_local_path: string | null
-- ✅ supports_generation: boolean
-- ✅ sd_version: string | null
-- ✅ nsfw_level: integer (default: 0)
-- ✅ activation_text: string | null
-- ✅ stats: object | null (JSON - Civitai community stats)
-- ✅ extra: object | null (JSON - extensible metadata)
-- ✅ json_file_path: string | null (source tracking)
-- ✅ json_file_mtime: timestamp | null (smart resync)
-- ✅ json_file_size: integer | null (change detection)
-- ✅ last_ingested_at: timestamp | null (import tracking)
-- ✅ created_at: timestamp (indexed)
-- ✅ updated_at: timestamp
-
-### DeliveryJob (IMPLEMENTED & ENHANCED)
-- ✅ id: string (uuid)
-- ✅ prompt: string
-- ✅ mode: string (http|cli|sdnext)
-- ✅ params: string (JSON - mode-specific parameters)
-- ✅ status: string (pending, running, succeeded, failed) - indexed for performance
-- ✅ result: string | null (JSON - runtime response, errors)
-- ✅ created_at: timestamp (indexed)
-- ✅ started_at: timestamp | null
-- ✅ finished_at: timestamp | null
-
-### LoRAEmbedding (NEW - AI RECOMMENDATION SYSTEM)
-- ✅ id: string (uuid)
-- ✅ lora_id: string (foreign key to Adapter)
-- ✅ embedding_type: string (semantic|artistic|technical)
-- ✅ embedding_data: bytes (compressed numpy array)
-- ✅ model_name: string (embedding model used)
-- ✅ model_version: string (model version for compatibility)
-- ✅ quality_score: float (0.0-1.0, computed quality metric)
-- ✅ created_at: timestamp
-- ✅ updated_at: timestamp
-- ✅ metadata: string | null (JSON - additional embedding metadata)
-
-### RecommendationCache (NEW - PERFORMANCE OPTIMIZATION)
-- ✅ id: string (uuid)
-- ✅ cache_key: string (unique key for recommendation query)
-- ✅ lora_id: string | null (target LoRA for similarity searches)
-- ✅ prompt_hash: string | null (for prompt-based recommendations)
-- ✅ recommendations: string (JSON array of recommendation results)
-- ✅ similarity_threshold: float
-- ✅ limit_used: integer
-- ✅ weights_used: string | null (JSON weights configuration)
-- ✅ created_at: timestamp (indexed for TTL cleanup)
-- ✅ expires_at: timestamp (cache expiration)
-
-## ✅ Storage and validation (IMPLEMENTED)
-
-- ✅ **File path validation** at creation/registration time via storage service abstraction
-- ✅ **Automated LoRA validation** during importer with smart resync capabilities  
-- ✅ **Metadata-only storage** in database with file content abstraction
-- ✅ **Performance indexes** on critical query columns (active, ordinal, status)
-- ✅ **Database migrations** with Alembic for schema evolution
-
-## ✅ API Endpoints (IMPLEMENTED)
-
-All endpoints are prefixed with `/api`.
-
-### Adapter Management (`/v1/adapters`)
-
-**POST /v1/adapters** ✅ IMPLEMENTED
-- Purpose: register a LoRA adapter with comprehensive metadata validation
-- Body: `{ "name": str, "version": str?, "tags"?: [str], "file_path": str, "weight"?: float, "active"?: bool, ... }`
-- Response: 201 `{ "adapter": { ... } }`
-- Features: File path validation, unique name+version constraints, storage abstraction
-
-**GET /v1/adapters** ✅ IMPLEMENTED  
-- Purpose: list adapters with filtering and pagination
-- Query params: `active`, `tag`, `limit`, `offset`
-- Response: 200 `{ "items": [adapter], "total": int, "limit": int, "offset": int }`
-- Features: Active/inactive filtering, tag-based filtering, performance indexes
-
-**GET /v1/adapters/{id}** ✅ IMPLEMENTED
-- Purpose: fetch adapter by ID
-- Response: 200 `{ "adapter": { ... } }` or 404
-
-**PATCH /v1/adapters/{id}** ✅ IMPLEMENTED
-- Purpose: modify adapter metadata (tags, weight, version, etc.)
-- Body: partial adapter fields as JSON object
-- Response: 200 `{ "adapter": { ... } }`
-- Features: Dynamic field updates, validation, timestamp tracking
-
-**DELETE /v1/adapters/{id}** ✅ IMPLEMENTED
-- Purpose: remove adapter metadata entry
-- Response: 204 (hard delete implementation)
-
-**POST /v1/adapters/{id}/activate** ✅ IMPLEMENTED
-- Purpose: mark adapter active with optional ordinal positioning
-- Body: `{ "ordinal"?: int }`
-- Response: 200 `{ "adapter": { ... } }`
-- Features: Idempotent operation, ordinal-based ordering
-
-**POST /v1/adapters/{id}/deactivate** ✅ IMPLEMENTED
-- Purpose: mark adapter inactive  
-- Response: 200 `{ "adapter": { ... } }`
-
-### Prompt Composition (`/v1/compose`)
-
-**POST /v1/compose** ✅ IMPLEMENTED & ENHANCED
-- Purpose: compose prompts from active adapters with optional delivery
-- Body: `{ "prefix"?: str, "suffix"?: str, "delivery"?: { "mode": "http"|"cli"|"sdnext", ... } }`
-- Response: 200 `{ "prompt": str, "tokens": [str], "delivery"?: { "id": str, "status": str } }`
-- Features: Active adapter composition, token formatting, background delivery scheduling
-
-### Delivery Management (`/v1/deliveries`)
-
-**POST /v1/deliveries** ✅ IMPLEMENTED
-- Purpose: enqueue asynchronous delivery jobs
-- Body: `{ "prompt": str, "mode": str, "params": object }`
-- Response: 201 `{ "delivery_id": str, "status": str }`
-- Features: Background task scheduling, Redis/RQ integration
-
-**GET /v1/deliveries/{id}** ✅ IMPLEMENTED
-- Purpose: query job status and results
-- Response: 200 `{ "id": str, "status": str, "result": object | null, ... }`
-
-### SDNext Integration (`/v1/generation`)
-
-**POST /v1/generation/backends** ✅ IMPLEMENTED
-- Purpose: list available generation backends
-- Response: 200 `{ "backends": [str] }`
-
-**POST /v1/generation/generate** ✅ IMPLEMENTED  
-- Purpose: direct image generation with LoRA integration
-- Body: comprehensive SDNext parameters with LoRA adapter support
-- Response: 200 with generation results
-
-**GET /v1/generation/progress/{job_id}** ✅ IMPLEMENTED
-- Purpose: monitor generation progress
-- Response: 200 `{ "progress": float, "status": str, ... }`
-
-**POST /v1/generation/compose-and-generate** ✅ IMPLEMENTED
-- Purpose: compose LoRA prompt and generate image in one request
-- Features: Automatic LoRA composition + SDNext generation
-
-**POST /v1/generation/queue-generation** ✅ IMPLEMENTED
-- Purpose: background generation with job tracking
-- Features: Redis/RQ background processing
-
-**GET /v1/generation/jobs/{job_id}** ✅ IMPLEMENTED
-- Purpose: retrieve generation job status and results
-
-### Real-time Monitoring (`/api/v1/ws/progress`)
-
-**WebSocket /api/v1/ws/progress** ✅ IMPLEMENTED
-- Purpose: real-time progress updates for generation jobs
-- Features: Live progress streaming, status updates, completion notifications
-- Notes: Direct backend deployments also expose `/v1/ws/progress` and a legacy compatibility route `/ws/progress`
-
-### AI Recommendation System (`/v1/recommendations`)
-
-**POST /v1/recommendations/embeddings/compute** ✅ IMPLEMENTED
-- Purpose: compute semantic embeddings for a specific LoRA adapter
-- Body: `{ "lora_id": str }`
-- Response: 200 `{ "lora_id": str, "status": "completed"|"failed", "embedding_stats": {...} }`
-- Features: ML-powered semantic analysis, GPU acceleration support, quality scoring
-
-**POST /v1/recommendations/embeddings/batch** ✅ IMPLEMENTED  
-- Purpose: batch compute embeddings for multiple adapters (async processing)
-- Body: `{ "lora_ids": [str], "force_recompute"?: bool }`
-- Response: 202 `{ "processed_count": int, "skipped_count": int, "failed_count": int, "processing_time": float }`
-- Features: Efficient batch processing, background computation, progress tracking
-
-**GET /v1/recommendations/embeddings/{lora_id}/status** ✅ IMPLEMENTED
-- Purpose: check embedding computation status for a LoRA
-- Response: 200 `{ "lora_id": str, "has_embeddings": bool, "embedding_count": int, "last_computed": str?, "quality_score": float? }`
-- Features: Real-time status monitoring, quality metrics
-
-**GET /v1/recommendations/similar/{lora_id}** ✅ IMPLEMENTED
-- Purpose: get LoRAs similar to the specified target LoRA
-- Query params: `limit?=10`, `similarity_threshold?=0.1`, `weights?={semantic,artistic,technical}`
-- Response: 200 `{ "recommendations": [...], "total_candidates": int, "processing_time": float }`
-- Features: Multi-dimensional similarity (semantic, artistic, technical), customizable weighting, quality-based ranking
-
-**POST /v1/recommendations/prompt** ✅ IMPLEMENTED
-- Purpose: get LoRA recommendations based on text prompt
-- Body: `{ "prompt": str, "limit"?: int, "similarity_threshold"?: float, "weights"?: {...} }`
-- Response: 200 `{ "recommendations": [...], "prompt_analysis": {...}, "processing_time": float }`
-- Features: Natural language processing, semantic matching, prompt enhancement suggestions
-
-**GET /v1/recommendations/stats** ✅ IMPLEMENTED
-- Purpose: get recommendation system statistics and health metrics
-- Response: 200 `{ "total_loras": int, "loras_with_embeddings": int, "embedding_coverage": float, "gpu_available": bool, "gpu_details": {...} }`
-- Features: System health monitoring, GPU status, coverage metrics
-
-### Dashboard (`/dashboard`)
-
-**GET /dashboard/stats** ✅ IMPLEMENTED
-- Purpose: Get dashboard statistics and system health information.
-- Response: 200 with stats and health info.
-
-**GET /dashboard/featured-loras** ✅ IMPLEMENTED
-- Purpose: Get featured LoRAs for the dashboard.
-- Response: 200 with a list of featured LoRAs.
-
-**GET /dashboard/activity-feed** ✅ IMPLEMENTED
-- Purpose: Get recent activity feed for the dashboard.
-- Response: 200 with a list of recent activities.
-
-#### Recommendation Response Schema
-```json
-{
-  "lora_id": "string",
-  "lora_name": "string", 
-  "lora_description": "string",
-  "similarity_score": 0.85,
-  "final_score": 0.87,
-  "explanation": "High semantic similarity with shared artistic style",
-  "semantic_similarity": 0.9,
-  "artistic_similarity": 0.8,
-  "technical_similarity": 0.7,
-  "quality_boost": 0.1,
-  "popularity_boost": 0.05
-}
-```
-
-#### GPU Acceleration Support
-- ✅ **AMD ROCm**: Full support for AMD GPUs with PyTorch ROCm 6.4
-- ✅ **NVIDIA CUDA**: Compatible with CUDA-enabled PyTorch installations
-- ✅ **CPU Fallback**: Graceful degradation to CPU-only processing
-- ✅ **Auto-detection**: Automatic GPU detection and configuration
-
-## ✅ Worker and background tasks (IMPLEMENTED)
-
-- ✅ **Redis + RQ integration** for background job processing (backend/workers/)
-- ✅ **DeliveryJob table** with comprehensive status tracking and performance indexes
-- ✅ **Structured job lifecycle** with status updates (pending → running → succeeded/failed)
-- ✅ **Worker process** with proper error handling and result persistence
-- ✅ **Background task scheduling** via FastAPI BackgroundTasks and RQ workers
-- ✅ **Real-time progress monitoring** via WebSocket for generation jobs
-
-## ✅ Prompt composition rules (IMPLEMENTED)
-
-- ✅ **Token format**: `<lora:{name}:{weight}>` with up to 3 decimal precision
-- ✅ **Ordering**: explicit `ordinal` first, then by `name` (deterministic ordering)
-- ✅ **Performance optimized**: composite index on `(active, ordinal)` for O(log n) queries
-- ✅ **Validation and warnings** for composition issues
-- ✅ **Prefix/suffix injection** with proper token positioning
-
-## ✅ Delivery adapters (IMPLEMENTED & EXTENDED)
-
-- ✅ **HTTP adapter** (app/delivery/http.py): POST JSON with timeout handling
-- ✅ **CLI adapter** (app/delivery/cli.py): secure exec without shell interpolation  
-- ✅ **SDNext adapter** (app/delivery/sdnext.py): complete Stable Diffusion integration
-- ✅ **Plugin architecture** (app/delivery/base.py): extensible interface for new backends
-- ✅ **Generation backend factory** with automatic backend discovery
-
-## ✅ Error handling and conventions (IMPLEMENTED)
-
-- ✅ **RFC 7807 Problem Details** for consistent error responses
-- ✅ **Comprehensive validation** with field-level error messages
-- ✅ **Exception handlers** for HTTP and generic errors
-- ✅ **Input sanitization** with secure execution patterns
-- ✅ **Retry logic** for transient errors in background jobs
-
-## ✅ Security and operational features (IMPLEMENTED)
-
-- ✅ **API key authentication** (optional, configurable via environment)
-- ✅ **CORS middleware** with configurable origins
-- ✅ **Input validation** via Pydantic schemas
-- ✅ **Secure file operations** without shell escaping
-- ✅ **Health check endpoint** for readiness monitoring
-
-## ✅ Observability and metrics (IMPLEMENTED)
-
-- ✅ **Structured logging** with JSON format and configurable levels
-- ✅ **Event logging**: adapter operations, composition requests, delivery lifecycle
-- ✅ **Database instrumentation** with query performance monitoring
-- ✅ **Error tracking** with detailed exception information
-- ✅ **WebSocket monitoring** for real-time progress tracking
-
-## ✅ Testing and quality (IMPLEMENTED)
-
-- ✅ **Comprehensive test suite**: 15/15 tests passing
-- ✅ **Unit tests** for prompt composition, adapters, services
-- ✅ **Integration tests** for complete workflow testing  
-- ✅ **Mock-based testing** for storage and external services
-- ✅ **Ruff linting** with Python 3.10+ standards
-- ✅ **Type hints** throughout the codebase
-
-## ✅ Migration and scalability (IMPLEMENTED)
-
-- ✅ **SQLite → PostgreSQL migration** ready with environment-based configuration
-- ✅ **Alembic migrations** with proper schema versioning
-- ✅ **Performance indexes** on critical query paths
-- ✅ **Storage abstraction** ready for S3/MinIO integration
-- ✅ **Horizontal scaling** via Redis/RQ worker separation
-- ✅ **Database connection pooling** and session management
-
-## ✅ Enhanced JSON schemas (IMPLEMENTED)
-
-### Adapter (response) - Enhanced with 25+ Civitai fields:
-```json
-{
-	"id": "uuid",
-	"name": "character-lora-v1",
-	"version": "1.0",
-	"canonical_version_name": "v1.0-final",
-	"description": "High-quality character LoRA for anime generation",
-	"author_username": "artist123",
-	"visibility": "Public",
-	"published_at": "2025-08-01T12:00:00Z",
-	"tags": ["anime", "character", "female"],
-	"trained_words": ["charactername", "blue_hair", "school_uniform"],
-	"triggers": ["charactername"],
-	"file_path": "/app/loras/character-lora-v1.safetensors",
-	"weight": 0.75,
-	"active": true,
-	"ordinal": 10,
-	"archetype": "character",
-	"archetype_confidence": 0.87,
-	"primary_file_name": "character-lora-v1.safetensors",
-	"primary_file_size_kb": 74240,
-	"primary_file_sha256": "abc123...",
-	"supports_generation": true,
-	"sd_version": "SD 1.5",
-	"nsfw_level": 0,
-	"activation_text": "charactername, blue_hair",
-	"stats": {
-		"downloadCount": 1250,
-		"favoriteCount": 89,
-		"commentCount": 23,
-		"rating": 4.8
-	},
-	"json_file_path": "/app/loras/character-lora-v1.json",
-	"last_ingested_at": "2025-08-29T09:00:00Z",
-	"created_at": "2025-08-29T08:30:00Z",
-	"updated_at": "2025-08-29T09:00:00Z"
-}
-```
-
-### Compose response - Enhanced with delivery tracking:
-```json
-{
-	"prompt": "masterpiece, best quality <lora:character-lora-v1:0.75> <lora:style-lora:0.5> charactername, blue_hair",
-	"tokens": ["<lora:character-lora-v1:0.75>", "<lora:style-lora:0.5>"],
-	"delivery": {
-		"id": "delivery-uuid-123",
-		"status": "queued"
-	}
-}
-```
-
-### Generation job response (SDNext integration):
-```json
-{
-	"id": "job-uuid-456",
-	"status": "completed",
-	"progress": 100.0,
-	"result": {
-		"images": ["base64-encoded-image"],
-		"parameters": {
-			"prompt": "masterpiece, best quality <lora:character-lora-v1:0.75>",
-			"steps": 20,
-			"cfg_scale": 7.0,
-			"sampler_name": "DPM++ 2M Karras"
-		},
-		"generation_time": 12.5
-	},
-	"created_at": "2025-08-29T10:00:00Z",
-	"started_at": "2025-08-29T10:00:01Z",  
-	"finished_at": "2025-08-29T10:00:13Z"
-}
-```
-
-## ✅ Additional Features Implemented (Beyond Original Contract)
-
-### Automated Metadata Ingestion (scripts/importer.py)
-- ✅ **Smart Civitai JSON parsing** with comprehensive metadata extraction
-- ✅ **File modification tracking** for efficient incremental updates
-- ✅ **Dry-run mode** for safe preview of import operations
-- ✅ **Force resync** capabilities for complete re-ingestion
-- ✅ **Comprehensive error handling** with detailed logging
-
-### Container & DevOps Ready
-- ✅ **Multi-platform Docker support** (GPU, CPU, AMD ROCm)
-- ✅ **Docker Compose configurations** for different deployment scenarios
-- ✅ **Health check endpoints** for container orchestration
-- ✅ **Environment-based configuration** with Pydantic Settings
-- ✅ **Automated setup scripts** for quick deployment
-
-### Enhanced Developer Experience  
-- ✅ **API documentation** with OpenAPI/Swagger integration
-- ✅ **WebSocket test clients** (HTML and Python examples)
-- ✅ **Comprehensive development documentation** (DEVELOPMENT.md)
-- ✅ **Migration guides** for PostgreSQL and production deployment
-
-## Requirements Coverage Status: ✅ 100% COMPLETE + ENHANCED
-
-- ✅ **Metadata CRUD and composition**: Fully implemented with performance optimization
-- ✅ **File validation and storage**: Complete abstraction with multiple backend support  
-- ✅ **Delivery modes**: HTTP, CLI, and enhanced SDNext integration
-- ✅ **Background worker model**: Redis/RQ with comprehensive job lifecycle management
-- ✅ **Database performance**: Indexes on critical query paths
-- ✅ **Real-time monitoring**: WebSocket integration for live progress updates
-- ✅ **Production readiness**: Comprehensive testing, documentation, and deployment tools
-- ✅ **AI-powered recommendations**: Semantic similarity, GPU acceleration, and intelligent LoRA discovery
-
-## 🚀 AI Recommendation System Technical Stack
-
-### Machine Learning Dependencies
-- ✅ **PyTorch 2.8.0+rocm6.4**: GPU acceleration with AMD ROCm and NVIDIA CUDA support
-- ✅ **Sentence Transformers 5.1.0**: Multi-model semantic embeddings
-- ✅ **FAISS-CPU 1.7.0+**: High-performance similarity search and clustering
-- ✅ **Transformers**: Hugging Face model ecosystem integration
-- ✅ **NumPy/SciPy**: Numerical computing and scientific functions
-
-### Embedding Models
-- ✅ **all-MiniLM-L6-v2**: Primary semantic embeddings (384 dimensions)
-- ✅ **all-mpnet-base-v2**: Advanced semantic analysis (768 dimensions) 
-- ✅ **clip-ViT-B-32**: Visual-text multimodal embeddings (512 dimensions)
-- ✅ **Multi-dimensional analysis**: Semantic, artistic, and technical similarity scoring
-
-### Performance Features
-- ✅ **GPU Auto-detection**: Automatic AMD/NVIDIA GPU identification and utilization
-- ✅ **Batch Processing**: Efficient bulk embedding computation
-- ✅ **Similarity Indexing**: FAISS-powered high-speed similarity search
-- ✅ **Caching Layer**: Intelligent recommendation caching with TTL
-- ✅ **Quality Scoring**: ML-based quality assessment and ranking
-
-### Frontend Integration Points
-```typescript
-// Compute embeddings for new LoRAs
-POST /v1/recommendations/embeddings/compute
-{ "lora_id": "lora-123" }
-
-// Get similar LoRAs for "More Like This" features  
-GET /v1/recommendations/similar/lora-123?limit=5&similarity_threshold=0.3
-
-// Smart recommendations based on user prompts
-POST /v1/recommendations/prompt
-{ "prompt": "anime girl with pink hair", "limit": 10 }
-
-// System health and GPU status
-GET /v1/recommendations/stats
-```
-
-## Next Steps for Production Deployment
-
-1. ✅ **Performance optimization**: Database indexes implemented (Migration 952b85546fed)
-2. ✅ **AI recommendation system**: Complete ML pipeline with GPU acceleration
-3. 🔄 **Enhanced security**: Role-based access control (planned)  
-4. 🔄 **Cloud storage**: S3/MinIO integration (architecture ready)
-5. 🔄 **Observability**: Prometheus metrics integration (planned)
-6. 🔄 **Advanced ML features**: Fine-tuned embedding models, user preference learning (roadmap)
-
-**Current Status**: Production-ready with excellent foundation for scaling, feature enhancement, and intelligent LoRA discovery.
+The LoRA Manager backend is a FastAPI application that exposes REST and WebSocket
+interfaces for managing adapter metadata, composing prompts, scheduling
+deliveries, and interacting with an SDNext image-generation server. The code
+lives in `backend/api/v1` with business logic implemented under
+`backend/services`. The implementation is still a work in progress: most
+endpoints exist, but several flows depend on external services, optional
+dependencies, or follow-up work before they can be considered production ready.
+Use this document as a guide to what is actually implemented today when wiring
+up clients or planning future work.
+
+## Implementation summary
+
+| Area | Status | Notes |
+| --- | --- | --- |
+| Adapter metadata lifecycle | Implemented | CRUD, bulk actions, tag aggregation, and search live in `backend/api/v1/adapters.py` backed by the `Adapter` SQLModel.【F:backend/api/v1/adapters.py†L1-L187】【F:backend/models/adapters.py†L9-L43】 |
+| Prompt composition | Implemented | `POST /v1/compose` composes tokens from active adapters and can enqueue deliveries via the delivery service.【F:backend/api/v1/compose.py†L1-L45】 |
+| Delivery orchestration | Implemented (queue required) | Deliveries persist to the `DeliveryJob` table and can run through Redis/RQ or a background-task fallback.【F:backend/api/v1/deliveries.py†L1-L43】【F:backend/services/deliveries.py†L16-L205】【F:backend/services/queue.py†L1-L91】 |
+| SDNext generation | Implemented, SDNext required | Generation endpoints wrap the `sdnext` backend; only txt2img-style flows are currently wired and require an SDNext server configured via settings.【F:backend/api/v1/generation.py†L1-L274】【F:backend/delivery/sdnext.py†L1-L205】 |
+| Recommendations | Experimental | Recommendation APIs call into the service layer, which expects embedding models and GPU/torch dependencies to be available; missing data produces runtime errors.【F:backend/api/v1/recommendations.py†L1-L119】【F:backend/services/recommendations/service.py†L1-L153】 |
+| Dashboard & system status | Implemented | Dashboard endpoints aggregate adapter statistics and delivery activity; `/system/status` exposes queue and hardware telemetry.【F:backend/api/v1/dashboard.py†L1-L40】【F:backend/api/v1/system.py†L1-L16】 |
+| Import/export utilities | Partially implemented | Archive endpoints stream ZIP files and ingest uploads, but backup history uses mock data and long-running flows rely on future work in `ArchiveService`.【F:backend/api/v1/import_export.py†L1-L170】 |
+| WebSocket progress | Implemented | `/ws/progress` hands connections to the `WebSocketService` which relays delivery/generation updates.【F:backend/api/v1/websocket.py†L1-L43】 |
+| Storage abstraction | Local filesystem only | The storage service validates paths on disk; the alternative cloud-storage backend placeholder still raises `NotImplementedError`.【F:backend/services/storage.py†L46-L153】 |
+
+## Known limitations and TODOs
+
+* No authentication is enforced by default; API-key support exists in settings
+  but is not wired into the router modules yet.
+* Delivery queue processing depends on either a running Redis instance or the
+  in-process background-task fallback; there is no dedicated worker supervisor.
+* Recommendation endpoints require optional ML dependencies and precomputed
+  embeddings; they will raise runtime errors when models or data are missing.
+* Import/export helpers stream data from disk; cloud storage backends are not
+  implemented and error handling is minimal.
+* Generated image storage assumes local disk access and does not publish URLs.
+
+## Endpoint reference
+
+### Adapter management (`/v1/adapters`)
+
+* `POST /v1/adapters` – create an adapter. Validates that `file_path` exists
+  using the storage service and rejects duplicate name/version combinations.【F:backend/api/v1/adapters.py†L7-L32】
+* `GET /v1/adapters` – list adapters with optional text search, activity
+  filtering, tag filtering, pagination, and sorting.【F:backend/api/v1/adapters.py†L34-L69】
+* `GET /v1/adapters/{id}` – fetch a single adapter record.【F:backend/api/v1/adapters.py†L118-L133】
+* `PATCH /v1/adapters/{id}` – update safe fields such as weight, tags, or
+  activation flags; invalid payloads raise `400` or `404` as appropriate.【F:backend/api/v1/adapters.py†L86-L113】
+* `DELETE /v1/adapters/{id}` – delete an adapter. Returns `404` if the adapter is
+  missing.【F:backend/api/v1/adapters.py†L115-L118】
+* `POST /v1/adapters/{id}/activate` / `POST /v1/adapters/{id}/deactivate` – mark
+  adapters active or inactive and optionally set an ordinal for composition.【F:backend/api/v1/adapters.py†L135-L155】
+* `POST /v1/adapters/bulk` – perform bulk activate/deactivate/delete operations
+  within a transaction.【F:backend/api/v1/adapters.py†L71-L105】
+* `GET /v1/adapters/tags` – return the distinct tag list used across adapters.【F:backend/api/v1/adapters.py†L57-L69】
+
+### Prompt composition (`/v1/compose`)
+
+* `POST /v1/compose` – composes the active adapter list into a `<lora:name:weight>`
+  prompt string. When the optional `delivery` block is provided it will create a
+  delivery job via the delivery service and return the queued job id and status.【F:backend/api/v1/compose.py†L1-L45】
+
+### Delivery management (`/v1/deliveries`)
+
+* `POST /v1/deliveries` – create a delivery job for the given prompt/mode and
+  enqueue it using the configured queue backend (Redis if available, otherwise
+  FastAPI background tasks).【F:backend/api/v1/deliveries.py†L1-L26】【F:backend/services/queue.py†L49-L91】
+* `GET /v1/deliveries/{id}` – return persisted job parameters, timestamps, and
+  any serialized result payload.【F:backend/api/v1/deliveries.py†L28-L43】
+
+### Generation (`/v1/generation`)
+
+* `GET /v1/generation/backends` – report which generation backends are registered
+  and available via the delivery registry.【F:backend/api/v1/generation.py†L47-L54】
+* `POST /v1/generation/generate` – run an immediate generation request through
+  the configured backend (defaults to `sdnext`). Validation emits warnings but
+  does not block execution.【F:backend/api/v1/generation.py†L56-L111】
+* `GET /v1/generation/progress/{job_id}` – poll backend-specific job progress
+  (primarily for deferred SDNext jobs).【F:backend/api/v1/generation.py†L113-L128】
+* `POST /v1/generation/compose-and-generate` – combine prompt composition with a
+  generation call; fails with `400` when no active adapters are available.【F:backend/api/v1/generation.py†L130-L176】
+* `POST /v1/generation/queue-generation` – schedule generation work as a
+  delivery job and start WebSocket monitoring.【F:backend/api/v1/generation.py†L178-L223】
+* `GET /v1/generation/jobs/active` – return normalized telemetry for jobs in
+  `pending` or `running` states to feed frontend queues.【F:backend/api/v1/generation.py†L225-L275】
+* `GET /v1/generation/jobs/{job_id}` – fetch a single job record packaged as a
+  delivery wrapper.【F:backend/api/v1/generation.py†L277-L300】
+* `POST /v1/generation/jobs/{job_id}/cancel` – mark a cancellable job as
+  cancelled and stop websocket monitoring.【F:backend/api/v1/generation.py†L302-L322】
+* `GET /v1/generation/results` – list recently completed jobs with selected
+  metadata and image references (base64 strings or file paths).【F:backend/api/v1/generation.py†L324-L373】
+
+### Recommendations (`/v1/recommendations`)
+
+* `GET /v1/recommendations/similar/{lora_id}` – request similar LoRAs using the
+  recommendation engine. Requires embeddings and heavy dependencies to be
+  available.【F:backend/api/v1/recommendations.py†L1-L57】
+* `POST /v1/recommendations/for-prompt` – suggest LoRAs that match a prompt and
+  optional preferences.【F:backend/api/v1/recommendations.py†L59-L96】
+* `GET /v1/recommendations/stats` – return aggregate recommendation metrics from
+  the service.【F:backend/api/v1/recommendations.py†L98-L109】
+* `POST /v1/recommendations/embeddings/compute` – kick off embedding computation
+  for one or many adapters; depends on the embedding manager implementation.【F:backend/api/v1/recommendations.py†L111-L139】
+* `GET /v1/recommendations/embeddings/{lora_id}` – inspect embedding status for a
+  single adapter.【F:backend/api/v1/recommendations.py†L141-L151】
+* Additional feedback and preference endpoints are defined in the same module
+  and expect future service implementations to persist data.【F:backend/api/v1/recommendations.py†L153-L198】
+
+### Dashboard (`/v1/dashboard`)
+
+* `GET /v1/dashboard/stats` – combine adapter statistics, queue activity counts,
+  and system health summary data for the dashboard view.【F:backend/api/v1/dashboard.py†L1-L23】
+* `GET /v1/dashboard/featured-loras` – list curated adapters using the adapter
+  service’s featured query.【F:backend/api/v1/dashboard.py†L25-L37】
+* `GET /v1/dashboard/activity-feed` – expose recent delivery job activity.【F:backend/api/v1/dashboard.py†L39-L40】
+
+### Import/export (`/v1/import-export`)
+
+* `POST /v1/import-export/export/estimate` – returns estimated archive size and
+  duration using adapter statistics; if LoRA export is disabled, returns zeros.【F:backend/api/v1/import_export.py†L1-L64】
+* `POST /v1/import-export/export` – streams a ZIP archive built from adapters via
+  the archive service; rejects unsupported formats.【F:backend/api/v1/import_export.py†L66-L98】
+* `POST /v1/import-export/import` – validate and import uploaded archives into
+  the local filesystem. Errors are reported per file, and the import path defaults
+  to `settings.IMPORT_PATH` or `./loras`.【F:backend/api/v1/import_export.py†L100-L170】
+* `GET /v1/import-export/backups/history` & `POST /v1/import-export/backup/create`
+  – placeholder backup endpoints that currently return mock data or simple
+  success payloads pending a full backup workflow.【F:backend/api/v1/import_export.py†L172-L209】
+
+### System status (`/v1/system`)
+
+* `GET /v1/system/status` – combine GPU detection, queue statistics, and disk
+  usage into a telemetry snapshot for clients.【F:backend/api/v1/system.py†L1-L16】【F:backend/services/system.py†L1-L149】
+
+### WebSocket progress (`/v1/ws/progress` or `/api/v1/ws/progress`)
+
+* `GET /v1/ws/progress` (WebSocket) – subscribe to progress events for delivery
+  and generation jobs. Clients send subscription messages after connecting, and
+  the `WebSocketService` manages broadcasts.【F:backend/api/v1/websocket.py†L1-L43】
+
+---
+
+This contract is intentionally conservative. When adding new endpoints or
+extending existing ones, update this document so it reflects the repository’s
+actual behaviour.

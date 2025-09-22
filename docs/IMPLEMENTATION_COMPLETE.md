@@ -1,110 +1,57 @@
-# 🎉 Implementation Complete: SDNext Integration & Docker Setup
+# Implementation status: SDNext integration & Docker setup
 
-## ✅ What Was Implemented
+The SDNext work landed in this repository is functional but not feature-complete.
+This note replaces the previous "implementation complete" announcement so new
+contributors have an honest picture of what exists and what still needs work.
 
-### 1. Complete SDNext Integration
-- **6 Generation Endpoints**: txt2img, img2img, inpaint, extras, controlnet, infinite
-- **Real-time Progress Monitoring**: WebSocket endpoint `/api/v1/ws/progress` (with `/v1/ws/progress` available when addressing the backend directly)
-- **Modular Architecture**: Plugin-based delivery system with SDNext backend
-- **Async Processing**: Background job queue with RQ integration
+## Current capabilities
 
-### 2. Docker Containerization
-- **Multi-variant Setup**: GPU, CPU, and auto-detect configurations (including NVIDIA and AMD ROCm)
-- **SDNext Service Integration**: Full containerized SDNext deployment
-- **Automated Setup**: `setup_sdnext_docker.sh` script for one-command deployment
-- **Health Monitoring**: `check_health.sh` for comprehensive service validation
+* **SDNext client wrapper** – The `sdnext` generation backend can issue txt2img
+  requests, save optional image files, and report simple progress data. It is
+  driven by the configuration values exposed in `backend.core.config` and only
+  supports servers that implement the standard SDNext HTTP API.【F:backend/delivery/sdnext.py†L15-L205】
+* **Generation endpoints** – `/v1/generation` routes cover immediate requests,
+  queue-backed jobs, and prompt+generate helpers. Deferred jobs reuse the
+  delivery queue and broadcast updates through the shared WebSocket service.【F:backend/api/v1/generation.py†L1-L373】
+* **WebSocket bridge** – `/api/v1/ws/progress` delegates to
+  `WebSocketService.handle_connection`, allowing clients to subscribe to job
+  updates created by the generation and delivery services.【F:backend/api/v1/websocket.py†L1-L43】
+* **Container templates** – `infrastructure/docker` contains docker-compose
+  variants for CPU, NVIDIA, and AMD ROCm, plus a health-check helper and the
+  SDNext build context. The `infrastructure/scripts/setup_sdnext_docker.sh`
+  script automates pulling these images together for local testing.【F:infrastructure/docker/README.md†L1-L140】【F:infrastructure/scripts/setup_sdnext_docker.sh†L1-L180】
 
-### 3. Enhanced Architecture
-- **Services Package**: Modular dependency injection with 7 service components
-- **Delivery Package**: Plugin-based backends with registry pattern
-- **WebSocket Service**: Real-time connection management and message broadcasting
-- **Enhanced Schemas**: Complete WebSocket models and generation parameters
+## What still needs work
 
-### 4. Testing & Documentation
-- **HTML Test Client**: Interactive browser-based testing interface
-- **Python Test Client**: Command-line async testing tool
-- **Comprehensive Documentation**: Updated README with quick start guides
-- **All Tests Passing**: 15/15 test suite validation at implementation time
+* **Limited API surface** – Only the txt2img flow is wired; img2img, extras,
+  ControlNet, and other SDNext APIs mentioned in earlier docs are not exposed in
+  the backend yet.【F:backend/delivery/sdnext.py†L61-L111】
+* **Queue processing expectations** – Redis/RQ support exists, but without a
+  dedicated worker process long-running jobs fall back to FastAPI background
+  tasks. Production deployments should ship an RQ worker and improved retry
+  handling.【F:backend/services/queue.py†L19-L91】【F:backend/services/deliveries.py†L68-L170】
+* **Observability & auth** – Generation endpoints rely on the global logging
+  configuration and do not integrate authentication or rate limiting. API-key
+  support remains opt-in via settings and is not enforced in the routers.【F:backend/api/v1/generation.py†L56-L223】
+* **Testing coverage** – There is backend test scaffolding, but end-to-end
+  coverage for the SDNext workflow depends on optional services and is still
+  spotty. Expect to run SDNext manually when validating changes.【F:tests/test_generation_jobs.py†L1-L200】
+* **Artifact management** – Generated images are saved to disk when
+  `save_images=True`. Publishing URLs, cleaning old artifacts, and integrating
+  with remote storage remain open tasks.【F:backend/delivery/sdnext.py†L129-L205】
 
-## 🚀 Quick Start Commands
+## Suggested follow-up tasks
 
-```bash
-# 1. Setup everything
-./setup_sdnext_docker.sh
+1. Extend `SDNextGenerationBackend` to support img2img, extras, and ControlNet
+   routes plus richer error handling and retries.【F:backend/delivery/sdnext.py†L61-L187】
+2. Harden the queue pipeline by provisioning an RQ worker container, adding
+   retry/backoff logic, and persisting more structured error data.【F:backend/services/deliveries.py†L142-L205】
+3. Document how to supply the required ML models so the recommendation and
+   generation stacks work out of the box in Docker deployments.【F:backend/services/recommendations/service.py†L33-L118】
+4. Add authentication and rate-limiting guidance to the deployment docs so the
+  API can be safely exposed outside a trusted network.【F:backend/api/v1/system.py†L1-L16】
+5. Capture test recipes for exercising SDNext via docker-compose so contributors
+   can validate changes without manual server setup.【F:infrastructure/docker/README.md†L1-L140】
 
-# 2. Start services (choose one):
-docker-compose -f docker-compose.gpu.yml up -d     # NVIDIA GPU (recommended)
-docker-compose -f docker-compose.rocm.yml up -d    # AMD GPU (ROCm)
-docker-compose -f docker-compose.cpu.yml up -d     # CPU only
-docker-compose up -d                                # Auto-detect
-
-# 3. Verify everything works
-./check_health.sh
-
-# 4. Test WebSocket integration
-open websocket_test_client.html                     # HTML client
-python websocket_client_example.py                  # Python client
-```
-
-## 🌐 Service URLs
-
-- **FastAPI Backend**: http://localhost:8782
-- **SDNext WebUI**: http://localhost:7860
-- **WebSocket Progress**: ws://localhost:8782/api/v1/ws/progress
-- **API Documentation**: http://localhost:8782/docs
-
-## 📁 Key Files Created/Modified
-
-### Services Architecture
-- `services/__init__.py` - Service container and dependency injection
-- `services/websocket_service.py` - Real-time connection management
-- `services/generation_service.py` - Generation workflow orchestration
-- `delivery/sdnext_backend.py` - SDNext API integration with progress polling
-
-### WebSocket Integration
-- `routers/websocket.py` - WebSocket endpoint implementation
-- `schemas.py` - Enhanced with WebSocket message models
-
-### Docker Infrastructure
-- `docker-compose.yml` - Main containerization setup
-- `docker-compose.gpu.yml` - NVIDIA GPU-optimized configuration
-- `docker-compose.rocm.yml` - AMD ROCm-optimized configuration
-- `docker-compose.cpu.yml` - CPU-only deployment
-- `setup_sdnext_docker.sh` - Automated setup script with hardware detection
-- `check_health.sh` - Comprehensive health checking
-- `.env.rocm` - ROCm-specific environment configuration
-
-### Testing Tools
-- `websocket_test_client.html` - Interactive browser test client
-- `websocket_client_example.py` - Python async test client
-
-## 📊 Test Results
-
-```
-========== 15 passed, 1 skipped ==========
-✅ All core functionality validated
-✅ WebSocket integration operational
-✅ Docker services deployable
-✅ Generation endpoints functional
-```
-
-## 🎯 What's Ready for Production
-
-- **Complete SDNext Integration**: All 6 generation types supported
-- **Real-time Monitoring**: WebSocket progress updates working
-- **Containerized Deployment**: Multi-variant Docker setup ready
-- **Health Checking**: Automated service verification
-- **Comprehensive Testing**: Both automated and manual test tools
-- **Documentation**: Complete setup and usage guides
-
-## 🔮 Next Phase Recommendations
-
-1. **ControlNet Advanced Features**: Extend ControlNet integration with preprocessing
-2. **Batch Processing**: Queue management for multiple concurrent generations
-3. **Frontend Optimization**: Expand SPA performance profiling, tighten Pinia store coverage, and monitor bundle size growth
-4. **Production Hardening**: SSL/TLS, rate limiting, authentication improvements
-5. **Monitoring**: Prometheus metrics, logging aggregation
-
----
-
-**The SDNext integration with real-time WebSocket monitoring and Docker containerization is now complete and production-ready! 🎨✨**
+The headline: SDNext support is running, but expect to invest additional effort
+before treating the stack as production-ready.

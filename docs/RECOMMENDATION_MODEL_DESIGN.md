@@ -6,6 +6,8 @@ This document outlines the architecture for an intelligent LoRA recommendation s
 
 The system uses a multi-stage, GPU-accelerated pipeline to generate, analyze, and compare LoRA embeddings, providing fast and accurate recommendations.
 
+> **Reality check:** The live codebase only implements a subset of this plan. The `RecommendationService` stubs out many of these steps and requires manual model setup; production performance numbers listed here are design targets rather than measured results.【F:backend/services/recommendations/service.py†L1-L153】
+
 ---
 
 ## 2. Core Goals
