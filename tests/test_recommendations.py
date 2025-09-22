@@ -21,7 +21,23 @@ from backend.schemas.recommendations import (
     UserFeedbackRequest,
     UserPreferenceRequest,
 )
+from backend.services import ServiceContainer
 from backend.services.recommendations import RecommendationService
+
+
+@pytest.fixture(autouse=True)
+def force_cpu_mode():
+    """Ensure tests run with GPU detection disabled unless overridden."""
+
+    with patch.object(RecommendationService, "is_gpu_available", return_value=False):
+        yield
+
+
+def create_recommendation_service(db_session):
+    """Helper to construct a recommendation service via the container."""
+
+    container = ServiceContainer(db_session)
+    return container.recommendations
 
 
 @pytest.fixture
@@ -102,8 +118,8 @@ class TestRecommendationService:
 
     def test_initialization(self, db_session):
         """Test service initialization."""
-        service = RecommendationService(db_session, gpu_enabled=False)
-        
+        service = create_recommendation_service(db_session)
+
         assert service.db_session == db_session
         assert service.device == 'cpu'
         assert not service.gpu_enabled
@@ -111,16 +127,16 @@ class TestRecommendationService:
 
     def test_initialization_with_gpu(self, db_session):
         """Test service initialization with GPU enabled."""
-        with patch('torch.cuda.is_available', return_value=True):
-            service = RecommendationService(db_session, gpu_enabled=True)
-            
+        with patch.object(RecommendationService, 'is_gpu_available', return_value=True):
+            service = create_recommendation_service(db_session)
+
             assert service.gpu_enabled
             assert service.device == 'cuda'
 
     @pytest.mark.anyio("asyncio")
     async def test_compute_embeddings_for_lora(self, db_session, sample_adapter):
         """Test computing embeddings for a single LoRA."""
-        service = RecommendationService(db_session, gpu_enabled=False)
+        service = create_recommendation_service(db_session)
         
         # Add the adapter to the database
         db_session.add(sample_adapter)
@@ -160,7 +176,7 @@ class TestRecommendationService:
     @pytest.mark.anyio("asyncio")
     async def test_compute_embeddings_for_nonexistent_lora(self, db_session):
         """Test computing embeddings for non-existent LoRA."""
-        service = RecommendationService(db_session, gpu_enabled=False)
+        service = create_recommendation_service(db_session)
         
         with pytest.raises(ValueError, match="Adapter nonexistent not found"):
             await service.compute_embeddings_for_lora("nonexistent")
@@ -168,7 +184,7 @@ class TestRecommendationService:
     @pytest.mark.anyio("asyncio")
     async def test_batch_compute_embeddings(self, db_session, sample_adapters):
         """Test batch computing embeddings."""
-        service = RecommendationService(db_session, gpu_enabled=False)
+        service = create_recommendation_service(db_session)
 
         # Add adapters to database
         for adapter in sample_adapters:
@@ -205,7 +221,7 @@ class TestRecommendationService:
         self, db_session, sample_adapters
     ):
         """Adapters with existing embeddings should be skipped."""
-        service = RecommendationService(db_session, gpu_enabled=False)
+        service = create_recommendation_service(db_session)
 
         # Add adapters to database
         for adapter in sample_adapters:
@@ -243,7 +259,7 @@ class TestRecommendationService:
     @pytest.mark.anyio("asyncio")
     async def test_get_recommendations_for_prompt(self, db_session, sample_adapters):
         """Test getting recommendations for a prompt."""
-        service = RecommendationService(db_session, gpu_enabled=False)
+        service = create_recommendation_service(db_session)
         
         # Add adapters to database
         for adapter in sample_adapters:
@@ -285,7 +301,7 @@ class TestRecommendationService:
     @pytest.mark.anyio("asyncio")
     async def test_prompt_recommendations_handle_zero_vectors(self, db_session):
         """Zero vectors must yield finite similarity scores."""
-        service = RecommendationService(db_session, gpu_enabled=False)
+        service = create_recommendation_service(db_session)
 
         adapter = Adapter(
             id="zero-vec",
@@ -316,7 +332,7 @@ class TestRecommendationService:
 
     def test_get_recommendation_stats(self, db_session, sample_adapters):
         """Test getting recommendation statistics."""
-        service = RecommendationService(db_session, gpu_enabled=False)
+        service = create_recommendation_service(db_session)
         
         # Add some test data
         for adapter in sample_adapters:
@@ -336,7 +352,7 @@ class TestRecommendationService:
 
     def test_get_embedding_status_nonexistent(self, db_session):
         """Test getting embedding status for non-existent LoRA."""
-        service = RecommendationService(db_session, gpu_enabled=False)
+        service = create_recommendation_service(db_session)
         
         status = service.get_embedding_status("nonexistent")
         
@@ -348,7 +364,7 @@ class TestRecommendationService:
 
     def test_get_embedding_status_existing(self, db_session, sample_adapter):
         """Test getting embedding status for existing LoRA with embeddings."""
-        service = RecommendationService(db_session, gpu_enabled=False)
+        service = create_recommendation_service(db_session)
 
         # Add adapter and embedding
         db_session.add(sample_adapter)
@@ -373,7 +389,7 @@ class TestRecommendationService:
     def test_record_feedback_persists_data(self, db_session, sample_adapter):
         """Recording feedback should persist a RecommendationFeedback entry."""
 
-        service = RecommendationService(db_session, gpu_enabled=False)
+        service = create_recommendation_service(db_session)
         db_session.add(sample_adapter)
         db_session.commit()
 
@@ -411,7 +427,7 @@ class TestRecommendationService:
     def test_record_feedback_requires_valid_entities(self, db_session, sample_adapter):
         """Feedback recording should validate session and adapter existence."""
 
-        service = RecommendationService(db_session, gpu_enabled=False)
+        service = create_recommendation_service(db_session)
         db_session.add(sample_adapter)
         db_session.commit()
 
@@ -440,7 +456,7 @@ class TestRecommendationService:
     def test_update_user_preference_upserts(self, db_session):
         """Preferences should be created and updated idempotently."""
 
-        service = RecommendationService(db_session, gpu_enabled=False)
+        service = create_recommendation_service(db_session)
 
         request = UserPreferenceRequest(
             preference_type="style",
@@ -480,7 +496,7 @@ class TestRecommendationService:
     ):
         """Rebuilding the index should persist the refreshed payload to disk."""
 
-        service = RecommendationService(db_session, gpu_enabled=False)
+        service = create_recommendation_service(db_session)
         index_path = tmp_path / "index.pkl"
         service.index_cache_path = str(index_path)
 
@@ -576,7 +592,7 @@ class TestRecommendationIntegration:
     @pytest.mark.anyio("asyncio")
     async def test_end_to_end_recommendation_flow(self, db_session, sample_adapters):
         """Test the complete recommendation flow."""
-        service = RecommendationService(db_session, gpu_enabled=False)
+        service = create_recommendation_service(db_session)
         
         # Add adapters to database
         for adapter in sample_adapters:

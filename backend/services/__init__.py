@@ -15,6 +15,7 @@ from .deliveries import DeliveryService
 from .generation import GenerationCoordinator, GenerationService
 from .queue import QueueBackend, get_queue_backends
 from .storage import StorageService
+from .recommendations import RecommendationService
 from .system import SystemService
 from .websocket import WebSocketService, websocket_service
 
@@ -55,6 +56,8 @@ class ServiceContainer:
         self._system_service: Optional[SystemService] = None
         self._archive_service: Optional[ArchiveService] = None
         self._analytics_service: Optional[AnalyticsService] = None
+        self._recommendation_service: Optional[RecommendationService] = None
+        self._recommendation_gpu_available: Optional[bool] = None
         self._queue_backend = queue_backend
         self._fallback_queue_backend = fallback_queue_backend
     
@@ -167,6 +170,24 @@ class ServiceContainer:
         if self._analytics_service is None:
             self._analytics_service = AnalyticsService(self.db_session)
         return self._analytics_service
+
+    @property
+    def recommendations(self) -> RecommendationService:
+        """Get recommendation service instance with cached GPU availability."""
+
+        if self.db_session is None:
+            raise ValueError("RecommendationService requires an active database session")
+
+        if self._recommendation_gpu_available is None:
+            self._recommendation_gpu_available = RecommendationService.is_gpu_available()
+
+        if self._recommendation_service is None:
+            self._recommendation_service = RecommendationService(
+                self.db_session,
+                gpu_enabled=self._recommendation_gpu_available,
+            )
+
+        return self._recommendation_service
 
 
 # Factory function for creating service containers
