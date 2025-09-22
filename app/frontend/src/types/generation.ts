@@ -2,7 +2,7 @@
  * Type definitions mirroring backend/schemas/generation.py.
  */
 
-import type { GenerationJob } from './app';
+import type { GenerationJob, NormalizedJobStatus } from './app';
 import type { SystemStatusPayload } from './system';
 
 export interface GenerationFormState {
@@ -51,8 +51,8 @@ export interface SDNextDeliveryParams {
 
 export interface SDNextGenerationResult {
   job_id: string;
-  /** "pending", "running", "completed", or "failed". */
-  status: string;
+  /** Normalized status reported by the backend. */
+  status: NormalizedJobStatus;
   /** Base64 strings, URLs, or filesystem paths depending on delivery parameters. */
   images?: string[] | null;
   /** 0.0–1.0 progress indicator. */
@@ -188,7 +188,7 @@ export interface GenerationCancelResponse {
 export interface ProgressUpdate {
   job_id: string;
   progress: number;
-  status: string;
+  status: NormalizedJobStatus;
   current_step?: number | null;
   total_steps?: number | null;
   eta_seconds?: number | null;
@@ -206,7 +206,7 @@ export interface GenerationStarted {
 export interface GenerationComplete {
   job_id: string;
   /** "completed" or "failed". */
-  status: string;
+  status: Extract<NormalizedJobStatus, 'completed' | 'failed'>;
   images?: string[] | null;
   error_message?: string | null;
   total_duration?: number | null;

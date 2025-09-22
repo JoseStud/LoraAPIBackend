@@ -30,15 +30,9 @@ export interface SystemStatusState {
   [key: string]: unknown;
 }
 
-export type JobStatus =
-  | 'running'
-  | 'completed'
-  | 'failed'
-  | 'cancelled'
-  | 'queued'
-  | 'starting'
-  | 'processing'
-  | string;
+export type NormalizedJobStatus = 'queued' | 'processing' | 'completed' | 'failed';
+
+export type JobStatus = NormalizedJobStatus;
 
 export interface GenerationJob {
   id: string;

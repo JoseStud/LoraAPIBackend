@@ -57,7 +57,7 @@ describe('JobQueue.vue', () => {
       {
         id: 'job1',
         name: 'Test Generation',
-        status: 'running',
+        status: 'processing',
         progress: 25,
         startTime: new Date('2023-01-01T10:00:00Z'),
         params: { width: 512, height: 512, steps: 20 },
@@ -80,7 +80,7 @@ describe('JobQueue.vue', () => {
     expect(wrapper.text()).toContain('Another Job');
     expect(wrapper.text()).toContain('512x512 • 20 steps');
     expect(wrapper.text()).toContain('768x768 • 30 steps');
-    expect(wrapper.text()).toContain('running');
+    expect(wrapper.text()).toContain('processing');
     expect(wrapper.text()).toContain('completed');
     expect(wrapper.text()).toContain('25%');
     expect(wrapper.text()).toContain('100%');
@@ -92,28 +92,8 @@ describe('JobQueue.vue', () => {
 
   it('applies correct status color classes', async () => {
     appStore.activeJobs = [
-      { id: 'job1', status: 'running', startTime: new Date() },
-      { id: 'job2', status: 'completed', startTime: new Date() },
-      { id: 'job3', status: 'failed', startTime: new Date() },
-      { id: 'job4', status: 'cancelled', startTime: new Date() }
-    ];
-
-    const wrapper = mount(JobQueue, { props: { disabled: true } });
-    await flush();
-
-    // Check for status-specific CSS classes
-    expect(wrapper.html()).toContain('text-blue-600'); // running
-    expect(wrapper.html()).toContain('text-green-600'); // completed
-    expect(wrapper.html()).toContain('text-red-600'); // failed
-    expect(wrapper.html()).toContain('text-gray-600'); // cancelled
-
-    wrapper.unmount();
-  });
-
-  it('shows cancel button only for running/starting jobs', async () => {
-    appStore.activeJobs = [
-      { id: 'job1', status: 'running', startTime: new Date() },
-      { id: 'job2', status: 'starting', startTime: new Date() },
+      { id: 'job1', status: 'processing', startTime: new Date() },
+      { id: 'job2', status: 'queued', startTime: new Date() },
       { id: 'job3', status: 'completed', startTime: new Date() },
       { id: 'job4', status: 'failed', startTime: new Date() }
     ];
@@ -121,7 +101,27 @@ describe('JobQueue.vue', () => {
     const wrapper = mount(JobQueue, { props: { disabled: true } });
     await flush();
 
-    // Should have 2 cancel buttons (for running and starting jobs)
+    // Check for status-specific CSS classes
+    expect(wrapper.html()).toContain('text-blue-600'); // processing
+    expect(wrapper.html()).toContain('text-yellow-600'); // queued
+    expect(wrapper.html()).toContain('text-green-600'); // completed
+    expect(wrapper.html()).toContain('text-red-600'); // failed
+
+    wrapper.unmount();
+  });
+
+  it('shows cancel button only for running/starting jobs', async () => {
+    appStore.activeJobs = [
+      { id: 'job1', status: 'processing', startTime: new Date() },
+      { id: 'job2', status: 'queued', startTime: new Date() },
+      { id: 'job3', status: 'completed', startTime: new Date() },
+      { id: 'job4', status: 'failed', startTime: new Date() }
+    ];
+
+    const wrapper = mount(JobQueue, { props: { disabled: true } });
+    await flush();
+
+    // Should have 2 cancel buttons (for processing and queued jobs)
     const cancelButtons = wrapper.findAll('button[type="button"]').filter(btn => 
       btn.element.innerHTML.includes('M6 18L18 6M6 6l12 12')
     );
@@ -138,11 +138,11 @@ describe('JobQueue.vue', () => {
     }));
 
     appStore.activeJobs = [
-      { 
-        id: 'job1', 
+      {
+        id: 'job1',
         // No jobId property, should fallback to id
-        status: 'running', 
-        startTime: new Date() 
+        status: 'processing',
+        startTime: new Date()
       }
     ];
 
@@ -170,11 +170,11 @@ describe('JobQueue.vue', () => {
     }));
 
     appStore.activeJobs = [
-      { 
-        id: 'job1', 
+      {
+        id: 'job1',
         jobId: 'backend-job-1',
-        status: 'running', 
-        startTime: new Date() 
+        status: 'processing',
+        startTime: new Date()
       }
     ];
 
@@ -226,7 +226,7 @@ describe('JobQueue.vue', () => {
 
   it('shows and handles clear completed button when enabled', async () => {
     appStore.activeJobs = [
-      { id: 'job1', status: 'running', startTime: new Date() },
+      { id: 'job1', status: 'processing', startTime: new Date() },
       { id: 'job2', status: 'completed', startTime: new Date() },
       { id: 'job3', status: 'failed', startTime: new Date() }
     ];
@@ -262,8 +262,8 @@ describe('JobQueue.vue', () => {
     const oneHourAgo = new Date(now.getTime() - 3665000); // 1 hour, 1 minute, 5 seconds ago
 
     appStore.activeJobs = [
-      { id: 'job1', status: 'running', startTime: oneMinuteAgo },
-      { id: 'job2', status: 'running', startTime: oneHourAgo }
+      { id: 'job1', status: 'processing', startTime: oneMinuteAgo },
+      { id: 'job2', status: 'processing', startTime: oneHourAgo }
     ];
 
     const wrapper = mount(JobQueue, { props: { disabled: true } });

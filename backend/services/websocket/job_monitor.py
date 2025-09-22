@@ -10,6 +10,7 @@ from typing import Any, Awaitable, Callable, Dict, Optional, Protocol
 import structlog
 
 from backend.schemas import GenerationComplete, ProgressUpdate, SDNextGenerationResult
+from backend.services.generation import normalize_generation_status
 
 logger = structlog.get_logger(__name__)
 
@@ -99,7 +100,7 @@ class JobProgressMonitor:
                 result = await self._call_generation_progress(generation_service, job_id)
                 persisted_state = self._safe_load_state(job_id)
 
-                status_value = result.status or "pending"
+                status_value = normalize_generation_status(result.status or "pending")
                 progress_value = self._normalize_progress(result.progress)
                 error_message = result.error_message
 
@@ -181,7 +182,7 @@ class JobProgressMonitor:
         if not stored_status and isinstance(result_payload, dict):
             stored_status = result_payload.get("status")
 
-        mapped_status = self._map_delivery_status(stored_status)
+        mapped_status = normalize_generation_status(stored_status) if stored_status else None
         if mapped_status is not None:
             status_value = mapped_status
 
@@ -196,20 +197,6 @@ class JobProgressMonitor:
             error_message = self._extract_error_message(result_payload)
 
         return status_value, progress_value, error_message
-
-    @staticmethod
-    def _map_delivery_status(status: Optional[str]) -> Optional[str]:
-        if not status:
-            return None
-
-        normalized = status.lower()
-        if normalized == "succeeded":
-            return "completed"
-        if normalized in {"failed", "cancelled"}:
-            return "failed"
-        if normalized == "completed":
-            return "completed"
-        return normalized
 
     def _extract_progress_from_payload(
         self, payload: Optional[Dict[str, Any]]
@@ -265,7 +252,8 @@ class JobProgressMonitor:
         if not stored_status:
             return False
 
-        return stored_status.lower() in {"succeeded", "failed", "cancelled"}
+        normalized = normalize_generation_status(stored_status)
+        return normalized in {"completed", "failed"}
 
     def _build_completion_payload(
         self,

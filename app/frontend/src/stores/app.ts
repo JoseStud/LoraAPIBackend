@@ -8,6 +8,7 @@ import type {
   SystemStatusState,
   UserPreferences,
 } from '@/types';
+import { normalizeJobStatus } from '@/utils/status';
 
 interface AppState {
   systemStatus: SystemStatusState;
@@ -63,7 +64,7 @@ export const useAppStore = defineStore('app', {
       const id = String(job.id ?? job.jobId ?? createJobId());
       const newJob: GenerationJob = {
         id,
-        status: job.status ?? 'running',
+        status: normalizeJobStatus(typeof job.status === 'string' ? job.status : undefined),
         progress: job.progress ?? 0,
         startTime: job.startTime ?? new Date().toISOString(),
         ...job,
@@ -82,7 +83,7 @@ export const useAppStore = defineStore('app', {
         const id = String(job.id ?? job.jobId ?? createJobId());
         return {
           id,
-          status: job.status ?? 'running',
+          status: normalizeJobStatus(typeof job.status === 'string' ? job.status : undefined),
           progress: job.progress ?? 0,
           startTime: job.startTime ?? new Date().toISOString(),
           ...job,
@@ -102,9 +103,7 @@ export const useAppStore = defineStore('app', {
     },
 
     clearCompletedJobs(): void {
-      this.activeJobs = this.activeJobs.filter(
-        (job) => !['completed', 'failed', 'cancelled'].includes(job.status)
-      );
+      this.activeJobs = this.activeJobs.filter((job) => !['completed', 'failed'].includes(job.status));
     },
 
     addResult(result: GenerationResult): void {
