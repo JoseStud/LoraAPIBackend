@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.api.v1.generation import _serialize_generation_job
 from backend.main import app as backend_app
 from backend.services import ServiceContainer
 from backend.services.deliveries import DeliveryService
@@ -146,6 +147,29 @@ def test_list_generation_results_returns_recent_jobs(
     assert entry["steps"] == 25
     assert entry["cfg_scale"] == 7.5
     assert entry["seed"] == 1234
+
+
+def test_serialize_generation_job_normalizes_payload(delivery_service: DeliveryService):
+    """Helper returns flattened params and normalized result details."""
+
+    job = delivery_service.create_job("Prompt", "sdnext", _create_generation_params("Prompt"))
+    delivery_service.update_job_status(
+        job.id,
+        "running",
+        {
+            "progress": 0.5,
+            "detail": "Working",
+            "error_message": "Minor issue",
+        },
+    )
+
+    serialized = _serialize_generation_job(job, delivery_service)
+
+    assert serialized["params"]["prompt"] == "Prompt"
+    assert serialized["progress"] == 50.0
+    assert serialized["message"] == "Working"
+    assert serialized["error"] == "Minor issue"
+    assert serialized["result"]["progress"] == 0.5
 
 
 def test_queue_generation_job_uses_primary_queue_backend(

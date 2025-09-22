@@ -1,7 +1,7 @@
 """Router for SDNext generation endpoints."""
 
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import structlog
 
@@ -29,6 +29,52 @@ CANCELLABLE_STATUSES = {"pending", "running"}
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/generation", tags=["generation"])
+
+
+def _serialize_generation_job(job, deliveries) -> Dict[str, Any]:
+    """Return normalized parameters and result payload data for a job."""
+
+    raw_params = deliveries.get_job_params(job)
+    generation_params: Dict[str, Any] = {}
+    if isinstance(raw_params, dict):
+        maybe_generation_params = raw_params.get("generation_params")
+        if isinstance(maybe_generation_params, dict):
+            generation_params = maybe_generation_params
+        else:
+            generation_params = raw_params
+
+    result_payload = deliveries.get_job_result(job) or {}
+    if not isinstance(result_payload, dict):
+        result_payload = {}
+
+    progress_value = result_payload.get("progress")
+    progress = 0.0
+    if isinstance(progress_value, (int, float)):
+        progress = float(progress_value)
+        if progress <= 1:
+            progress *= 100
+
+    message: Optional[str] = None
+    for key in ("message", "detail"):
+        value = result_payload.get(key)
+        if isinstance(value, str):
+            message = value
+            break
+
+    error_text: Optional[str] = None
+    for key in ("error", "error_message"):
+        value = result_payload.get(key)
+        if isinstance(value, str):
+            error_text = value
+            break
+
+    return {
+        "params": generation_params,
+        "result": result_payload,
+        "progress": progress,
+        "message": message,
+        "error": error_text,
+    }
 
 
 @router.get("/backends", response_model=Dict[str, bool])
@@ -263,39 +309,9 @@ async def list_active_generation_jobs(
 
     active_jobs: List[GenerationJobStatus] = []
     for job in ordered_jobs[:limit]:
-        raw_params = services.deliveries.get_job_params(job)
-        generation_params: Dict[str, Any] = {}
-        if isinstance(raw_params, dict):
-            maybe_generation_params = raw_params.get("generation_params")
-            if isinstance(maybe_generation_params, dict):
-                generation_params = maybe_generation_params
-            else:
-                generation_params = raw_params
-
-        result_payload = services.deliveries.get_job_result(job) or {}
-        if not isinstance(result_payload, dict):
-            result_payload = {}
-
-        progress_value = result_payload.get("progress")
-        progress = 0.0
-        if isinstance(progress_value, (int, float)):
-            progress = float(progress_value)
-            if progress <= 1:
-                progress *= 100
-
-        message = None
-        for key in ("message", "detail"):
-            value = result_payload.get(key)
-            if isinstance(value, str):
-                message = value
-                break
-
-        error_text = None
-        for key in ("error", "error_message"):
-            value = result_payload.get(key)
-            if isinstance(value, str):
-                error_text = value
-                break
+        serialized = _serialize_generation_job(job, services.deliveries)
+        generation_params = serialized["params"]
+        result_payload = serialized["result"]
 
         active_jobs.append(
             GenerationJobStatus(
@@ -303,9 +319,9 @@ async def list_active_generation_jobs(
                 jobId=job.id,
                 prompt=generation_params.get("prompt") or job.prompt,
                 status=job.status,
-                progress=progress,
-                message=message,
-                error=error_text,
+                progress=serialized["progress"],
+                message=serialized["message"],
+                error=serialized["error"],
                 params=generation_params,
                 created_at=job.created_at,
                 startTime=job.started_at or job.created_at,
@@ -373,18 +389,9 @@ async def list_generation_results(
 
     results: List[GenerationResultSummary] = []
     for job in jobs:
-        raw_params = services.deliveries.get_job_params(job)
-        generation_params: Dict[str, Any] = {}
-        if isinstance(raw_params, dict):
-            maybe_generation_params = raw_params.get("generation_params")
-            if isinstance(maybe_generation_params, dict):
-                generation_params = maybe_generation_params
-            else:
-                generation_params = raw_params
-
-        result_payload = services.deliveries.get_job_result(job) or {}
-        if not isinstance(result_payload, dict):
-            result_payload = {}
+        serialized = _serialize_generation_job(job, services.deliveries)
+        generation_params = serialized["params"]
+        result_payload = serialized["result"]
 
         images = result_payload.get("images")
         image_url = None
