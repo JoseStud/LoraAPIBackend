@@ -281,12 +281,16 @@ def test_compose_sdnext_delivery(
 
     captured: dict[str, object] = {}
 
-    def fake_sdnext(prompt: str, params: dict, job_id: str) -> None:
+    async def fake_execute(prompt: str, mode: str, params: dict) -> dict:
         captured["prompt"] = prompt
         captured["params"] = params
-        captured["job_id"] = job_id
+        captured["mode"] = mode
+        return {"status": "succeeded"}
 
-    monkeypatch.setattr("backend.api.v1.compose._deliver_sdnext", fake_sdnext)
+    monkeypatch.setattr(
+        "backend.services.deliveries._execute_delivery_backend",
+        fake_execute,
+    )
 
     sdnext_config = {
         "generation_params": {
@@ -325,8 +329,8 @@ def test_compose_sdnext_delivery(
     assert delivery_info.get("status") == "pending"
 
     assert captured  # background task captured the sdnext payload
-    assert captured["job_id"] == delivery_info["id"]
-    assert captured["params"] == sdnext_config
+    assert captured["mode"] == "sdnext"
+    assert captured["params"]["sdnext"] == sdnext_config
     assert "<lora:" in str(captured["prompt"])
 
 
