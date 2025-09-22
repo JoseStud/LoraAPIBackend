@@ -9,6 +9,8 @@ from typing import Any, Callable, Optional, Tuple
 from fastapi import BackgroundTasks
 
 from backend.core.config import settings
+from backend.delivery.base import delivery_registry
+from backend.workers.delivery_runner import DeliveryRunner
 
 PrimaryFallbackQueues = Tuple[Optional["QueueBackend"], "QueueBackend"]
 
@@ -92,6 +94,14 @@ class BackgroundTaskQueueBackend(QueueBackend):
 
 _primary_queue_backend: Optional["QueueBackend"] = None
 _fallback_queue_backend: Optional["QueueBackend"] = None
+_delivery_runner: Optional[DeliveryRunner] = None
+
+
+def _get_delivery_runner() -> DeliveryRunner:
+    global _delivery_runner
+    if _delivery_runner is None:
+        _delivery_runner = DeliveryRunner(delivery_registry)
+    return _delivery_runner
 
 
 def _build_primary_queue_backend() -> Optional["QueueBackend"]:
@@ -102,9 +112,8 @@ def _build_primary_queue_backend() -> Optional["QueueBackend"]:
 
 
 def _build_fallback_queue_backend() -> "QueueBackend":
-    from backend.services.deliveries import process_delivery_job
-
-    return BackgroundTaskQueueBackend(process_delivery_job)
+    runner = _get_delivery_runner()
+    return BackgroundTaskQueueBackend(runner.process_delivery_job)
 
 
 def get_queue_backends() -> PrimaryFallbackQueues:
@@ -127,6 +136,7 @@ def get_queue_backends() -> PrimaryFallbackQueues:
 def reset_queue_backends() -> None:
     """Reset cached queue backend instances (primarily for tests)."""
 
-    global _primary_queue_backend, _fallback_queue_backend
+    global _primary_queue_backend, _fallback_queue_backend, _delivery_runner
     _primary_queue_backend = None
     _fallback_queue_backend = None
+    _delivery_runner = None

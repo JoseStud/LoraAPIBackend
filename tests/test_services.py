@@ -5,11 +5,13 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from backend.delivery.base import DeliveryRegistry
 from backend.models.adapters import Adapter
 from backend.schemas.adapters import AdapterCreate
 from backend.services.composition import CompositionResult
-from backend.services.deliveries import DeliveryService, process_delivery_job
+from backend.services.deliveries import DeliveryService
 from backend.services.queue import QueueBackend
+from backend.workers.delivery_runner import DeliveryRunner
 
 
 class TestAdapterService:
@@ -290,7 +292,7 @@ class TestDeliveryService:
 
     @staticmethod
     def _override_session(monkeypatch, db_session):
-        """Force process_delivery_job to use the in-memory test session."""
+        """Force delivery job processing to use the in-memory test session."""
 
         @contextmanager
         def session_context():
@@ -300,6 +302,12 @@ class TestDeliveryService:
             "backend.core.database.get_session_context",
             lambda: session_context(),
         )
+
+    @staticmethod
+    def _make_runner() -> DeliveryRunner:
+        """Create a delivery runner bound to an isolated registry."""
+
+        return DeliveryRunner(DeliveryRegistry())
 
     def test_create_job(self, delivery_service):
         """Test creating a new delivery job."""
@@ -358,12 +366,10 @@ class TestDeliveryService:
             assert params == {"key": "value"}
             return {"status": "ok", "result": True}
 
-        monkeypatch.setattr(
-            "backend.services.deliveries._execute_delivery_backend",
-            fake_execute,
-        )
+        runner = self._make_runner()
+        monkeypatch.setattr(runner, "_execute_delivery_backend", fake_execute)
 
-        process_delivery_job(job.id)
+        runner.process_delivery_job(job.id)
 
         db_session.expire_all()
         refreshed = service.get_job(job.id)
@@ -383,12 +389,10 @@ class TestDeliveryService:
         async def failing_execute(prompt, mode, params):
             raise RuntimeError("boom")
 
-        monkeypatch.setattr(
-            "backend.services.deliveries._execute_delivery_backend",
-            failing_execute,
-        )
+        runner = self._make_runner()
+        monkeypatch.setattr(runner, "_execute_delivery_backend", failing_execute)
 
-        process_delivery_job(job.id, retries_left=2)
+        runner.process_delivery_job(job.id, retries_left=2)
 
         db_session.expire_all()
         refreshed = service.get_job(job.id)
@@ -410,13 +414,11 @@ class TestDeliveryService:
         async def failing_execute(prompt, mode, params):
             raise RuntimeError("explode")
 
-        monkeypatch.setattr(
-            "backend.services.deliveries._execute_delivery_backend",
-            failing_execute,
-        )
+        runner = self._make_runner()
+        monkeypatch.setattr(runner, "_execute_delivery_backend", failing_execute)
 
         with pytest.raises(RuntimeError):
-            process_delivery_job(job.id, raise_on_error=True)
+            runner.process_delivery_job(job.id, raise_on_error=True)
 
         db_session.expire_all()
         refreshed = service.get_job(job.id)

@@ -27,9 +27,10 @@ except Exception:
 
 
 from backend.core.database import get_session_context
+from backend.delivery.base import delivery_registry
 from backend.services import create_service_container
-from backend.services.deliveries import process_delivery_job
 from backend.services.queue import QueueBackend, RedisQueueBackend, get_queue_backends
+from backend.workers.delivery_runner import DeliveryRunner
 
 # Basic structured-ish logger for worker events
 logger = logging.getLogger("lora.tasks")
@@ -44,6 +45,7 @@ primary_queue_backend: Optional[RedisQueueBackend]
 fallback_queue_backend: QueueBackend
 queue_backend: QueueBackend
 q: Optional[Queue]
+delivery_runner = DeliveryRunner(delivery_registry)
 
 
 def initialize_queue_backends() -> None:
@@ -123,7 +125,7 @@ def process_delivery(delivery_id: str):
         except Exception:  # pragma: no cover - defensive branch
             retries_left = None
 
-        process_delivery_job(
+        delivery_runner.process_delivery_job(
             delivery_id,
             retries_left=retries_left,
             raise_on_error=True,
