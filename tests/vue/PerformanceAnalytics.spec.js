@@ -1,24 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
+
+const { chartConstructorSpy } = vi.hoisted(() => ({
+  chartConstructorSpy: vi.fn()
+}));
+
+vi.mock('chart.js/auto', () => ({
+  default: chartConstructorSpy
+}));
+
 import PerformanceAnalytics from '../../app/frontend/src/components/PerformanceAnalytics.vue';
-
-// Mock Chart.js
-const mockChart = {
-  update: vi.fn(),
-  destroy: vi.fn(),
-  data: { 
-    labels: [], 
-    datasets: [{ data: [] }] 
-  }
-};
-
-global.Chart = vi.fn().mockImplementation(() => mockChart);
-
-// Mock window.Chart
-Object.defineProperty(window, 'Chart', {
-  value: global.Chart,
-  writable: true
-});
 
 // Mock fetch for API calls
 global.fetch = vi.fn();
@@ -36,14 +27,20 @@ describe('PerformanceAnalytics.vue', () => {
       json: () => Promise.resolve({})
     });
     
-    // Reset chart mock
-    global.Chart.mockImplementation(() => ({
-      ...mockChart,
-      data: { 
-        labels: [], 
-        datasets: [{ data: [] }] 
-      }
-    }));
+    chartConstructorSpy.mockReset();
+    chartConstructorSpy.mockImplementation((context, config = {}) => {
+      const baseData = config && typeof config === 'object' && 'data' in config && config.data
+        ? JSON.parse(JSON.stringify(config.data))
+        : { labels: [], datasets: [] };
+
+      const instance = {
+        update: vi.fn(),
+        destroy: vi.fn(),
+        data: baseData
+      };
+
+      return instance;
+    });
   });
 
   it('renders the component correctly', async () => {

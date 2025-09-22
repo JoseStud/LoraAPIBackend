@@ -336,15 +336,14 @@
 
 <script lang="ts">
 import { nextTick, onMounted, onUnmounted, ref } from 'vue';
+import Chart from 'chart.js/auto';
 
 import { useNotifications } from '@/composables/useNotifications';
 import { usePerformanceAnalytics } from '@/composables/usePerformanceAnalytics';
 import { downloadFile } from '@/utils/browser';
 
 import type { PerformanceInsightEntry } from '@/types';
-import type { Chart } from 'chart.js';
-
-type ChartConstructor = new (context: HTMLCanvasElement, config: unknown) => Chart;
+import type { Chart as ChartJS } from 'chart.js';
 
 export default {
   name: 'PerformanceAnalytics',
@@ -370,13 +369,13 @@ export default {
 
     // Component state
     const isInitialized = ref(false);
-    const charts = ref<Record<string, Chart | undefined>>({});
+    const charts = ref<Record<string, ChartJS | undefined>>({});
 
     // Template refs for chart canvases
-    const generationVolumeChart = ref(null);
-    const performanceChart = ref(null);
-    const loraUsageChart = ref(null);
-    const resourceUsageChart = ref(null);
+    const generationVolumeChart = ref<HTMLCanvasElement | null>(null);
+    const performanceChart = ref<HTMLCanvasElement | null>(null);
+    const loraUsageChart = ref<HTMLCanvasElement | null>(null);
+    const resourceUsageChart = ref<HTMLCanvasElement | null>(null);
 
     // Initialize component
     async function init() {
@@ -391,22 +390,12 @@ export default {
       }
     }
 
-    // Chart initialization using global Chart.js
+    // Chart initialization using Chart.js module
     function initializeCharts() {
-      const chartConstructor =
-        typeof window !== 'undefined'
-          ? (window as typeof window & { Chart?: ChartConstructor }).Chart
-          : undefined;
-
-      if (!chartConstructor) {
-        console.warn('Chart.js not available');
-        return;
-      }
-
       try {
         // Generation Volume Chart
         if (generationVolumeChart.value) {
-          charts.value.volume = new chartConstructor(generationVolumeChart.value, {
+          charts.value.volume = new Chart(generationVolumeChart.value, {
             type: 'line',
             data: {
               labels: [],
@@ -438,7 +427,7 @@ export default {
 
         // Performance Chart
         if (performanceChart.value) {
-          charts.value.performance = new chartConstructor(performanceChart.value, {
+          charts.value.performance = new Chart(performanceChart.value, {
             type: 'line',
             data: {
               labels: [],
@@ -485,7 +474,7 @@ export default {
 
         // LoRA Usage Chart
         if (loraUsageChart.value) {
-          charts.value.loraUsage = new chartConstructor(loraUsageChart.value, {
+          charts.value.loraUsage = new Chart(loraUsageChart.value, {
             type: 'doughnut',
             data: {
               labels: [],
@@ -519,7 +508,7 @@ export default {
 
         // Resource Usage Chart
         if (resourceUsageChart.value) {
-          charts.value.resourceUsage = new chartConstructor(resourceUsageChart.value, {
+          charts.value.resourceUsage = new Chart(resourceUsageChart.value, {
             type: 'line',
             data: {
               labels: [],
