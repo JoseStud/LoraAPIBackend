@@ -1,4 +1,4 @@
-"""Storage service with enhanced backend abstraction."""
+"""Storage service for local filesystem interactions."""
 
 import os
 from pathlib import Path
@@ -96,63 +96,6 @@ class LocalFileSystemStorage:
         except Exception:
             return []
 
-
-class S3StorageBackend:
-    """S3/MinIO storage backend (placeholder implementation)."""
-    
-    def __init__(self, bucket_name: str, endpoint_url: Optional[str] = None):
-        """Initialize S3 storage backend.
-        
-        Args:
-            bucket_name: S3 bucket name
-            endpoint_url: Custom S3 endpoint (for MinIO)
-
-        """
-        self.bucket_name = bucket_name
-        self.endpoint_url = endpoint_url
-        # TODO: Initialize boto3 client
-    
-    def file_exists(self, path: str) -> bool:
-        """Check if object exists in S3 bucket.
-        
-        Args:
-            path: Object key/path
-            
-        Returns:
-            True if object exists
-
-        """
-        # TODO: Implement S3 object existence check
-        raise NotImplementedError("S3 backend not yet implemented")
-    
-    def get_file_size(self, path: str) -> Optional[int]:
-        """Get object size in S3.
-        
-        Args:
-            path: Object key/path
-            
-        Returns:
-            Object size in bytes or None if not found
-
-        """
-        # TODO: Implement S3 object size check
-        raise NotImplementedError("S3 backend not yet implemented")
-    
-    def list_files(self, directory: str, pattern: str = "*") -> List[str]:
-        """List objects in S3 bucket with prefix.
-        
-        Args:
-            directory: Key prefix
-            pattern: Pattern filter (basic support)
-            
-        Returns:
-            List of object keys
-
-        """
-        # TODO: Implement S3 object listing
-        raise NotImplementedError("S3 backend not yet implemented")
-
-
 class StorageService:
     """Service for managing storage operations."""
     
@@ -220,14 +163,15 @@ class StorageService:
 
 
 def get_storage_backend() -> StorageBackend:
-    """Get the configured storage backend.
-    
+    """Return the supported storage backend implementation.
+
+    The application currently supports only the local filesystem for storage,
+    so this helper always returns :class:`LocalFileSystemStorage`.
+
     Returns:
-        Configured storage backend instance
+        LocalFileSystemStorage: The local filesystem storage backend instance.
 
     """
-    # For now, always return local filesystem
-    # TODO: Add configuration-based backend selection
     return LocalFileSystemStorage()
 
 

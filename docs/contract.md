@@ -25,7 +25,7 @@ up clients or planning future work.
 | Dashboard & system status | Implemented | Dashboard endpoints aggregate adapter statistics and delivery activity; `/system/status` exposes queue and hardware telemetry.【F:backend/api/v1/dashboard.py†L1-L40】【F:backend/api/v1/system.py†L1-L16】 |
 | Import/export utilities | Partially implemented | Archive endpoints stream ZIP files and ingest uploads, but backup history uses mock data and long-running flows rely on future work in `ArchiveService`.【F:backend/api/v1/import_export.py†L1-L170】 |
 | WebSocket progress | Implemented | `/ws/progress` hands connections to the `WebSocketService` which relays delivery/generation updates.【F:backend/api/v1/websocket.py†L1-L43】 |
-| Storage abstraction | Local filesystem only | The storage service validates paths on disk; the alternative cloud-storage backend placeholder still raises `NotImplementedError`.【F:backend/services/storage.py†L46-L153】 |
+| Storage abstraction | Local filesystem only | The storage service validates paths on disk; cloud-storage integrations are not supported and the local backend is the only option. |
 
 ## Known limitations and TODOs
 
