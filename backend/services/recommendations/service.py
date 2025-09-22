@@ -1,5 +1,6 @@
 """Recommendation service for LoRA adapter discovery and learning."""
 
+import logging
 import pickle
 import time
 from datetime import datetime, timezone
@@ -22,6 +23,11 @@ from backend.schemas.recommendations import (
     UserPreferenceRequest,
 )
 
+from .components.interfaces import (
+    FeatureExtractorProtocol,
+    RecommendationEngineProtocol,
+    SemanticEmbedderProtocol,
+)
 from .embedding_manager import EmbeddingManager
 from .metrics import RecommendationMetrics
 from .model_registry import RecommendationModelRegistry
@@ -40,6 +46,7 @@ class RecommendationService:
         db_session: Optional[Session],
         gpu_enabled: bool = False,
         *,
+        logger: Optional[logging.Logger] = None,
         model_registry: Optional[RecommendationModelRegistry] = None,
         embedding_manager: Optional[EmbeddingManager] = None,
         repository: Optional[RecommendationRepository] = None,
@@ -54,10 +61,12 @@ class RecommendationService:
         self.db_session = db_session
         self.gpu_enabled = gpu_enabled
         self.device = 'cuda' if gpu_enabled else 'cpu'
+        self._logger = logger or logging.getLogger(__name__)
 
         self._model_registry = model_registry or RecommendationModelRegistry(
             device=self.device,
             gpu_enabled=self.gpu_enabled,
+            logger=self._logger,
         )
         self._embedding_manager = embedding_manager
         self._repository = repository
@@ -106,7 +115,7 @@ class RecommendationService:
             self._repository = RecommendationRepository(session)
         return self._repository
 
-    def _get_semantic_embedder(self):
+    def _get_semantic_embedder(self) -> SemanticEmbedderProtocol:
         return self._model_registry.get_semantic_embedder()
 
     def _require_db_session(self) -> Session:
@@ -115,10 +124,10 @@ class RecommendationService:
             raise RuntimeError("RecommendationService requires an active database session")
         return self.db_session
 
-    def _get_feature_extractor(self):
+    def _get_feature_extractor(self) -> FeatureExtractorProtocol:
         return self._model_registry.get_feature_extractor()
 
-    def _get_recommendation_engine(self):
+    def _get_recommendation_engine(self) -> RecommendationEngineProtocol:
         return self._model_registry.get_recommendation_engine()
 
     @classmethod
