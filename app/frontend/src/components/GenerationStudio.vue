@@ -45,6 +45,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Left Panel: Generation Parameters -->
       <div class="lg:col-span-1">
+        <!-- @vue-ignore Passing refs for direct mutation -->
         <GenerationParameterForm
           :params="params"
           :is-generating="isGenerating"
@@ -58,6 +59,7 @@
       <!-- Center Panel: Generation Queue & Progress -->
       <div class="lg:col-span-1">
         <div class="space-y-6">
+          <!-- @vue-ignore Passing refs for live updates -->
           <GenerationActiveJobsList
             :active-jobs="activeJobs"
             :sorted-active-jobs="sortedActiveJobs"
@@ -68,6 +70,7 @@
             @cancel-job="cancelJob"
           />
 
+          <!-- @vue-ignore Passing refs for live updates -->
           <GenerationSystemStatusCard
             :system-status="systemStatus"
             :get-system-status-classes="getSystemStatusClasses"
@@ -77,6 +80,7 @@
 
       <!-- Right Panel: Recent Results -->
       <div class="lg:col-span-1">
+        <!-- @vue-ignore Passing refs for live updates -->
         <GenerationResultsGallery
           :recent-results="recentResults"
           :show-history="showHistory"
@@ -130,6 +134,9 @@ import GenerationParameterForm from '@/components/generation/GenerationParameter
 import GenerationResultsGallery from '@/components/generation/GenerationResultsGallery.vue'
 import GenerationSystemStatusCard from '@/components/generation/GenerationSystemStatusCard.vue'
 import { useGenerationStudio } from '@/composables/useGenerationStudio'
+import type { UseGenerationStudioReturn } from '@/composables/useGenerationStudio'
+
+const generationStudio = useGenerationStudio() as UseGenerationStudioReturn
 
 const {
   params,
@@ -158,5 +165,5 @@ const {
   getJobStatusText,
   canCancelJob,
   getSystemStatusClasses,
-} = useGenerationStudio()
+} = generationStudio
 </script>
