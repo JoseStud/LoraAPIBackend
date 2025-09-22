@@ -129,15 +129,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue';
 
-import { useAdapterListApi } from '@/composables/apiClients';
+import { useAdapterListApi } from '@/services/loraService';
 import { createGenerationParams, requestGeneration } from '@/services/generationService';
 import { copyToClipboard } from '@/utils/browser';
 
 import type {
-  AdapterRead,
   AdapterSummary,
   CompositionEntry,
   SavedComposition,
+  LoraListItem,
 } from '@/types';
 
 const STORAGE_KEY = 'prompt-composer-composition';
@@ -425,8 +425,8 @@ onMounted(async () => {
 });
 
 watch(
-  () => adapters.value as AdapterRead[] | undefined,
-  (next: AdapterRead[] | undefined) => {
+  adapters,
+  (next: LoraListItem[] | undefined) => {
     const items = Array.isArray(next) ? next : [];
 
     loras.value = items.map((item) => ({

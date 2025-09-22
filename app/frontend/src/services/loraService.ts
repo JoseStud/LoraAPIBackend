@@ -1,7 +1,8 @@
-import { computed, reactive, unref } from 'vue';
+import { computed, reactive, unref, isRef } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
 
 import { useApi } from '@/composables/useApi';
+import { resolveBackendUrl } from '@/utils/backend';
 
 import type {
   AdapterListQuery,
@@ -18,6 +19,15 @@ import type {
 } from '@/types';
 
 const DEFAULT_BASE = '/api/v1';
+const DEFAULT_ADAPTER_LIST_QUERY: AdapterListQuery = { page: 1, perPage: 100 };
+
+const isBaseUrlInput = (value: unknown): value is MaybeRefOrGetter<string> => {
+  if (typeof value === 'string' || typeof value === 'function') {
+    return true;
+  }
+
+  return isRef(value);
+};
 
 const sanitizeBaseUrl = (value?: string): string => {
   if (!value) {
@@ -63,10 +73,16 @@ export const buildAdapterListQuery = (query: AdapterListQuery = {}): string => {
 };
 
 export const useAdapterListApi = (
-  baseUrl: MaybeRefOrGetter<string>,
-  initialQuery: AdapterListQuery = { page: 1, perPage: 100 },
+  baseOrQuery: MaybeRefOrGetter<string> | AdapterListQuery = () => resolveBackendUrl(),
+  maybeQuery: AdapterListQuery = DEFAULT_ADAPTER_LIST_QUERY,
 ) => {
-  const query = reactive<AdapterListQuery>({ ...initialQuery });
+  const hasExplicitBase = isBaseUrlInput(baseOrQuery);
+  const baseUrl = hasExplicitBase ? (baseOrQuery as MaybeRefOrGetter<string>) : () => resolveBackendUrl();
+  const initialQuery = hasExplicitBase
+    ? maybeQuery ?? DEFAULT_ADAPTER_LIST_QUERY
+    : (baseOrQuery as AdapterListQuery | undefined) ?? DEFAULT_ADAPTER_LIST_QUERY;
+
+  const query = reactive<AdapterListQuery>({ ...DEFAULT_ADAPTER_LIST_QUERY, ...initialQuery });
   const api = useApi<AdapterListResponse | AdapterRead[]>(
     () => `${resolveBase(baseUrl)}/adapters${buildAdapterListQuery(query)}`,
     { credentials: 'same-origin' },
