@@ -6,11 +6,9 @@ records in the database as the worker processes jobs.
 
 import json
 import logging
-import os
 from dataclasses import dataclass
 from typing import List, Optional
 
-from redis import Redis
 from rq import Queue, get_current_job
 
 try:
@@ -31,7 +29,7 @@ except Exception:
 from backend.core.database import get_session_context
 from backend.services import create_service_container
 from backend.services.deliveries import process_delivery_job
-from backend.services.queue import RedisQueueBackend
+from backend.services.queue import QueueBackend, RedisQueueBackend, get_queue_backends
 
 # Basic structured-ish logger for worker events
 logger = logging.getLogger("lora.tasks")
@@ -42,9 +40,39 @@ if not logger.handlers:
     logger.addHandler(h)
 logger.setLevel(logging.INFO)
 
-redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-queue_backend = RedisQueueBackend(redis_url)
-q = queue_backend.queue
+primary_queue_backend: Optional[RedisQueueBackend]
+fallback_queue_backend: QueueBackend
+queue_backend: QueueBackend
+q: Optional[Queue]
+
+
+def initialize_queue_backends() -> None:
+    """Initialize the worker queue backends from the shared factory."""
+
+    global primary_queue_backend, fallback_queue_backend, queue_backend, q
+
+    primary, fallback = get_queue_backends()
+    primary_queue_backend = primary if isinstance(primary, RedisQueueBackend) else None
+    fallback_queue_backend = fallback
+
+    queue_backend_candidate: Optional[QueueBackend] = primary or fallback
+    if queue_backend_candidate is None:  # pragma: no cover - defensive guard
+        raise RuntimeError("No queue backend is available for worker tasks")
+
+    queue_backend = queue_backend_candidate
+
+    if isinstance(queue_backend, RedisQueueBackend):
+        q_candidate: Optional[Queue]
+        try:
+            q_candidate = queue_backend.queue
+        except Exception:  # pragma: no cover - defensive branch
+            q_candidate = None
+        q = q_candidate
+    else:
+        q = None
+
+
+initialize_queue_backends()
 
 
 def enqueue_delivery(prompt: str, mode: str, params: dict, max_retries: int = 3):

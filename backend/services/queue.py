@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Tuple
 
 from fastapi import BackgroundTasks
+
+from backend.core.config import settings
+
+PrimaryFallbackQueues = Tuple[Optional["QueueBackend"], "QueueBackend"]
 
 
 class QueueBackend(ABC):
@@ -84,3 +88,45 @@ class BackgroundTaskQueueBackend(QueueBackend):
             background_tasks.add_task(self._execute, job_id)
         else:
             self._execute(job_id)
+
+
+_primary_queue_backend: Optional["QueueBackend"] = None
+_fallback_queue_backend: Optional["QueueBackend"] = None
+
+
+def _build_primary_queue_backend() -> Optional["QueueBackend"]:
+    redis_url = settings.REDIS_URL
+    if redis_url:
+        return RedisQueueBackend(redis_url)
+    return None
+
+
+def _build_fallback_queue_backend() -> "QueueBackend":
+    from backend.services.deliveries import process_delivery_job
+
+    return BackgroundTaskQueueBackend(process_delivery_job)
+
+
+def get_queue_backends() -> PrimaryFallbackQueues:
+    """Return the lazily instantiated primary and fallback queue backends."""
+
+    global _primary_queue_backend, _fallback_queue_backend
+
+    if _primary_queue_backend is None:
+        _primary_queue_backend = _build_primary_queue_backend()
+
+    if _fallback_queue_backend is None:
+        _fallback_queue_backend = _build_fallback_queue_backend()
+
+    if _fallback_queue_backend is None:  # pragma: no cover - safety net
+        raise RuntimeError("Fallback queue backend could not be initialized")
+
+    return _primary_queue_backend, _fallback_queue_backend
+
+
+def reset_queue_backends() -> None:
+    """Reset cached queue backend instances (primarily for tests)."""
+
+    global _primary_queue_backend, _fallback_queue_backend
+    _primary_queue_backend = None
+    _fallback_queue_backend = None
