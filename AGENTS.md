@@ -86,103 +86,76 @@ export const useSystemStatusApi = () =>
 
 ## 🎯 Current Architectural Issues and Recommendations
 
-### Issue 1: Frontend Migration ✅ **RESOLVED**
+### Backend–Frontend Status Vocabulary Drift 🔥 **HIGH PRIORITY**
 
-**Status**: The project now runs as a pure Vue 3 SPA. `app/frontend/static/js/components/` and the accompanying loaders have been removed, Vue Router owns every workflow, and tests verify feature coverage directly against the `.vue` views.
+**Problem**: The generation API forwards raw delivery states (`pending`, `running`, etc.) while the UI expects a different vocabulary (`queued`, `processing`, `completed`). The mismatch causes "Unknown" statuses in the queue and brittle styling rules.
 
-**Follow-up**:
-1. Continue refining Vue composables and Pinia stores as additional legacy helpers are retired.
-2. Keep package metadata and developer docs aligned with the Vue-only architecture.
+**Recommendation**:
+- Introduce a shared status-normalization helper in the backend to translate delivery states before they leave the API.
+- Ensure the same helper is reused for WebSocket broadcasts so push and pull channels agree.
+- Simplify the front-end composables/components to rely solely on the normalized terms and delete ad-hoc fallbacks.
 
-### Issue 2: Compose Endpoint Queue Logic Duplication 🔥 **MEDIUM PRIORITY**
+### Frontend Generation Composables Are Monolithic 🔥 **HIGH PRIORITY**
 
-**Problem**: The compose endpoint still reproduces delivery queue logic instead of using `DeliveryService.schedule_job`.
+**Problem**: `useGenerationStudio` and `useGenerationUpdates` blend Pinia mutations, REST orchestration, socket lifecycle management, and dialog logic in files that exceed 200 lines, limiting reuse and unit testing.
 
-**Current Problematic Code**:
-```python
-# backend/api/v1/compose.py (lines 40-65)
-if req.delivery.mode == "http" and req.delivery.http:
-    background_tasks.add_task(_deliver_http, ...)
-elif req.delivery.mode == "cli" and req.delivery.cli:
-    background_tasks.add_task(_deliver_cli, ...)
-elif req.delivery.mode == "sdnext" and req.delivery.sdnext:
-    background_tasks.add_task(_deliver_sdnext, ...)
-```
+**Recommendation**:
+- Move long-lived state into a dedicated Pinia store that exposes clear actions/events.
+- Extract REST/WebSocket plumbing into small services that can be mocked and reused.
+- Refactor the composables to thin adapters that bind store + services to view needs.
 
-**Recommendation**: Consolidate to use centralized delivery scheduling:
-```python
-if req.delivery:
-    job = services.deliveries.schedule_job(
-        prompt=prompt,
-        mode=req.delivery.mode,
-        params=req.delivery.model_dump(),
-        background_tasks=background_tasks,
-    )
-```
+### RecommendationService Responsibilities Are Coupled 📈 **MEDIUM PRIORITY**
 
+**Problem**: The class orchestrates GPU discovery, embedding/index persistence, cache management, and feedback APIs, making it difficult to evolve or test any single concern.
 
+**Recommendation**:
+- Extract model/bootstrap duties into a provider module injected into the service.
+- Move persistence/index operations into a dedicated manager.
+- Compose these collaborators via the service container and add targeted unit coverage.
 
+### SDNext Delivery Backend Couples Networking & Storage 📈 **MEDIUM PRIORITY**
 
-### Issue 3: Dashboard Metrics Implementation � **LOW PRIORITY** ⬇️
+**Problem**: `SDNextGenerationBackend` currently manages HTTP sessions, health checks, request payload construction, progress polling, and on-disk image persistence in one class.
 
-**Status**: **SIGNIFICANTLY IMPROVED** - Real dashboard metrics now implemented
+**Recommendation**:
+- Create a focused HTTP client helper for session lifecycle + request execution.
+- Introduce a storage abstraction for image persistence that can be mocked.
+- Have the backend orchestrate these collaborators and cover API vs. storage failures independently.
 
-**Progress Made**:
-```python
-# backend/api/v1/dashboard.py - Real dashboard statistics
-@router.get("/stats")
-async def get_dashboard_stats(services: ServiceContainer = Depends(get_service_container)):
-    stats = services.adapters.get_dashboard_statistics()
-    stats["active_jobs"] = services.deliveries.count_active_jobs()
-    system_health = services.system.get_health_summary().as_dict()
-    return {"stats": stats, "system_health": system_health}
+### Compose Endpoint Queue Logic Duplication 🔥 **MEDIUM PRIORITY**
 
-# backend/services/adapters.py - Real statistics implementation
-def get_dashboard_statistics(self, *, recent_hours: int = 24) -> Dict[str, int]:
-    total = self.count_total()
-    active = self.count_active()
-    recent_imports = self.count_recent_imports(hours=recent_hours)
-    embeddings_coverage = int(round((active / total) * 100)) if total else 0
-    return {
-        "total_loras": total,
-        "active_loras": active,
-        "embeddings_coverage": embeddings_coverage,
-        "recent_imports": recent_imports,
-    }
-```
+**Problem**: The compose endpoint still replicates delivery queue logic instead of delegating to `DeliveryService.schedule_job`, increasing maintenance costs.
 
-**Recent Improvements**: Global adapter totals (#84) now tracked separately from filtered counts, providing accurate dashboard metrics.
+**Recommendation**: Replace the conditional background task wiring with a single call to the delivery scheduler.
 
 ## 📋 Implementation Priority Roadmap
 
 ### 🚨 **Critical Priority (Frontend Consistency)**
-1. **Monitor Vue-Only Architecture** - Ensure follow-on features respect the Vue SPA conventions
-   - Keep Vue Router views authoritative for workflow rendering
-   - Expand Vitest coverage as new components land
-   - Document SPA integration points for backend teams
+1. Normalize generation status vocabulary across backend + frontend.
+2. Split generation composables into focused store/service layers.
 
-### 🔥 **High Priority (Code Quality & Maintenance)**  
-2. **Consolidate Compose Delivery Logic** - Use centralized `DeliveryService.schedule_job` instead of duplicated queue logic
-3. **Standardize Testing Framework** - Choose either Vue 3 or Alpine testing patterns, eliminate mixed approaches
+### 🔥 **High Priority (Code Quality & Maintenance)**
+3. Consolidate compose delivery logic behind `DeliveryService.schedule_job`.
+4. Standardize testing patterns fully on Vue 3 infrastructure (legacy Alpine helpers remain in tests and should be removed).
 
 ### 📈 **Medium Priority (Feature Completion)**
-3. **Build Real Import/Export Pipelines** - Implement actual data archival and progress tracking
-4. **Improve Batch Embedding Performance** - Optimize large-scale embedding computation workflows
+5. Modularize `RecommendationService` responsibilities via extracted collaborators.
+6. Decouple SDNext backend HTTP concerns from image storage and add targeted tests.
 
 ### 🧪 **Low Priority (Testing & Ops)**
-5. **Expand Queue Backend Testing** - Add comprehensive tests for Redis vs fallback queue scenarios
-6. **Performance Optimization** - Review AdapterService performance with large datasets
+7. Expand queue backend testing (Redis vs. fallback scenarios).
+8. Continue performance optimization passes for adapter-heavy workloads.
 
 ## 📊 Architecture Quality Assessment
 
+**⚠️ Frontend Architecture: STILL IN TRANSITION**
+- Vue 3 SPA is authoritative, but generation flows still hinge on oversized composables.
+- Testing utilities still reference legacy Alpine patterns—prune them as part of the composable split.
 
-**⚠️ Frontend Architecture: NEEDS COMPLETION**
-- Vue 3 infrastructure exists but incomplete migration
-- Alpine.js still active causing hybrid complexity
-- Test infrastructure confused between frameworks
-- Documentation inaccuracy created false confidence
+**✅ Backend Architecture: GENERALLY SOUND, WITH TARGETED HOTSPOTS**
+- Service container & DI patterns hold, yet specific services (generation status, recommendations, SDNext) need modularity improvements for long-term health.
 
 **🎯 Next Steps:**
-1. **Priority**: Complete Vue 3 migration to eliminate Alpine.js
-2. **Focus**: Consolidate delivery logic and testing patterns  
-3. **Goal**: Achieve consistent single-framework architecture
+1. Tackle status normalization + composable refactors to stabilize UX.
+2. Follow with backend modularization to support future feature work.
+3. Keep documentation synchronized with the Vue-only SPA reality and evolving service boundaries.
