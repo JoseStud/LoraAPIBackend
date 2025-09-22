@@ -114,8 +114,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { useAdapterListApi, useRecommendationApi } from '@/composables/apiClients';
-import type { AdapterRead, RecommendationItem, RecommendationResponse } from '@/types';
+import { useRecommendationApi } from '@/composables/apiClients';
+import { useAdapterListApi } from '@/services/loraService';
+import type { LoraListItem, RecommendationItem, RecommendationResponse } from '@/types';
 
 const WEIGHT_KEYS = ['semantic', 'artistic', 'technical'] as const;
 type WeightKey = (typeof WEIGHT_KEYS)[number];
@@ -144,11 +145,11 @@ const {
   adapters: adapterResults,
 } = useAdapterListApi({ page: 1, perPage: 100 });
 
-const loras = computed<AdapterRead[]>(() => adapterResults.value);
+const loras = computed<LoraListItem[]>(() => adapterResults.value);
 const lorasError = ref<string>('');
 
-const selectedLoraId = ref<AdapterRead['id'] | ''>('');
-const selectedLora = computed<AdapterRead | null>(() => {
+const selectedLoraId = ref<LoraListItem['id'] | ''>('');
+const selectedLora = computed<LoraListItem | null>(() => {
   if (!selectedLoraId.value) {
     return null;
   }
