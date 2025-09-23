@@ -331,7 +331,7 @@ async def get_recommendation_health(
         health_status = {
             "status": "healthy",
             "checks": {
-                "models_loaded": True,  # TODO: Check if models are actually loaded
+                "models_loaded": recommendation_service.models_loaded(),
                 "embeddings_coverage": stats.embedding_coverage > 0.5,
                 "performance_acceptable": stats.avg_recommendation_time_ms < 5000,
                 "memory_usage_ok": stats.model_memory_usage_gb < 7.5,  # For 8GB VRAM

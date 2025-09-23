@@ -97,6 +97,12 @@ class RecommendationService:
 
         EmbeddingCoordinator.preload_models(gpu_enabled=gpu_enabled)
 
+    @staticmethod
+    def models_loaded() -> bool:
+        """Return whether required models have already been loaded."""
+
+        return EmbeddingCoordinator.models_loaded()
+
     # ------------------------------------------------------------------
     # Recommendation workflows
     # ------------------------------------------------------------------

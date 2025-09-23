@@ -92,3 +92,9 @@ class RecommendationModelBootstrap:
 
         return ("cuda" if gpu_enabled else "cpu", bool(gpu_enabled))
 
+    @classmethod
+    def models_loaded(cls) -> bool:
+        """Return whether shared models have been loaded for the process."""
+
+        return RecommendationModelRegistry.models_loaded()
+
