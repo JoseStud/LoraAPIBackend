@@ -25,7 +25,7 @@
     :format-file-size="formatFileSize"
     :format-date="formatDate"
     :get-status-classes="getStatusClasses"
-    @update:active-tab="value => (activeTab.value = value)"
+    @update:active-tab="handleActiveTabChange"
     @quick-export-all="handleQuickExportAll"
     @view-history="handleViewHistory"
     @update-export-config="handleExportConfigUpdate"
@@ -147,6 +147,10 @@ const updateProgress = (update: ProgressUpdate) => {
 const endProgress = () => {
   showProgress.value = false;
   currentOperation.value = null;
+};
+
+const handleActiveTabChange = (value: ActiveTab) => {
+  activeTab.value = value;
 };
 
 const exportWorkflow = useExportWorkflow({
