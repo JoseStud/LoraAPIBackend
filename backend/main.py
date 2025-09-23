@@ -35,12 +35,19 @@ async def lifespan(app: FastAPI):
     setup_logging()
     init_db()
     startup_tasks = []
-    # Warm up recommendation models so the first request is fast
-    try:
-        RecommendationService.preload_models()
-    except Exception:  # pragma: no cover - defensive guard against startup failures
-        # Defer model initialization to first request if warm-up fails
-        pass
+    recommendation_logger = logging.getLogger("lora.recommendations.startup")
+
+    async def _preload_recommendations() -> None:
+        try:
+            await asyncio.to_thread(RecommendationService.preload_models)
+        except Exception:  # pragma: no cover - defensive guard against startup failures
+            recommendation_logger.exception(
+                "Recommendation model preload failed; falling back to lazy initialization",
+            )
+        else:
+            recommendation_logger.info("Recommendation model preload completed successfully")
+
+    startup_tasks.append(asyncio.create_task(_preload_recommendations()))
 
     if settings.IMPORT_ON_STARTUP and settings.IMPORT_PATH:
         loop = asyncio.get_running_loop()
