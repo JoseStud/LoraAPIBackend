@@ -23,6 +23,9 @@ from .recommendations import (
     RecommendationPersistenceManager,
     RecommendationPersistenceService,
     RecommendationRepository,
+    RecommendationConfig,
+    SimilarLoraUseCase,
+    PromptRecommendationUseCase,
     RecommendationService,
 )
 from .system import SystemService
@@ -207,6 +210,19 @@ class ServiceContainer:
             )
             persistence_service = RecommendationPersistenceService(persistence_manager)
             metrics_tracker = RecommendationMetricsTracker()
+            config = RecommendationConfig(persistence_service)
+            similar_use_case = SimilarLoraUseCase(
+                repository=repository,
+                embedding_workflow=embedding_manager,
+                engine_provider=model_registry.get_recommendation_engine,
+                metrics=metrics_tracker,
+            )
+            prompt_use_case = PromptRecommendationUseCase(
+                repository=repository,
+                embedder_provider=model_registry.get_semantic_embedder,
+                metrics=metrics_tracker,
+                device=model_bootstrap.device,
+            )
 
             self._recommendation_service = RecommendationService(
                 bootstrap=model_bootstrap,
@@ -214,6 +230,9 @@ class ServiceContainer:
                 embedding_workflow=embedding_manager,
                 persistence_service=persistence_service,
                 metrics_tracker=metrics_tracker,
+                similar_lora_use_case=similar_use_case,
+                prompt_recommendation_use_case=prompt_use_case,
+                config=config,
             )
 
         return self._recommendation_service

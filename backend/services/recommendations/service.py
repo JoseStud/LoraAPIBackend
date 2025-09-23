@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from backend.models import RecommendationFeedback, UserPreference
 from backend.schemas.recommendations import (
@@ -15,7 +15,6 @@ from backend.schemas.recommendations import (
     UserPreferenceRequest,
 )
 
-from .components.interfaces import SemanticEmbedderProtocol
 from .interfaces import (
     EmbeddingWorkflow,
     RecommendationBootstrap,
@@ -24,9 +23,10 @@ from .interfaces import (
     RecommendationRepository,
 )
 from .model_bootstrap import RecommendationModelBootstrap
-from .strategies import (
-    get_recommendations_for_prompt as prompt_strategy,
-    get_similar_loras as similar_loras_strategy,
+from .config import RecommendationConfig
+from .use_cases import (
+    PromptRecommendationUseCase,
+    SimilarLoraUseCase,
 )
 
 
@@ -41,6 +41,9 @@ class RecommendationService:
         embedding_workflow: EmbeddingWorkflow,
         persistence_service: RecommendationPersistenceService,
         metrics_tracker: RecommendationMetricsTracker,
+        similar_lora_use_case: Optional[SimilarLoraUseCase] = None,
+        prompt_recommendation_use_case: Optional[PromptRecommendationUseCase] = None,
+        config: Optional[RecommendationConfig] = None,
         logger: Optional[logging.Logger] = None,
     ) -> None:
         self._logger = logger or logging.getLogger(__name__)
@@ -50,21 +53,32 @@ class RecommendationService:
         self._persistence_service = persistence_service
         self._metrics_tracker = metrics_tracker
 
-        self._model_registry = bootstrap.get_model_registry()
         self.gpu_enabled = bootstrap.gpu_enabled
         self.device = bootstrap.device
+        model_registry = bootstrap.get_model_registry()
+
+        self._similar_lora_use_case = similar_lora_use_case or SimilarLoraUseCase(
+            repository=repository,
+            embedding_workflow=embedding_workflow,
+            engine_provider=model_registry.get_recommendation_engine,
+            metrics=metrics_tracker,
+        )
+        self._prompt_recommendation_use_case = (
+            prompt_recommendation_use_case
+            or PromptRecommendationUseCase(
+                repository=repository,
+                embedder_provider=model_registry.get_semantic_embedder,
+                metrics=metrics_tracker,
+                device=self.device,
+            )
+        )
+        self._config = config or RecommendationConfig(persistence_service)
 
     @staticmethod
     def is_gpu_available() -> bool:
         """Detect GPU availability across CUDA, ROCm, and MPS runtimes."""
 
         return RecommendationModelBootstrap.is_gpu_available()
-
-    def _get_semantic_embedder(self) -> SemanticEmbedderProtocol:
-        return self._model_registry.get_semantic_embedder()
-
-    def _get_recommendation_engine(self):
-        return self._model_registry.get_recommendation_engine()
 
     @classmethod
     def preload_models(cls, gpu_enabled: Optional[bool] = None) -> None:
@@ -83,17 +97,11 @@ class RecommendationService:
     ) -> List[RecommendationItem]:
         """Get LoRAs similar to the target LoRA."""
 
-        engine = self._get_recommendation_engine()
-
-        return await similar_loras_strategy(
+        return await self._similar_lora_use_case.execute(
             target_lora_id=target_lora_id,
             limit=limit,
             similarity_threshold=similarity_threshold,
             weights=weights,
-            repository=self._repository,
-            embedding_manager=self._embedding_workflow,
-            engine=engine,
-            metrics=self._metrics_tracker,
         )
 
     async def get_recommendations_for_prompt(
@@ -105,17 +113,11 @@ class RecommendationService:
     ) -> List[RecommendationItem]:
         """Get LoRA recommendations that enhance a given prompt."""
 
-        embedder = self._get_semantic_embedder()
-
-        return await prompt_strategy(
+        return await self._prompt_recommendation_use_case.execute(
             prompt=prompt,
             active_loras=active_loras,
             limit=limit,
             style_preference=style_preference,
-            repository=self._repository,
-            embedder=embedder,
-            device=self.device,
-            metrics=self._metrics_tracker,
         )
 
     async def compute_embeddings_for_lora(
@@ -163,24 +165,10 @@ class RecommendationService:
         return await self._persistence_service.rebuild_similarity_index(force=force)
 
     @property
-    def index_cache_path(self) -> str:
-        """Expose the index cache path for compatibility and testing."""
+    def config(self) -> RecommendationConfig:
+        """Return configuration helpers for cache management."""
 
-        return self._persistence_service.index_cache_path
-
-    @index_cache_path.setter
-    def index_cache_path(self, value: str) -> None:
-        self._persistence_service.index_cache_path = value
-
-    @property
-    def embedding_cache_dir(self) -> str:
-        """Expose the embedding cache directory for configuration."""
-
-        return self._persistence_service.embedding_cache_dir
-
-    @embedding_cache_dir.setter
-    def embedding_cache_dir(self, value: str) -> None:
-        self._persistence_service.embedding_cache_dir = value
+        return self._config
 
     def get_recommendation_stats(self) -> RecommendationStats:
         """Get comprehensive recommendation system statistics."""

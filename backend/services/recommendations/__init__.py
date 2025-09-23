@@ -7,6 +7,8 @@ from .persistence_manager import RecommendationPersistenceManager
 from .persistence_service import RecommendationPersistenceService
 from .repository import RecommendationRepository
 from .service import RecommendationService
+from .config import RecommendationConfig
+from .use_cases import SimilarLoraUseCase, PromptRecommendationUseCase
 
 __all__ = [
     'EmbeddingManager',
@@ -17,4 +19,7 @@ __all__ = [
     'RecommendationPersistenceService',
     'RecommendationRepository',
     'RecommendationService',
+    'RecommendationConfig',
+    'SimilarLoraUseCase',
+    'PromptRecommendationUseCase',
 ]
