@@ -1,6 +1,14 @@
 """Recommendation service package exports."""
 
 from .builder import RecommendationServiceBuilder
+from .builders import (
+    EmbeddingStack,
+    PersistenceComponents,
+    UseCaseBundle,
+    build_embedding_stack,
+    build_persistence_components,
+    build_use_cases,
+)
 from .config import RecommendationConfig
 from .embedding_batch_runner import EmbeddingBatchRunner
 from .embedding_coordinator import EmbeddingCoordinator
@@ -20,6 +28,7 @@ from .use_cases import PromptRecommendationUseCase, SimilarLoraUseCase
 
 __all__ = [
     'RecommendationConfig',
+    'EmbeddingStack',
     'RecommendationServiceBuilder',
     'EmbeddingBatchRunner',
     'EmbeddingCoordinator',
@@ -30,6 +39,7 @@ __all__ = [
     'RecommendationMetrics',
     'RecommendationMetricsTracker',
     'RecommendationModelBootstrap',
+    'PersistenceComponents',
     'RecommendationPersistenceManager',
     'RecommendationPersistenceService',
     'RecommendationRepository',
@@ -38,4 +48,8 @@ __all__ = [
     'StatsReporter',
     'SimilarLoraUseCase',
     'PromptRecommendationUseCase',
+    'UseCaseBundle',
+    'build_embedding_stack',
+    'build_persistence_components',
+    'build_use_cases',
 ]

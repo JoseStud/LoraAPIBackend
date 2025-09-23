@@ -21,7 +21,12 @@ from backend.services.providers import (
     make_websocket_service,
 )
 from backend.services.queue import QueueOrchestrator
-from backend.services.recommendations import RecommendationServiceBuilder
+from backend.services.recommendations import (
+    EmbeddingStack,
+    PersistenceComponents,
+    RecommendationServiceBuilder,
+    UseCaseBundle,
+)
 from backend.services.storage import StorageService
 from backend.services.system import SystemService
 from backend.services.websocket import WebSocketService
@@ -191,6 +196,66 @@ def test_make_recommendation_service_uses_custom_components():
         similar_lora_use_case=similar_use_case,
         prompt_recommendation_use_case=prompt_use_case,
         config=config,
+    )
+    builder.build.assert_called_once_with()
+    assert service is built_service
+
+
+def test_make_recommendation_service_accepts_prebuilt_bundles():
+    session = MagicMock()
+    bootstrap = MagicMock()
+    bootstrap.device = "cpu"
+    bootstrap.gpu_enabled = False
+    model_registry = MagicMock()
+    bootstrap.get_model_registry.return_value = model_registry
+
+    repository = MagicMock()
+    embedding_stack = EmbeddingStack(
+        repository=MagicMock(),
+        manager=MagicMock(),
+    )
+    persistence_components = PersistenceComponents(
+        manager=MagicMock(),
+        service=MagicMock(),
+        config=MagicMock(),
+    )
+    use_case_bundle = UseCaseBundle(
+        similar_lora=MagicMock(),
+        prompt_recommendation=MagicMock(),
+    )
+
+    embedding_coordinator = MagicMock()
+    feedback_manager = MagicMock()
+    stats_reporter = MagicMock()
+    metrics_tracker = MagicMock()
+
+    builder = MagicMock(spec=RecommendationServiceBuilder)
+    builder.with_components.return_value = builder
+    built_service = MagicMock()
+    builder.build.return_value = built_service
+
+    service = make_recommendation_service(
+        session,
+        gpu_available=True,
+        model_bootstrap=bootstrap,
+        repository=repository,
+        embedding_stack=embedding_stack,
+        persistence_components=persistence_components,
+        use_case_bundle=use_case_bundle,
+        metrics_tracker=metrics_tracker,
+        embedding_coordinator=embedding_coordinator,
+        feedback_manager=feedback_manager,
+        stats_reporter=stats_reporter,
+        builder=builder,
+    )
+
+    builder.with_components.assert_called_once_with(
+        embedding_coordinator=embedding_coordinator,
+        feedback_manager=feedback_manager,
+        stats_reporter=stats_reporter,
+        similar_lora_use_case=use_case_bundle.similar_lora,
+        prompt_recommendation_use_case=use_case_bundle.prompt_recommendation,
+        config=persistence_components.config,
     )
     builder.build.assert_called_once_with()
     assert service is built_service
