@@ -98,4 +98,10 @@ const isGridView = computed(() => props.viewMode === 'grid');
 const viewClass = computed(() => (isGridView.value ? 'lora-card-grid' : 'lora-card-list'));
 const bulkMode = computed(() => Boolean(props.bulkMode));
 const isSelected = computed(() => Boolean(props.isSelected));
+
+defineExpose({
+  updateWeight: () => handleWeightChange(weight.value ?? 1),
+  toggleActive: handleToggleActive,
+  generatePreview: handleGeneratePreview,
+});
 </script>
