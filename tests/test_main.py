@@ -390,7 +390,20 @@ def test_compose_sdnext_delivery(
 
     assert captured  # background task captured the sdnext payload
     assert captured["mode"] == "sdnext"
-    assert captured["params"]["sdnext"] == sdnext_config
+
+    params = captured["params"]
+    assert params["backend"] == "sdnext"
+    assert params["mode"] == sdnext_config["mode"]
+    assert params["save_images"] is sdnext_config["save_images"]
+    assert params["return_format"] == sdnext_config["return_format"]
+
+    generation_params = params["generation_params"]
+    assert generation_params["prompt"] == body["prompt"]
+    for key, value in sdnext_config["generation_params"].items():
+        if key == "prompt":
+            # Prompt should be overridden by the composed prompt
+            continue
+        assert generation_params[key] == value
     assert "<lora:" in str(captured["prompt"])
 
 
