@@ -22,7 +22,8 @@ from backend.schemas.recommendations import (
 )
 from backend.services import ServiceContainer
 from backend.services.recommendations import (
-    EmbeddingManager,
+    EmbeddingBatchRunner,
+    LoRAEmbeddingRepository,
     RecommendationMetricsTracker,
     RecommendationModelBootstrap,
     RecommendationPersistenceManager,
@@ -115,8 +116,8 @@ class TestRecommendationPersistenceService:
         embedding_manager.build_similarity_index.assert_awaited_once()
 
 
-class TestEmbeddingWorkflow:
-    """Targeted tests for the embedding workflow interface."""
+class TestEmbeddingBatchRunner:
+    """Targeted tests for the embedding batch runner."""
 
     @pytest.mark.anyio("asyncio")
     async def test_batch_compute_skips_existing_embeddings(
@@ -134,16 +135,11 @@ class TestEmbeddingWorkflow:
         )
         db_session.commit()
 
-        compute_mock = AsyncMock(return_value=True)
-        registry = MagicMock()
-        registry.get_feature_extractor.return_value = MagicMock()
-        registry.get_recommendation_engine.return_value = MagicMock()
+        repository = LoRAEmbeddingRepository(db_session)
+        computer = MagicMock()
+        computer.compute = AsyncMock(return_value=True)
 
-        manager = EmbeddingManager(
-            db_session,
-            registry,
-            single_embedding_compute=compute_mock,
-        )
+        runner = EmbeddingBatchRunner(repository, computer)
 
         db_session.add(
             LoRAEmbedding(
@@ -153,10 +149,11 @@ class TestEmbeddingWorkflow:
         )
         db_session.commit()
 
-        result = await manager.batch_compute_embeddings(force_recompute=False)
+        result = await runner.run(force_recompute=False)
 
         assert result["skipped_count"] == 1
-        compute_mock.assert_awaited()
+        computer.compute.assert_awaited_once()
+        computer.compute.assert_awaited_with("adapter-2", force_recompute=False)
 
 
 class TestRecommendationRepository:

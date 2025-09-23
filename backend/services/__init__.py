@@ -18,6 +18,7 @@ from .queue import QueueOrchestrator, create_queue_orchestrator
 from .storage import StorageService
 from .recommendations import (
     EmbeddingManager,
+    LoRAEmbeddingRepository,
     RecommendationMetricsTracker,
     RecommendationModelBootstrap,
     RecommendationPersistenceManager,
@@ -199,8 +200,9 @@ class ServiceContainer:
             )
             model_registry = model_bootstrap.get_model_registry()
 
+            embedding_repository = LoRAEmbeddingRepository(self.db_session)
             embedding_manager = EmbeddingManager(
-                self.db_session,
+                embedding_repository,
                 model_registry,
             )
             repository = RecommendationRepository(self.db_session)
