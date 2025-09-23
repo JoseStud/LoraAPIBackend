@@ -17,10 +17,6 @@ class NormalizedGenerationStatus(str, Enum):
     FAILED = "failed"
 
 
-# Backwards compatibility alias for legacy imports
-GenerationStatus = NormalizedGenerationStatus
-
-
 STATUS_NORMALIZATION_MAP: Dict[str, NormalizedGenerationStatus] = {
     status.value: status for status in NormalizedGenerationStatus
 }
@@ -50,7 +46,6 @@ def normalize_status(status: Optional[str]) -> NormalizedGenerationStatus:
 
 
 __all__ = [
-    "GenerationStatus",
     "NormalizedGenerationStatus",
     "STATUS_NORMALIZATION_MAP",
     "normalize_status",
