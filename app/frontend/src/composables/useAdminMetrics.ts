@@ -2,6 +2,8 @@ import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { useAdminMetricsStore } from '@/stores/adminMetrics';
+import type { AdminMetricsStore } from '@/stores/adminMetrics';
+import { usePolling, type PollingController } from './usePolling';
 
 const formatRelativeTime = (input: Date | null): string => {
   if (!input) {
@@ -37,18 +39,48 @@ interface UseAdminMetricsOptions {
   intervalMs?: number;
 }
 
+const MIN_POLL_INTERVAL = 1_000;
+const DEFAULT_POLL_INTERVAL = 5_000;
+
+let pollingController: PollingController | null = null;
+let pollingStore: AdminMetricsStore | null = null;
+
+const ensurePollingController = (store: AdminMetricsStore): PollingController => {
+  if (!pollingController || pollingStore !== store) {
+    pollingController?.stop();
+    pollingController = usePolling(() => store.refresh({ showLoader: false }), {
+      interval: DEFAULT_POLL_INTERVAL,
+      minInterval: MIN_POLL_INTERVAL,
+    });
+    pollingStore = store;
+  }
+
+  return pollingController;
+};
+
 export const useAdminMetrics = (options: UseAdminMetricsOptions = {}) => {
   const store = useAdminMetricsStore();
   const refs = storeToRefs(store);
+  const polling = ensurePollingController(store);
 
   const lastUpdatedLabel = computed(() => formatRelativeTime(refs.lastUpdated.value));
 
+  let hasSubscription = false;
+
   onMounted(() => {
-    store.subscribe(options.intervalMs);
+    const started = polling.subscribe(options.intervalMs);
+    hasSubscription = true;
+
+    if (started) {
+      void store.refresh({ showLoader: !refs.isReady.value });
+    }
   });
 
   onBeforeUnmount(() => {
-    store.unsubscribe();
+    if (hasSubscription) {
+      polling.unsubscribe();
+      hasSubscription = false;
+    }
   });
 
   const refresh = (showLoader = true) => store.refresh({ showLoader });
@@ -57,6 +89,11 @@ export const useAdminMetrics = (options: UseAdminMetricsOptions = {}) => {
     ...refs,
     lastUpdatedLabel,
     refresh,
+    pollIntervalMs: polling.intervalMs,
+    isPolling: polling.isActive,
+    setPollInterval: polling.setInterval,
+    startPolling: polling.start,
+    stopPolling: polling.stop,
   };
 };
 
