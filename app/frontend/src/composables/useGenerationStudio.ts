@@ -2,19 +2,31 @@ import { onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { useGenerationPersistence } from '@/composables/useGenerationPersistence';
-import { useGenerationUpdates } from '@/composables/useGenerationUpdates';
+import {
+  useGenerationUpdates,
+} from '@/composables/useGenerationUpdates';
 import { toGenerationRequestPayload } from '@/services/generationService';
 import { useAppStore } from '@/stores/app';
-import { useGenerationStore, type GenerationNotificationAdapter } from '@/stores/generation';
+import {
+  useGenerationConnectionStore,
+  useGenerationQueueStore,
+  useGenerationResultsStore,
+} from '@/stores/generation';
+import type { GenerationNotificationAdapter } from '@/composables/useGenerationTransport';
 import { useSettingsStore } from '@/stores/settings';
 import type { GenerationFormState, GenerationJob, GenerationResult, NotificationType } from '@/types';
 
 export const useGenerationStudio = () => {
   const appStore = useAppStore();
-  const generationStore = useGenerationStore();
+  const queueStore = useGenerationQueueStore();
+  const resultsStore = useGenerationResultsStore();
+  const connectionStore = useGenerationConnectionStore();
   const settingsStore = useSettingsStore();
+
   const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
-  const { systemStatus, activeJobs, recentResults, sortedActiveJobs, isConnected } = storeToRefs(generationStore);
+  const { systemStatus, isConnected } = storeToRefs(connectionStore);
+  const { activeJobs, sortedActiveJobs } = storeToRefs(queueStore);
+  const { recentResults } = storeToRefs(resultsStore);
 
   const params = ref<GenerationFormState>({
     prompt: '',
@@ -49,14 +61,20 @@ export const useGenerationStudio = () => {
     debug: logDebug,
   };
 
-  generationStore.setNotificationAdapter(notificationAdapter);
+  const { loadSavedParams, saveParams, savePreset, loadFromComposer, useRandomPrompt } =
+    useGenerationPersistence({
+      params,
+      showToast: notificationAdapter.notify,
+    });
 
-  const { loadSavedParams, saveParams, savePreset, loadFromComposer, useRandomPrompt } = useGenerationPersistence({
-    params,
-    showToast: notificationAdapter.notify,
-  });
-
-  const { initialize: initializeUpdates } = useGenerationUpdates({
+  const {
+    initialize: initializeUpdates,
+    startGeneration: dispatchGeneration,
+    cancelJob: cancelQueuedJob,
+    clearQueue: clearQueuedJobs,
+    deleteResult: removeResult,
+    loadRecentResultsData: loadResults,
+  } = useGenerationUpdates({
     showHistory,
     configuredBackendUrl,
     notificationAdapter,
@@ -74,7 +92,7 @@ export const useGenerationStudio = () => {
     try {
       params.value.prompt = trimmedPrompt;
       const payload = toGenerationRequestPayload({ ...params.value, prompt: trimmedPrompt });
-      await generationStore.startGeneration(payload);
+      await dispatchGeneration(payload);
       saveParams(params.value);
     } finally {
       isGenerating.value = false;
@@ -82,7 +100,7 @@ export const useGenerationStudio = () => {
   };
 
   const cancelJob = async (jobId: string): Promise<void> => {
-    await generationStore.cancelJob(jobId);
+    await cancelQueuedJob(jobId);
   };
 
   const clearQueue = async (): Promise<void> => {
@@ -94,12 +112,7 @@ export const useGenerationStudio = () => {
       return;
     }
 
-    const cancellableJobs = activeJobs.value.filter((job) => canCancelJob(job));
-    if (cancellableJobs.length === 0) {
-      return;
-    }
-
-    await generationStore.clearQueue();
+    await clearQueuedJobs();
   };
 
   const showImageModal = (result: GenerationResult | null): void => {
@@ -144,11 +157,11 @@ export const useGenerationStudio = () => {
       return;
     }
 
-    await generationStore.deleteResult(resultId);
+    await removeResult(resultId);
   };
 
   const refreshResults = async (): Promise<void> => {
-    await generationStore.refreshRecentResults(true);
+    await loadResults(true);
   };
 
   const formatTime = (dateString?: string): string => {
@@ -188,7 +201,7 @@ export const useGenerationStudio = () => {
 
   const getJobStatusText = (status: GenerationJob['status']): string => STATUS_TEXT_MAP[status];
 
-  const canCancelJob = (job: GenerationJob): boolean => generationStore.isJobCancellable(job);
+  const canCancelJob = (job: GenerationJob): boolean => queueStore.isJobCancellable(job);
 
   const getSystemStatusClasses = (status?: string): string => {
     switch (status) {

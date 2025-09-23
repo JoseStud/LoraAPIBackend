@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 
-import { useGenerationStore } from '../../app/frontend/src/stores/generation'
+import { useGenerationUpdates } from '../../app/frontend/src/composables/useGenerationUpdates'
+import {
+  useGenerationQueueStore,
+  useGenerationResultsStore,
+  useGenerationConnectionStore,
+} from '../../app/frontend/src/stores/generation'
 
 class MockWebSocket {
   static instances = []
@@ -19,9 +25,10 @@ class MockWebSocket {
 }
 
 describe('generation websocket manager integration', () => {
-  let store
   let notifications
+  let updates
   const originalWebSocket = globalThis.WebSocket
+  let queueClient
 
   beforeEach(() => {
     MockWebSocket.instances = []
@@ -29,40 +36,55 @@ describe('generation websocket manager integration', () => {
     globalThis.WebSocket = vi.fn((url) => new MockWebSocket(url))
 
     setActivePinia(createPinia())
-    store = useGenerationStore()
     notifications = {
       notify: vi.fn(),
       debug: vi.fn(),
     }
 
-    store.configureGenerationServices({
-      getBackendUrl: () => 'http://localhost:8000',
+    queueClient = {
+      startGeneration: vi.fn(),
+      cancelJob: vi.fn(),
+      deleteResult: vi.fn(),
+      fetchSystemStatus: vi.fn().mockResolvedValue({
+        status: 'healthy',
+        queue_length: 0,
+        gpu_available: true,
+        gpu_status: 'Available',
+        memory_total: 8192,
+        memory_used: 0,
+      }),
+      fetchActiveJobs: vi.fn().mockResolvedValue([]),
+      fetchRecentResults: vi.fn().mockResolvedValue([]),
+    }
+
+    const showHistory = ref(false)
+    const configuredBackendUrl = ref('http://localhost:8000')
+
+    updates = useGenerationUpdates({
+      showHistory,
+      configuredBackendUrl,
       notificationAdapter: notifications,
-      queueClient: {
-        startGeneration: vi.fn(),
-        cancelJob: vi.fn(),
-        deleteResult: vi.fn(),
-        fetchSystemStatus: vi.fn(),
-        fetchActiveJobs: vi.fn(),
-        fetchRecentResults: vi.fn(),
-      },
+      queueClient,
     })
   })
 
   afterEach(() => {
-    store.stopUpdates()
+    updates.cleanup()
     globalThis.WebSocket = originalWebSocket
   })
 
-  it('routes websocket messages into the generation store', () => {
-    const manager = store.getWebSocketManager()
-    manager.start()
+  it('routes websocket messages through the generation stores', async () => {
+    const queueStore = useGenerationQueueStore()
+    const resultStore = useGenerationResultsStore()
+    const connectionStore = useGenerationConnectionStore()
+
+    await updates.initialize()
 
     expect(MockWebSocket.instances).toHaveLength(1)
     const socket = MockWebSocket.instances[0]
 
     socket.onopen?.()
-    expect(store.isConnected).toBe(true)
+    expect(connectionStore.isConnected).toBe(true)
 
     socket.onmessage?.({
       data: JSON.stringify({
@@ -77,8 +99,8 @@ describe('generation websocket manager integration', () => {
       }),
     })
 
-    expect(store.activeJobs).toHaveLength(1)
-    expect(store.activeJobs[0]).toMatchObject({ id: 'job-ws-1', status: 'processing' })
+    expect(queueStore.activeJobs).toHaveLength(1)
+    expect(queueStore.activeJobs[0]).toMatchObject({ id: 'job-ws-1', status: 'processing' })
 
     socket.onmessage?.({
       data: JSON.stringify({
@@ -92,8 +114,8 @@ describe('generation websocket manager integration', () => {
       }),
     })
 
-    expect(store.systemStatus.status).toBe('degraded')
-    expect(store.systemStatus.queue_length).toBe(3)
+    expect(connectionStore.systemStatus.status).toBe('degraded')
+    expect(connectionStore.systemStatus.queue_length).toBe(3)
 
     socket.onmessage?.({
       data: JSON.stringify({
@@ -112,7 +134,7 @@ describe('generation websocket manager integration', () => {
       }),
     })
 
-    expect(store.recentResults[0]).toMatchObject({ id: 'result-ws-1', job_id: 'job-ws-1' })
+    expect(resultStore.recentResults[0]).toMatchObject({ id: 'result-ws-1', job_id: 'job-ws-1' })
     expect(notifications.notify).toHaveBeenCalledWith('Generation completed successfully', 'success')
 
     socket.onmessage?.({
@@ -129,6 +151,6 @@ describe('generation websocket manager integration', () => {
     )
 
     socket.onclose?.()
-    expect(store.isConnected).toBe(false)
+    expect(connectionStore.isConnected).toBe(false)
   })
 })
