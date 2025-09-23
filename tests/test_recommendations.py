@@ -32,10 +32,11 @@ from backend.services.recommendations import (
     RecommendationPersistenceManager,
     RecommendationPersistenceService,
     RecommendationRepository,
+    RecommendationService,
+    RecommendationServiceBuilder,
     StatsReporter,
     PromptRecommendationUseCase,
     SimilarLoraUseCase,
-    RecommendationService,
 )
 
 
@@ -491,15 +492,22 @@ class TestRecommendationService:
 
         config = RecommendationConfig(persistence_service)
 
-        service = RecommendationService.create(
-            embedding_coordinator=embedding_coordinator,
-            feedback_manager=feedback_manager,
-            stats_reporter=stats_reporter,
-            similar_lora_use_case=similar_use_case,
-            prompt_recommendation_use_case=prompt_use_case,
-            config=config,
-            metrics_tracker=metrics_tracker,
+        service = (
+            RecommendationServiceBuilder()
+            .with_components(
+                embedding_coordinator=embedding_coordinator,
+                feedback_manager=feedback_manager,
+                stats_reporter=stats_reporter,
+                similar_lora_use_case=similar_use_case,
+                prompt_recommendation_use_case=prompt_use_case,
+                config=config,
+            )
+            .build()
         )
+
+        assert service.embeddings is embedding_coordinator
+        assert service.feedback is feedback_manager
+        assert service.reporter is stats_reporter
 
         await service.similar_loras(target_lora_id="adapter-1", limit=2)
         assert similar_use_case.execute.await_count == 1
@@ -507,12 +515,12 @@ class TestRecommendationService:
         await service.recommend_for_prompt(prompt="hello", active_loras=["a"], limit=1)
         assert prompt_use_case.execute.await_count == 1
 
-        await service.compute_embeddings(adapter_id="adapter-1", force_recompute=True)
+        await service.embeddings.compute_for_lora("adapter-1", force_recompute=True)
         embedding_workflow.compute_embeddings_for_lora.assert_awaited_with(
             "adapter-1", force_recompute=True
         )
 
-        await service.compute_embeddings_batch(adapter_ids=["adapter-1"], batch_size=8)
+        await service.embeddings.compute_batch(adapter_ids=["adapter-1"], batch_size=8)
         embedding_workflow.batch_compute_embeddings.assert_awaited_with(
             ["adapter-1"], force_recompute=False, batch_size=8
         )
@@ -521,11 +529,11 @@ class TestRecommendationService:
         persistence_service.rebuild_similarity_index.assert_awaited_with(force=True)
 
         feedback_payload = MagicMock()
-        service.record_feedback(feedback_payload)
+        service.feedback.record_feedback(feedback_payload)
         repository.record_feedback.assert_called_once_with(feedback_payload)
 
         preference_payload = MagicMock()
-        service.update_user_preference(preference_payload)
+        service.feedback.update_user_preference(preference_payload)
         repository.update_user_preference.assert_called_once_with(preference_payload)
 
         assert service.config.index_cache_path == "index.pkl"
@@ -540,30 +548,6 @@ class TestRecommendationService:
 
         assert service.gpu_enabled is False
         assert service.device == "cpu"
-
-        assert service._total_queries == 0
-        assert service._cache_hits == 0
-
-        await service.get_similar_loras("adapter-1")
-        assert similar_use_case.execute.await_count == 2
-
-        await service.get_recommendations_for_prompt("hello")
-        assert prompt_use_case.execute.await_count == 2
-
-        await service.compute_embeddings_for_lora("adapter-1")
-        assert embedding_workflow.compute_embeddings_for_lora.await_count == 2
-
-        await service.batch_compute_embeddings()
-        assert embedding_workflow.batch_compute_embeddings.await_count == 2
-
-        await service.rebuild_similarity_index()
-        assert persistence_service.rebuild_similarity_index.await_count == 2
-
-        stats_alias = service.get_recommendation_stats()
-        assert stats_alias.total_loras == stats.total_loras
-
-        status_alias = service.get_embedding_status("adapter-1")
-        assert status_alias.needs_recomputation == status.needs_recomputation
 
     def test_service_container_builds_dependencies(self, db_session):
         container = ServiceContainer(db_session)
@@ -611,7 +595,7 @@ class TestRecommendationService:
         assert service.gpu_enabled is False
 
         payload = MagicMock()
-        service.record_feedback(payload)
+        service.feedback.record_feedback(payload)
         repository.record_feedback.assert_called_once_with(payload)
 
         status = service.embedding_status("missing")

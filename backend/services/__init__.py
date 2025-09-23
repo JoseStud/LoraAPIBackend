@@ -28,6 +28,7 @@ from .recommendations import (
     RecommendationPersistenceService,
     RecommendationRepository,
     RecommendationService,
+    RecommendationServiceBuilder,
     SimilarLoraUseCase,
     StatsReporter,
     PromptRecommendationUseCase,
@@ -240,14 +241,17 @@ class ServiceContainer:
                 repository=repository,
             )
 
-            self._recommendation_service = RecommendationService.create(
-                embedding_coordinator=embedding_coordinator,
-                feedback_manager=feedback_manager,
-                stats_reporter=stats_reporter,
-                similar_lora_use_case=similar_use_case,
-                prompt_recommendation_use_case=prompt_use_case,
-                config=config,
-                metrics_tracker=metrics_tracker,
+            self._recommendation_service = (
+                RecommendationServiceBuilder()
+                .with_components(
+                    embedding_coordinator=embedding_coordinator,
+                    feedback_manager=feedback_manager,
+                    stats_reporter=stats_reporter,
+                    similar_lora_use_case=similar_use_case,
+                    prompt_recommendation_use_case=prompt_use_case,
+                    config=config,
+                )
+                .build()
             )
 
         return self._recommendation_service

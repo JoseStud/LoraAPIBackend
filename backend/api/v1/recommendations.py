@@ -159,14 +159,14 @@ async def compute_embeddings(
     try:
         if request.compute_all:
             # Compute for all active LoRAs
-            result = await recommendation_service.compute_embeddings_batch(
+            result = await recommendation_service.embeddings.compute_batch(
                 adapter_ids=None,
                 force_recompute=request.force_recompute,
                 batch_size=request.batch_size,
             )
         else:
             # Compute for specific LoRAs
-            result = await recommendation_service.compute_embeddings_batch(
+            result = await recommendation_service.embeddings.compute_batch(
                 adapter_ids=request.adapter_ids,
                 force_recompute=request.force_recompute,
                 batch_size=request.batch_size,
@@ -217,8 +217,8 @@ async def compute_single_embedding(
 
     """
     try:
-        success = await recommendation_service.compute_embeddings(
-            adapter_id=lora_id,
+        success = await recommendation_service.embeddings.compute_for_lora(
+            lora_id,
             force_recompute=force_recompute,
         )
         
@@ -248,7 +248,7 @@ async def submit_recommendation_feedback(
 
     """
     try:
-        record = recommendation_service.record_feedback(feedback)
+        record = recommendation_service.feedback.record_feedback(feedback)
         return RecommendationFeedbackRead.from_orm(record)
 
     except ValueError as e:
@@ -272,7 +272,7 @@ async def update_user_preferences(
 
     """
     try:
-        preference_record = recommendation_service.update_user_preference(preference)
+        preference_record = recommendation_service.feedback.update_user_preference(preference)
         return UserPreferenceRead.from_orm(preference_record)
 
     except Exception as e:

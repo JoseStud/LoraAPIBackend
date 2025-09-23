@@ -3,17 +3,13 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence
 
-from backend.models import RecommendationFeedback, UserPreference
 from backend.schemas.recommendations import (
     EmbeddingStatus,
     IndexRebuildResponse,
     RecommendationItem,
     RecommendationStats,
-    UserFeedbackRequest,
-    UserPreferenceRequest,
 )
 
 from .config import RecommendationConfig
@@ -26,7 +22,6 @@ from .interfaces import (
     RecommendationPersistenceService,
     RecommendationRepository,
 )
-from .metrics import RecommendationMetricsTracker
 from .stats_reporter import StatsReporter
 from .use_cases import (
     PromptRecommendationUseCase,
@@ -34,46 +29,11 @@ from .use_cases import (
 )
 
 
-@dataclass(frozen=True)
-class RecommendationServiceComponents:
-    """Typed bundle of collaborators required by :class:`RecommendationService`."""
-
-    embedding_coordinator: EmbeddingCoordinator
-    feedback_manager: FeedbackManager
-    stats_reporter: StatsReporter
-    similar_lora_use_case: SimilarLoraUseCase
-    prompt_recommendation_use_case: PromptRecommendationUseCase
-    config: RecommendationConfig
-
-
 class RecommendationService:
-    """Facade service for orchestrating LoRA recommendations."""
+    """Slim facade that orchestrates recommendation workflows."""
 
     def __init__(
         self,
-        *,
-        components: RecommendationServiceComponents,
-        metrics_tracker: Optional[RecommendationMetricsTrackerProtocol] = None,
-        logger: Optional[logging.Logger] = None,
-    ) -> None:
-        self._logger = logger or logging.getLogger(__name__)
-
-        self._embedding_coordinator = components.embedding_coordinator
-        self._feedback_manager = components.feedback_manager
-        self._stats_reporter = components.stats_reporter
-        self._similar_lora_use_case = components.similar_lora_use_case
-        self._prompt_recommendation_use_case = components.prompt_recommendation_use_case
-        self._config = components.config
-
-        self._metrics_tracker = metrics_tracker or getattr(
-            self._stats_reporter,
-            "metrics_tracker",
-            None,
-        )
-
-    @classmethod
-    def create(
-        cls,
         *,
         embedding_coordinator: EmbeddingCoordinator,
         feedback_manager: FeedbackManager,
@@ -81,24 +41,16 @@ class RecommendationService:
         similar_lora_use_case: SimilarLoraUseCase,
         prompt_recommendation_use_case: PromptRecommendationUseCase,
         config: RecommendationConfig,
-        metrics_tracker: Optional[RecommendationMetricsTrackerProtocol] = None,
         logger: Optional[logging.Logger] = None,
-    ) -> "RecommendationService":
-        """Convenience constructor for explicit dependency injection."""
+    ) -> None:
+        self._logger = logger or logging.getLogger(__name__)
 
-        components = RecommendationServiceComponents(
-            embedding_coordinator=embedding_coordinator,
-            feedback_manager=feedback_manager,
-            stats_reporter=stats_reporter,
-            similar_lora_use_case=similar_lora_use_case,
-            prompt_recommendation_use_case=prompt_recommendation_use_case,
-            config=config,
-        )
-        return cls(
-            components=components,
-            metrics_tracker=metrics_tracker,
-            logger=logger,
-        )
+        self._embedding_coordinator = embedding_coordinator
+        self._feedback_manager = feedback_manager
+        self._stats_reporter = stats_reporter
+        self._similar_lora_use_case = similar_lora_use_case
+        self._prompt_recommendation_use_case = prompt_recommendation_use_case
+        self._config = config
 
     @classmethod
     def from_legacy_dependencies(
@@ -113,44 +65,20 @@ class RecommendationService:
     ) -> "RecommendationService":
         """Assemble the service from the pre-refactor dependency set."""
 
-        metrics = metrics_tracker or RecommendationMetricsTracker()
-        model_registry = bootstrap.get_model_registry()
+        from .builder import RecommendationServiceBuilder
 
-        embedding_coordinator = EmbeddingCoordinator(
+        builder = RecommendationServiceBuilder()
+        if logger is not None:
+            builder = builder.with_logger(logger)
+
+        return builder.with_legacy_dependencies(
             bootstrap=bootstrap,
+            repository=repository,
             embedding_workflow=embedding_workflow,
             persistence_service=persistence_service,
+            metrics_tracker=metrics_tracker,
             logger=logger,
-        )
-        feedback_manager = FeedbackManager(repository)
-        stats_reporter = StatsReporter(
-            metrics_tracker=metrics,
-            repository=repository,
-        )
-        similar_lora_use_case = SimilarLoraUseCase(
-            repository=repository,
-            embedding_workflow=embedding_workflow,
-            engine_provider=model_registry.get_recommendation_engine,
-            metrics=metrics,
-        )
-        prompt_recommendation_use_case = PromptRecommendationUseCase(
-            repository=repository,
-            embedder_provider=model_registry.get_semantic_embedder,
-            metrics=metrics,
-            device=bootstrap.device,
-        )
-        config = RecommendationConfig(persistence_service)
-
-        return cls.create(
-            embedding_coordinator=embedding_coordinator,
-            feedback_manager=feedback_manager,
-            stats_reporter=stats_reporter,
-            similar_lora_use_case=similar_lora_use_case,
-            prompt_recommendation_use_case=prompt_recommendation_use_case,
-            config=config,
-            metrics_tracker=metrics,
-            logger=logger,
-        )
+        ).build()
 
     # ------------------------------------------------------------------
     # Static helpers delegating to the embedding coordinator bootstrap
@@ -207,54 +135,10 @@ class RecommendationService:
     # ------------------------------------------------------------------
     # Embedding workflows
     # ------------------------------------------------------------------
-    async def compute_embeddings(
-        self,
-        *,
-        adapter_id: str,
-        force_recompute: bool = False,
-    ) -> bool:
-        """Compute embeddings for a single adapter."""
-
-        return await self._embedding_coordinator.compute_for_lora(
-            adapter_id,
-            force_recompute=force_recompute,
-        )
-
-    async def compute_embeddings_batch(
-        self,
-        *,
-        adapter_ids: Optional[Sequence[str]] = None,
-        force_recompute: bool = False,
-        batch_size: int = 32,
-    ) -> Dict[str, Any]:
-        """Compute embeddings for multiple adapters."""
-
-        return await self._embedding_coordinator.compute_batch(
-            adapter_ids,
-            force_recompute=force_recompute,
-            batch_size=batch_size,
-        )
-
     async def refresh_indexes(self, *, force: bool = False) -> IndexRebuildResponse:
         """Refresh the persisted similarity index."""
 
         return await self._embedding_coordinator.refresh_similarity_index(force=force)
-
-    # ------------------------------------------------------------------
-    # Feedback and preferences
-    # ------------------------------------------------------------------
-    def record_feedback(self, feedback: UserFeedbackRequest) -> RecommendationFeedback:
-        """Persist recommendation feedback for later learning."""
-
-        return self._feedback_manager.record_feedback(feedback)
-
-    def update_user_preference(
-        self,
-        preference: UserPreferenceRequest,
-    ) -> UserPreference:
-        """Create or update a persisted user preference record."""
-
-        return self._feedback_manager.update_user_preference(preference)
 
     # ------------------------------------------------------------------
     # Reporting helpers
@@ -270,86 +154,6 @@ class RecommendationService:
         return self._stats_reporter.embedding_status(adapter_id)
 
     # ------------------------------------------------------------------
-    # Backwards compatibility shims
-    # ------------------------------------------------------------------
-    async def get_similar_loras(
-        self,
-        target_lora_id: str,
-        limit: int = 10,
-        similarity_threshold: float = 0.1,
-        weights: Optional[Dict[str, float]] = None,
-    ) -> List[RecommendationItem]:
-        """Backward compatible wrapper for :meth:`similar_loras`."""
-
-        return await self.similar_loras(
-            target_lora_id=target_lora_id,
-            limit=limit,
-            similarity_threshold=similarity_threshold,
-            weights=weights,
-        )
-
-    async def get_recommendations_for_prompt(
-        self,
-        prompt: str,
-        active_loras: Optional[Sequence[str]] = None,
-        limit: int = 10,
-        style_preference: Optional[str] = None,
-    ) -> List[RecommendationItem]:
-        """Backward compatible wrapper for :meth:`recommend_for_prompt`."""
-
-        return await self.recommend_for_prompt(
-            prompt=prompt,
-            active_loras=active_loras,
-            limit=limit,
-            style_preference=style_preference,
-        )
-
-    async def compute_embeddings_for_lora(
-        self,
-        adapter_id: str,
-        force_recompute: bool = False,
-    ) -> bool:
-        """Backward compatible wrapper for :meth:`compute_embeddings`."""
-
-        return await self.compute_embeddings(
-            adapter_id=adapter_id,
-            force_recompute=force_recompute,
-        )
-
-    async def batch_compute_embeddings(
-        self,
-        adapter_ids: Optional[Sequence[str]] = None,
-        force_recompute: bool = False,
-        batch_size: int = 32,
-    ) -> Dict[str, Any]:
-        """Backward compatible wrapper for :meth:`compute_embeddings_batch`."""
-
-        return await self.compute_embeddings_batch(
-            adapter_ids=adapter_ids,
-            force_recompute=force_recompute,
-            batch_size=batch_size,
-        )
-
-    async def rebuild_similarity_index(
-        self,
-        *,
-        force: bool = False,
-    ) -> IndexRebuildResponse:
-        """Backward compatible wrapper for :meth:`refresh_indexes`."""
-
-        return await self.refresh_indexes(force=force)
-
-    def get_recommendation_stats(self) -> RecommendationStats:
-        """Backward compatible wrapper for :meth:`stats`."""
-
-        return self.stats()
-
-    def get_embedding_status(self, adapter_id: str) -> EmbeddingStatus:
-        """Backward compatible wrapper for :meth:`embedding_status`."""
-
-        return self.embedding_status(adapter_id)
-
-    # ------------------------------------------------------------------
     # Configuration helpers
     # ------------------------------------------------------------------
     @property
@@ -357,6 +161,27 @@ class RecommendationService:
         """Return configuration helpers for cache management."""
 
         return self._config
+
+    # ------------------------------------------------------------------
+    # Coordinator accessors
+    # ------------------------------------------------------------------
+    @property
+    def embeddings(self) -> EmbeddingCoordinator:
+        """Expose embedding coordination helpers."""
+
+        return self._embedding_coordinator
+
+    @property
+    def feedback(self) -> FeedbackManager:
+        """Expose feedback and preference management helpers."""
+
+        return self._feedback_manager
+
+    @property
+    def reporter(self) -> StatsReporter:
+        """Expose statistics reporting helpers."""
+
+        return self._stats_reporter
 
     # ------------------------------------------------------------------
     # Exposed runtime configuration
@@ -372,32 +197,3 @@ class RecommendationService:
         """Return the configured device for embeddings."""
 
         return self._embedding_coordinator.device
-
-    # ------------------------------------------------------------------
-    # Legacy metrics properties preserved for compatibility
-    # ------------------------------------------------------------------
-    @property
-    def _total_queries(self) -> int:
-        """Backwards compatibility for legacy metrics access."""
-
-        if self._metrics_tracker is None:
-            raise AttributeError("Recommendation metrics are not available")
-        return self._metrics_tracker.metrics.total_queries
-
-    @property
-    def _total_query_time(self) -> float:
-        if self._metrics_tracker is None:
-            raise AttributeError("Recommendation metrics are not available")
-        return self._metrics_tracker.metrics.total_query_time_ms
-
-    @property
-    def _cache_hits(self) -> int:
-        if self._metrics_tracker is None:
-            raise AttributeError("Recommendation metrics are not available")
-        return self._metrics_tracker.metrics.cache_hits
-
-    @property
-    def _cache_misses(self) -> int:
-        if self._metrics_tracker is None:
-            raise AttributeError("Recommendation metrics are not available")
-        return self._metrics_tracker.metrics.cache_misses
