@@ -5,6 +5,7 @@ from sqlmodel import Session
 
 from backend.core.database import get_session
 from backend.services import ServiceContainer
+from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.queue import QueueOrchestrator, create_queue_orchestrator
 from backend.services.adapters import AdapterService
@@ -12,8 +13,10 @@ from backend.services.composition import ComposeService
 from backend.services.deliveries import DeliveryService
 from backend.services.archive import ArchiveService
 from backend.services.recommendations import RecommendationService
+from backend.services.providers import make_compose_service
 
 _QUEUE_ORCHESTRATOR: QueueOrchestrator = create_queue_orchestrator()
+_GPU_AVAILABLE: bool = RecommendationService.is_gpu_available()
 
 
 def get_service_container(
@@ -22,10 +25,13 @@ def get_service_container(
     """Return a service container tied to the current database session."""
 
     repository = DeliveryJobRepository(db_session)
+    analytics_repository = AnalyticsRepository(db_session)
     return ServiceContainer(
         db_session,
         queue_orchestrator=_QUEUE_ORCHESTRATOR,
         delivery_repository=repository,
+        analytics_repository=analytics_repository,
+        recommendation_gpu_available=_GPU_AVAILABLE,
     )
 
 
@@ -45,8 +51,7 @@ def get_delivery_service(
 
 def get_compose_service() -> ComposeService:
     """Get an instance of the ComposeService."""
-    container = ServiceContainer(db_session=None)  # ComposeService doesn't need DB
-    return container.compose
+    return make_compose_service()
 
 
 def get_recommendation_service(

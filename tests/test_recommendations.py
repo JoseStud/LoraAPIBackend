@@ -21,6 +21,7 @@ from backend.schemas.recommendations import (
     UserPreferenceRequest,
 )
 from backend.services import ServiceContainer
+from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.recommendations import (
     EmbeddingBatchRunner,
     EmbeddingCoordinator,
@@ -550,7 +551,11 @@ class TestRecommendationService:
         assert service.device == "cpu"
 
     def test_service_container_builds_dependencies(self, db_session):
-        container = ServiceContainer(db_session)
+        container = ServiceContainer(
+            db_session,
+            analytics_repository=AnalyticsRepository(db_session),
+            recommendation_gpu_available=False,
+        )
         service = container.recommendations
 
         assert isinstance(service, RecommendationService)

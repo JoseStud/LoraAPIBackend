@@ -132,7 +132,7 @@ def test_delivery_job_state_repository_returns_persisted_state(
 
     @contextmanager
     def session_factory():
-        yield delivery_service.db_session
+        yield delivery_service.repository._session
 
     repository = DeliveryJobStateRepository(session_factory=session_factory)
     state = repository.get_job_state(job.id)

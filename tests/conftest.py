@@ -16,6 +16,10 @@ from backend.services import ServiceContainer
 from backend.services.adapters import AdapterService
 from backend.services.composition import ComposeService
 from backend.services.deliveries import DeliveryService
+from backend.services.analytics_repository import AnalyticsRepository
+from backend.services.delivery_repository import DeliveryJobRepository
+from backend.services.providers import make_compose_service
+from backend.services.queue import create_queue_orchestrator
 
 
 @pytest.fixture
@@ -101,22 +105,31 @@ def db_session_fixture():
 def adapter_service(db_session: Session, mock_storage) -> AdapterService:
     """AdapterService fixture using the new modular service."""
     # Use the mocked storage service
-    container = ServiceContainer(db_session)
+    container = ServiceContainer(
+        db_session,
+        analytics_repository=AnalyticsRepository(db_session),
+        recommendation_gpu_available=False,
+    )
     return container.adapters
 
 
 @pytest.fixture
 def delivery_service(db_session: Session) -> DeliveryService:
     """DeliveryService fixture using the new modular service."""
-    container = ServiceContainer(db_session)
+    container = ServiceContainer(
+        db_session,
+        queue_orchestrator=create_queue_orchestrator(),
+        delivery_repository=DeliveryJobRepository(db_session),
+        analytics_repository=AnalyticsRepository(db_session),
+        recommendation_gpu_available=False,
+    )
     return container.deliveries
 
 
 @pytest.fixture
 def compose_service() -> ComposeService:
     """ComposeService fixture using the new modular service."""
-    container = ServiceContainer(db_session=None)
-    return container.compose
+    return make_compose_service()
 
 
 @pytest.fixture(name="client")

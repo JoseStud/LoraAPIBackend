@@ -8,6 +8,8 @@ from backend.core.dependencies import get_service_container
 from backend.main import app as backend_app
 from backend.schemas import SDNextGenerationResult
 from backend.services import ServiceContainer
+from backend.services.analytics_repository import AnalyticsRepository
+from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.queue import QueueBackend, QueueOrchestrator
 from backend.services.storage import get_storage_service
 
@@ -253,9 +255,14 @@ def test_compose_uses_primary_queue_backend(
 
     def override_service_container():
         orchestrator = QueueOrchestrator(primary_backend=queue_backend)
+        repository = DeliveryJobRepository(db_session)
+        analytics_repository = AnalyticsRepository(db_session)
         return ServiceContainer(
             db_session,
             queue_orchestrator=orchestrator,
+            delivery_repository=repository,
+            analytics_repository=analytics_repository,
+            recommendation_gpu_available=False,
         )
 
     backend_app.dependency_overrides[get_service_container] = override_service_container
@@ -295,9 +302,14 @@ def test_compose_falls_back_to_background_queue(
             primary_backend=primary_queue,
             fallback_backend=fallback_queue,
         )
+        repository = DeliveryJobRepository(db_session)
+        analytics_repository = AnalyticsRepository(db_session)
         return ServiceContainer(
             db_session,
             queue_orchestrator=orchestrator,
+            delivery_repository=repository,
+            analytics_repository=analytics_repository,
+            recommendation_gpu_available=False,
         )
 
     backend_app.dependency_overrides[get_service_container] = override_service_container

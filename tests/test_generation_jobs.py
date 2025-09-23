@@ -13,10 +13,11 @@ from fastapi.testclient import TestClient
 
 from backend.main import app as backend_app
 from backend.services import ServiceContainer
+from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.generation import GenerationCoordinator, GenerationService
-from backend.services.queue import QueueBackend, QueueOrchestrator
+from backend.services.queue import QueueBackend, QueueOrchestrator, create_queue_orchestrator
 from backend.services.websocket import WebSocketService
 from backend.schemas import SDNextGenerationParams
 
@@ -175,7 +176,13 @@ def test_compose_sdnext_uses_generation_coordinator(
             self.calls.append((generation_params, kwargs))
             return SimpleNamespace(id="job-123", status="pending")
 
-    container = ServiceContainer(db_session)
+    container = ServiceContainer(
+        db_session,
+        queue_orchestrator=create_queue_orchestrator(),
+        delivery_repository=DeliveryJobRepository(db_session),
+        analytics_repository=AnalyticsRepository(db_session),
+        recommendation_gpu_available=False,
+    )
     coordinator = RecordingCoordinator()
     container._generation_coordinator = coordinator  # type: ignore[attr-defined]
 
@@ -289,6 +296,9 @@ def test_queue_generation_job_uses_primary_queue_backend(
         return ServiceContainer(
             db_session,
             queue_orchestrator=orchestrator,
+            delivery_repository=DeliveryJobRepository(db_session),
+            analytics_repository=AnalyticsRepository(db_session),
+            recommendation_gpu_available=False,
         )
 
     backend_app.dependency_overrides[get_service_container] = override_service_container
@@ -366,6 +376,9 @@ def test_queue_generation_job_falls_back_to_background_tasks(
         return ServiceContainer(
             db_session,
             queue_orchestrator=orchestrator,
+            delivery_repository=DeliveryJobRepository(db_session),
+            analytics_repository=AnalyticsRepository(db_session),
+            recommendation_gpu_available=False,
         )
 
     backend_app.dependency_overrides[get_service_container] = override_service_container

@@ -10,6 +10,8 @@ from sqlmodel import Session
 
 from backend.delivery.base import delivery_registry
 from backend.services import ServiceContainer
+from backend.services.analytics_repository import AnalyticsRepository
+from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.queue import (
     QueueBackend,
     QueueOrchestrator,
@@ -108,9 +110,18 @@ class WorkerContext:
     def create_service_container(self, db_session: Optional[Session]) -> ServiceContainer:
         """Instantiate a service container sharing this context's dependencies."""
 
+        delivery_repository = (
+            DeliveryJobRepository(db_session) if db_session is not None else None
+        )
+        analytics_repository = (
+            AnalyticsRepository(db_session) if db_session is not None else None
+        )
+
         return ServiceContainer(
             db_session,
             queue_orchestrator=self.queue_orchestrator,
+            delivery_repository=delivery_repository,
+            analytics_repository=analytics_repository,
             recommendation_gpu_available=self.recommendation_gpu_available,
         )
 
