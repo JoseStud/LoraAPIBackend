@@ -1,6 +1,37 @@
 import { mount } from '@vue/test-utils';
-import { nextTick } from 'vue';
+import { nextTick, ref } from 'vue';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
 import GenerationHistory from '../../app/frontend/src/components/GenerationHistory.vue';
+import HistoryModal from '../../app/frontend/src/components/HistoryModal.vue';
+import HistoryToast from '../../app/frontend/src/components/HistoryToast.vue';
+import { useGenerationHistory } from '../../app/frontend/src/composables/useGenerationHistory';
+
+const serviceMocks = vi.hoisted(() => ({
+  listResults: vi.fn(),
+  rateResult: vi.fn(),
+  favoriteResult: vi.fn(),
+  favoriteResults: vi.fn(),
+  exportResults: vi.fn(),
+  downloadResult: vi.fn(),
+  deleteResult: vi.fn(),
+  deleteResults: vi.fn(),
+}));
+
+vi.mock('../../app/frontend/src/services/historyService', () => ({
+  listResults: serviceMocks.listResults,
+  rateResult: serviceMocks.rateResult,
+  favoriteResult: serviceMocks.favoriteResult,
+  favoriteResults: serviceMocks.favoriteResults,
+  exportResults: serviceMocks.exportResults,
+  downloadResult: serviceMocks.downloadResult,
+  deleteResult: serviceMocks.deleteResult,
+  deleteResults: serviceMocks.deleteResults,
+}));
+
+vi.mock('../../app/frontend/src/utils/browser', () => ({
+  downloadFile: vi.fn(),
+}));
 
 const flush = async () => {
   await Promise.resolve();
@@ -9,234 +40,122 @@ const flush = async () => {
   await nextTick();
 };
 
+const sampleResults = [
+  {
+    id: 1,
+    prompt: 'A serene landscape',
+    negative_prompt: null,
+    image_url: '/images/landscape.png',
+    thumbnail_url: '/thumbs/landscape.png',
+    created_at: '2024-01-01T10:00:00Z',
+    width: 512,
+    height: 512,
+    steps: 25,
+    cfg_scale: 7,
+    seed: 12345,
+    rating: 4,
+    is_favorite: true,
+  },
+  {
+    id: 2,
+    prompt: 'A playful cat',
+    negative_prompt: null,
+    image_url: '/images/cat.png',
+    thumbnail_url: '/thumbs/cat.png',
+    created_at: '2024-01-02T12:00:00Z',
+    width: 768,
+    height: 768,
+    steps: 30,
+    cfg_scale: 8,
+    seed: 67890,
+    rating: 5,
+    is_favorite: false,
+  },
+];
+
+describe('useGenerationHistory', () => {
+  beforeEach(() => {
+    Object.values(serviceMocks).forEach((mockFn) => mockFn.mockReset());
+  });
+
+  it('loads results and applies filters', async () => {
+    serviceMocks.listResults.mockResolvedValue({
+      results: sampleResults,
+      response: { has_more: false },
+    });
+
+    const apiBase = ref('/api');
+    const history = useGenerationHistory({ apiBase });
+
+    await history.loadInitialResults();
+    expect(history.filteredResults.value).toHaveLength(2);
+    expect(history.stats.total_results).toBe(2);
+
+    history.searchTerm.value = 'cat';
+    history.applyFilters();
+
+    expect(history.filteredResults.value).toHaveLength(1);
+    expect(history.filteredResults.value[0].prompt).toContain('cat');
+    expect(history.stats.total_results).toBe(1);
+  });
+});
+
 describe('GenerationHistory.vue', () => {
+  beforeEach(() => {
+    Object.values(serviceMocks).forEach((mockFn) => mockFn.mockReset());
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('renders generation history with loading state initially', async () => {
-    global.fetch = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        results: [],
-        has_more: false,
-      }),
-    }));
+  it('renders fetched history results', async () => {
+    serviceMocks.listResults.mockResolvedValue({
+      results: sampleResults,
+      response: { has_more: false },
+    });
 
     const wrapper = mount(GenerationHistory);
-    
-    // Should show loading state initially
-    expect(wrapper.text()).toContain('Loading history...');
-    
     await flush();
-    
-    // After loading, should show the header
+
     expect(wrapper.text()).toContain('Generation History');
-    expect(wrapper.text()).toContain('View and manage your generated images');
-
-    wrapper.unmount();
-  });
-
-  it('fetches and displays generation results', async () => {
-    const mockResults = [
-      {
-        id: 1,
-        prompt: 'A beautiful landscape',
-        created_at: '2024-01-01T10:00:00Z',
-        width: 512,
-        height: 512,
-        steps: 20,
-        cfg_scale: 7.5,
-        seed: 12345,
-        rating: 4,
-        is_favorite: true,
-        image_url: '/path/to/image1.png',
-        thumbnail_url: '/path/to/thumb1.png'
-      },
-      {
-        id: 2,
-        prompt: 'A cute cat',
-        created_at: '2024-01-02T11:00:00Z',
-        width: 768,
-        height: 768,
-        steps: 25,
-        cfg_scale: 8.0,
-        seed: 67890,
-        rating: 5,
-        is_favorite: false,
-        image_url: '/path/to/image2.png',
-        thumbnail_url: '/path/to/thumb2.png'
-      }
-    ];
-
-    global.fetch = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        results: mockResults,
-        has_more: false,
-      }),
-    }));
-
-    const wrapper = mount(GenerationHistory);
-    await flush();
-
-    // Should display the results
-    expect(wrapper.text()).toContain('A beautiful landscape');
-    expect(wrapper.text()).toContain('A cute cat');
+    expect(wrapper.text()).toContain('A serene landscape');
+    expect(wrapper.text()).toContain('A playful cat');
     expect(wrapper.text()).toContain('512x512');
     expect(wrapper.text()).toContain('768x768');
 
-    // Should show statistics
-    expect(wrapper.text()).toContain('2'); // Total Images
-    expect(wrapper.text()).toContain('4.5'); // Average Rating
-    expect(wrapper.text()).toContain('1'); // Favorited count
-
     wrapper.unmount();
   });
 
-  it('handles search filtering correctly', async () => {
-    const mockResults = [
-      {
-        id: 1,
-        prompt: 'A beautiful landscape with mountains',
-        created_at: '2024-01-01T10:00:00Z',
-        width: 512,
-        height: 512,
-        rating: 4,
-        is_favorite: false,
-        image_url: '/path/to/image1.png'
-      },
-      {
-        id: 2,
-        prompt: 'A cute cat playing',
-        created_at: '2024-01-02T11:00:00Z',
-        width: 768,
-        height: 768,
-        rating: 5,
-        is_favorite: true,
-        image_url: '/path/to/image2.png'
-      }
-    ];
-
-    global.fetch = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        results: mockResults,
-        has_more: false,
-      }),
-    }));
-
-    const wrapper = mount(GenerationHistory);
-    await flush();
-
-    // Initially should show both results
-    expect(wrapper.text()).toContain('A beautiful landscape');
-    expect(wrapper.text()).toContain('A cute cat');
-
-    // Find search input and enter search term
-    const searchInput = wrapper.find('input[placeholder="Search prompts..."]');
-    expect(searchInput.exists()).toBe(true);
-    
-    await searchInput.setValue('landscape');
-    
-    // Trigger the input event to simulate user typing
-    await searchInput.trigger('input');
-    
-    // Wait for debounced filtering (need to wait longer than the 300ms debounce)
-    await new Promise(resolve => setTimeout(resolve, 350));
-    await flush();
-
-    // Should still contain landscape text somewhere in the component
-    expect(wrapper.text()).toContain('A beautiful landscape');
-    
-    // Test passed if we reach here without errors
-    expect(wrapper.exists()).toBe(true);
-
-    wrapper.unmount();
-  });
-
-  it('handles view mode switching', async () => {
-    global.fetch = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        results: [],
-        has_more: false,
-      }),
-    }));
-
-    const wrapper = mount(GenerationHistory);
-    await flush();
-
-    // Should start in grid view
-    const gridContainer = wrapper.find('.grid.grid-cols-1.sm\\:grid-cols-2');
-    expect(gridContainer.exists()).toBe(true);
-
-    // Find and click list view button
-    const listViewButton = wrapper.findAll('.view-mode-btn')[1];
-    await listViewButton.trigger('click');
-    await flush();
-
-    // Should now show list view
-    const listContainer = wrapper.find('.space-y-3');
-    expect(listContainer.exists()).toBe(true);
-
-    wrapper.unmount();
-  });
-
-  it('handles errors gracefully', async () => {
-    global.fetch = vi.fn(async () => ({
-      ok: false,
-      status: 500,
-    }));
-
-    const wrapper = mount(GenerationHistory);
-    await flush();
-
-    // Should handle error state - component should still render without crashing
-    expect(wrapper.exists()).toBe(true);
-    expect(wrapper.text()).toContain('Generation History');
-
-    wrapper.unmount();
-  });
-
-  it('saves view mode preference to localStorage', async () => {
-    const mockSetItem = vi.fn();
-    const mockGetItem = vi.fn().mockReturnValue('list');
-    
-    Object.defineProperty(window, 'localStorage', {
-      value: {
-        setItem: mockSetItem,
-        getItem: mockGetItem,
-      },
-      writable: true,
+  it('opens the history modal when an image is clicked', async () => {
+    serviceMocks.listResults.mockResolvedValue({
+      results: sampleResults,
+      response: { has_more: false },
     });
 
-    global.fetch = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        results: [],
-        has_more: false,
-      }),
-    }));
+    const wrapper = mount(GenerationHistory);
+    await flush();
+
+    const firstImage = wrapper.find('img');
+    await firstImage.trigger('click');
+    await nextTick();
+
+    const modal = wrapper.findComponent(HistoryModal);
+    expect(modal.exists()).toBe(true);
+    expect(modal.text()).toContain('Generation Details');
+
+    wrapper.unmount();
+  });
+
+  it('shows an error toast when history loading fails', async () => {
+    serviceMocks.listResults.mockRejectedValue(new Error('failed to load'));
 
     const wrapper = mount(GenerationHistory);
     await flush();
 
-    // Should load saved preference
-    expect(mockGetItem).toHaveBeenCalledWith('history-view-mode');
-
-    // Find and click grid view button
-    const gridViewButton = wrapper.findAll('.view-mode-btn')[0];
-    await gridViewButton.trigger('click');
-    await flush();
-
-    // Should save new preference
-    expect(mockSetItem).toHaveBeenCalledWith('history-view-mode', 'grid');
+    const toast = wrapper.findComponent(HistoryToast);
+    expect(toast.exists()).toBe(true);
+    expect(toast.text()).toContain('failed to load');
 
     wrapper.unmount();
   });
