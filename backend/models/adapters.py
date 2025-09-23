@@ -4,12 +4,24 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, Column, Index
 from sqlmodel import Field, SQLModel
+
+
+adapter_table_args = (
+    Index("ux_adapter_name_version", "name", "version", unique=True),
+    Index("idx_adapter_active", "active"),
+    Index("idx_adapter_json_file_path", "json_file_path"),
+    Index("idx_adapter_created_at", "created_at"),
+    Index("idx_adapter_updated_at", "updated_at"),
+    Index("idx_adapter_last_ingested_at", "last_ingested_at"),
+)
 
 
 class Adapter(SQLModel, table=True):
     """Metadata model describing a LoRA adapter file and hints for composition."""
+
+    __table_args__ = adapter_table_args
 
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     name: str
