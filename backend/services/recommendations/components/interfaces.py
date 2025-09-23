@@ -44,6 +44,7 @@ class RecommendationEngineProtocol(Protocol):
         target_lora: Any,
         n_recommendations: int = 20,
         weights: Optional[Dict[str, float]] = None,
+        diversify_results: bool = True,
     ) -> List[Dict[str, Any]]:
         """Return ranked recommendations for the target LoRA."""
 
