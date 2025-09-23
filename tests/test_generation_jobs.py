@@ -171,10 +171,14 @@ def test_compose_sdnext_uses_generation_coordinator(
     class RecordingCoordinator:
         def __init__(self) -> None:
             self.calls = []
+            self.broadcast_calls = []
 
         def schedule_generation_job(self, generation_params, **kwargs):
             self.calls.append((generation_params, kwargs))
             return SimpleNamespace(id="job-123", status="pending")
+
+        async def broadcast_job_started(self, job_id, params):
+            self.broadcast_calls.append((job_id, params))
 
     container = ServiceContainer(
         db_session,
@@ -223,6 +227,11 @@ def test_compose_sdnext_uses_generation_coordinator(
 
     delivery_info = body.get("delivery")
     assert delivery_info == {"id": "job-123", "status": "pending"}
+
+    assert coordinator.broadcast_calls
+    broadcast_job_id, broadcast_params = coordinator.broadcast_calls[0]
+    assert broadcast_job_id == "job-123"
+    assert broadcast_params.prompt == body["prompt"]
 
 
 @pytest.mark.anyio
