@@ -64,3 +64,5 @@ export const useGenerationConnectionStore = defineStore('generation-connection',
     reset,
   };
 });
+
+export type GenerationConnectionStore = ReturnType<typeof useGenerationConnectionStore>;

@@ -1,0 +1,88 @@
+import { ref } from 'vue';
+import { defineStore } from 'pinia';
+
+import type { GenerationFormState, GenerationResult } from '@/types';
+
+const DEFAULT_FORM_STATE: GenerationFormState = {
+  prompt: '',
+  negative_prompt: '',
+  steps: 20,
+  sampler_name: 'DPM++ 2M',
+  cfg_scale: 7.0,
+  width: 512,
+  height: 512,
+  seed: -1,
+  batch_size: 1,
+  batch_count: 1,
+  denoising_strength: null,
+};
+
+const createInitialParams = (): GenerationFormState => ({
+  ...DEFAULT_FORM_STATE,
+});
+
+export const useGenerationFormStore = defineStore('generation-form', () => {
+  const params = ref<GenerationFormState>(createInitialParams());
+  const isGenerating = ref(false);
+  const showHistory = ref(false);
+  const showModal = ref(false);
+  const selectedResult = ref<GenerationResult | null>(null);
+
+  const setGenerating = (value: boolean): void => {
+    isGenerating.value = value;
+  };
+
+  const setShowHistory = (value: boolean): void => {
+    showHistory.value = value;
+  };
+
+  const toggleHistory = (): void => {
+    showHistory.value = !showHistory.value;
+  };
+
+  const setShowModal = (value: boolean): void => {
+    showModal.value = value;
+    if (!value) {
+      selectedResult.value = null;
+    }
+  };
+
+  const selectResult = (result: GenerationResult | null): void => {
+    selectedResult.value = result;
+    showModal.value = result != null;
+  };
+
+  const updateParams = (updates: Partial<GenerationFormState>): void => {
+    params.value = { ...params.value, ...updates };
+  };
+
+  const resetParams = (): void => {
+    params.value = createInitialParams();
+  };
+
+  const reset = (): void => {
+    resetParams();
+    isGenerating.value = false;
+    showHistory.value = false;
+    showModal.value = false;
+    selectedResult.value = null;
+  };
+
+  return {
+    params,
+    isGenerating,
+    showHistory,
+    showModal,
+    selectedResult,
+    setGenerating,
+    setShowHistory,
+    toggleHistory,
+    setShowModal,
+    selectResult,
+    updateParams,
+    resetParams,
+    reset,
+  };
+});
+
+export type GenerationFormStore = ReturnType<typeof useGenerationFormStore>;

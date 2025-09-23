@@ -1,51 +1,33 @@
-import { onMounted, ref } from 'vue';
+import { onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { useGenerationPersistence } from '@/composables/useGenerationPersistence';
-import {
-  useGenerationUpdates,
-} from '@/composables/useGenerationUpdates';
 import { toGenerationRequestPayload } from '@/services/generationService';
 import { useAppStore } from '@/stores/app';
 import {
+  useGenerationFormStore,
   useGenerationConnectionStore,
   useGenerationQueueStore,
   useGenerationResultsStore,
 } from '@/stores/generation';
 import type { GenerationNotificationAdapter } from '@/composables/useGenerationTransport';
 import { useSettingsStore } from '@/stores/settings';
-import type { GenerationFormState, GenerationJob, GenerationResult, NotificationType } from '@/types';
+import { createGenerationOrchestrator } from '@/services/generationOrchestrator';
+import type { GenerationJob, GenerationResult, NotificationType } from '@/types';
 
 export const useGenerationStudio = () => {
   const appStore = useAppStore();
+  const formStore = useGenerationFormStore();
   const queueStore = useGenerationQueueStore();
   const resultsStore = useGenerationResultsStore();
   const connectionStore = useGenerationConnectionStore();
   const settingsStore = useSettingsStore();
 
+  const { params, isGenerating, showHistory, showModal, selectedResult } = storeToRefs(formStore);
   const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
-  const { systemStatus, isConnected } = storeToRefs(connectionStore);
+  const { systemStatus, isConnected, pollIntervalMs } = storeToRefs(connectionStore);
   const { activeJobs, sortedActiveJobs } = storeToRefs(queueStore);
-  const { recentResults } = storeToRefs(resultsStore);
-
-  const params = ref<GenerationFormState>({
-    prompt: '',
-    negative_prompt: '',
-    steps: 20,
-    sampler_name: 'DPM++ 2M',
-    cfg_scale: 7.0,
-    width: 512,
-    height: 512,
-    seed: -1,
-    batch_size: 1,
-    batch_count: 1,
-    denoising_strength: null,
-  });
-
-  const isGenerating = ref(false);
-  const showHistory = ref(false);
-  const showModal = ref(false);
-  const selectedResult = ref<GenerationResult | null>(null);
+  const { recentResults, historyLimit } = storeToRefs(resultsStore);
 
   const logDebug = (...args: unknown[]): void => {
     if (import.meta.env.DEV) {
@@ -67,17 +49,15 @@ export const useGenerationStudio = () => {
       showToast: notificationAdapter.notify,
     });
 
-  const {
-    initialize: initializeUpdates,
-    startGeneration: dispatchGeneration,
-    cancelJob: cancelQueuedJob,
-    clearQueue: clearQueuedJobs,
-    deleteResult: removeResult,
-    loadRecentResultsData: loadResults,
-  } = useGenerationUpdates({
+  const orchestrator = createGenerationOrchestrator({
     showHistory,
     configuredBackendUrl,
     notificationAdapter,
+    queueStore,
+    resultsStore,
+    connectionStore,
+    historyLimit,
+    pollIntervalMs,
   });
 
   const startGeneration = async (): Promise<void> => {
@@ -87,20 +67,20 @@ export const useGenerationStudio = () => {
       return;
     }
 
-    isGenerating.value = true;
+    formStore.setGenerating(true);
 
     try {
       params.value.prompt = trimmedPrompt;
       const payload = toGenerationRequestPayload({ ...params.value, prompt: trimmedPrompt });
-      await dispatchGeneration(payload);
+      await orchestrator.startGeneration(payload);
       saveParams(params.value);
     } finally {
-      isGenerating.value = false;
+      formStore.setGenerating(false);
     }
   };
 
   const cancelJob = async (jobId: string): Promise<void> => {
-    await cancelQueuedJob(jobId);
+    await orchestrator.cancelJob(jobId);
   };
 
   const clearQueue = async (): Promise<void> => {
@@ -112,20 +92,18 @@ export const useGenerationStudio = () => {
       return;
     }
 
-    await clearQueuedJobs();
+    await orchestrator.clearQueue();
   };
 
   const showImageModal = (result: GenerationResult | null): void => {
     if (!result) {
       return;
     }
-    selectedResult.value = result;
-    showModal.value = true;
+    formStore.selectResult(result);
   };
 
   const hideImageModal = (): void => {
-    showModal.value = false;
-    selectedResult.value = null;
+    formStore.setShowModal(false);
   };
 
   const reuseParameters = (result: GenerationResult): void => {
@@ -157,11 +135,11 @@ export const useGenerationStudio = () => {
       return;
     }
 
-    await removeResult(resultId);
+    await orchestrator.deleteResult(resultId);
   };
 
   const refreshResults = async (): Promise<void> => {
-    await loadResults(true);
+    await orchestrator.loadRecentResultsData(true);
   };
 
   const formatTime = (dateString?: string): string => {
@@ -218,7 +196,7 @@ export const useGenerationStudio = () => {
 
   onMounted(async () => {
     logDebug('Initializing Generation Studio composable...');
-    await initializeUpdates();
+    await orchestrator.initialize();
     loadSavedParams();
   });
 

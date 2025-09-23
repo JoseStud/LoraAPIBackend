@@ -209,3 +209,5 @@ export const useGenerationQueueStore = defineStore('generation-queue', () => {
     reset,
   };
 });
+
+export type GenerationQueueStore = ReturnType<typeof useGenerationQueueStore>;
