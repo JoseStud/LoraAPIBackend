@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from backend.core.config import settings
-from backend.services import ServiceContainer
+from backend.services import get_service_container_builder
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.queue import (
@@ -31,14 +31,15 @@ def test_queue_factory_shared_backend_with_redis(db_session) -> None:
         assert isinstance(primary, RedisQueueBackend)
         assert isinstance(fallback, BackgroundTaskQueueBackend)
 
-        container = ServiceContainer(
+        builder = get_service_container_builder()
+        services = builder.build(
             db_session,
             queue_orchestrator=orchestrator,
             delivery_repository=DeliveryJobRepository(db_session),
             analytics_repository=AnalyticsRepository(db_session),
             recommendation_gpu_available=False,
         )
-        deliveries_service = container.application.deliveries
+        deliveries_service = services.application.deliveries
 
         assert deliveries_service.queue_orchestrator is orchestrator
         assert context.queue_orchestrator is orchestrator
@@ -67,14 +68,15 @@ def test_queue_factory_shared_backend_without_redis(db_session) -> None:
         assert primary is None
         assert isinstance(fallback, BackgroundTaskQueueBackend)
 
-        container = ServiceContainer(
+        builder = get_service_container_builder()
+        services = builder.build(
             db_session,
             queue_orchestrator=orchestrator,
             delivery_repository=DeliveryJobRepository(db_session),
             analytics_repository=AnalyticsRepository(db_session),
             recommendation_gpu_available=False,
         )
-        deliveries_service = container.application.deliveries
+        deliveries_service = services.application.deliveries
 
         assert deliveries_service.queue_orchestrator is orchestrator
         assert context.queue_orchestrator is orchestrator

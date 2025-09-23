@@ -18,7 +18,7 @@ The codebase demonstrates strong engineering foundations but has identified comp
 - ✅ Component decomposition (ImportExport → specialized panels)
 - ✅ Shared Pydantic model standardization
 - ✅ Analytics containerization and coordinator patterns
-- 🔄 **Current Focus**: ServiceContainer simplification and composable extraction
+- 🔄 **Current Focus**: Service registry builder adoption and composable extraction
 
 ## 🚀 Quick Start
 
@@ -141,21 +141,23 @@ The project implements a sophisticated modular architecture with clear separatio
 
 ### Service Architecture
 
-The backend implements a sophisticated service layer with dependency injection:
+The backend implements a sophisticated service registry with explicit dependency injection:
 
 ```python
-# Service Container with 12+ specialized services
-services = ServiceContainer(
-    db_session=session,
-    adapters=AdapterService,           # LoRA adapter management
-    recommendations=RecommendationService,  # AI-powered suggestions
-    analytics=AnalyticsService,        # Metrics and insights
-    generation=GenerationCoordinator,  # Image generation orchestration
-    deliveries=DeliveryService,        # Job queue management
-    archive=ArchiveService,            # Import/export workflows
-    websocket=WebSocketService,        # Real-time communication
-    # ... and more specialized services
-)
+from backend.services import get_service_container_builder
+
+# Typed service registry built via the shared builder
+builder = get_service_container_builder()
+services = builder.build(session)
+
+# Domain facades expose rich service APIs
+adapters = services.domain.adapters            # LoRA adapter management
+recommendations = services.domain.recommendations  # AI-powered suggestions
+analytics = services.domain.analytics          # Metrics and insights
+generation = services.application.generation_coordinator  # Image orchestration
+deliveries = services.application.deliveries   # Queue management
+archive = services.application.archive         # Import/export workflows
+websocket = services.application.websocket     # Real-time communication
 ```
 
 **Key Patterns**:
@@ -207,7 +209,7 @@ The project is actively undergoing architectural improvements based on comprehen
 - Recommendation service coordinator pattern implementation
 
 ### Active Focus Areas 🔄
-- **ServiceContainer Simplification**: Breaking down 387-line God Object into focused containers
+- **Service registry maturation**: Breaking down legacy container patterns into focused registries
 - **Composable Extraction**: Splitting 378-line useJobQueue into specialized utilities
 - **Component Architecture**: Decomposing 713-line GenerationHistory into sub-components
 - **Test Organization**: Reorganizing 608-line test files into focused modules
@@ -334,7 +336,7 @@ The application provides robust LoRA management, generation workflows, and real-
 - ✅ **Performance**: Optimized builds with lazy loading and PWA features
 
 **Next Steps**:
-- Complete ServiceContainer architectural refactoring
+- Complete service registry architectural refactoring
 - Finalize component decomposition initiative  
 - Enhanced GPU acceleration documentation
 - Performance optimization through lazy loading

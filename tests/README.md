@@ -192,14 +192,19 @@ npx playwright test --project=mobile      # Mobile workflows
 **Backend Test Environment:**
 ```python
 # Sophisticated fixture setup in conftest.py
+from unittest.mock import Mock
+
+from backend.services import get_service_container_builder
+
 @pytest.fixture
-def service_container_with_mocks(db_session):
-    """Service container with mocked dependencies for isolated testing"""
-    return ServiceContainer(
-        db_session=db_session,
+def service_registry_with_mocks(db_session):
+    """Typed service registry with mocked dependencies for isolated testing"""
+    builder = get_service_container_builder()
+    return builder.build(
+        db_session,
         recommendation_gpu_available=False,  # CPU testing mode
         queue_orchestrator=Mock(spec=QueueOrchestrator),
-        analytics_repository=Mock(spec=AnalyticsRepository)
+        analytics_repository=Mock(spec=AnalyticsRepository),
     )
 
 @pytest.fixture

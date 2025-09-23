@@ -3,7 +3,7 @@
 from sqlalchemy.exc import IntegrityError
 
 from backend.schemas.adapters import AdapterCreate
-from backend.services import ServiceContainer
+from backend.services import get_service_container_builder
 from backend.services.adapters import AdapterService
 from backend.services.analytics_repository import AnalyticsRepository
 
@@ -12,13 +12,13 @@ def test_upsert_creates_and_updates(db_session, mock_storage):
     """Test that upsert creates and updates adapters correctly."""
     # initial create
     mock_storage.exists.return_value = True
-    container = ServiceContainer(
+    builder = get_service_container_builder()
+    services = builder.build(
         db_session,
         analytics_repository=AnalyticsRepository(db_session),
         recommendation_gpu_available=False,
-        storage_provider=lambda: mock_storage.storage_service,
     )
-    adapter_service = container.domain.adapters
+    adapter_service = services.domain.adapters
     payload = AdapterCreate(
         name="u1",
         version="v1",

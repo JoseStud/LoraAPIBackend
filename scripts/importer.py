@@ -21,10 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from backend.core.config import settings
 from backend.core.database import get_session_context
-
-# Backwards compatibility for tests that monkeypatch importer.get_session
-get_session = get_session_context
-from backend.services import ServiceContainer
+from backend.services import get_service_container_builder
 from backend.services.adapters import AdapterService
 from backend.services.analytics_repository import AnalyticsRepository
 
@@ -317,12 +314,12 @@ def register_adapter_from_metadata(
     ac = AdapterCreate(**{k: v for k, v in payload.items() if v is not None})
     try:
         with get_session_context() as session:
-            container = ServiceContainer(
+            services = get_service_container_builder().build(
                 session,
                 analytics_repository=AnalyticsRepository(session),
                 recommendation_gpu_available=False,
             )
-            adapter = container.domain.adapters.upsert_adapter(ac)
+            adapter = services.domain.adapters.upsert_adapter(ac)
         logger.info("Upserted adapter %s (id=%s)", adapter.name, adapter.id)
         result["status"] = "upserted"
         result["id"] = adapter.id

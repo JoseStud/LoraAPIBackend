@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from backend.services import ServiceContainer
+from backend.services import get_service_container_builder
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.recommendations import (
     EmbeddingCoordinator,
@@ -144,13 +144,14 @@ class TestRecommendationService:
         assert service.gpu_enabled is False
         assert service.device == "cpu"
 
-    def test_service_container_builds_dependencies(self, db_session):
-        container = ServiceContainer(
+    def test_service_registry_builds_dependencies(self, db_session):
+        builder = get_service_container_builder()
+        services = builder.build(
             db_session,
             analytics_repository=AnalyticsRepository(db_session),
             recommendation_gpu_available=False,
         )
-        service = container.recommendations
+        service = services.recommendations
 
         assert isinstance(service, RecommendationService)
         assert service.device == "cpu"

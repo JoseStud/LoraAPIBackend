@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from backend.core.dependencies import get_service_container
 from backend.main import app as backend_app
-from backend.services import ServiceContainer
+from backend.services import get_service_container_builder
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.queue import QueueOrchestrator
@@ -29,7 +29,8 @@ def test_compose_uses_primary_queue_backend(
         orchestrator = QueueOrchestrator(primary_backend=recording_queue_backend)
         repository = DeliveryJobRepository(db_session)
         analytics_repository = AnalyticsRepository(db_session)
-        return ServiceContainer(
+        builder = get_service_container_builder()
+        return builder.build(
             db_session,
             queue_orchestrator=orchestrator,
             delivery_repository=repository,
@@ -74,7 +75,8 @@ def test_compose_falls_back_to_background_queue(
         )
         repository = DeliveryJobRepository(db_session)
         analytics_repository = AnalyticsRepository(db_session)
-        return ServiceContainer(
+        builder = get_service_container_builder()
+        return builder.build(
             db_session,
             queue_orchestrator=orchestrator,
             delivery_repository=repository,
@@ -137,7 +139,8 @@ async def test_queue_generation_job_uses_primary_queue_backend(
             primary_backend=primary_queue,
             fallback_backend=fallback_queue,
         )
-        return ServiceContainer(
+        builder = get_service_container_builder()
+        return builder.build(
             db_session,
             queue_orchestrator=orchestrator,
             delivery_repository=DeliveryJobRepository(db_session),
@@ -229,7 +232,8 @@ async def test_queue_generation_job_falls_back_to_background_tasks(
             primary_backend=primary_queue,
             fallback_backend=fallback_queue,
         )
-        return ServiceContainer(
+        builder = get_service_container_builder()
+        return builder.build(
             db_session,
             queue_orchestrator=orchestrator,
             delivery_repository=DeliveryJobRepository(db_session),

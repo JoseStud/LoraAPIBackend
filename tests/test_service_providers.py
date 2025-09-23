@@ -1,7 +1,8 @@
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from backend.services import ServiceContainer
+from backend.services import get_service_container_builder
 from backend.services.adapters.service import AdapterService
 from backend.services.archive import ArchiveService
 from backend.services.analytics import AnalyticsService
@@ -297,68 +298,81 @@ def test_service_container_uses_custom_providers(db_session):
     generation_coordinator = MagicMock(spec=GenerationCoordinator)
     generation_coordinator_provider = MagicMock(return_value=generation_coordinator)
 
-    container = ServiceContainer(
+    builder = get_service_container_builder().with_overrides(
+        storage=lambda providers: replace(
+            providers,
+            storage=storage_provider,
+            adapter=adapter_provider,
+        ),
+        domain=lambda factories: replace(
+            factories,
+            compose=compose_provider,
+            generation=generation_provider,
+            analytics=analytics_provider,
+            recommendation=recommendation_provider,
+        ),
+        infrastructure=lambda factories: replace(
+            factories,
+            archive=archive_provider,
+            delivery=delivery_provider,
+            generation_coordinator=generation_coordinator_provider,
+            websocket=websocket_provider,
+            system=system_provider,
+        ),
+    )
+    registry = builder.build(
         db_session,
         queue_orchestrator=queue_orchestrator,
         delivery_repository=delivery_repository,
         analytics_repository=analytics_repository,
         recommendation_gpu_available=True,
-        storage_provider=storage_provider,
-        adapter_provider=adapter_provider,
-        archive_provider=archive_provider,
-        delivery_provider=delivery_provider,
-        compose_provider=compose_provider,
-        generation_provider=generation_provider,
-        generation_coordinator_provider=generation_coordinator_provider,
-        websocket_provider=websocket_provider,
-        system_provider=system_provider,
-        analytics_provider=analytics_provider,
-        recommendation_provider=recommendation_provider,
     )
 
-    assert container.core.storage is storage_service
+    assert registry.core.storage is storage_service
     storage_provider.assert_called_once_with()
 
-    assert container.domain.adapters is adapter_service
+    assert registry.domain.adapters is adapter_service
     adapter_provider.assert_called_once_with(
         db_session=db_session,
         storage_service=storage_service,
     )
 
-    assert container.domain.compose is compose_service
+    assert registry.domain.compose is compose_service
     compose_provider.assert_called_once_with()
 
-    assert container.domain.generation is generation_service
+    assert registry.domain.generation is generation_service
     generation_provider.assert_called_once_with()
 
-    assert container.domain.analytics is analytics_service
+    assert registry.domain.analytics is analytics_service
     analytics_provider.assert_called_once_with(
         db_session,
         repository=analytics_repository,
     )
 
-    assert container.domain.recommendations is recommendation_service
+    assert registry.domain.recommendations is recommendation_service
     recommendation_provider.assert_called_once_with(
         db_session,
         gpu_available=True,
     )
 
-    assert container.application.archive is archive_service
+    assert registry.application.archive is archive_service
     archive_provider.assert_called_once_with(adapter_service, storage_service)
 
-    assert container.application.deliveries is delivery_service
+    assert registry.application.deliveries is delivery_service
     delivery_provider.assert_called_once_with(
         delivery_repository,
         queue_orchestrator=queue_orchestrator,
     )
 
-    assert container.application.websocket is websocket_service
+    assert registry.application.websocket is websocket_service
     websocket_provider.assert_called_once_with()
 
-    assert container.application.system is system_service
+    assert registry.application.system is system_service
     system_provider.assert_called_once_with(delivery_service)
 
-    assert container.application.generation_coordinator is generation_coordinator
+    assert (
+        registry.application.generation_coordinator is generation_coordinator
+    )
     generation_coordinator_provider.assert_called_once_with(
         delivery_service,
         websocket_service,
