@@ -10,7 +10,7 @@ from backend.services.queue import QueueOrchestrator, create_queue_orchestrator
 from backend.services.adapters import AdapterService
 from backend.services.composition import ComposeService
 from backend.services.deliveries import DeliveryService
-from backend.services.archive import ArchiveService
+from backend.services.archive import ArchiveService, BackupService
 from backend.services.recommendations import RecommendationService
 
 _QUEUE_ORCHESTRATOR: QueueOrchestrator = create_queue_orchestrator()
@@ -62,3 +62,11 @@ def get_archive_service(
     """Return the archive helper service."""
 
     return container.archive
+
+
+def get_backup_service(
+    container: ServiceContainer = Depends(get_service_container),  # noqa: B008 - FastAPI DI
+) -> BackupService:
+    """Return the backup service instance."""
+
+    return container.backups

@@ -45,6 +45,13 @@ from .generation import (
     SDNextGenerationParams,
     SDNextGenerationResult,
 )
+from .import_export import (
+    BackupCreateRequest,
+    BackupHistoryItem,
+    ExportConfig,
+    ExportEstimate,
+    ImportConfig,
+)
 from .recommendations import (
     BatchEmbeddingRequest,
     BatchEmbeddingResponse,
@@ -100,6 +107,12 @@ __all__ = [
     "GenerationJobStatus",
     "GenerationCancelResponse",
     "GenerationResultSummary",
+    # Import/export
+    "ExportConfig",
+    "ExportEstimate",
+    "ImportConfig",
+    "BackupHistoryItem",
+    "BackupCreateRequest",
     # Recommendations
     "RecommendationRequest",
     "RecommendationResponse",

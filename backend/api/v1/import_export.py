@@ -1,90 +1,25 @@
 """Import/Export API endpoints backed by archive helpers."""
 
-import math
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 
 from backend.core.config import settings
-from backend.core.dependencies import get_archive_service
-from backend.services.archive import ArchiveService
+from backend.core.dependencies import get_archive_service, get_backup_service
+from backend.schemas.import_export import (
+    BackupCreateRequest,
+    BackupHistoryItem,
+    ExportConfig,
+    ExportEstimate,
+    ImportConfig,
+)
+from backend.services.archive import ArchiveService, BackupService
+from backend.utils import format_bytes, format_duration
 
 router = APIRouter(tags=["import-export"])
-
-
-class ExportConfig(BaseModel):
-    """Export configuration schema."""
-
-    loras: bool = False
-    lora_files: bool = False
-    lora_metadata: bool = False
-    lora_embeddings: bool = False
-    generations: bool = False
-    generation_range: str = "all"
-    date_from: Optional[str] = None
-    date_to: Optional[str] = None
-    user_data: bool = False
-    system_config: bool = False
-    analytics: bool = False
-    format: str = "zip"
-    compression: str = "balanced"
-    split_archives: bool = False
-    max_size_mb: int = 1024
-    encrypt: bool = False
-    password: Optional[str] = None
-
-
-class ExportEstimate(BaseModel):
-    """Export size and time estimates."""
-
-    size: str
-    time: str
-
-
-class ImportConfig(BaseModel):
-    """Import configuration schema."""
-
-    mode: str = "merge"
-    conflict_resolution: str = "ask"
-    validate: bool = True
-    backup_before: bool = True
-    password: Optional[str] = None
-
-
-class BackupHistoryItem(BaseModel):
-    """Backup history item schema."""
-
-    id: str
-    created_at: str
-    type: str
-    size: int
-    status: str
-
-
-def _format_size(num_bytes: int) -> str:
-    if num_bytes <= 0:
-        return "0 Bytes"
-    units = ["Bytes", "KB", "MB", "GB", "TB"]
-    exponent = 0
-    value = float(num_bytes)
-    while value >= 1024 and exponent < len(units) - 1:
-        value /= 1024
-        exponent += 1
-    return f"{value:.2f} {units[exponent]}"
-
-
-def _format_duration(seconds: float) -> str:
-    if seconds <= 0:
-        return "0 seconds"
-    if seconds < 60:
-        return f"{max(1, math.ceil(seconds))} seconds"
-    minutes = math.ceil(seconds / 60)
-    return f"{minutes} minutes"
-
 
 @router.post("/export/estimate")
 async def estimate_export(
@@ -98,8 +33,8 @@ async def estimate_export(
 
     estimation = archive_service.estimate_adapter_export()
     return ExportEstimate(
-        size=_format_size(estimation.total_bytes),
-        time=_format_duration(estimation.estimated_seconds),
+        size=format_bytes(estimation.total_bytes),
+        time=format_duration(estimation.estimated_seconds),
     )
 
 
@@ -191,36 +126,43 @@ async def import_data(
 
 
 @router.get("/backups/history")
-async def get_backup_history() -> List[BackupHistoryItem]:
-    """Get backup history."""
-    # Mock backup history
-    return [
-        BackupHistoryItem(
-            id="backup_001",
-            created_at=datetime.now().isoformat(),
-            type="Full Backup",
-            size=1024 * 1024 * 100,  # 100MB
-            status="completed",
-        ),
-        BackupHistoryItem(
-            id="backup_002",
-            created_at=datetime.now().isoformat(),
-            type="Quick Backup",
-            size=1024 * 1024 * 50,  # 50MB
-            status="completed",
-        ),
-    ]
+async def get_backup_history(
+    backup_service: BackupService = Depends(get_backup_service),  # noqa: B008
+) -> List[BackupHistoryItem]:
+    """Get persisted backup history entries."""
+
+    return backup_service.list_history()
 
 
 @router.post("/backup/create")
-async def create_backup(backup_type: str = "full"):
-    """Create a new backup."""
+async def create_backup(
+    payload: BackupCreateRequest,
+    backup_service: BackupService = Depends(get_backup_service),  # noqa: B008
+):
+    """Create a new backup and return the created metadata."""
+
+    entry = backup_service.create_backup(payload.backup_type)
     return {
         "success": True,
-        "backup_id": f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-        "type": backup_type,
-        "status": "initiated",
+        "backup_id": entry.id,
+        "type": entry.type,
+        "status": entry.status,
+        "size": entry.size,
+        "created_at": entry.created_at.isoformat(),
     }
+
+
+@router.delete("/backups/{backup_id}", status_code=204)
+async def delete_backup(
+    backup_id: str,
+    backup_service: BackupService = Depends(get_backup_service),  # noqa: B008
+) -> Response:
+    """Delete a backup entry and its archive."""
+
+    removed = backup_service.delete_backup(backup_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Backup not found")
+    return Response(status_code=204)
 
 
 # ---------------------------------------------------------------------------
@@ -235,3 +177,4 @@ router.add_api_route("/import-export/export/estimate", estimate_export, methods=
 router.add_api_route("/import-export/import", import_data, methods=["POST"])
 router.add_api_route("/import-export/backups/history", get_backup_history, methods=["GET"])
 router.add_api_route("/import-export/backup/create", create_backup, methods=["POST"])
+router.add_api_route("/import-export/backups/{backup_id}", delete_backup, methods=["DELETE"])
