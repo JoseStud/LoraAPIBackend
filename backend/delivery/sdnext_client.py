@@ -1,7 +1,9 @@
-"""Client helper for interacting with the SDNext HTTP API."""
+"""Client helpers for interacting with the SDNext HTTP API."""
 
 from __future__ import annotations
 
+import asyncio
+from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from backend.core.config import settings
@@ -9,16 +11,18 @@ from backend.core.config import settings
 from .http_client import DeliveryHTTPClient
 
 
-class SDNextClientError(RuntimeError):
-    """Raised when the SDNext client encounters an error response."""
+@dataclass
+class SDNextResponse:
+    """Structured response returned by :class:`SDNextSession`."""
 
-    def __init__(self, message: str, *, status: Optional[int] = None) -> None:
-        super().__init__(message)
-        self.status = status
+    ok: bool
+    status: Optional[int]
+    data: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
 
 
-class SDNextClient:
-    """Wrapper around :class:`DeliveryHTTPClient` with SDNext-specific helpers."""
+class SDNextSession:
+    """Lightweight helper owning SDNext connectivity and requests."""
 
     def __init__(
         self,
@@ -50,40 +54,50 @@ class SDNextClient:
         self,
         prompt: str,
         generation_params: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        """Submit a txt2img request and return the parsed JSON payload."""
+    ) -> SDNextResponse:
+        """Submit a txt2img request and return a structured response."""
 
         payload = self._build_txt2img_payload(prompt, generation_params or {})
-        request_ctx = await self._http_client.request(
+        return await self._request(
             "POST",
             "/sdapi/v1/txt2img",
             json=payload,
         )
 
-        async with request_ctx as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise SDNextClientError(
-                    f"SDNext API error: {response.status} - {error_text}",
-                    status=response.status,
-                )
-
-            return await response.json()
-
-    async def get_progress(self) -> Dict[str, Any]:
+    async def get_progress(self) -> SDNextResponse:
         """Fetch progress information from the SDNext API."""
 
-        request_ctx = await self._http_client.request("GET", "/sdapi/v1/progress")
+        return await self._request("GET", "/sdapi/v1/progress")
+
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        **kwargs: Any,
+    ) -> SDNextResponse:
+        if not self._http_client.is_configured():
+            return SDNextResponse(False, None, error="SDNext session not configured")
+
+        try:
+            request_ctx = await self._http_client.request(method, path, **kwargs)
+        except asyncio.TimeoutError:
+            return SDNextResponse(False, None, error="Request timed out")
+        except Exception as exc:  # pragma: no cover - defensive
+            return SDNextResponse(False, None, error=str(exc))
 
         async with request_ctx as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise SDNextClientError(
-                    f"SDNext progress API error: {response.status} - {error_text}",
-                    status=response.status,
-                )
+            status = getattr(response, "status", None)
+            try:
+                if status != 200:
+                    text = await response.text()
+                    error = text or f"HTTP {status}"
+                    return SDNextResponse(False, status, error=error)
 
-            return await response.json()
+                data = await response.json()
+            except Exception as exc:  # pragma: no cover - defensive
+                return SDNextResponse(False, status, error=str(exc))
+
+        return SDNextResponse(True, status, data=data)
 
     def _build_txt2img_payload(
         self,
@@ -111,3 +125,4 @@ class SDNextClient:
             payload["denoising_strength"] = generation_params["denoising_strength"]
 
         return payload
+
