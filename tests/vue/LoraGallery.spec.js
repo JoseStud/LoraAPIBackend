@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import LoraGallery from '../../app/frontend/src/components/LoraGallery.vue';
 import LoraCard from '../../app/frontend/src/components/LoraCard.vue';
 
@@ -46,64 +46,62 @@ describe('LoraGallery', () => {
     mocks.performBulkLoraActionMock.mockResolvedValue(undefined);
   });
 
-  it('renders properly', async () => {
+  const mountGallery = async () => {
     const wrapper = mount(LoraGallery);
+    await flushPromises();
+    return wrapper;
+  };
+
+  it('renders properly', async () => {
+    const wrapper = await mountGallery();
     expect(wrapper.find('.loras-page-container').exists()).toBe(true);
   });
 
   it('loads LoRAs on mount', async () => {
-    const wrapper = mount(LoraGallery);
-    
-    // Wait for async operations to complete
-    await wrapper.vm.$nextTick();
-    
+    await mountGallery();
     expect(mocks.fetchAdaptersMock).toHaveBeenCalledWith('/api/v1', expect.objectContaining({ perPage: 100 }));
   });
 
   it('filters LoRAs by search term', async () => {
-    const wrapper = mount(LoraGallery);
-    
-    // Wait for initialization
-    await wrapper.vm.$nextTick();
-    
-    // Set search term
+    const wrapper = await mountGallery();
+
     await wrapper.find('.search-input').setValue('Test LoRA 1');
-    
-    // Wait for reactivity
-    await wrapper.vm.$nextTick();
-    
-    // Should show filtered results
-    expect(wrapper.vm.filteredLoras.length).toBeLessThanOrEqual(wrapper.vm.loras.length);
+    await flushPromises();
+
+    expect(wrapper.findAllComponents(LoraCard)).toHaveLength(1);
   });
 
   it('toggles view mode', async () => {
-    const wrapper = mount(LoraGallery);
-    
+    const wrapper = await mountGallery();
+
     expect(wrapper.vm.viewMode).toBe('grid');
-    
-    // Click list view button
-    await wrapper.find('.view-mode-btn:last-child').trigger('click');
-    
+
+    const viewButtons = wrapper.findAll('.view-mode-btn');
+    await viewButtons[1].trigger('click');
+    await flushPromises();
+
     expect(wrapper.vm.viewMode).toBe('list');
   });
 
-  it('handles bulk mode toggle', async () => {
-    const wrapper = mount(LoraGallery);
-    
+  it('handles bulk mode toggle and displays bulk bar', async () => {
+    const wrapper = await mountGallery();
+
     expect(wrapper.vm.bulkMode).toBe(false);
-    
-    // Click bulk mode button
-    await wrapper.find('button').trigger('click');
-    
+
+    const bulkButton = wrapper.findAll('button').find(button => button.text() === 'Bulk Actions');
+    expect(bulkButton).toBeDefined();
+    if (!bulkButton) {
+      throw new Error('Bulk button not found');
+    }
+    await bulkButton.trigger('click');
+    await flushPromises();
+
     expect(wrapper.vm.bulkMode).toBe(true);
+    expect(wrapper.find('.bulk-actions-bar').isVisible()).toBe(true);
   });
 
   it('uses correct API URL composition', async () => {
-    // Mock fetch to capture URLs
-    const wrapper = mount(LoraGallery);
-
-    // Wait for initial data load
-    await wrapper.vm.$nextTick();
+    await mountGallery();
 
     expect(mocks.fetchAdaptersMock).toHaveBeenCalledWith('/api/v1', expect.objectContaining({ perPage: 100 }));
     expect(mocks.fetchAdapterTagsMock).toHaveBeenCalledWith('/api/v1');
