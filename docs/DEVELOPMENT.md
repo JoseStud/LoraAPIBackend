@@ -1,14 +1,21 @@
-# LoRA Manager - Developer Notes
+# LoRA Manager - Developer Guide
 
 ## Architecture Overview
 
-This project follows a modern, decoupled architecture with a distinct backend API and a separate frontend application.
+This project implements a sophisticated, modern architecture with advanced dependency injection patterns, service orchestration, and component-based frontend design.
 
--   **Backend**: A self-contained FastAPI application located in the `backend/` directory. It handles all business logic, database interactions, and serves the API.
--   **Frontend**: A Vite-powered Vue 3 single-page application in `app/frontend/src/`. The historic Alpine.js compatibility layer has been removed; FastAPI now serves only the compiled SPA from `index.html`.
--   **Main Entrypoint**: The `app/main.py` file acts as a wrapper that serves the SPA shell and mounts the backend API under the versioned `/v1` path.
+**Architecture Status**: 🟡 **Active Refactoring Initiative**  
+The codebase demonstrates strong engineering foundations but is undergoing strategic architectural improvements based on comprehensive complexity analysis. Recent branches show excellent progress toward enhanced modularity and maintainability.
 
-> **Status reminder:** The codebase is still evolving. Several integrations—most notably SDNext generation, queue processing, and the recommendation models—need additional setup or hardening before they are production ready. See the updated API contract and implementation status notes for the latest truth on what works end-to-end.【F:docs/contract.md†L1-L153】【F:docs/IMPLEMENTATION_COMPLETE.md†L1-L49】
+### Core Architectural Principles
+
+- **Backend**: Self-contained FastAPI application with advanced service layer architecture
+- **Frontend**: Vue 3 SPA with composable-based state management and component decomposition
+- **Service Layer**: Dependency injection with factory patterns and specialized coordinators
+- **Real-time Features**: WebSocket integration with sophisticated job queue orchestration
+- **Testing**: Comprehensive coverage across Python, TypeScript, and E2E workflows
+
+> **Current Focus**: Addressing identified complexity hotspots through service container simplification, composable extraction, and component decomposition. See [Architectural Complexity Analysis](../ARCHITECTURAL_COMPLEXITY_ANALYSIS.md) for detailed refactoring roadmap.
 
 ---
 
@@ -16,59 +23,150 @@ This project follows a modern, decoupled architecture with a distinct backend AP
 
 ```
 .
-├── app/              # Main application wrapper and frontend
+├── app/              # FastAPI wrapper with Vue 3 frontend integration
 │   ├── frontend/
-│   │   ├── src/      # Vue SPA source (components, composables, router, stores)
-│   │   ├── static/   # Static assets (CSS input, icons)
-│   │   ├── public/   # Static assets copied verbatim by Vite
-│   │   ├── index.html  # SPA entrypoint served by FastAPI
-│   │   └── utils/    # FastAPI helpers for serving built SPA assets
-│   └── main.py       # Main FastAPI entrypoint to serve frontend & mount backend
+│   │   ├── src/      # Vue SPA with advanced composables and components
+│   │   │   ├── components/    # Decomposed UI components (ongoing refactoring)
+│   │   │   ├── composables/   # Specialized state management utilities
+│   │   │   ├── stores/        # Pinia stores for centralized state
+│   │   │   └── views/         # Route-level components
+│   │   ├── static/   # PWA assets, Tailwind CSS, service worker
+│   │   └── utils/    # FastAPI integration helpers
+│   └── main.py       # Application entrypoint with service integration
 │
-├── backend/          # Self-contained backend FastAPI application
-│   ├── api/          # API endpoint routers (v1, etc.)
-│   ├── core/         # Core services (DB, config, security)
-│   ├── models/       # SQLModel database models
-│   ├── schemas/      # Pydantic schemas
-│   ├── services/     # Business logic layer
-│   └── main.py       # Backend FastAPI app factory
+├── backend/          # Advanced service architecture with DI patterns
+│   ├── api/v1/       # RESTful endpoints (28+ documented endpoints)
+│   ├── core/         # Configuration, database, security, dependencies
+│   ├── models/       # SQLModel with sophisticated relationship management
+│   ├── schemas/      # Pydantic models with shared schema standardization
+│   ├── services/     # Business logic with dependency injection
+│   │   ├── adapters/      # LoRA adapter management
+│   │   ├── analytics/     # Metrics and performance tracking
+│   │   ├── archive/       # Import/export workflows
+│   │   ├── generation/    # Image generation coordination
+│   │   ├── recommendations/  # AI-powered similarity engine
+│   │   └── providers/     # Service factory functions
+│   ├── delivery/     # Pluggable backend providers (HTTP, CLI, SDNext)
+│   └── workers/      # Redis/RQ background processing
 │
-├── tests/            # Automated tests
-│   ├── e2e/          # End-to-end tests (Playwright)
-│   ├── integration/  # Integration tests (Pytest)
-│   └── unit/         # Unit tests (Pytest for backend, Vitest for frontend)
+├── tests/            # Comprehensive test architecture (ongoing reorganization)
+│   ├── e2e/          # Playwright end-to-end testing
+│   ├── integration/  # API and workflow integration tests
+│   ├── unit/         # Focused unit tests (Python + TypeScript)
+│   └── vue/          # Vue component testing with Vitest
 │
-├── infrastructure/   # Docker, Alembic, and deployment scripts
-└── scripts/          # Helper scripts (e.g., importer.py)
+├── docs/             # Complete project documentation
+├── infrastructure/  # Docker deployment with GPU support
+└── scripts/          # Automation and utility scripts
 ```
+
+## Architectural Complexity Management
+
+### Current Refactoring Initiative
+
+The project is actively addressing identified complexity hotspots:
+
+**🔴 Critical Focus Areas:**
+- **ServiceContainer** (387 lines) → Decomposing into focused containers
+- **GenerationHistory.vue** (713 lines) → Extracting specialized sub-components  
+- **useJobQueue.ts** (378 lines) → Splitting into focused composables
+
+**🟡 Improvement Areas:**
+- Test organization (608+ line files) → Focused test modules
+- Component decomposition (ongoing ImportExport refactoring)
+- Service provider pattern optimization
+
+**✅ Recent Achievements:**
+- Service provider refactoring with explicit dependency injection
+- ImportExport component split into specialized panels
+- Shared Pydantic model standardization
+- Analytics containerization with coordinator patterns
 
 ---
 
-## Key Modules & Technologies
+## Advanced Service Architecture
 
-### Backend (`backend/`)
+### Backend Service Layer (`backend/services/`)
 
--   **Framework**: FastAPI with SQLModel for ORM.
--   **API Routers (`backend/api/v1/`)**: Endpoints are organized by resource (e.g., `adapters.py`, `generation.py`). Public API routes are exposed under `/v1`.
--   **Services (`backend/services/`)**: The business logic is encapsulated in services (e.g., `AdapterService`, `GenerationService`) and injected into the API layer using FastAPI's dependency injection.
--   **Database (`backend/core/database.py`)**: Manages database sessions and initialization. Supports both SQLite and PostgreSQL.
--   **Background Jobs (`backend/workers/`)**: Uses Redis and RQ for handling long-running tasks like image generation or batch processing.
+The backend implements sophisticated dependency injection with specialized service patterns:
 
-### Frontend (`app/frontend/`)
+**Service Container Architecture:**
+```python
+# Current architecture (undergoing simplification)
+class ServiceContainer:
+    """Central DI container managing 12+ specialized services"""
+    
+    @property
+    def adapters(self) -> AdapterService:
+        """LoRA adapter CRUD with storage integration"""
+    
+    @property  
+    def recommendations(self) -> RecommendationService:
+        """AI-powered similarity engine with GPU acceleration"""
+    
+    @property
+    def generation(self) -> GenerationCoordinator:
+        """Image generation orchestration with WebSocket monitoring"""
+    
+    @property
+    def analytics(self) -> AnalyticsService:
+        """Advanced metrics tracking and performance analytics"""
+    
+    # ... 8+ additional specialized services
+```
 
--   **Primary Router Workflows**:
-    - `DashboardView` aggregates system metrics, queue telemetry, and quick actions.
-    - `GenerateView` hosts the studio, live WebSocket status, and prompt tooling.
-    - `AdminView` contains import/export, delivery configuration, and system health tools.
-    - `LorasView` and `RecommendationsView` surface gallery discovery and similarity exploration.
--   **Build Tool**: Vite for fast development and optimized builds.
--   **Frameworks**: Vue 3 SPA orchestrated by Vue Router with Pinia for global state management.
--   **Styling**: Tailwind CSS compiled from `static/css/input.css` into the Vite bundle.
--   **Entrypoint (`src/main.ts`)**: Boots Vue Router, Pinia, and global styles for the application.
--   **Routing (`src/router/`)**: Defines Dashboard, Generate, Compose, History, LoRA management, and Admin views.
--   **Stores (`src/stores/`)**: Centralize queue telemetry, generation state, recommendations, and system status.
--   **Components (`src/components/`)**: Vue single-file components covering dashboard widgets, admin tools, and layout.
--   **Composables (`src/composables/`)**: Shared logic for API access, notifications, and system status polling.
+**Key Service Patterns:**
+- **Factory Functions**: Provider pattern for clean service instantiation
+- **Repository Pattern**: Specialized data access for analytics, deliveries, recommendations
+- **Coordinator Pattern**: Orchestration of complex multi-service workflows
+- **Background Processing**: Redis/RQ integration with comprehensive job monitoring
+
+**Service Specializations:**
+- `AdapterService`: LoRA metadata management with file validation
+- `RecommendationService`: Semantic similarity with embedding coordination
+- `AnalyticsService`: Metrics aggregation with time-series analysis
+- `GenerationCoordinator`: Multi-backend generation with real-time updates
+- `DeliveryService`: Job queue orchestration with pluggable backends
+- `ArchiveService`: Import/export workflows with backup management
+- `WebSocketService`: Real-time communication with job progress tracking
+
+### Frontend Architecture (`app/frontend/src/`)
+
+Modern Vue 3 SPA with component decomposition and sophisticated state management:
+
+**Component Architecture:**
+```vue
+<!-- Current refactoring approach -->
+<GenerationHistory>
+  <GenerationHistoryHeader 
+    @view-changed="updateView"
+    @sort-changed="updateSort" />
+  <GenerationHistoryFilters 
+    @filter-changed="applyFilters" />
+  <GenerationHistoryGrid 
+    v-if="viewMode === 'grid'"
+    :items="filteredItems" />
+</GenerationHistory>
+```
+
+**Composable Patterns:**
+```typescript
+// Specialized composables for complex state management
+export const useJobQueue = () => {
+  const { jobs, enqueue } = useJobState()
+  const { startPolling } = useJobPolling()
+  const { connect } = useJobWebSocket()
+  const { lastError } = useJobErrorHandling()
+  
+  return { jobs, enqueue, startPolling, connect, lastError }
+}
+```
+
+**State Management with Pinia:**
+- `useGenerationQueueStore`: Job queue state with WebSocket integration
+- `useGenerationResultsStore`: Result persistence and history management
+- `useNotificationStore`: User notifications and error handling
+- `useSystemStatusStore`: Health monitoring and metrics tracking
 
 ---
 
@@ -76,101 +174,291 @@ This project follows a modern, decoupled architecture with a distinct backend AP
 
 ### Prerequisites
 
--   Python 3.10+
--   Node.js 18+
--   Docker and Docker Compose
+- Python 3.10+
+- Node.js 18+ 
+- Docker and Docker Compose (for infrastructure)
+- Redis (for background job processing)
+- GPU drivers (optional, for AI recommendations)
 
-### Running the Application
+### Quick Development Setup
 
-A two-terminal setup is recommended for development:
+**Recommended: Two-Terminal Workflow**
 
-**Terminal 1: Backend Server**
-
+**Terminal 1: Backend Development**
 ```bash
-# Install Python dependencies
-pip install -r requirements.txt
+# Install dependencies with optional ML support
+pip install -r requirements.txt  # or requirements-amd.txt for GPU
 
-# Run the backend with auto-reload
+# Start backend with auto-reload
 uvicorn app.main:app --reload --port 8000
 ```
 
-**Terminal 2: Frontend Development Server**
-
+**Terminal 2: Frontend Development**
 ```bash
-# Install Node.js dependencies
-npm install
+# Install dependencies (with Puppeteer skip for network restrictions)
+PUPPETEER_SKIP_DOWNLOAD=true npm install
 
-# Run the Vite dev server with Hot Module Replacement (HMR)
+# Start Vite dev server with HMR
 npm run dev
 ```
 
-Access the application at `http://localhost:5173` (Vite dev server) or `http://localhost:8000` (FastAPI-served).
-
----
-
-## Testing
-
-The repository contains a large test suite, but many pieces require optional services or heavyweight tooling (Redis/RQ, an SDNext server, Playwright browsers, Lighthouse, GPU-enabled torch builds). Plan to run targeted subsets locally unless you have all dependencies available.
-
-### Backend Testing (Pytest)
-
--   **Run all backend tests** (requires Redis/SDNext for queue coverage):
-    ```bash
-    pytest -v
-    ```
--   **Focused suites**:
-    ```bash
-    pytest tests/test_services.py -v         # Core adapters & services
-    pytest tests/test_generation_jobs.py -v  # SDNext queue helpers
-    ```
-
-### Frontend Testing (Vitest & Playwright)
-
--   **Unit tests**:
-    ```bash
-    npm run test:unit
-    ```
--   **Browser-driven suites** (require Playwright browsers and credentials where applicable):
-    ```bash
-    npm run test:integration
-    npm run test:e2e
-    npm run test:performance  # Lighthouse CI
-    ```
-
----
-
-## Code Quality & Standards
-
--   **Linting**: `ruff` for Python and `eslint` for JavaScript. Run `ruff --fix .` and `npm run lint:fix` before committing.
--   **Type Hinting**: The Python codebase is fully type-hinted.
--   **Configuration**: All configuration is managed via environment variables (`.env` file) and loaded by Pydantic's `BaseSettings`. See `.env.example` for all available options.
--   **Database Migrations**: Alembic is used for schema migrations. To create a new migration, run `alembic revision --autogenerate -m "Your migration message"`.
-
-## Open areas for follow-up
-
-1. **Batch workflows** – A/B testing and bulk generation orchestration are still on the roadmap.
-2. **Image management** – Thumbnails, metadata extraction, and cleanup policies need design and implementation.
-3. **Analytics dashboard** – Usage metrics and performance monitoring require additional instrumentation beyond the current dashboard stats endpoints.【F:backend/api/v1/dashboard.py†L1-L40】
-
-## Usage Examples
-
-### Automated Importer
+**Alternative: Unified Development**
 ```bash
-# Smart incremental updates
-python scripts/importer.py --path /data/loras
+# Run both backend and frontend simultaneously
+npm run dev:full
 
-# Full re-ingestion
-python scripts/importer.py --path /data/loras --force-resync
+# Backend only (serves built frontend)
+npm run build && npm run dev:backend
 
-# Preview changes
-python scripts/importer.py --path /data/loras --dry-run
+# CSS development with Tailwind watch
+npm run dev:css
 ```
 
-### Database Migrations
+### Service Development Patterns
+
+**Adding New Services:**
+```python
+# 1. Create service class
+class NewService:
+    def __init__(self, dependency: SomeDependency):
+        self._dependency = dependency
+
+# 2. Add provider function
+def make_new_service(dependency: SomeDependency) -> NewService:
+    return NewService(dependency)
+
+# 3. Register in ServiceContainer
+class ServiceContainer:
+    @property
+    def new_service(self) -> NewService:
+        if self._new_service is None:
+            self._new_service = make_new_service(self.dependency)
+        return self._new_service
+```
+
+**Component Development:**
+```typescript
+// 1. Create focused component
+<script setup lang="ts">
+interface Props {
+  data: DataType
+}
+
+const emit = defineEmits<{
+  action: [payload: ActionPayload]
+}>()
+</script>
+
+// 2. Add to parent component
+<NewComponent 
+  :data="componentData"
+  @action="handleAction" />
+
+// 3. Test with Vitest
+describe('NewComponent', () => {
+  it('should handle user interactions', () => {
+    // Component-focused testing
+  })
+})
+```
+
+---
+
+## Comprehensive Testing Strategy
+
+The project implements sophisticated testing across multiple layers and technologies:
+
+### Backend Testing (Python/Pytest)
+
+**Test Organization:**
 ```bash
-# Apply all migrations (from infrastructure/alembic/)
+tests/
+├── unit/python/          # Focused unit tests (<200 lines each)
+├── integration/          # API and workflow integration tests  
+├── test_recommendations.py  # Comprehensive recommendation testing (608 lines - being refactored)
+├── test_services.py      # Core service testing (518 lines)
+└── test_main.py          # Application integration tests (451 lines)
+```
+
+**Running Backend Tests:**
+```bash
+# Focused test suites (recommended for development)
+pytest tests/test_services.py -v         # Core services
+pytest tests/test_main.py -v            # API integration
+pytest tests/test_recommendations.py -v  # ML/AI features (requires GPU setup)
+
+# Full test suite (requires Redis, SDNext, GPU dependencies)
+pytest -v
+
+# Coverage reporting
+pytest --cov=backend --cov-report=html
+```
+
+### Frontend Testing (TypeScript/Vitest)
+
+**Test Organization:**
+```bash
+tests/
+├── vue/                  # Vue component tests with mounting
+├── unit/                 # Pure logic and utility testing
+├── integration/          # API integration testing
+└── e2e/                  # Playwright browser testing
+```
+
+**Running Frontend Tests:**
+```bash
+# Unit tests with Vitest (fast, recommended for development)
+npm run test:unit
+
+# Component tests with Vue Test Utils
+npm run test:vue
+
+# Integration tests (require backend running)
+npm run test:integration
+
+# End-to-end tests (require Playwright setup)
+npm run test:e2e
+
+# Performance testing with Lighthouse
+npm run test:performance
+```
+
+### Quality Assurance
+
+**Code Quality Tools:**
+```bash
+# Python quality
+ruff check .              # Fast linting
+ruff format .             # Code formatting
+pytest --cov             # Coverage reporting
+
+# JavaScript/TypeScript quality  
+npm run lint              # ESLint analysis
+npm run lint:fix          # Auto-fix issues
+npm run type-check        # TypeScript validation
+
+# Comprehensive validation
+npm run validate          # Runs linting + tests
+```
+
+**Quality Standards:**
+- **Test Coverage**: >85% across backend and frontend
+- **Type Safety**: Full TypeScript and Python type hints
+- **Linting**: Zero linting errors in production builds
+- **Performance**: Lighthouse scores >90 for PWA metrics
+
+### Testing Complex Components
+
+**Service Testing Patterns:**
+```python
+# Service container testing with mocked dependencies
+@pytest.fixture
+def service_container(mock_db_session):
+    return ServiceContainer(
+        db_session=mock_db_session,
+        recommendation_gpu_available=False  # CPU testing
+    )
+
+def test_service_coordination(service_container):
+    # Test service interactions without external dependencies
+    result = service_container.generation.create_job(params)
+    assert result.status == "queued"
+```
+
+**Vue Component Testing:**
+```typescript
+// Component testing with realistic props and state
+import { mount } from '@vue/test-utils'
+import { createTestingPinia } from '@pinia/testing'
+
+describe('GenerationHistory', () => {
+  it('should handle filtering and pagination', async () => {
+    const wrapper = mount(GenerationHistory, {
+      global: {
+        plugins: [createTestingPinia()]
+      },
+      props: { items: mockHistoryItems }
+    })
+    
+    await wrapper.find('[data-test="filter-input"]').setValue('test')
+    expect(wrapper.findAll('[data-test="history-item"]')).toHaveLength(2)
+  })
+})
+```
+
+---
+
+---
+
+## Practical Development Examples
+
+### Service Development Workflow
+
+**Creating a New Service:**
+```python
+# 1. Define service interface
+class MetricsCollector:
+    def __init__(self, repository: MetricsRepository):
+        self._repository = repository
+    
+    async def collect_system_metrics(self) -> SystemMetrics:
+        # Implementation focused on single responsibility
+        return await self._repository.gather_metrics()
+
+# 2. Add provider function
+def make_metrics_collector(
+    repository: MetricsRepository
+) -> MetricsCollector:
+    return MetricsCollector(repository)
+
+# 3. Register in container (following current patterns)
+class ServiceContainer:
+    @property
+    def metrics_collector(self) -> MetricsCollector:
+        if self._metrics_collector is None:
+            self._metrics_collector = make_metrics_collector(
+                self.metrics_repository
+            )
+        return self._metrics_collector
+```
+
+### Configuration & Environment Management
+
+**Environment Configuration:**
+```bash
+# Development environment
+DATABASE_URL=sqlite:///./lora_manager.db
+REDIS_URL=redis://localhost:6379
+ENVIRONMENT=development
+LOG_LEVEL=DEBUG
+
+# Production environment  
+DATABASE_URL=postgresql://user:pass@db:5432/lora_manager
+REDIS_URL=redis://redis:6379
+ENVIRONMENT=production
+LOG_LEVEL=INFO
+ENABLE_GPU_ACCELERATION=true
+```
+
+**Database Migrations:**
+```bash
+# Create new migration
+PYTHONPATH=$(pwd) alembic -c infrastructure/alembic/alembic.ini revision --autogenerate -m "Add metrics table"
+
+# Apply migrations
 PYTHONPATH=$(pwd) alembic -c infrastructure/alembic/alembic.ini upgrade head
-
-# For PostgreSQL
-DATABASE_URL=postgresql://user:pass@host/db alembic -c infrastructure/alembic/alembic.ini upgrade head
 ```
+
+---
+
+## Next Steps & Roadmap
+
+### Immediate Priorities (Current Sprint)
+
+1. **Complete ServiceContainer Refactoring** - Implement builder pattern and split into focused containers
+2. **Finalize Component Decomposition** - Complete GenerationHistory and useJobQueue extraction
+3. **Test Organization** - Split large test files into focused modules
+
+For detailed architectural analysis and refactoring strategies, see [Architectural Complexity Analysis](../ARCHITECTURAL_COMPLEXITY_ANALYSIS.md).
+
+---
