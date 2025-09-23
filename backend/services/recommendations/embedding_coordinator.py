@@ -102,3 +102,9 @@ class EmbeddingCoordinator:
         RecommendationModelBootstrap.preload_models_for_environment(
             gpu_enabled=gpu_enabled,
         )
+
+    @staticmethod
+    def models_loaded() -> bool:
+        """Return whether shared models have been initialised."""
+
+        return RecommendationModelBootstrap.models_loaded()
