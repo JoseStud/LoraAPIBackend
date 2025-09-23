@@ -55,6 +55,7 @@ async def get_similar_loras(
             target_lora_id=lora_id,
             limit=limit,
             similarity_threshold=similarity_threshold,
+            diversify_results=diversify_results,
             weights=weights,
         )
         

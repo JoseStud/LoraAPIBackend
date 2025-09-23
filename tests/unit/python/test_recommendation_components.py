@@ -413,3 +413,64 @@ def test_recommendation_engine_applies_boosts() -> None:
     assert recommendations[0]["final_score"] > recommendations[0]["similarity_score"]
     assert recommendations[0]["final_score"] == pytest.approx(1.25, rel=1e-6)
     assert all(rec["lora_id"] != "other" for rec in recommendations)
+
+
+def test_recommendation_engine_can_disable_diversification() -> None:
+    """When diversification is disabled, boosts should not alter scores."""
+
+    now = datetime.now(timezone.utc)
+
+    embeddings = {
+        "target": {
+            "semantic": np.array([1.0, 0.0], dtype=np.float32),
+            "artistic": np.array([1.0, 0.0], dtype=np.float32),
+            "technical": np.array([1.0, 0.0], dtype=np.float32),
+        },
+        "candidate": {
+            "semantic": np.array([1.0, 0.0], dtype=np.float32),
+            "artistic": np.array([1.0, 0.0], dtype=np.float32),
+            "technical": np.array([1.0, 0.0], dtype=np.float32),
+        },
+    }
+
+    semantic_embedder = _SemanticEmbedderStub(embeddings)
+    feature_extractor = _FeatureExtractorStub(semantic_embedder)
+    engine = LoRARecommendationEngine(
+        feature_extractor,
+        device="cpu",
+        logger=logging.getLogger("test_engine_no_diversify"),
+    )
+
+    target = SimpleNamespace(
+        id="target",
+        description="Brave anime hero",
+        tags=["hero", "anime"],
+        sd_version="SD1.5",
+        stats=None,
+        published_at=now,
+    )
+
+    candidate = SimpleNamespace(
+        id="candidate",
+        description="Brave anime hero with vibrant colors",
+        tags=["hero", "anime"],
+        sd_version="SD1.5",
+        stats={
+            "rating": 4.8,
+            "downloadCount": 15000,
+        },
+        published_at=now,
+    )
+
+    engine.build_similarity_index([target, candidate])
+    recommendations = engine.get_recommendations(
+        target, n_recommendations=1, diversify_results=False
+    )
+
+    assert recommendations
+    first = recommendations[0]
+    assert first["lora_id"] == "candidate"
+    assert first["final_score"] == pytest.approx(first["similarity_score"], rel=1e-6)
+    assert first["quality_boost"] == 0.0
+    assert first["popularity_boost"] == 0.0
+    assert first["recency_boost"] == 0.0

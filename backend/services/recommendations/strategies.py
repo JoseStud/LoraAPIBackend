@@ -19,6 +19,7 @@ async def get_similar_loras(
     target_lora_id: str,
     limit: int,
     similarity_threshold: float,
+    diversify_results: bool,
     weights: Optional[Dict[str, float]],
     repository: RecommendationRepository,
     embedding_manager: EmbeddingManager,
@@ -43,6 +44,7 @@ async def get_similar_loras(
         target_lora,
         limit * 2,
         weights,
+        diversify_results,
     )
 
     filtered_recommendations: List[RecommendationItem] = []

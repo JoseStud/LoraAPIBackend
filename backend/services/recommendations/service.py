@@ -112,6 +112,7 @@ class RecommendationService:
         target_lora_id: str,
         limit: int = 10,
         similarity_threshold: float = 0.1,
+        diversify_results: bool = True,
         weights: Optional[Dict[str, float]] = None,
     ) -> List[RecommendationItem]:
         """Return LoRAs similar to the target adapter."""
@@ -120,6 +121,7 @@ class RecommendationService:
             target_lora_id=target_lora_id,
             limit=limit,
             similarity_threshold=similarity_threshold,
+            diversify_results=diversify_results,
             weights=weights,
         )
 

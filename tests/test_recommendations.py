@@ -400,11 +400,21 @@ class TestRecommendationUseCases:
                 target_lora_id="adapter-id",
                 limit=5,
                 similarity_threshold=0.3,
+                diversify_results=True,
                 weights=None,
             )
 
         assert result == payload
-        strategy.assert_awaited_once()
+        strategy.assert_awaited_once_with(
+            target_lora_id="adapter-id",
+            limit=5,
+            similarity_threshold=0.3,
+            diversify_results=True,
+            weights=None,
+            repository=repository,
+            embedding_manager=workflow,
+            engine=engine_provider.return_value,
+        )
         engine_provider.assert_called_once()
         metrics.record_query.assert_called_once()
 
@@ -552,7 +562,14 @@ class TestRecommendationService:
         assert service.reporter is stats_reporter
 
         await service.similar_loras(target_lora_id="adapter-1", limit=2)
-        assert similar_use_case.execute.await_count == 1
+        await service.similar_loras(
+            target_lora_id="adapter-2", limit=3, diversify_results=False
+        )
+        assert similar_use_case.execute.await_count == 2
+        first_call_kwargs = similar_use_case.execute.await_args_list[0].kwargs
+        second_call_kwargs = similar_use_case.execute.await_args_list[1].kwargs
+        assert first_call_kwargs["diversify_results"] is True
+        assert second_call_kwargs["diversify_results"] is False
 
         await service.recommend_for_prompt(prompt="hello", active_loras=["a"], limit=1)
         assert prompt_use_case.execute.await_count == 1

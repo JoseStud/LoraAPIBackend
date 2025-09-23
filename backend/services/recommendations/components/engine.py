@@ -90,6 +90,7 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
         target_lora: Any,
         n_recommendations: int = 20,
         weights: Optional[Dict[str, float]] = None,
+        diversify_results: bool = True,
     ) -> List[Dict[str, Any]]:
         """Generate recommendations using multi-modal similarity."""
         if self.semantic_embeddings is None or self.artistic_embeddings is None:
@@ -141,14 +142,29 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
             if self._is_compatible(target_lora, candidate_lora):
                 explanation = self._generate_explanation(target_lora, candidate_lora)
 
-                quality_boost = self._calculate_quality_boost(candidate_lora)
-                popularity_boost = self._calculate_popularity_boost(candidate_lora)
-                recency_boost = self._calculate_recency_boost(candidate_lora)
+                quality_boost = (
+                    self._calculate_quality_boost(candidate_lora)
+                    if diversify_results
+                    else 0.0
+                )
+                popularity_boost = (
+                    self._calculate_popularity_boost(candidate_lora)
+                    if diversify_results
+                    else 0.0
+                )
+                recency_boost = (
+                    self._calculate_recency_boost(candidate_lora)
+                    if diversify_results
+                    else 0.0
+                )
 
                 combined_score = combined_similarities[idx]
-                final_score = combined_score * (
-                    1 + quality_boost + popularity_boost + recency_boost
-                )
+                if diversify_results:
+                    final_score = combined_score * (
+                        1 + quality_boost + popularity_boost + recency_boost
+                    )
+                else:
+                    final_score = combined_score
 
                 final_recommendations.append(
                     {

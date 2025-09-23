@@ -43,6 +43,7 @@ class SimilarLoraUseCase:
         target_lora_id: str,
         limit: int,
         similarity_threshold: float,
+        diversify_results: bool,
         weights: Optional[Dict[str, float]],
     ) -> List[RecommendationItem]:
         """Return LoRAs similar to ``target_lora_id`` while capturing metrics."""
@@ -54,6 +55,7 @@ class SimilarLoraUseCase:
                 target_lora_id=target_lora_id,
                 limit=limit,
                 similarity_threshold=similarity_threshold,
+                diversify_results=diversify_results,
                 weights=weights,
                 repository=self._repository,
                 embedding_manager=self._embedding_workflow,
