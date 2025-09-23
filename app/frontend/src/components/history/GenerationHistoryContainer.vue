@@ -14,7 +14,7 @@
         v-model:sortBy="sortBy"
         :selected-count="selectedCount"
         @sort-change="applyFilters()"
-        @delete-selected="deleteSelected()"
+        @delete-selected="deleteSelected"
       />
 
       <HistoryFilters
@@ -97,17 +97,13 @@
         </div>
       </div>
 
-      <HistoryModalLauncher
-        :visible="showModal"
-        :result="selectedResult"
+      <HistoryModalController
+        ref="modalController"
         :format-date="formatDate"
-        @close="showModal = false"
-        @reuse="handleReuse"
-        @download="downloadImage"
-        @delete="handleDelete"
+        :on-reuse="reuseParameters"
+        :on-download="downloadImage"
+        :on-delete="deleteResult"
       />
-
-      <HistoryToast :visible="toastVisible" :message="toastMessage" :type="toastType" />
     </div>
   </div>
 </template>
@@ -121,25 +117,18 @@ import HistoryBulkActions from './HistoryBulkActions.vue';
 import HistoryFilters from './HistoryFilters.vue';
 import HistoryGrid from './HistoryGrid.vue';
 import HistoryList from './HistoryList.vue';
-import HistoryModalLauncher from './HistoryModalLauncher.vue';
-import HistoryToast from './HistoryToast.vue';
+import HistoryModalController from './HistoryModalController.vue';
 import HistoryStatsSummary from './HistoryStatsSummary.vue';
 
-import { useGenerationHistory } from '@/composables/history';
-import { useHistoryShortcuts } from '@/composables/history';
-import { useHistorySelection, type HistorySelectionChangePayload } from '@/composables/history';
-import { useHistoryToast } from '@/composables/history';
-import { downloadFile } from '@/utils/browser';
-import { useBackendBase } from '@/utils/backend';
 import {
-  deleteResult as deleteHistoryResult,
-  deleteResults as deleteHistoryResults,
-  downloadResult as downloadHistoryResult,
-  exportResults as exportHistoryResults,
-  favoriteResult as favoriteHistoryResult,
-  favoriteResults as favoriteHistoryResults,
-  rateResult as rateHistoryResult,
-} from '@/services';
+  useGenerationHistory,
+  useHistoryActions,
+  useHistorySelection,
+  useHistoryShortcuts,
+  type HistorySelectionChangePayload,
+  type HistoryToastType,
+} from '@/composables/history';
+import { useBackendBase } from '@/utils/backend';
 import type { GenerationHistoryResult } from '@/types';
 
 import type { HistoryViewMode } from './HistoryActionToolbar.vue';
@@ -147,8 +136,6 @@ import type { HistoryViewMode } from './HistoryActionToolbar.vue';
 type RatePayload = { result: GenerationHistoryResult; rating: number };
 
 const viewMode = ref<HistoryViewMode>('grid');
-const selectedResult = ref<GenerationHistoryResult | null>(null);
-const showModal = ref(false);
 const isInitialized = ref(false);
 
 const apiBaseUrl = useBackendBase();
@@ -183,193 +170,49 @@ const {
   clearSelection,
 } = useHistorySelection();
 
-const { toastVisible, toastMessage, toastType, showToastMessage } = useHistoryToast();
+const modalController = ref<InstanceType<typeof HistoryModalController> | null>(null);
+
+const showToast = (message: string, type: HistoryToastType = 'success'): void => {
+  modalController.value?.showToast(message, type);
+};
+
+const {
+  setRating,
+  toggleFavorite,
+  reuseParameters,
+  downloadImage,
+  deleteResult,
+  deleteSelected,
+  favoriteSelected,
+  exportSelected,
+} = useHistoryActions({
+  apiBaseUrl,
+  data,
+  applyFilters,
+  router,
+  showToast,
+  selectedIds,
+  selectedCount,
+  clearSelection,
+  withUpdatedSelection,
+});
 
 const selectableIds = computed(() => filteredResults.value.map((result) => result.id));
+
+const isModalOpen = computed(() => modalController.value?.isModalOpen?.value ?? false);
 
 watch(
   error,
   (value) => {
     if (value) {
-      showToastMessage(value, 'error');
+      showToast(value, 'error');
     }
   },
   { immediate: true },
 );
 
 const showImageModal = (result: GenerationHistoryResult): void => {
-  selectedResult.value = result;
-  showModal.value = true;
-};
-
-const setRating = async (result: GenerationHistoryResult, rating: number): Promise<void> => {
-  try {
-    await rateHistoryResult(apiBaseUrl.value, result.id, rating);
-
-    result.rating = rating;
-    applyFilters();
-
-    showToastMessage('Rating updated successfully');
-  } catch (err) {
-    console.error('Error updating rating:', err);
-    showToastMessage('Failed to update rating', 'error');
-  }
-};
-
-const toggleFavorite = async (result: GenerationHistoryResult): Promise<void> => {
-  try {
-    const updatedResult = await favoriteHistoryResult(apiBaseUrl.value, result.id, !result.is_favorite);
-
-    if (updatedResult) {
-      result.is_favorite = updatedResult.is_favorite;
-    } else {
-      result.is_favorite = !result.is_favorite;
-    }
-
-    applyFilters();
-    showToastMessage(result.is_favorite ? 'Added to favorites' : 'Removed from favorites');
-  } catch (err) {
-    console.error('Error updating favorite status:', err);
-    showToastMessage('Failed to update favorites', 'error');
-  }
-};
-
-const reuseParameters = (result: GenerationHistoryResult): void => {
-  try {
-    const parameters = {
-      prompt: result.prompt,
-      negative_prompt: result.negative_prompt ?? '',
-      steps: result.steps,
-      cfg_scale: result.cfg_scale,
-      width: result.width,
-      height: result.height,
-      seed: result.seed ?? null,
-      sampler: result.sampler ?? result.sampler_name ?? null,
-      model: result.model ?? result.model_name ?? null,
-      clip_skip: result.clip_skip ?? null,
-      loras: result.loras ?? [],
-    };
-
-    localStorage.setItem('reuse-parameters', JSON.stringify(parameters));
-
-    showToastMessage('Parameters copied to generation form');
-    void router.push({ name: 'compose' });
-  } catch (err) {
-    console.error('Error saving parameters:', err);
-    showToastMessage('Failed to save parameters', 'error');
-  }
-};
-
-const handleReuse = (result: GenerationHistoryResult): void => {
-  reuseParameters(result);
-  showModal.value = false;
-};
-
-const downloadImage = async (result: GenerationHistoryResult): Promise<void> => {
-  try {
-    const download = await downloadHistoryResult(apiBaseUrl.value, result.id);
-    downloadFile(download.blob, download.filename);
-
-    showToastMessage('Download started');
-  } catch (err) {
-    console.error('Error downloading image:', err);
-    showToastMessage('Failed to download image', 'error');
-  }
-};
-
-const deleteResult = async (resultId: GenerationHistoryResult['id']): Promise<void> => {
-  if (!confirm('Are you sure you want to delete this image?')) {
-    return;
-  }
-
-  try {
-    await deleteHistoryResult(apiBaseUrl.value, resultId);
-
-    data.value = data.value.filter((item) => item.id !== resultId);
-    withUpdatedSelection((next) => {
-      next.delete(resultId);
-    });
-    applyFilters();
-
-    showToastMessage('Image deleted successfully');
-  } catch (err) {
-    console.error('Error deleting result:', err);
-    showToastMessage('Failed to delete image', 'error');
-  }
-};
-
-const handleDelete = async (resultId: GenerationHistoryResult['id']): Promise<void> => {
-  await deleteResult(resultId);
-  showModal.value = false;
-};
-
-const deleteSelected = async (): Promise<void> => {
-  if (selectedCount.value === 0) {
-    return;
-  }
-
-  const ids = selectedIds.value;
-  const count = ids.length;
-  if (!confirm(`Are you sure you want to delete ${count} selected images?`)) {
-    return;
-  }
-
-  try {
-    await deleteHistoryResults(apiBaseUrl.value, { ids });
-
-    const idsToRemove = new Set(ids);
-    data.value = data.value.filter((item) => !idsToRemove.has(item.id));
-    clearSelection();
-    applyFilters();
-
-    showToastMessage(`${count} images deleted successfully`);
-  } catch (err) {
-    console.error('Error deleting results:', err);
-    showToastMessage('Failed to delete images', 'error');
-  }
-};
-
-const favoriteSelected = async (): Promise<void> => {
-  if (selectedCount.value === 0) {
-    return;
-  }
-
-  const ids = selectedIds.value;
-  try {
-    await favoriteHistoryResults(apiBaseUrl.value, {
-      ids,
-      is_favorite: true,
-    });
-
-    const selectedSnapshot = new Set(ids);
-    data.value.forEach((result) => {
-      if (selectedSnapshot.has(result.id)) {
-        result.is_favorite = true;
-      }
-    });
-
-    applyFilters();
-    showToastMessage(`${ids.length} images added to favorites`);
-  } catch (err) {
-    console.error('Error updating favorites:', err);
-    showToastMessage('Failed to update favorites', 'error');
-  }
-};
-
-const exportSelected = async (): Promise<void> => {
-  if (selectedCount.value === 0) {
-    return;
-  }
-
-  try {
-    const download = await exportHistoryResults(apiBaseUrl.value, { ids: selectedIds.value });
-    downloadFile(download.blob, download.filename);
-
-    showToastMessage('Export started');
-  } catch (err) {
-    console.error('Error exporting results:', err);
-    showToastMessage('Failed to export images', 'error');
-  }
+  modalController.value?.openModal(result);
 };
 
 const loadMore = async (): Promise<void> => {
@@ -408,13 +251,15 @@ const onRate = ({ result, rating }: RatePayload): void => {
 };
 
 const { unregister: unregisterShortcuts } = useHistoryShortcuts({
-  isModalOpen: showModal,
+  isModalOpen,
   selectedItems,
   selectableIds,
-  onDeleteSelected: deleteSelected,
+  onDeleteSelected: () => {
+    void deleteSelected();
+  },
   onClearSelection: clearSelection,
   onCloseModal: () => {
-    showModal.value = false;
+    modalController.value?.closeModal();
   },
 });
 
