@@ -1,4 +1,4 @@
-"""Generation service for SDNext integration."""
+"""Generation service and helpers for SDNext integration."""
 
 from typing import Any, Dict, List, Optional
 
@@ -14,35 +14,13 @@ from backend.schemas import (
 from backend.services.deliveries import DeliveryService
 from backend.services.websocket import WebSocketService
 
-
-NORMALIZED_JOB_STATUSES = {"queued", "processing", "completed", "failed"}
-
-DELIVERY_TO_UI_STATUS_MAP = {
-    "pending": "queued",
-    "running": "processing",
-    "retrying": "processing",
-    "succeeded": "completed",
-    "failed": "failed",
-    "cancelled": "failed",
-}
+from .statuses import normalize_status
 
 
 def normalize_generation_status(status: Optional[str]) -> str:
     """Convert a delivery/job status into the UI vocabulary."""
 
-    if not status:
-        return "processing"
-
-    normalized = status.lower()
-
-    mapped = DELIVERY_TO_UI_STATUS_MAP.get(normalized)
-    if mapped is not None:
-        return mapped
-
-    if normalized in NORMALIZED_JOB_STATUSES:
-        return normalized
-
-    return "processing"
+    return normalize_status(status).value
 
 
 class GenerationService:
