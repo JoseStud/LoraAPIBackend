@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Callable, Optional
+from typing import Callable, Optional, TypeVar, Union
 
 from sqlmodel import Session
 
@@ -57,6 +57,20 @@ class InfrastructureFactories:
     system: SystemServiceFactory = make_system_service
 
 
+T = TypeVar("T")
+
+ConfigOverride = Union[T, Callable[[T], T]]
+
+
+def _resolve_override(current: T, override: Optional[ConfigOverride[T]]) -> T:
+    """Return the overridden configuration if provided."""
+    if override is None:
+        return current
+    if callable(override):
+        return override(current)
+    return override
+
+
 class ServiceContainerBuilder:
     """Build composed service registries with cached infrastructure dependencies."""
 
@@ -97,6 +111,49 @@ class ServiceContainerBuilder:
         if self._cached_gpu_available is None:
             self._cached_gpu_available = self._recommendation_gpu_detector()
         return self._cached_gpu_available
+
+    def with_overrides(
+        self,
+        *,
+        storage: Optional[ConfigOverride[StorageProviders]] = None,
+        domain: Optional[ConfigOverride[DomainFactories]] = None,
+        infrastructure: Optional[ConfigOverride[InfrastructureFactories]] = None,
+        websocket_factory: Optional[WebSocketServiceFactory] = None,
+        queue_orchestrator_factory: Optional[Callable[[], QueueOrchestrator]] = None,
+        analytics_repository_factory: Optional[
+            Callable[[Session], AnalyticsRepository]
+        ] = None,
+        delivery_repository_factory: Optional[
+            Callable[[Session], DeliveryJobRepository]
+        ] = None,
+        recommendation_gpu_detector: Optional[Callable[[], bool]] = None,
+    ) -> ServiceContainerBuilder:
+        """Return a new builder with overrides applied to the current configuration."""
+
+        storage_config = _resolve_override(self._storage, storage)
+        domain_config = _resolve_override(self._domain_factories, domain)
+        infrastructure_config = _resolve_override(
+            self._infrastructure_factories, infrastructure
+        )
+
+        return ServiceContainerBuilder(
+            storage=storage_config,
+            domain_factories=domain_config,
+            infrastructure_factories=infrastructure_config,
+            websocket_factory=websocket_factory,
+            queue_orchestrator_factory=(
+                queue_orchestrator_factory or self._queue_orchestrator_factory
+            ),
+            analytics_repository_factory=(
+                analytics_repository_factory or self._analytics_repository_factory
+            ),
+            delivery_repository_factory=(
+                delivery_repository_factory or self._delivery_repository_factory
+            ),
+            recommendation_gpu_detector=(
+                recommendation_gpu_detector or self._recommendation_gpu_detector
+            ),
+        )
 
     def build(
         self,

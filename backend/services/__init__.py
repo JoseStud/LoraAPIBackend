@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Optional
+from typing import Callable, Optional
 
 from sqlmodel import Session
 
@@ -29,7 +29,11 @@ from .providers.generation import (
     make_generation_service,
 )
 from .providers.recommendations import make_recommendation_service
-from .providers.storage import make_adapter_service, make_storage_service
+from .providers.storage import (
+    StorageProviders,
+    make_adapter_service,
+    make_storage_service,
+)
 from .providers.system import make_system_service
 from .queue import QueueOrchestrator
 from .service_container_builder import (
@@ -78,34 +82,26 @@ class ServiceContainer:
         analytics_provider=make_analytics_service,
         recommendation_provider=make_recommendation_service,
     ) -> None:
-        storage_config = _DEFAULT_BUILDER._storage
-        if storage_provider is not None:
-            storage_config = replace(storage_config, storage=storage_provider)
-        if adapter_provider is not None:
-            storage_config = replace(storage_config, adapter=adapter_provider)
-
-        domain_factories = _DEFAULT_BUILDER._domain_factories
-        domain_factories = replace(
-            domain_factories,
-            compose=compose_provider,
-            generation=generation_provider,
-            analytics=analytics_provider,
-            recommendation=recommendation_provider,
+        storage_override = self._make_storage_override(
+            storage_provider, adapter_provider
+        )
+        domain_override = self._make_domain_override(
+            compose_provider,
+            generation_provider,
+            analytics_provider,
+            recommendation_provider,
+        )
+        infrastructure_override = self._make_infrastructure_override(
+            archive_provider,
+            delivery_provider,
+            generation_coordinator_provider,
+            system_provider,
         )
 
-        infrastructure_factories = _DEFAULT_BUILDER._infrastructure_factories
-        infrastructure_factories = replace(
-            infrastructure_factories,
-            archive=archive_provider,
-            delivery=delivery_provider,
-            generation_coordinator=generation_coordinator_provider,
-            system=system_provider,
-        )
-
-        builder = ServiceContainerBuilder(
-            storage=storage_config,
-            domain_factories=domain_factories,
-            infrastructure_factories=infrastructure_factories,
+        builder = _DEFAULT_BUILDER.with_overrides(
+            storage=storage_override,
+            domain=domain_override,
+            infrastructure=infrastructure_override,
             websocket_factory=websocket_provider,
         )
         registry = builder.build(
@@ -156,6 +152,60 @@ class ServiceContainer:
         if override is not None:
             return override
         return self._registry.generation_coordinator
+
+    @staticmethod
+    def _make_storage_override(
+        storage_provider,
+        adapter_provider,
+    ) -> Optional[Callable[[StorageProviders], StorageProviders]]:
+        updates = {}
+        if storage_provider is not None:
+            updates["storage"] = storage_provider
+        if adapter_provider is not None:
+            updates["adapter"] = adapter_provider
+        if not updates:
+            return None
+        return lambda config, updates=updates: replace(config, **updates)
+
+    @staticmethod
+    def _make_domain_override(
+        compose_provider,
+        generation_provider,
+        analytics_provider,
+        recommendation_provider,
+    ) -> Optional[Callable[[DomainFactories], DomainFactories]]:
+        updates = {}
+        if compose_provider is not None:
+            updates["compose"] = compose_provider
+        if generation_provider is not None:
+            updates["generation"] = generation_provider
+        if analytics_provider is not None:
+            updates["analytics"] = analytics_provider
+        if recommendation_provider is not None:
+            updates["recommendation"] = recommendation_provider
+        if not updates:
+            return None
+        return lambda config, updates=updates: replace(config, **updates)
+
+    @staticmethod
+    def _make_infrastructure_override(
+        archive_provider,
+        delivery_provider,
+        generation_coordinator_provider,
+        system_provider,
+    ) -> Optional[Callable[[InfrastructureFactories], InfrastructureFactories]]:
+        updates = {}
+        if archive_provider is not None:
+            updates["archive"] = archive_provider
+        if delivery_provider is not None:
+            updates["delivery"] = delivery_provider
+        if generation_coordinator_provider is not None:
+            updates["generation_coordinator"] = generation_coordinator_provider
+        if system_provider is not None:
+            updates["system"] = system_provider
+        if not updates:
+            return None
+        return lambda config, updates=updates: replace(config, **updates)
 
 
 def create_service_container(db_session: Session) -> ServiceRegistry:

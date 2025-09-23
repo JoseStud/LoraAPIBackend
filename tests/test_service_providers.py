@@ -1,8 +1,11 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from backend.services import ServiceContainer
 from backend.services.adapters.service import AdapterService
 from backend.services.archive import ArchiveService
+from backend.services.analytics import AnalyticsService
+from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.composition import ComposeService
 from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
@@ -29,6 +32,7 @@ from backend.services.recommendations import (
     RecommendationServiceBuilder,
     UseCaseBundle,
 )
+from backend.services.recommendations import RecommendationService
 from backend.services.storage import StorageService
 from backend.services.system import SystemService
 from backend.services.websocket import WebSocketService
@@ -261,3 +265,102 @@ def test_make_recommendation_service_accepts_prebuilt_bundles():
     )
     builder.build.assert_called_once_with()
     assert service is built_service
+
+
+def test_service_container_uses_custom_providers(db_session):
+    queue_orchestrator = MagicMock(spec=QueueOrchestrator)
+    delivery_repository = MagicMock(spec=DeliveryJobRepository)
+    analytics_repository = MagicMock(spec=AnalyticsRepository)
+
+    storage_service = MagicMock(spec=StorageService)
+    storage_provider = MagicMock(return_value=storage_service)
+    adapter_service = MagicMock(spec=AdapterService)
+    adapter_provider = MagicMock(return_value=adapter_service)
+
+    compose_service = MagicMock(spec=ComposeService)
+    compose_provider = MagicMock(return_value=compose_service)
+    generation_service = MagicMock(spec=GenerationService)
+    generation_provider = MagicMock(return_value=generation_service)
+    analytics_service = MagicMock(spec=AnalyticsService)
+    analytics_provider = MagicMock(return_value=analytics_service)
+    recommendation_service = MagicMock(spec=RecommendationService)
+    recommendation_provider = MagicMock(return_value=recommendation_service)
+
+    archive_service = MagicMock(spec=ArchiveService)
+    archive_provider = MagicMock(return_value=archive_service)
+    delivery_service = MagicMock(spec=DeliveryService)
+    delivery_provider = MagicMock(return_value=delivery_service)
+    websocket_service = MagicMock(spec=WebSocketService)
+    websocket_provider = MagicMock(return_value=websocket_service)
+    system_service = MagicMock(spec=SystemService)
+    system_provider = MagicMock(return_value=system_service)
+    generation_coordinator = MagicMock(spec=GenerationCoordinator)
+    generation_coordinator_provider = MagicMock(return_value=generation_coordinator)
+
+    container = ServiceContainer(
+        db_session,
+        queue_orchestrator=queue_orchestrator,
+        delivery_repository=delivery_repository,
+        analytics_repository=analytics_repository,
+        recommendation_gpu_available=True,
+        storage_provider=storage_provider,
+        adapter_provider=adapter_provider,
+        archive_provider=archive_provider,
+        delivery_provider=delivery_provider,
+        compose_provider=compose_provider,
+        generation_provider=generation_provider,
+        generation_coordinator_provider=generation_coordinator_provider,
+        websocket_provider=websocket_provider,
+        system_provider=system_provider,
+        analytics_provider=analytics_provider,
+        recommendation_provider=recommendation_provider,
+    )
+
+    assert container.core.storage is storage_service
+    storage_provider.assert_called_once_with()
+
+    assert container.domain.adapters is adapter_service
+    adapter_provider.assert_called_once_with(
+        db_session=db_session,
+        storage_service=storage_service,
+    )
+
+    assert container.domain.compose is compose_service
+    compose_provider.assert_called_once_with()
+
+    assert container.domain.generation is generation_service
+    generation_provider.assert_called_once_with()
+
+    assert container.domain.analytics is analytics_service
+    analytics_provider.assert_called_once_with(
+        db_session,
+        repository=analytics_repository,
+    )
+
+    assert container.domain.recommendations is recommendation_service
+    recommendation_provider.assert_called_once_with(
+        db_session,
+        gpu_available=True,
+    )
+
+    assert container.application.archive is archive_service
+    archive_provider.assert_called_once_with(adapter_service, storage_service)
+
+    assert container.application.deliveries is delivery_service
+    delivery_provider.assert_called_once_with(
+        delivery_repository,
+        queue_orchestrator=queue_orchestrator,
+    )
+
+    assert container.application.websocket is websocket_service
+    websocket_provider.assert_called_once_with()
+
+    assert container.application.system is system_service
+    system_provider.assert_called_once_with(delivery_service)
+
+    assert container.application.generation_coordinator is generation_coordinator
+    generation_coordinator_provider.assert_called_once_with(
+        delivery_service,
+        websocket_service,
+        generation_service,
+    )
