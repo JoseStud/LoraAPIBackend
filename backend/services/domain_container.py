@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Optional
 
 from sqlmodel import Session
 
@@ -10,13 +10,18 @@ from .analytics_repository import AnalyticsRepository
 from .composition import ComposeService
 from .core_container import CoreServiceRegistry
 from .generation import GenerationService
-from .providers import (
-    make_adapter_service,
-    make_analytics_service,
+from .providers.analytics import AnalyticsServiceFactory, make_analytics_service
+from .providers.generation import (
+    ComposeServiceFactory,
+    GenerationServiceFactory,
     make_compose_service,
     make_generation_service,
+)
+from .providers.recommendations import (
+    RecommendationServiceFactory,
     make_recommendation_service,
 )
+from .providers.storage import AdapterServiceFactory, make_adapter_service
 from .recommendations import RecommendationService
 
 
@@ -29,11 +34,11 @@ class DomainServiceRegistry:
         *,
         db_session: Optional[Session],
         analytics_repository: Optional[AnalyticsRepository],
-        adapter_provider: Callable[..., AdapterService] = make_adapter_service,
-        compose_provider: Callable[[], ComposeService] = make_compose_service,
-        generation_provider: Callable[[], GenerationService] = make_generation_service,
-        analytics_provider: Callable[..., AnalyticsService] = make_analytics_service,
-        recommendation_provider: Callable[..., RecommendationService] = make_recommendation_service,
+        adapter_provider: AdapterServiceFactory = make_adapter_service,
+        compose_provider: ComposeServiceFactory = make_compose_service,
+        generation_provider: GenerationServiceFactory = make_generation_service,
+        analytics_provider: AnalyticsServiceFactory = make_analytics_service,
+        recommendation_provider: RecommendationServiceFactory = make_recommendation_service,
         recommendation_gpu_available: Optional[bool] = None,
     ) -> None:
         self._core = core

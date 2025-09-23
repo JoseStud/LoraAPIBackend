@@ -7,19 +7,18 @@ from backend.services.composition import ComposeService
 from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.generation import GenerationCoordinator, GenerationService
-from backend.services.providers import (
-    make_adapter_service,
-    make_analytics_service,
-    make_archive_service,
+from backend.services.providers.analytics import make_analytics_service
+from backend.services.providers.archive import make_archive_service
+from backend.services.providers.deliveries import make_delivery_service
+from backend.services.providers.generation import (
     make_compose_service,
-    make_delivery_service,
     make_generation_coordinator,
     make_generation_service,
-    make_recommendation_service,
-    make_storage_service,
-    make_system_service,
-    make_websocket_service,
 )
+from backend.services.providers.recommendations import make_recommendation_service
+from backend.services.providers.storage import make_adapter_service, make_storage_service
+from backend.services.providers.system import make_system_service
+from backend.services.providers.websocket import make_websocket_service
 from backend.services.queue import QueueOrchestrator
 from backend.services.recommendations import (
     EmbeddingStack,

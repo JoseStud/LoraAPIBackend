@@ -1,22 +1,26 @@
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Optional
 
 from .archive import ArchiveService, BackupService
 from .core_container import CoreServiceRegistry
 from .deliveries import DeliveryService
 from .domain_container import DomainServiceRegistry
 from .generation import GenerationCoordinator
-from .providers import (
-    make_archive_service,
-    make_delivery_service,
+from .providers.archive import ArchiveServiceFactory, make_archive_service
+from .providers.deliveries import DeliveryServiceFactory, make_delivery_service
+from .providers.generation import (
+    GenerationCoordinatorFactory,
     make_generation_coordinator,
-    make_system_service,
-    make_websocket_service,
+)
+from .providers.system import SystemServiceFactory, make_system_service
+from .providers.websocket import (
+    WebSocketServiceFactory,
+    default_websocket_service_factory,
 )
 from .queue import QueueOrchestrator
 from .system import SystemService
-from .websocket import WebSocketService, websocket_service
+from .websocket import WebSocketService
 
 
 class InfrastructureServiceRegistry:
@@ -28,11 +32,11 @@ class InfrastructureServiceRegistry:
         domain: DomainServiceRegistry,
         *,
         queue_orchestrator: Optional[QueueOrchestrator],
-        archive_provider: Callable[..., ArchiveService] = make_archive_service,
-        delivery_provider: Callable[..., DeliveryService] = make_delivery_service,
-        generation_coordinator_provider: Callable[..., GenerationCoordinator] = make_generation_coordinator,
-        websocket_provider: Optional[Callable[[], WebSocketService]] = None,
-        system_provider: Callable[[DeliveryService], SystemService] = make_system_service,
+        archive_provider: ArchiveServiceFactory = make_archive_service,
+        delivery_provider: DeliveryServiceFactory = make_delivery_service,
+        generation_coordinator_provider: GenerationCoordinatorFactory = make_generation_coordinator,
+        websocket_provider: Optional[WebSocketServiceFactory] = None,
+        system_provider: SystemServiceFactory = make_system_service,
     ) -> None:
         self._core = core
         self._domain = domain
@@ -43,7 +47,7 @@ class InfrastructureServiceRegistry:
         self._websocket_provider = (
             websocket_provider
             if websocket_provider is not None
-            else (lambda: make_websocket_service(service=websocket_service))
+            else default_websocket_service_factory
         )
         self._system_provider = system_provider
 
