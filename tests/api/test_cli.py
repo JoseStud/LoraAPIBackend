@@ -12,7 +12,6 @@ from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.queue import QueueOrchestrator
 from backend.services.websocket import websocket_service
-
 from tests.api.conftest import FailingQueueBackend, RecordingQueueBackend
 
 
@@ -196,7 +195,7 @@ async def test_queue_generation_job_falls_back_to_background_tasks(
                     "job_id": job_id,
                     "background_tasks": background_tasks,
                     "enqueue_kwargs": enqueue_kwargs,
-                }
+                },
             )
             super().enqueue_delivery(
                 job_id,

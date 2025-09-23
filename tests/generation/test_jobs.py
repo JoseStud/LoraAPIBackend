@@ -19,7 +19,11 @@ from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.generation import GenerationCoordinator, GenerationService
-from backend.services.queue import QueueBackend, QueueOrchestrator, create_queue_orchestrator
+from backend.services.queue import (
+    QueueBackend,
+    QueueOrchestrator,
+    create_queue_orchestrator,
+)
 from backend.services.websocket import WebSocketService
 from backend.workers.delivery_runner import DeliveryRunner
 
@@ -252,7 +256,7 @@ def test_compose_sdnext_uses_generation_coordinator(
         infrastructure=lambda factories: replace(
             factories,
             generation_coordinator=lambda deliveries, websocket, generation: coordinator,
-        )
+        ),
     )
     services = builder.build(
         db_session,

@@ -4,9 +4,9 @@ from unittest.mock import MagicMock
 
 from backend.services import get_service_container_builder
 from backend.services.adapters.service import AdapterService
-from backend.services.archive import ArchiveService
 from backend.services.analytics import AnalyticsService
 from backend.services.analytics_repository import AnalyticsRepository
+from backend.services.archive import ArchiveService
 from backend.services.composition import ComposeService
 from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
@@ -30,10 +30,10 @@ from backend.services.queue import QueueOrchestrator
 from backend.services.recommendations import (
     EmbeddingStack,
     PersistenceComponents,
+    RecommendationService,
     RecommendationServiceBuilder,
     UseCaseBundle,
 )
-from backend.services.recommendations import RecommendationService
 from backend.services.storage import StorageService
 from backend.services.system import SystemService
 from backend.services.websocket import WebSocketService

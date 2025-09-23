@@ -129,11 +129,10 @@ class ServiceContainerBuilder:
         recommendation_gpu_detector: Optional[Callable[[], bool]] = None,
     ) -> ServiceContainerBuilder:
         """Return a new builder with overrides applied to the current configuration."""
-
         storage_config = _resolve_override(self._storage, storage)
         domain_config = _resolve_override(self._domain_factories, domain)
         infrastructure_config = _resolve_override(
-            self._infrastructure_factories, infrastructure
+            self._infrastructure_factories, infrastructure,
         )
 
         return ServiceContainerBuilder(

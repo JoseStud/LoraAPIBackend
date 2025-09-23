@@ -24,7 +24,7 @@ class RecordingQueueBackend(QueueBackend):
                 "job_id": job_id,
                 "background_tasks": background_tasks,
                 "enqueue_kwargs": enqueue_kwargs,
-            }
+            },
         )
 
 

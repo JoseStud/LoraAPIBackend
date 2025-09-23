@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from threading import Event
+
 import pytest
 from fastapi import FastAPI
 

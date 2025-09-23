@@ -94,21 +94,21 @@ class TestRecommendationMetricsTracker:
             UserPreference(
                 preference_type="style",
                 preference_value="anime",
-            )
+            ),
         )
         db_session.add(
             RecommendationSession(
                 id="sess",
                 context_prompt="",
                 active_loras=[],
-            )
+            ),
         )
         db_session.add(
             RecommendationFeedback(
                 session_id="sess",
                 recommended_lora_id="adapter-stats",
                 feedback_type="positive",
-            )
+            ),
         )
         db_session.commit()
 

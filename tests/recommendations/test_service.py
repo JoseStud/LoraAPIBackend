@@ -5,8 +5,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from backend.schemas.recommendations import RecommendationStats
 from backend.services import get_service_container_builder
 from backend.services.analytics_repository import AnalyticsRepository
+from backend.services.providers.recommendations import make_recommendation_service
 from backend.services.recommendations import (
     EmbeddingCoordinator,
     EmbeddingStack,
@@ -19,8 +21,6 @@ from backend.services.recommendations import (
     StatsReporter,
     UseCaseBundle,
 )
-from backend.schemas.recommendations import RecommendationStats
-from backend.services.providers.recommendations import make_recommendation_service
 
 
 class TestRecommendationService:
@@ -35,7 +35,7 @@ class TestRecommendationService:
         embedding_workflow = MagicMock()
         embedding_workflow.compute_embeddings_for_lora = AsyncMock(return_value=True)
         embedding_workflow.batch_compute_embeddings = AsyncMock(
-            return_value={"processed": 1}
+            return_value={"processed": 1},
         )
 
         persistence_service = MagicMock()
