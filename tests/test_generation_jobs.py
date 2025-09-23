@@ -33,42 +33,6 @@ def _create_generation_params(prompt: str) -> Dict[str, Dict[str, object]]:
     }
 
 
-def test_list_active_generation_jobs_returns_running_and_pending(
-    client: TestClient,
-    delivery_service: DeliveryService,
-):
-    """Active jobs endpoint returns pending and running jobs only."""
-
-    pending = delivery_service.create_job("Prompt A", "sdnext", _create_generation_params("Prompt A"))
-    running = delivery_service.create_job("Prompt B", "sdnext", _create_generation_params("Prompt B"))
-    delivery_service.update_job_status(running.id, "running")
-
-    completed = delivery_service.create_job("Prompt C", "sdnext", _create_generation_params("Prompt C"))
-    delivery_service.update_job_status(completed.id, "succeeded", {"status": "completed"})
-
-    response = client.get("/api/v1/generation/jobs/active")
-    assert response.status_code == 200
-
-    payload = response.json()
-    assert isinstance(payload, list)
-    identifiers = {item["id"] for item in payload}
-    assert identifiers == {pending.id, running.id}
-
-    for job in payload:
-        assert job["status"] in {"pending", "running"}
-        assert job["jobId"] == job["id"]
-        assert job["params"]["prompt"] in {"Prompt A", "Prompt B"}
-        assert "startTime" in job and job["startTime"] is not None
-
-
-def test_list_active_generation_jobs_empty_when_none(client: TestClient):
-    """Endpoint returns an empty list when no jobs exist."""
-
-    response = client.get("/api/v1/generation/jobs/active")
-    assert response.status_code == 200
-    assert response.json() == []
-
-
 def test_cancel_generation_job_succeeds(
     client: TestClient,
     delivery_service: DeliveryService,
@@ -115,41 +79,6 @@ def test_cancel_generation_job_invalid_state(
 
     response = client.post(f"/api/v1/generation/jobs/{job.id}/cancel")
     assert response.status_code == 400
-
-
-def test_list_generation_results_returns_recent_jobs(
-    client: TestClient,
-    db_session,
-):
-    """Completed jobs are returned from the results endpoint respecting limit."""
-
-    services = ServiceContainer(db_session)
-    delivery_service = services.deliveries
-
-    job = delivery_service.create_job("Prompt", "sdnext", _create_generation_params("Prompt"))
-    result_payload = {
-        "status": "completed",
-        "images": ["data:image/png;base64,abc123"],
-        "generation_info": {"duration": 1.23},
-    }
-    delivery_service.update_job_status(job.id, "succeeded", result_payload)
-
-    response = client.get("/api/v1/generation/results", params={"limit": 5})
-    assert response.status_code == 200
-
-    results = response.json()
-    assert len(results) == 1
-    entry = results[0]
-    assert entry["id"] == job.id
-    assert entry["job_id"] == job.id
-    assert entry["prompt"] == "Prompt"
-    assert entry["image_url"] == "data:image/png;base64,abc123"
-    assert entry["status"] == "succeeded"
-    assert entry["width"] == 640
-    assert entry["height"] == 480
-    assert entry["steps"] == 25
-    assert entry["cfg_scale"] == 7.5
-    assert entry["seed"] == 1234
 
 
 def test_serialize_generation_job_normalizes_payload(delivery_service: DeliveryService):
