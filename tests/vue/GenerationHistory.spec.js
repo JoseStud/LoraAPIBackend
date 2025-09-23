@@ -7,6 +7,14 @@ import HistoryModal from '../../app/frontend/src/components/HistoryModal.vue';
 import HistoryToast from '../../app/frontend/src/components/HistoryToast.vue';
 import { useGenerationHistory } from '../../app/frontend/src/composables/useGenerationHistory';
 
+const routerMock = vi.hoisted(() => ({
+  push: vi.fn(),
+}));
+
+vi.mock('vue-router', () => ({
+  useRouter: () => routerMock,
+}));
+
 const serviceMocks = vi.hoisted(() => ({
   listResults: vi.fn(),
   rateResult: vi.fn(),
@@ -76,6 +84,7 @@ const sampleResults = [
 describe('useGenerationHistory', () => {
   beforeEach(() => {
     Object.values(serviceMocks).forEach((mockFn) => mockFn.mockReset());
+    routerMock.push.mockReset();
   });
 
   it('loads results and applies filters', async () => {
@@ -103,6 +112,7 @@ describe('useGenerationHistory', () => {
 describe('GenerationHistory.vue', () => {
   beforeEach(() => {
     Object.values(serviceMocks).forEach((mockFn) => mockFn.mockReset());
+    routerMock.push.mockReset();
   });
 
   afterEach(() => {
@@ -157,6 +167,32 @@ describe('GenerationHistory.vue', () => {
     expect(toast.exists()).toBe(true);
     expect(toast.text()).toContain('failed to load');
 
+    wrapper.unmount();
+  });
+
+  it('stores parameters and redirects to compose when reuse is triggered', async () => {
+    serviceMocks.listResults.mockResolvedValue({
+      results: sampleResults,
+      response: { has_more: false },
+    });
+
+    const setItemSpy = vi.spyOn(Object.getPrototypeOf(window.localStorage), 'setItem');
+
+    const wrapper = mount(GenerationHistory);
+    await flush();
+
+    const reuseButton = wrapper
+      .findAll('button')
+      .find((button) => button.attributes('class')?.includes('hover:text-blue-500'));
+
+    expect(reuseButton).toBeTruthy();
+
+    await reuseButton?.trigger('click');
+
+    expect(setItemSpy).toHaveBeenCalledWith('reuse-parameters', expect.any(String));
+    expect(routerMock.push).toHaveBeenCalledWith({ name: 'compose' });
+
+    setItemSpy.mockRestore();
     wrapper.unmount();
   });
 });

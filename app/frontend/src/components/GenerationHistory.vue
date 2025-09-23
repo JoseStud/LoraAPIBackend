@@ -372,6 +372,7 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 
 import HistoryModal from './HistoryModal.vue';
 import HistoryToast from './HistoryToast.vue';
@@ -401,6 +402,7 @@ const showModal = ref(false);
 const isInitialized = ref(false);
 
 const apiBaseUrl = useBackendBase();
+const router = useRouter();
 
 const {
   data,
@@ -486,20 +488,24 @@ const toggleFavorite = async (result: GenerationHistoryResult): Promise<void> =>
 
 const reuseParameters = (result: GenerationHistoryResult): void => {
   try {
-    localStorage.setItem('generation_form_state', JSON.stringify({
+    const parameters = {
       prompt: result.prompt,
-      negative_prompt: result.negative_prompt,
+      negative_prompt: result.negative_prompt ?? '',
       steps: result.steps,
       cfg_scale: result.cfg_scale,
       width: result.width,
       height: result.height,
-      seed: result.seed,
-      sampler: result.sampler,
-      model: result.model,
-      clip_skip: result.clip_skip,
-    }));
+      seed: result.seed ?? null,
+      sampler: result.sampler ?? result.sampler_name ?? null,
+      model: result.model ?? result.model_name ?? null,
+      clip_skip: result.clip_skip ?? null,
+      loras: result.loras ?? [],
+    };
+
+    localStorage.setItem('reuse-parameters', JSON.stringify(parameters));
 
     showToastMessage('Parameters copied to generation form');
+    void router.push({ name: 'compose' });
   } catch (err) {
     console.error('Error saving parameters:', err);
     showToastMessage('Failed to save parameters', 'error');
