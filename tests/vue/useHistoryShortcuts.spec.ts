@@ -10,42 +10,38 @@ describe('useHistoryShortcuts', () => {
     setActivePinia(createPinia());
   });
 
-  it('selects all items when ctrl+a is pressed', () => {
+  it('selects all items when ctrl+a is pressed for large result sets', () => {
     const store = useGenerationResultsStore();
-    store.setResults([
-      {
-        id: 1,
-        prompt: 'first',
-        image_url: '/image-1.png',
-        created_at: '2024-01-01T00:00:00Z',
-      },
-      {
-        id: 2,
-        prompt: 'second',
-        image_url: '/image-2.png',
-        created_at: '2024-01-02T00:00:00Z',
-      },
-    ]);
+    const results = Array.from({ length: 1000 }, (_, index) => ({
+      id: index + 1,
+      prompt: `item-${index + 1}`,
+      image_url: `/image-${index + 1}.png`,
+      created_at: '2024-01-01T00:00:00Z',
+    }));
 
-    const selectedItems = ref<number[]>([]);
+    store.setResults(results);
+
+    const selectedItems = ref(new Set<number>());
     const shortcuts = useHistoryShortcuts({
       isModalOpen: ref(false),
       selectedItems,
-      selectableIds: computed(() => store.recentResults.map((result) => result.id as number)),
+      selectableIds: computed(() => results.map((result) => result.id as number)),
       onDeleteSelected: vi.fn(),
       onClearSelection: vi.fn(),
     });
 
     shortcuts.handleKeydown(new KeyboardEvent('keydown', { key: 'a', ctrlKey: true }));
 
-    expect(selectedItems.value).toEqual([1, 2]);
+    expect(selectedItems.value.size).toBe(results.length);
+    expect(selectedItems.value.has(1)).toBe(true);
+    expect(selectedItems.value.has(results.length)).toBe(true);
   });
 
   it('clears selection when escape is pressed without modal', () => {
     const clearSelection = vi.fn();
     const shortcuts = useHistoryShortcuts({
       isModalOpen: ref(false),
-      selectedItems: ref<number[]>([1, 2]),
+      selectedItems: ref(new Set<number>([1, 2])),
       selectableIds: computed(() => [1, 2]),
       onDeleteSelected: vi.fn(),
       onClearSelection: clearSelection,
@@ -61,7 +57,7 @@ describe('useHistoryShortcuts', () => {
     const clearSelection = vi.fn();
     const shortcuts = useHistoryShortcuts({
       isModalOpen,
-      selectedItems: ref<number[]>([1]),
+      selectedItems: ref(new Set<number>([1])),
       selectableIds: computed(() => [1]),
       onDeleteSelected: vi.fn(),
       onClearSelection: clearSelection,
@@ -77,7 +73,7 @@ describe('useHistoryShortcuts', () => {
     const deleteSelected = vi.fn();
     const shortcuts = useHistoryShortcuts({
       isModalOpen: ref(false),
-      selectedItems: ref<number[]>([1, 2, 3]),
+      selectedItems: ref(new Set<number>([1, 2, 3])),
       selectableIds: computed(() => [1, 2, 3]),
       onDeleteSelected: deleteSelected,
       onClearSelection: vi.fn(),

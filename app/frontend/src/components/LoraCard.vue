@@ -83,14 +83,8 @@ const {
 });
 
 const toggleActive = handleToggleActive;
-const updateWeight = (value?: number) => handleWeightChange(value ?? weight.value);
+const updateWeight = (value?: number) => handleWeightChange(value ?? weight.value ?? 1);
 const generatePreview = handleGeneratePreview;
-
-defineExpose({
-  toggleActive,
-  updateWeight,
-  generatePreview,
-});
 
 const cardViewModel = computed<LoraCardViewModel>(() => ({
   id: loraRef.value.id,
@@ -110,8 +104,8 @@ const bulkMode = computed(() => Boolean(props.bulkMode));
 const isSelected = computed(() => Boolean(props.isSelected));
 
 defineExpose({
-  updateWeight: () => handleWeightChange(weight.value ?? 1),
-  toggleActive: handleToggleActive,
-  generatePreview: handleGeneratePreview,
+  toggleActive,
+  updateWeight,
+  generatePreview,
 });
 </script>

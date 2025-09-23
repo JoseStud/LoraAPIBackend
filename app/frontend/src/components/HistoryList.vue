@@ -1,31 +1,48 @@
 <template>
-  <div class="space-y-3">
-    <HistoryListItem
-      v-for="result in results"
-      :key="result.id"
-      :result="result"
-      :is-selected="selectedItems.includes(result.id)"
-      :formatted-date="formatDate(result.created_at)"
-      @selection-change="(selected) => emit('selectionChange', { id: result.id, selected })"
-      @view="emit('view', result)"
-      @download="emit('download', result)"
-      @toggle-favorite="emit('toggle-favorite', result)"
-      @reuse="emit('reuse', result)"
-      @rate="(rating) => emit('rate', { result, rating })"
-    />
-  </div>
+  <RecycleScroller
+    class="history-list-scroller"
+    key-field="id"
+    :items="results"
+    :item-size="estimateSize"
+    :buffer="buffer"
+    v-slot="{ item }"
+  >
+    <div class="history-list-item-wrapper" data-test="history-list-row">
+      <HistoryListItem
+        :result="item"
+        :is-selected="selectedSet.has(item.id)"
+        :formatted-date="formatDate(item.created_at)"
+        @selection-change="(selected) => emit('selectionChange', { id: item.id, selected })"
+        @view="emit('view', item)"
+        @download="emit('download', item)"
+        @toggle-favorite="emit('toggle-favorite', item)"
+        @reuse="emit('reuse', item)"
+        @rate="(rating) => emit('rate', { result: item, rating })"
+      />
+    </div>
+  </RecycleScroller>
 </template>
 
 <script setup lang="ts">
+import { RecycleScroller } from 'vue-virtual-scroller';
+
 import HistoryListItem from './HistoryListItem.vue';
 
 import type { GenerationHistoryResult } from '@/types';
 
-defineProps<{
-  results: GenerationHistoryResult[];
-  selectedItems: readonly GenerationHistoryResult['id'][];
-  formatDate: (date: string) => string;
-}>();
+withDefaults(
+  defineProps<{
+    results: GenerationHistoryResult[];
+    selectedSet: ReadonlySet<GenerationHistoryResult['id']>;
+    formatDate: (date: string) => string;
+    estimateSize?: number;
+    buffer?: number;
+  }>(),
+  {
+    estimateSize: 184,
+    buffer: 600,
+  },
+);
 
 const emit = defineEmits<{
   (e: 'selectionChange', payload: { id: GenerationHistoryResult['id']; selected: boolean }): void;
@@ -36,3 +53,17 @@ const emit = defineEmits<{
   (e: 'rate', payload: { result: GenerationHistoryResult; rating: number }): void;
 }>();
 </script>
+
+<style scoped>
+.history-list-scroller {
+  display: block;
+}
+
+.history-list-item-wrapper {
+  margin-bottom: 0.75rem;
+}
+
+.history-list-item-wrapper:last-child {
+  margin-bottom: 0;
+}
+</style>

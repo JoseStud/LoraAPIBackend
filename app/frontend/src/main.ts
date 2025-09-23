@@ -9,6 +9,7 @@ import './assets/css/design-system.css';
 import './assets/css/mobile-enhanced.css';
 import './assets/css/loading-animations.css';
 import './assets/css/accessibility.css';
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 
 const bootstrap = async () => {
   const app = createApp(App);

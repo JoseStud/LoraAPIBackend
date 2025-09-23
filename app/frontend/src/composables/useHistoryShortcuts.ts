@@ -4,7 +4,7 @@ type Identifier = string | number;
 
 export interface UseHistoryShortcutsOptions {
   isModalOpen: Ref<boolean>;
-  selectedItems: Ref<Identifier[]>;
+  selectedItems: Ref<Set<Identifier>>;
   selectableIds: ComputedRef<Identifier[]>;
   onDeleteSelected: () => void | Promise<void>;
   onClearSelection: () => void;
@@ -39,23 +39,25 @@ export const useHistoryShortcuts = (options: UseHistoryShortcutsOptions): UseHis
         return;
       }
 
-      if (options.selectedItems.value.length > 0) {
+      if (options.selectedItems.value.size > 0) {
         options.onClearSelection();
       }
 
       return;
     }
 
-    if (event.key === 'Delete' && options.selectedItems.value.length > 0) {
+    if (event.key === 'Delete' && options.selectedItems.value.size > 0) {
       options.onDeleteSelected();
       return;
     }
 
     if (event.key.toLowerCase() === 'a' && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
-      const unique = new Set<Identifier>(options.selectableIds.value);
-      options.selectedItems.value.forEach((item) => unique.add(item));
-      options.selectedItems.value = Array.from(unique);
+      const next = new Set<Identifier>(options.selectedItems.value);
+      options.selectableIds.value.forEach((item) => {
+        next.add(item);
+      });
+      options.selectedItems.value = next;
     }
   };
 
