@@ -81,7 +81,7 @@
           :estimated-size="estimatedSize"
           :estimated-time="estimatedTime"
           :is-exporting="isExporting"
-          @update-config="onExportConfigUpdate"
+          @update-config="handleExportConfigUpdate"
           @validate="validateExport"
           @preview="previewExport"
           @start="() => startExport()"
@@ -96,7 +96,7 @@
           :is-importing="isImporting"
           :format-file-size="formatFileSize"
           :get-status-classes="getStatusClasses"
-          @update-config="onImportConfigUpdate"
+          @update-config="handleImportConfigUpdate"
           @add-files="onImportFilesAdded"
           @remove-file="onImportFileRemoved"
           @analyze="() => analyzeFiles()"
@@ -120,7 +120,7 @@
         <MigrationWorkflowPanel
           v-show="activeTab === 'migration'"
           :config="migrationConfig"
-          @update-config="onMigrationConfigUpdate"
+          @update-config="handleMigrationConfigUpdate"
           @start-version-migration="startVersionMigration"
           @start-platform-migration="startPlatformMigration"
         />
@@ -210,21 +210,6 @@ import { useMigrationWorkflow, type MigrationConfig } from '@/composables/useMig
 import { formatDateTime, formatFileSize as formatBytes } from '@/utils/format';
 
 type OperationType = 'export' | 'import' | 'migration';
-
-type ExportConfigUpdate = {
-  key: keyof ExportConfig;
-  value: ExportConfig[keyof ExportConfig];
-};
-
-type ImportConfigUpdate = {
-  key: keyof ImportConfig;
-  value: ImportConfig[keyof ImportConfig];
-};
-
-type MigrationConfigUpdate = {
-  key: keyof MigrationConfig;
-  value: MigrationConfig[keyof MigrationConfig];
-};
 
 const isInitialized = ref(false);
 const activeTab = ref<'export' | 'import' | 'backup' | 'migration'>('export');
@@ -369,17 +354,17 @@ const getStatusClasses = (status: string) => {
   return statusClasses[status] ?? 'bg-gray-100 text-gray-800';
 };
 
-const onExportConfigUpdate = (payload: ExportConfigUpdate) => {
-  exportWorkflow.updateConfig(payload.key, payload.value);
-};
+function handleExportConfigUpdate<K extends keyof ExportConfig>(key: K, value: ExportConfig[K]) {
+  exportWorkflow.updateConfig(key, value);
+}
 
-const onImportConfigUpdate = (payload: ImportConfigUpdate) => {
-  importWorkflow.updateConfig(payload.key, payload.value);
-};
+function handleImportConfigUpdate<K extends keyof ImportConfig>(key: K, value: ImportConfig[K]) {
+  importWorkflow.updateConfig(key, value);
+}
 
-const onMigrationConfigUpdate = (payload: MigrationConfigUpdate) => {
-  migrationWorkflow.updateConfig(payload.key, payload.value);
-};
+function handleMigrationConfigUpdate<K extends keyof MigrationConfig>(key: K, value: MigrationConfig[K]) {
+  migrationWorkflow.updateConfig(key, value);
+}
 
 const onImportFilesAdded = (files: readonly File[]) => {
   importWorkflow.addFiles([...files]);
