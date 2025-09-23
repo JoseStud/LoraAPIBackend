@@ -6,9 +6,8 @@ from .base import DeliveryBackend, GenerationBackend, delivery_registry
 from .cli import CLIDeliveryBackend
 from .http import HTTPDeliveryBackend
 from .http_client import DeliveryHTTPClient
-from .image_persistence import ImagePersistence
 from .sdnext import SDNextGenerationBackend
-from .sdnext_client import SDNextClient
+from .sdnext_client import SDNextSession
 from .storage import FileSystemImageStorage
 
 
@@ -26,15 +25,12 @@ def initialize_delivery_system() -> None:
         password=settings.SDNEXT_PASSWORD,
     )
     storage = FileSystemImageStorage(settings.SDNEXT_OUTPUT_DIR)
-    sdnext_client = SDNextClient(http_client)
-    image_persistence = ImagePersistence(storage)
+    sdnext_session = SDNextSession(http_client)
     delivery_registry.register_generation_backend(
         "sdnext",
         SDNextGenerationBackend(
-            http_client=http_client,
+            session=sdnext_session,
             storage=storage,
-            client=sdnext_client,
-            image_persistence=image_persistence,
         ),
     )
 
