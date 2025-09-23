@@ -30,7 +30,6 @@ The implementation consists of three main components:
 
 3.  **WebSocket Endpoint (`backend/api/v1/websocket.py`)**:
     -   Exposes the canonical `/api/v1/ws/progress` endpoint (via the main app's `/api` mount).
-    -   Provides a `/ws/progress` compatibility route for legacy clients connecting directly to the backend service.
     -   Accepts new client connections and passes them to the `WebSocketService`.
 
 ### Message Flow
@@ -136,8 +135,9 @@ The progress WebSocket works with the existing queue pipeline and SDNext
 monitor, but it should still be considered experimental until the surrounding
 delivery infrastructure is hardened.
 
-- ✅ Endpoint wiring is complete: `/ws/progress` delegates to the shared
-  `WebSocketService`, which subscribes to delivery and generation updates.【F:backend/api/v1/websocket.py†L1-L43】
+- ✅ Endpoint wiring is complete: `/v1/ws/progress` (and `/api/v1/ws/progress`
+  via the main app) delegate to the shared `WebSocketService`, which subscribes
+  to delivery and generation updates.【F:backend/api/v1/websocket.py†L1-L43】
 - ✅ The service layer can start and stop job monitors, broadcasting structured
   events as jobs transition states.【F:backend/services/websocket.py†L1-L200】
 - ⚠️ Load and failure-mode testing is limited; queue backpressure and
