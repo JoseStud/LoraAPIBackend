@@ -3,6 +3,14 @@ import { computed, nextTick, ref } from 'vue';
 import { mount } from '@vue/test-utils';
 
 import type { AdapterSummary, SavedComposition } from '@/types';
+import type { AdapterCatalogApi } from '../../app/frontend/src/composables/useAdapterCatalog';
+
+import { usePromptComposition } from '../../app/frontend/src/composables/usePromptComposition';
+import { usePromptCompositionState } from '../../app/frontend/src/composables/prompt-composer/usePromptCompositionState';
+import { usePromptCompositionPersistence } from '../../app/frontend/src/composables/prompt-composer/usePromptCompositionPersistence';
+import { usePromptGenerationActions } from '../../app/frontend/src/composables/prompt-composer/usePromptGenerationActions';
+
+type UsePromptCompositionReturn = ReturnType<typeof usePromptComposition>;
 
 const adapterSource = ref<AdapterSummary[]>([]);
 const searchTermRef = ref('');
@@ -38,22 +46,26 @@ const refresh = vi.fn(async () => {
 });
 
 const catalogModuleMock = vi.hoisted(() => ({
-  useAdapterCatalog: vi.fn(),
+  useAdapterCatalog: vi.fn<[], AdapterCatalogApi>(),
 }));
 
 vi.mock('../../app/frontend/src/composables/useAdapterCatalog', () => catalogModuleMock);
 
-const clipboardMock = vi.hoisted(() => ({
-  copyPromptToClipboard: vi.fn(async () => true),
+const servicesModuleMock = vi.hoisted(() => {
+  const clipboard = { copy: vi.fn(async () => true) };
+  const generator = { trigger: vi.fn(async () => true) };
+  return {
+    clipboard,
+    generator,
+    createPromptClipboardService: vi.fn(() => clipboard),
+    createPromptGenerationService: vi.fn(() => generator),
+  };
+});
+
+vi.mock('../../app/frontend/src/composables/prompt-composer/services', () => ({
+  createPromptClipboardService: servicesModuleMock.createPromptClipboardService,
+  createPromptGenerationService: servicesModuleMock.createPromptGenerationService,
 }));
-
-vi.mock('../../app/frontend/src/utils/promptClipboard', () => clipboardMock);
-
-const generationMock = vi.hoisted(() => ({
-  triggerPromptGeneration: vi.fn(async () => true),
-}));
-
-vi.mock('../../app/frontend/src/utils/promptGeneration', () => generationMock);
 
 const persistenceState = {
   saved: ref<SavedComposition | null>(null),
@@ -79,10 +91,6 @@ vi.mock('../../app/frontend/src/utils/promptCompositionPersistence', async () =>
   };
 });
 
-import { usePromptComposition } from '../../app/frontend/src/composables/usePromptComposition';
-
-type UsePromptCompositionReturn = ReturnType<typeof usePromptComposition>;
-
 const flush = async () => {
   await Promise.resolve();
   await nextTick();
@@ -90,19 +98,185 @@ const flush = async () => {
   await nextTick();
 };
 
-const withSetup = () => {
-  let result: UsePromptCompositionReturn;
+const mountComposable = <T>(factory: () => T) => {
+  let bindings: T | undefined;
+  const wrapper = mount({
+    template: '<div />',
+    setup() {
+      bindings = factory();
+      return {};
+    },
+  });
+
+  return {
+    bindings: bindings!,
+    unmount: () => wrapper.unmount(),
+  };
+};
+
+const withPromptComposition = (): UsePromptCompositionReturn => {
+  let result: UsePromptCompositionReturn | undefined;
   mount({
     template: '<div />',
     setup() {
       result = usePromptComposition();
-      return result;
+      return {};
     },
   });
   return result!;
 };
 
-describe('usePromptComposition', () => {
+describe('usePromptCompositionState', () => {
+  it('tracks active LoRAs and builds the final prompt', () => {
+    const state = usePromptCompositionState();
+
+    const adapter: AdapterSummary = {
+      id: 'alpha',
+      name: 'Alpha',
+      description: 'First adapter',
+      active: true,
+    };
+
+    state.setBasePrompt('Shining stars');
+    state.addToComposition(adapter);
+
+    expect(state.activeLoras.value).toHaveLength(1);
+    expect(state.finalPrompt.value).toContain('Shining stars');
+    expect(state.finalPrompt.value).toContain('<lora:Alpha:1.0>');
+
+    state.updateWeight(0, 0);
+    expect(state.finalPrompt.value).toContain('<lora:Alpha:0.0>');
+  });
+
+  it('validates base prompt and normalises weights', () => {
+    const state = usePromptCompositionState();
+
+    expect(state.validate()).toBe(false);
+    expect(state.basePromptError.value).toBe('Base prompt is required');
+
+    state.setBasePrompt('x'.repeat(1200));
+    expect(state.validate()).toBe(false);
+    expect(state.basePromptError.value).toBe('Base prompt is too long');
+
+    state.setBasePrompt('Valid');
+    expect(state.validate()).toBe(true);
+
+    const adapter: AdapterSummary = {
+      id: 'beta',
+      name: 'Beta',
+      description: 'Second adapter',
+      active: true,
+    };
+    state.addToComposition(adapter);
+    state.updateWeight(0, 5);
+    expect(state.activeLoras.value[0].weight).toBe(2);
+  });
+});
+
+describe('usePromptCompositionPersistence', () => {
+  beforeEach(() => {
+    persistenceState.saved.value = null;
+    persistenceState.load.mockReset();
+    persistenceState.save.mockReset();
+    persistenceState.scheduleSave.mockReset();
+    persistenceState.cancel.mockReset();
+  });
+
+  it('saves, schedules and loads compositions', async () => {
+    const activeLoras = ref([{ id: 'alpha', name: 'Alpha', weight: 1 }]);
+    const basePrompt = ref('Base prompt');
+    const negativePrompt = ref('');
+    const basePromptError = ref('error');
+
+    const { bindings, unmount } = mountComposable(() =>
+      usePromptCompositionPersistence({
+        activeLoras,
+        basePrompt,
+        negativePrompt,
+        basePromptError,
+        persistence: {
+          load: persistenceState.load,
+          save: persistenceState.save,
+          scheduleSave: persistenceState.scheduleSave,
+          cancel: persistenceState.cancel,
+        },
+      }),
+    );
+
+    bindings.saveComposition();
+    expect(persistenceState.save).toHaveBeenCalledWith(
+      expect.objectContaining({ base: 'Base prompt', items: expect.any(Array) }),
+    );
+
+    activeLoras.value.push({ id: 'beta', name: 'Beta', weight: 0.5 });
+    await flush();
+    expect(persistenceState.scheduleSave).toHaveBeenCalled();
+
+    const stored: SavedComposition = {
+      items: [{ id: 'gamma', name: 'Gamma', weight: 0.75 }],
+      base: 'Loaded base',
+      neg: 'Loaded negative',
+    };
+    persistenceState.load.mockReturnValueOnce(stored);
+
+    bindings.loadComposition();
+    expect(activeLoras.value).toHaveLength(1);
+    expect(basePrompt.value).toBe('Loaded base');
+    expect(negativePrompt.value).toBe('Loaded negative');
+    expect(basePromptError.value).toBe('');
+
+    unmount();
+    expect(persistenceState.cancel).toHaveBeenCalled();
+  });
+});
+
+describe('usePromptGenerationActions', () => {
+  it('copies prompt and triggers generation when valid', async () => {
+    const finalPrompt = ref('Prompt with token');
+    const negativePrompt = ref('');
+    const activeLoras = ref([{ id: 'alpha', name: 'Alpha', weight: 1 }]);
+    const validate = vi.fn(() => true);
+    const clipboard = { copy: vi.fn(async () => true) };
+    const generator = { trigger: vi.fn(async () => true) };
+
+    const { bindings } = mountComposable(() =>
+      usePromptGenerationActions({
+        finalPrompt,
+        negativePrompt,
+        activeLoras,
+        validate,
+        clipboard,
+        generator,
+      }),
+    );
+
+    await bindings.copyPrompt();
+    expect(clipboard.copy).toHaveBeenCalledWith('Prompt with token');
+
+    await bindings.generateImage();
+    expect(validate).toHaveBeenCalled();
+    expect(generator.trigger).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: 'Prompt with token', loras: activeLoras.value }),
+    );
+  });
+
+  it('aborts generation when validation fails', async () => {
+    const { bindings } = mountComposable(() =>
+      usePromptGenerationActions({
+        finalPrompt: ref(''),
+        negativePrompt: ref('no'),
+        activeLoras: ref([]),
+        validate: () => false,
+      }),
+    );
+
+    const result = await bindings.generateImage();
+    expect(result).toBe(false);
+    expect(bindings.isGenerating.value).toBe(false);
+  });
+});
+
+describe('usePromptComposition orchestrator', () => {
   beforeEach(() => {
     adapterSource.value = [
       { id: 'alpha', name: 'Alpha', description: 'First adapter', active: true },
@@ -115,8 +289,10 @@ describe('usePromptComposition', () => {
     setSearchTerm.mockClear();
     setActiveOnly.mockClear();
     refresh.mockClear();
-    clipboardMock.copyPromptToClipboard.mockClear();
-    generationMock.triggerPromptGeneration.mockClear();
+    servicesModuleMock.clipboard.copy.mockClear();
+    servicesModuleMock.generator.trigger.mockClear();
+    servicesModuleMock.createPromptClipboardService.mockClear();
+    servicesModuleMock.createPromptGenerationService.mockClear();
     persistenceState.saved.value = null;
     persistenceState.load.mockImplementation(() => persistenceState.saved.value);
     persistenceState.save.mockImplementation((payload: SavedComposition) => {
@@ -129,7 +305,6 @@ describe('usePromptComposition', () => {
     persistenceState.load.mockClear();
     persistenceState.save.mockClear();
     persistenceState.scheduleSave.mockClear();
-    persistenceState.cancel.mockClear();
     catalogModuleMock.useAdapterCatalog.mockReset();
     catalogModuleMock.useAdapterCatalog.mockImplementation(() => ({
       searchTerm: searchTermRef,
@@ -145,7 +320,7 @@ describe('usePromptComposition', () => {
   });
 
   it('exposes catalog filters and updates composition weights', async () => {
-    const state = withSetup();
+    const state = withPromptComposition();
     await flush();
 
     expect(catalogModuleMock.useAdapterCatalog).toHaveBeenCalled();
@@ -166,8 +341,8 @@ describe('usePromptComposition', () => {
     expect(state.activeLoras.value[0].weight).toBe(2);
   });
 
-  it('builds final prompt, copies and triggers generation through helpers', async () => {
-    const state = withSetup();
+  it('builds final prompt, copies and triggers generation through services', async () => {
+    const state = withPromptComposition();
     await flush();
 
     const first = adapterSource.value[0];
@@ -180,10 +355,10 @@ describe('usePromptComposition', () => {
     expect(state.finalPrompt.value).toContain('<lora:Alpha:1.0>');
 
     await state.copyPrompt();
-    expect(clipboardMock.copyPromptToClipboard).toHaveBeenCalledWith(state.finalPrompt.value);
+    expect(servicesModuleMock.clipboard.copy).toHaveBeenCalledWith(state.finalPrompt.value);
 
     await state.generateImage();
-    expect(generationMock.triggerPromptGeneration).toHaveBeenCalledWith(
+    expect(servicesModuleMock.generator.trigger).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: state.finalPrompt.value,
         negativePrompt: 'blurry',
@@ -193,7 +368,7 @@ describe('usePromptComposition', () => {
   });
 
   it('persists and reloads compositions using persistence helper', async () => {
-    const state = withSetup();
+    const state = withPromptComposition();
     await flush();
 
     const first = adapterSource.value[0];
