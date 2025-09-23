@@ -4,6 +4,7 @@ import type { MaybeRefOrGetter } from 'vue';
 import { debounce, type DebouncedFunction } from '@/utils/async';
 import { listResults as listHistoryResults } from '@/services/historyService';
 import type {
+  GenerationHistoryQuery,
   GenerationHistoryResult,
   GenerationHistoryStats,
 } from '@/types';
@@ -67,79 +68,83 @@ export const useGenerationHistory = ({
     stats.total_size = 0;
   };
 
-  const sortResults = (results: GenerationHistoryResult[]): void => {
-    switch (sortBy.value) {
-      case 'created_at':
-        results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        break;
-      case 'created_at_asc':
-        results.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-        break;
-      case 'prompt':
-        results.sort((a, b) => a.prompt.localeCompare(b.prompt));
-        break;
-      case 'rating':
-        results.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
-        break;
-    }
+  const updateDerivedData = (): void => {
+    filteredResults.value = [...data.value];
+    calculateStats();
   };
 
-  const applyFilters = (): void => {
-    let working = [...data.value];
-
-    if (searchTerm.value.trim()) {
-      const searchLower = searchTerm.value.toLowerCase();
-      working = working.filter((result) => {
-        const promptText = result.prompt.toLowerCase();
-        const negativeText = typeof result.negative_prompt === 'string'
-          ? result.negative_prompt.toLowerCase()
-          : '';
-        return promptText.includes(searchLower) || negativeText.includes(searchLower);
-      });
+  const parseDimensionFilter = (): { width?: number; height?: number } => {
+    if (dimensionFilter.value === 'all') {
+      return {};
     }
 
-    if (dateFilter.value !== 'all') {
-      const now = new Date();
-      const filterDate = new Date();
+    const [widthText, heightText] = dimensionFilter.value.split('x');
+    const width = Number(widthText);
+    const height = Number(heightText);
 
-      switch (dateFilter.value) {
-        case 'today':
-          filterDate.setHours(0, 0, 0, 0);
-          break;
-        case 'week':
-          filterDate.setDate(now.getDate() - 7);
-          break;
-        case 'month':
-          filterDate.setMonth(now.getMonth() - 1);
-          break;
-        default:
-          break;
-      }
+    if (!Number.isFinite(width) || !Number.isFinite(height)) {
+      return {};
+    }
 
-      working = working.filter((result) => {
-        const createdAt = new Date(result.created_at);
-        return Number.isFinite(createdAt.getTime()) && createdAt >= filterDate;
-      });
+    return { width, height };
+  };
+
+  const buildFilterStateKey = (): string => JSON.stringify({
+    search: searchTerm.value.trim(),
+    sort: sortBy.value,
+    date: dateFilter.value,
+    rating: ratingFilter.value,
+    dimension: dimensionFilter.value,
+    pageSize: pageSize.value,
+  });
+
+  const buildQuery = (page: number): GenerationHistoryQuery => {
+    const query: GenerationHistoryQuery = {
+      page,
+      page_size: pageSize.value,
+      sort: sortBy.value,
+    };
+
+    const search = searchTerm.value.trim();
+    if (search) {
+      query.search = search;
     }
 
     if (ratingFilter.value > 0) {
-      working = working.filter((result) => (result.rating ?? 0) >= ratingFilter.value);
+      query.min_rating = ratingFilter.value;
     }
 
-    if (dimensionFilter.value !== 'all') {
-      const [widthText, heightText] = dimensionFilter.value.split('x');
-      const width = Number(widthText);
-      const height = Number(heightText);
-
-      if (Number.isFinite(width) && Number.isFinite(height)) {
-        working = working.filter((result) => result.width === width && result.height === height);
-      }
+    if (dateFilter.value && dateFilter.value !== 'all') {
+      query.date_filter = dateFilter.value;
     }
 
-    sortResults(working);
+    const { width, height } = parseDimensionFilter();
+    if (typeof width === 'number') {
+      query.width = width;
+    }
+    if (typeof height === 'number') {
+      query.height = height;
+    }
 
-    filteredResults.value = working;
-    calculateStats();
+    return query;
+  };
+
+  const lastAppliedFilterKey = ref('');
+
+  const applyFilters = (): void => {
+    const nextKey = buildFilterStateKey();
+
+    if (nextKey !== lastAppliedFilterKey.value) {
+      lastAppliedFilterKey.value = nextKey;
+      currentPage.value = 1;
+      hasMore.value = true;
+      void loadPage(1, false);
+      return;
+    }
+
+    if (!isLoading.value) {
+      updateDerivedData();
+    }
   };
 
   const debouncedApplyFilters: DebouncedFunction<() => void> = debounce(() => applyFilters(), 300);
@@ -169,10 +174,7 @@ export const useGenerationHistory = ({
     error.value = null;
 
     try {
-      const response = await listHistoryResults(resolveApiBase(apiBase), {
-        page,
-        page_size: pageSize.value,
-      });
+      const response = await listHistoryResults(resolveApiBase(apiBase), buildQuery(page));
 
       const results = Array.isArray(response.results) ? response.results : [];
       updatePaginationState(results, response.response);
@@ -181,9 +183,14 @@ export const useGenerationHistory = ({
         data.value = [...data.value, ...results];
       } else {
         data.value = [...results];
+        currentPage.value = page;
       }
 
-      applyFilters();
+      updateDerivedData();
+
+      if (!append) {
+        lastAppliedFilterKey.value = buildFilterStateKey();
+      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load results';
     } finally {

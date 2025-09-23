@@ -87,25 +87,90 @@ describe('useGenerationHistory', () => {
     routerMock.push.mockReset();
   });
 
-  it('loads results and applies filters', async () => {
+  it('loads initial results with query parameters and updates state', async () => {
     serviceMocks.listResults.mockResolvedValue({
       results: sampleResults,
-      response: { has_more: false },
+      response: { has_more: true },
     });
+
+    const apiBase = ref('/api');
+    const history = useGenerationHistory({ apiBase, pageSize: 25 });
+
+    await history.loadInitialResults();
+
+    expect(serviceMocks.listResults).toHaveBeenCalledWith('/api', {
+      page: 1,
+      page_size: 25,
+      sort: 'created_at',
+    });
+    expect(history.filteredResults.value).toHaveLength(2);
+    expect(history.stats.total_results).toBe(2);
+    expect(history.hasMore.value).toBe(true);
+  });
+
+  it('refetches when filters change and resets pagination', async () => {
+    const moreResults = [
+      {
+        ...sampleResults[0],
+        id: 3,
+        prompt: 'Another image',
+      },
+    ];
+    const filteredResults = [sampleResults[1]];
+
+    serviceMocks.listResults
+      .mockResolvedValueOnce({
+        results: sampleResults,
+        response: { has_more: true },
+      })
+      .mockResolvedValueOnce({
+        results: moreResults,
+        response: { has_more: false },
+      })
+      .mockResolvedValueOnce({
+        results: filteredResults,
+        response: { has_more: false },
+      });
 
     const apiBase = ref('/api');
     const history = useGenerationHistory({ apiBase });
 
     await history.loadInitialResults();
-    expect(history.filteredResults.value).toHaveLength(2);
-    expect(history.stats.total_results).toBe(2);
+    await history.loadMore();
+
+    expect(serviceMocks.listResults).toHaveBeenNthCalledWith(2, '/api', {
+      page: 2,
+      page_size: 50,
+      sort: 'created_at',
+    });
+    expect(history.currentPage.value).toBe(2);
+    expect(history.filteredResults.value).toHaveLength(3);
 
     history.searchTerm.value = 'cat';
+    history.sortBy.value = 'rating';
+    history.dateFilter.value = 'week';
+    history.ratingFilter.value = 5;
+    history.dimensionFilter.value = '512x512';
     history.applyFilters();
+    await flush();
 
-    expect(history.filteredResults.value).toHaveLength(1);
-    expect(history.filteredResults.value[0].prompt).toContain('cat');
-    expect(history.stats.total_results).toBe(1);
+    expect(serviceMocks.listResults).toHaveBeenNthCalledWith(3, '/api', {
+      page: 1,
+      page_size: 50,
+      sort: 'rating',
+      search: 'cat',
+      min_rating: 5,
+      date_filter: 'week',
+      width: 512,
+      height: 512,
+    });
+    expect(history.currentPage.value).toBe(1);
+    expect(history.hasMore.value).toBe(false);
+    expect(history.filteredResults.value).toEqual(filteredResults);
+
+    history.applyFilters();
+    await flush();
+    expect(serviceMocks.listResults).toHaveBeenCalledTimes(3);
   });
 });
 
