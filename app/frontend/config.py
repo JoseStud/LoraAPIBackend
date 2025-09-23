@@ -1,7 +1,7 @@
-"""Frontend Configuration Module.
+"""Provide frontend configuration utilities.
 
-Centralized configuration management using Pydantic BaseSettings for the LoRA 
-Manager frontend. Handles environment variables, timeouts, feature flags, and 
+Centralize configuration management using Pydantic BaseSettings for the LoRA
+Manager frontend. Handle environment variables, timeouts, feature flags, and
 other application settings.
 """
 
@@ -13,13 +13,15 @@ from pydantic_settings import BaseSettings
 
 
 class FrontendSettings(BaseSettings):
-    """Frontend application settings."""
+    """Define frontend application settings."""
     
     # Backend connection
     backend_url: str = Field(
         default="/api/v1",
         env="BACKEND_URL",
-        description="Backend API base URL (relative or absolute) including the /api/v1 prefix",
+        description=(
+            "Backend API base URL (relative or absolute) including the /api/v1 prefix"
+        ),
     )
     
     backend_host: str = Field(
@@ -37,7 +39,7 @@ class FrontendSettings(BaseSettings):
     @field_validator('backend_url', mode='before')
     @classmethod
     def construct_backend_url(cls, v, info):
-        """Normalise backend URL to match the /api/v1 mount."""
+        """Normalize the backend URL to match the /api/v1 mount."""
         default_path = "/api/v1"
 
         if v is None:
@@ -272,6 +274,8 @@ class FrontendSettings(BaseSettings):
         }
     
     class Config:
+        """Configure environment file handling for settings."""
+
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False

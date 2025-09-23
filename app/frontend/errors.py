@@ -1,6 +1,6 @@
-"""Error Handling Utilities.
+"""Provide error handling utilities.
 
-Provides consistent error handling and fallback rendering
+Maintain consistent error handling and fallback rendering
 for the LoRA Manager frontend application.
 """
 
@@ -19,14 +19,15 @@ settings = get_settings()
 
 
 class FrontendError(Exception):
-    """Base exception for frontend errors."""
+    """Represent the base exception for frontend errors."""
     
     def __init__(
-        self, 
-        message: str, 
-        status_code: int = 500, 
+        self,
+        message: str,
+        status_code: int = 500,
         details: Optional[Dict] = None,
     ):
+        """Initialize the frontend error."""
         self.message = message
         self.status_code = status_code
         self.details = details or {}
@@ -34,24 +35,26 @@ class FrontendError(Exception):
 
 
 class BackendConnectionError(FrontendError):
-    """Error when backend is unreachable."""
+    """Represent an error when the backend is unreachable."""
     
     def __init__(
-        self, 
-        message: str = "Backend service unavailable", 
+        self,
+        message: str = "Backend service unavailable",
         details: Optional[Dict] = None,
     ):
+        """Initialize a backend connection error."""
         super().__init__(message, status_code=502, details=details)
 
 
 class ValidationFailedError(FrontendError):
-    """Error for validation failures."""
+    """Represent an error for validation failures."""
     
     def __init__(
-        self, 
-        message: str = "Validation failed", 
+        self,
+        message: str = "Validation failed",
         validation_errors: Optional[Dict] = None,
     ):
+        """Initialize a validation failure error."""
         details = {"validation_errors": validation_errors or {}}
         super().__init__(message, status_code=400, details=details)
 
@@ -346,8 +349,8 @@ def log_error_with_context(
 
 # Decorator for consistent error handling in route handlers
 def handle_route_errors(fallback_template: str, fallback_data: Optional[Dict] = None):
-    """Decorator for consistent error handling in route handlers.
-    
+    """Provide a decorator for consistent error handling in route handlers.
+
     Args:
         fallback_template: Template to render on error
         fallback_data: Default fallback data

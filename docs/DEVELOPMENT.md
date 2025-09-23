@@ -394,6 +394,14 @@ npm run type-check        # TypeScript validation (✅ passing)
 npm run validate          # Runs linting + tests (production ready)
 ```
 
+#### Frontend Python docstrings
+
+- Python modules in `app/frontend` use imperative first-line docstrings to
+  satisfy Ruff's `D401` requirement and keep inline documentation consistent.
+- When adding or updating docstrings in this package, phrase the opening
+  sentence as a command (for example, "Configure logging settings." rather than
+  "Logging configuration") and verify the result with `ruff check app/frontend`.
+
 **Quality Standards Achieved:**
 - **Test Coverage**: >95% across backend and frontend with comprehensive test organization
 - **Type Safety**: Full TypeScript and Python type hints with strict validation

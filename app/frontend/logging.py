@@ -1,7 +1,7 @@
-"""Logging Configuration.
+"""Configure logging for the frontend application.
 
-Sets up structured logging for the LoRA Manager frontend application.
-Provides JSON output for production and human-readable format for development.
+Set up structured logging for the LoRA Manager frontend application.
+Provide JSON output for production and human-readable format for development.
 """
 
 import logging
@@ -16,7 +16,7 @@ settings = get_settings()
 
 
 class JSONFormatter(logging.Formatter):
-    """Custom JSON formatter for structured logging."""
+    """Implement a custom JSON formatter for structured logging."""
     
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as JSON."""
@@ -53,7 +53,7 @@ class JSONFormatter(logging.Formatter):
 
 
 class ColoredFormatter(logging.Formatter):
-    """Colored formatter for development console output."""
+    """Implement a colored formatter for development console output."""
     
     # ANSI color codes
     COLORS = {
@@ -113,7 +113,7 @@ def setup_logging(
     format_type: Optional[str] = None,
     log_file: Optional[str] = None,
 ) -> None:
-    """Setup logging configuration.
+    """Configure logging settings.
     
     Args:
         level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
