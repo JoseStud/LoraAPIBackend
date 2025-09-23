@@ -491,13 +491,14 @@ class TestRecommendationService:
 
         config = RecommendationConfig(persistence_service)
 
-        service = RecommendationService(
+        service = RecommendationService.create(
             embedding_coordinator=embedding_coordinator,
             feedback_manager=feedback_manager,
             stats_reporter=stats_reporter,
             similar_lora_use_case=similar_use_case,
             prompt_recommendation_use_case=prompt_use_case,
             config=config,
+            metrics_tracker=metrics_tracker,
         )
 
         await service.similar_loras(target_lora_id="adapter-1", limit=2)
@@ -571,3 +572,47 @@ class TestRecommendationService:
         assert isinstance(service, RecommendationService)
         assert service.device == "cpu"
         assert service.gpu_enabled is False
+
+    def test_service_from_legacy_dependencies_factory(self):
+        bootstrap = MagicMock()
+        bootstrap.device = "cpu"
+        bootstrap.gpu_enabled = False
+
+        model_registry = MagicMock()
+        model_registry.get_recommendation_engine = MagicMock()
+        model_registry.get_semantic_embedder = MagicMock()
+        bootstrap.get_model_registry.return_value = model_registry
+
+        repository = MagicMock()
+        repository.record_feedback.return_value = MagicMock()
+        repository.update_user_preference.return_value = MagicMock()
+        repository.get_embedding.return_value = None
+
+        embedding_workflow = MagicMock()
+        embedding_workflow.compute_embeddings_for_lora = AsyncMock(return_value=True)
+        embedding_workflow.batch_compute_embeddings = AsyncMock(return_value={"processed": 0})
+
+        persistence_service = MagicMock()
+        persistence_service.rebuild_similarity_index = AsyncMock(return_value="rebuilt")
+        persistence_service.index_cache_path = "index"
+        persistence_service.embedding_cache_dir = "embeddings"
+
+        metrics_tracker = RecommendationMetricsTracker()
+
+        service = RecommendationService.from_legacy_dependencies(
+            bootstrap=bootstrap,
+            repository=repository,
+            embedding_workflow=embedding_workflow,
+            persistence_service=persistence_service,
+            metrics_tracker=metrics_tracker,
+        )
+
+        assert service.device == "cpu"
+        assert service.gpu_enabled is False
+
+        payload = MagicMock()
+        service.record_feedback(payload)
+        repository.record_feedback.assert_called_once_with(payload)
+
+        status = service.embedding_status("missing")
+        assert status.needs_recomputation is True

@@ -12,7 +12,7 @@ from .model_bootstrap import RecommendationModelBootstrap
 from .persistence_manager import RecommendationPersistenceManager
 from .persistence_service import RecommendationPersistenceService
 from .repository import RecommendationRepository
-from .service import RecommendationService
+from .service import RecommendationService, RecommendationServiceComponents
 from .similarity_index_builder import SimilarityIndexBuilder
 from .stats_reporter import StatsReporter
 from .use_cases import PromptRecommendationUseCase, SimilarLoraUseCase
@@ -32,6 +32,7 @@ __all__ = [
     'RecommendationPersistenceService',
     'RecommendationRepository',
     'RecommendationService',
+    'RecommendationServiceComponents',
     'SimilarityIndexBuilder',
     'StatsReporter',
     'SimilarLoraUseCase',

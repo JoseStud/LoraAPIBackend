@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence
 
 from backend.models import RecommendationFeedback, UserPreference
@@ -21,15 +22,28 @@ from .feedback_manager import FeedbackManager
 from .interfaces import (
     EmbeddingWorkflow,
     RecommendationBootstrap,
-    RecommendationMetricsTracker,
+    RecommendationMetricsTracker as RecommendationMetricsTrackerProtocol,
     RecommendationPersistenceService,
     RecommendationRepository,
 )
+from .metrics import RecommendationMetricsTracker
 from .stats_reporter import StatsReporter
 from .use_cases import (
     PromptRecommendationUseCase,
     SimilarLoraUseCase,
 )
+
+
+@dataclass(frozen=True)
+class RecommendationServiceComponents:
+    """Typed bundle of collaborators required by :class:`RecommendationService`."""
+
+    embedding_coordinator: EmbeddingCoordinator
+    feedback_manager: FeedbackManager
+    stats_reporter: StatsReporter
+    similar_lora_use_case: SimilarLoraUseCase
+    prompt_recommendation_use_case: PromptRecommendationUseCase
+    config: RecommendationConfig
 
 
 class RecommendationService:
@@ -38,94 +52,105 @@ class RecommendationService:
     def __init__(
         self,
         *,
-        embedding_coordinator: Optional[EmbeddingCoordinator] = None,
-        feedback_manager: Optional[FeedbackManager] = None,
-        stats_reporter: Optional[StatsReporter] = None,
-        similar_lora_use_case: Optional[SimilarLoraUseCase] = None,
-        prompt_recommendation_use_case: Optional[PromptRecommendationUseCase] = None,
-        config: Optional[RecommendationConfig] = None,
-        # Legacy wiring support
-        bootstrap: Optional[RecommendationBootstrap] = None,
-        repository: Optional[RecommendationRepository] = None,
-        embedding_workflow: Optional[EmbeddingWorkflow] = None,
-        persistence_service: Optional[RecommendationPersistenceService] = None,
-        metrics_tracker: Optional[RecommendationMetricsTracker] = None,
+        components: RecommendationServiceComponents,
+        metrics_tracker: Optional[RecommendationMetricsTrackerProtocol] = None,
         logger: Optional[logging.Logger] = None,
     ) -> None:
         self._logger = logger or logging.getLogger(__name__)
 
-        if embedding_coordinator is None:
-            if not all((bootstrap, embedding_workflow, persistence_service)):
-                raise ValueError(
-                    "EmbeddingCoordinator must be provided or legacy dependencies supplied",
-                )
-            embedding_coordinator = EmbeddingCoordinator(
-                bootstrap=bootstrap,
-                embedding_workflow=embedding_workflow,
-                persistence_service=persistence_service,
-                logger=self._logger,
-            )
-        self._embedding_coordinator = embedding_coordinator
+        self._embedding_coordinator = components.embedding_coordinator
+        self._feedback_manager = components.feedback_manager
+        self._stats_reporter = components.stats_reporter
+        self._similar_lora_use_case = components.similar_lora_use_case
+        self._prompt_recommendation_use_case = components.prompt_recommendation_use_case
+        self._config = components.config
 
-        if feedback_manager is None:
-            if repository is None:
-                raise ValueError(
-                    "FeedbackManager requires a recommendation repository",
-                )
-            feedback_manager = FeedbackManager(repository)
-        self._feedback_manager = feedback_manager
-
-        if stats_reporter is None:
-            if repository is None or metrics_tracker is None:
-                raise ValueError(
-                    "StatsReporter requires repository and metrics tracker",
-                )
-            stats_reporter = StatsReporter(
-                metrics_tracker=metrics_tracker,
-                repository=repository,
-            )
-        self._stats_reporter = stats_reporter
-        self._metrics_tracker = getattr(
+        self._metrics_tracker = metrics_tracker or getattr(
             self._stats_reporter,
             "metrics_tracker",
-            metrics_tracker,
+            None,
         )
 
-        if similar_lora_use_case is None:
-            if repository is None or embedding_workflow is None or bootstrap is None or metrics_tracker is None:
-                raise ValueError(
-                    "SimilarLoraUseCase dependencies are not satisfied",
-                )
-            model_registry = bootstrap.get_model_registry()
-            similar_lora_use_case = SimilarLoraUseCase(
-                repository=repository,
-                embedding_workflow=embedding_workflow,
-                engine_provider=model_registry.get_recommendation_engine,
-                metrics=metrics_tracker,
-            )
-        self._similar_lora_use_case = similar_lora_use_case
+    @classmethod
+    def create(
+        cls,
+        *,
+        embedding_coordinator: EmbeddingCoordinator,
+        feedback_manager: FeedbackManager,
+        stats_reporter: StatsReporter,
+        similar_lora_use_case: SimilarLoraUseCase,
+        prompt_recommendation_use_case: PromptRecommendationUseCase,
+        config: RecommendationConfig,
+        metrics_tracker: Optional[RecommendationMetricsTrackerProtocol] = None,
+        logger: Optional[logging.Logger] = None,
+    ) -> "RecommendationService":
+        """Convenience constructor for explicit dependency injection."""
 
-        if prompt_recommendation_use_case is None:
-            if repository is None or bootstrap is None or metrics_tracker is None:
-                raise ValueError(
-                    "PromptRecommendationUseCase dependencies are not satisfied",
-                )
-            model_registry = bootstrap.get_model_registry()
-            prompt_recommendation_use_case = PromptRecommendationUseCase(
-                repository=repository,
-                embedder_provider=model_registry.get_semantic_embedder,
-                metrics=metrics_tracker,
-                device=self._embedding_coordinator.device,
-            )
-        self._prompt_recommendation_use_case = prompt_recommendation_use_case
+        components = RecommendationServiceComponents(
+            embedding_coordinator=embedding_coordinator,
+            feedback_manager=feedback_manager,
+            stats_reporter=stats_reporter,
+            similar_lora_use_case=similar_lora_use_case,
+            prompt_recommendation_use_case=prompt_recommendation_use_case,
+            config=config,
+        )
+        return cls(
+            components=components,
+            metrics_tracker=metrics_tracker,
+            logger=logger,
+        )
 
-        if config is None:
-            if persistence_service is None:
-                raise ValueError(
-                    "RecommendationConfig requires a persistence service",
-                )
-            config = RecommendationConfig(persistence_service)
-        self._config = config
+    @classmethod
+    def from_legacy_dependencies(
+        cls,
+        *,
+        bootstrap: RecommendationBootstrap,
+        repository: RecommendationRepository,
+        embedding_workflow: EmbeddingWorkflow,
+        persistence_service: RecommendationPersistenceService,
+        metrics_tracker: Optional[RecommendationMetricsTrackerProtocol] = None,
+        logger: Optional[logging.Logger] = None,
+    ) -> "RecommendationService":
+        """Assemble the service from the pre-refactor dependency set."""
+
+        metrics = metrics_tracker or RecommendationMetricsTracker()
+        model_registry = bootstrap.get_model_registry()
+
+        embedding_coordinator = EmbeddingCoordinator(
+            bootstrap=bootstrap,
+            embedding_workflow=embedding_workflow,
+            persistence_service=persistence_service,
+            logger=logger,
+        )
+        feedback_manager = FeedbackManager(repository)
+        stats_reporter = StatsReporter(
+            metrics_tracker=metrics,
+            repository=repository,
+        )
+        similar_lora_use_case = SimilarLoraUseCase(
+            repository=repository,
+            embedding_workflow=embedding_workflow,
+            engine_provider=model_registry.get_recommendation_engine,
+            metrics=metrics,
+        )
+        prompt_recommendation_use_case = PromptRecommendationUseCase(
+            repository=repository,
+            embedder_provider=model_registry.get_semantic_embedder,
+            metrics=metrics,
+            device=bootstrap.device,
+        )
+        config = RecommendationConfig(persistence_service)
+
+        return cls.create(
+            embedding_coordinator=embedding_coordinator,
+            feedback_manager=feedback_manager,
+            stats_reporter=stats_reporter,
+            similar_lora_use_case=similar_lora_use_case,
+            prompt_recommendation_use_case=prompt_recommendation_use_case,
+            config=config,
+            metrics_tracker=metrics,
+            logger=logger,
+        )
 
     # ------------------------------------------------------------------
     # Static helpers delegating to the embedding coordinator bootstrap
