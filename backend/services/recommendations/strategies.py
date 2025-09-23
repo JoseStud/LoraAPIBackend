@@ -12,7 +12,7 @@ import numpy as np
 from backend.schemas.recommendations import RecommendationItem
 
 from .embedding_manager import EmbeddingManager
-from .metrics import RecommendationMetrics
+from .metrics import RecommendationMetricsTracker
 from .repository import RecommendationRepository
 
 
@@ -25,7 +25,7 @@ async def get_similar_loras(
     repository: RecommendationRepository,
     embedding_manager: EmbeddingManager,
     engine,
-    metrics: RecommendationMetrics,
+    metrics: RecommendationMetricsTracker,
 ) -> List[RecommendationItem]:
     """Return LoRAs similar to the target LoRA."""
 
@@ -99,7 +99,7 @@ async def get_recommendations_for_prompt(
     repository: RecommendationRepository,
     embedder,
     device: str,
-    metrics: RecommendationMetrics,
+    metrics: RecommendationMetricsTracker,
 ) -> List[RecommendationItem]:
     """Return LoRAs that enhance the provided prompt."""
 
