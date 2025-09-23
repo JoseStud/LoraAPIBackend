@@ -3,9 +3,7 @@
 The canonical client-facing path for this socket is ``/api/v1/ws/progress``
 when the backend is served through the main application (``app.main``). When
 connecting directly to the backend service without the ``/api`` mount, the
-route is available at ``/v1/ws/progress``. A legacy compatibility path without
-versioning is also provided by ``backend.main`` so older clients that still use
-``/ws/progress`` continue to function.
+route is available at ``/v1/ws/progress``.
 """
 
 from fastapi import APIRouter, Depends, WebSocket

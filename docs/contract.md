@@ -158,11 +158,13 @@ with full test coverage and proper separation of concerns.
 * `GET /v1/system/status` – combine GPU detection, queue statistics, and disk
   usage into a telemetry snapshot for clients.【F:backend/api/v1/system.py†L1-L16】【F:backend/services/system.py†L1-L149】
 
-### WebSocket progress (`/v1/ws/progress` or `/api/v1/ws/progress`)
+### WebSocket progress (`/api/v1/ws/progress` via main app, `/v1/ws/progress` direct)
 
 * `GET /v1/ws/progress` (WebSocket) – subscribe to progress events for delivery
-  and generation jobs. Clients send subscription messages after connecting, and
-  the `WebSocketService` manages broadcasts.【F:backend/api/v1/websocket.py†L1-L43】
+  and generation jobs when addressing the backend service directly. The main
+  FastAPI application mounts the same route at `/api/v1/ws/progress`. Clients
+  send subscription messages after connecting, and the `WebSocketService`
+  manages broadcasts.【F:backend/api/v1/websocket.py†L1-L43】
 
 ---
 
