@@ -16,7 +16,7 @@
     </div>
     <div class="grid gap-6 xl:grid-cols-2">
       <JobQueue :show-clear-completed="true" />
-      <ImportExport />
+      <ImportExportContainer />
     </div>
     <div class="grid gap-6 xl:grid-cols-2">
       <PerformanceAnalytics :show-page-header="false" :show-system-status="false" />
@@ -28,7 +28,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
 
-import ImportExport from '@/components/ImportExport.vue';
+import ImportExportContainer from '@/components/import-export/ImportExportContainer.vue';
 import JobQueue from '@/components/JobQueue.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import PerformanceAnalytics from '@/views/analytics/PerformanceAnalyticsPage.vue';

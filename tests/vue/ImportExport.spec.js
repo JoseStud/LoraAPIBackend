@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { defineComponent, h, reactive, ref } from 'vue';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 
-import ImportExport from '../../app/frontend/src/components/ImportExport.vue';
+import ImportExportContainer from '../../app/frontend/src/components/import-export/ImportExportContainer.vue';
 
 function stubComponent(name) {
   return defineComponent({
@@ -100,7 +100,7 @@ vi.mock('@/components/import-export/MigrationWorkflowPanel.vue', () => ({
   default: stubComponent('MigrationWorkflowPanel')
 }));
 
-describe('ImportExport.vue', () => {
+describe('ImportExportContainer.vue', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     exportProgressHandlers.length = 0;
@@ -123,8 +123,10 @@ describe('ImportExport.vue', () => {
   });
 
   it('initializes workflows on mount', async () => {
-    const wrapper = mount(ImportExport);
+    const wrapper = mount(ImportExportContainer);
+    await flushPromises();
     await vi.runAllTimersAsync();
+    await flushPromises();
 
     expect(mockExportWorkflow.initialize).toHaveBeenCalled();
     expect(mockBackupWorkflow.initialize).toHaveBeenCalled();
@@ -132,29 +134,38 @@ describe('ImportExport.vue', () => {
   });
 
   it('invokes quick export workflow from header action', async () => {
-    const wrapper = mount(ImportExport);
+    const wrapper = mount(ImportExportContainer);
+    await flushPromises();
     await vi.runAllTimersAsync();
+    await flushPromises();
 
     await wrapper.find('button.btn-primary.btn-sm').trigger('click');
     expect(mockExportWorkflow.quickExportAll).toHaveBeenCalled();
   });
 
   it('routes history view to backup tab', async () => {
-    const wrapper = mount(ImportExport);
+    const wrapper = mount(ImportExportContainer);
+    await flushPromises();
     await vi.runAllTimersAsync();
+    await flushPromises();
 
     const historyButton = wrapper.findAll('button.btn-secondary.btn-sm').at(0);
+    if (!historyButton) {
+      throw new Error('History button not found');
+    }
     await historyButton.trigger('click');
 
     expect(wrapper.html()).toContain('Backup/Restore');
   });
 
   it('forwards export panel actions to workflow', async () => {
-    const wrapper = mount(ImportExport);
+    const wrapper = mount(ImportExportContainer);
+    await flushPromises();
     await vi.runAllTimersAsync();
+    await flushPromises();
 
     const exportPanel = wrapper.findComponent({ name: 'ExportConfigurationPanel' });
-    exportPanel.vm.$emit('update-config', { key: 'loras', value: true });
+    exportPanel.vm.$emit('update-config', 'loras', true);
     exportPanel.vm.$emit('validate');
     exportPanel.vm.$emit('preview');
     exportPanel.vm.$emit('start');
@@ -166,13 +177,15 @@ describe('ImportExport.vue', () => {
   });
 
   it('forwards import panel events to workflow', async () => {
-    const wrapper = mount(ImportExport);
+    const wrapper = mount(ImportExportContainer);
+    await flushPromises();
     await vi.runAllTimersAsync();
+    await flushPromises();
 
     const importPanel = wrapper.findComponent({ name: 'ImportProcessingPanel' });
     const file = new File(['test'], 'test.zip');
 
-    importPanel.vm.$emit('update-config', { key: 'mode', value: 'replace' });
+    importPanel.vm.$emit('update-config', 'mode', 'replace');
     importPanel.vm.$emit('add-files', [file]);
     importPanel.vm.$emit('remove-file', file);
     importPanel.vm.$emit('analyze');
@@ -188,8 +201,10 @@ describe('ImportExport.vue', () => {
   });
 
   it('invokes backup workflow handlers', async () => {
-    const wrapper = mount(ImportExport);
+    const wrapper = mount(ImportExportContainer);
+    await flushPromises();
     await vi.runAllTimersAsync();
+    await flushPromises();
 
     const backupPanel = wrapper.findComponent({ name: 'BackupManagementPanel' });
     backupPanel.vm.$emit('create-full-backup');
@@ -208,11 +223,13 @@ describe('ImportExport.vue', () => {
   });
 
   it('invokes migration workflow handlers', async () => {
-    const wrapper = mount(ImportExport);
+    const wrapper = mount(ImportExportContainer);
+    await flushPromises();
     await vi.runAllTimersAsync();
+    await flushPromises();
 
     const migrationPanel = wrapper.findComponent({ name: 'MigrationWorkflowPanel' });
-    migrationPanel.vm.$emit('update-config', { key: 'from_version', value: '1.0' });
+    migrationPanel.vm.$emit('update-config', 'from_version', '1.0');
     migrationPanel.vm.$emit('start-version-migration');
     migrationPanel.vm.$emit('start-platform-migration');
 
@@ -222,13 +239,19 @@ describe('ImportExport.vue', () => {
   });
 
   it('cancels active operations through workflows', async () => {
-    const wrapper = mount(ImportExport);
+    const wrapper = mount(ImportExportContainer);
+    await flushPromises();
     await vi.runAllTimersAsync();
+    await flushPromises();
 
     const [exportProgress] = exportProgressHandlers;
     exportProgress.begin();
+    await flushPromises();
 
     const cancelButton = wrapper.findAll('button').find(btn => btn.text() === 'Cancel');
+    if (!cancelButton) {
+      throw new Error('Cancel button not found');
+    }
     await cancelButton.trigger('click');
 
     expect(mockExportWorkflow.cancelExport).toHaveBeenCalled();

@@ -10,7 +10,7 @@
         </RouterLink>
       </template>
     </PageHeader>
-    <ImportExport />
+    <ImportExportContainer />
     <div class="grid gap-6 xl:grid-cols-2">
       <JobQueue :show-clear-completed="true" />
       <SystemStatusPanel />
@@ -19,10 +19,14 @@
 </template>
 
 <script setup lang="ts">
+import { defineAsyncComponent } from 'vue';
 import { RouterLink } from 'vue-router';
 
-import ImportExport from '@/components/ImportExport.vue';
 import JobQueue from '@/components/JobQueue.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import SystemStatusPanel from '@/components/SystemStatusPanel.vue';
+
+const ImportExportContainer = defineAsyncComponent(() =>
+  import('@/components/import-export/ImportExportContainer.vue')
+);
 </script>
