@@ -8,6 +8,8 @@ from .interfaces import (
     RecommendationEngineProtocol,
     SemanticEmbedderProtocol,
 )
+from .sentence_transformer_provider import SentenceTransformerProvider
+from .text_payload_builder import MultiModalTextPayloadBuilder
 
 __all__ = [
     "FeatureExtractorProtocol",
@@ -16,4 +18,6 @@ __all__ = [
     "RecommendationEngineProtocol",
     "SemanticEmbedderProtocol",
     "LoRASemanticEmbedder",
+    "MultiModalTextPayloadBuilder",
+    "SentenceTransformerProvider",
 ]
