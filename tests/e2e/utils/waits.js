@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-const isJobEndpoint = (url) => url.includes('/generation/jobs/active') || url.includes('/jobs/status');
+const isJobEndpoint = (url) => url.includes('/generation/jobs/active');
 
 const importExportLoadingSelector = '[data-testid="import-export-loading"]';
 

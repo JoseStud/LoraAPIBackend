@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, ref } from 'vue';
 import { mount } from '@vue/test-utils';
 
-import { useJobQueuePolling } from '@/composables/useJobQueuePolling';
+import { useJobQueuePolling } from '@/composables/generation/useJobQueuePolling';
 
 describe('useJobQueuePolling', () => {
   beforeEach(() => {
@@ -16,7 +16,6 @@ describe('useJobQueuePolling', () => {
   it('executes the fetch callback on an interval and stops when disabled', async () => {
     const disabled = ref(false);
     const pollInterval = ref(100);
-    const apiAvailable = ref(true);
     const fetchJobs = vi.fn().mockResolvedValue([{ id: 'job-1' }, { id: 'job-2' }]);
     const onRecord = vi.fn();
 
@@ -27,7 +26,6 @@ describe('useJobQueuePolling', () => {
         polling = useJobQueuePolling({
           disabled: computed(() => disabled.value),
           pollInterval: computed(() => pollInterval.value),
-          apiAvailable,
           fetchJobs,
           onRecord,
         });

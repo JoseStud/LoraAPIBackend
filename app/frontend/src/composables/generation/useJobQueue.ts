@@ -183,7 +183,6 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
   const polling = useJobQueuePolling({
     disabled: isDisabled,
     pollInterval,
-    apiAvailable: transport.apiAvailable,
     fetchJobs: transport.fetchJobs,
     onRecord: (record) =>
       applyJobRecord(
@@ -199,7 +198,6 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
     jobs: activeJobs,
     isReady: polling.isReady,
     isPolling: polling.isPolling,
-    apiAvailable: transport.apiAvailable,
     refresh: polling.refresh,
     startPolling: polling.startPolling,
     stopPolling: polling.stopPolling,

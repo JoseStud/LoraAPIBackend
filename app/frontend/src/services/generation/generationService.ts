@@ -78,16 +78,6 @@ export const fetchActiveGenerationJobs = async (
   return Array.isArray(result.data) ? result.data : [];
 };
 
-export const fetchLegacyJobStatuses = async (
-  baseUrl?: string | null,
-): Promise<JobStatusRecord[]> => {
-  const result = await requestJson<JobStatusRecord[]>(
-    resolveBackendUrlHelper('/jobs/status', baseUrl),
-    { credentials: 'same-origin' },
-  );
-  return Array.isArray(result.data) ? result.data : [];
-};
-
 const sanitizeNegativePrompt = (value: string): string | null => {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
@@ -133,17 +123,6 @@ export const cancelGenerationJob = async (
     },
   );
   return data ?? null;
-};
-
-export const cancelLegacyJob = async (
-  jobId: string,
-  baseUrl?: string | null,
-): Promise<boolean> => {
-  const result = await requestJson(resolveBackendUrlHelper(`/jobs/${encodeURIComponent(jobId)}/cancel`, baseUrl), {
-    method: 'POST',
-    credentials: 'same-origin',
-  });
-  return result.meta.ok;
 };
 
 export const deleteGenerationResult = async (

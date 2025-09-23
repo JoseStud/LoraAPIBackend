@@ -1,19 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, effectScope } from 'vue';
 
-import { useJobQueueTransport } from '@/composables/useJobQueueTransport';
-import { ApiError } from '@/composables/useApi';
+import { useJobQueueTransport } from '@/composables/generation/useJobQueueTransport';
 
 const serviceMocks = vi.hoisted(() => ({
   fetchActiveGenerationJobs: vi.fn(),
-  fetchLegacyJobStatuses: vi.fn(),
 }));
 
 vi.mock('@/services', () => ({
   fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
-  fetchLegacyJobStatuses: serviceMocks.fetchLegacyJobStatuses,
   cancelGenerationJob: vi.fn(),
-  cancelLegacyJob: vi.fn(),
 }));
 
 const createTransport = () => {
@@ -35,43 +31,32 @@ describe('useJobQueueTransport', () => {
     vi.clearAllMocks();
   });
 
-  it('falls back to the legacy endpoint when the primary fails', async () => {
+  it('returns records from the canonical job endpoint', async () => {
     const records = [{ id: 'job-1' }];
-    serviceMocks.fetchActiveGenerationJobs.mockRejectedValueOnce(new Error('primary failed'));
-    serviceMocks.fetchLegacyJobStatuses.mockResolvedValueOnce(records);
+    serviceMocks.fetchActiveGenerationJobs.mockResolvedValueOnce(records);
 
     const { transport, stop } = createTransport();
 
     await expect(transport.fetchJobs()).resolves.toEqual(records);
+    expect(serviceMocks.fetchActiveGenerationJobs).toHaveBeenCalledWith('/api/v1');
     expect(transport.apiAvailable.value).toBe(true);
-    expect(transport.legacyEndpointMissing.value).toBe(false);
-    expect(serviceMocks.fetchLegacyJobStatuses).toHaveBeenCalledWith('/api/v1');
 
     stop();
   });
 
-  it('marks the legacy endpoint as unavailable when it returns 404', async () => {
-    const notFoundError = new ApiError({
-      message: 'Not Found',
-      status: 404,
-      statusText: 'Not Found',
-      payload: null,
-      meta: { ok: false, status: 404, statusText: 'Not Found' },
-    });
-
-    serviceMocks.fetchActiveGenerationJobs.mockRejectedValue(new Error('primary failed'));
-    serviceMocks.fetchLegacyJobStatuses.mockRejectedValueOnce(notFoundError);
+  it('marks the API as unavailable when the request fails and recovers on success', async () => {
+    serviceMocks.fetchActiveGenerationJobs.mockRejectedValueOnce(new Error('primary failed'));
 
     const { transport, stop } = createTransport();
 
     await expect(transport.fetchJobs()).resolves.toBeNull();
-    expect(transport.legacyEndpointMissing.value).toBe(true);
-    expect(transport.isLegacyFallbackAvailable.value).toBe(false);
+    expect(transport.apiAvailable.value).toBe(false);
 
-    serviceMocks.fetchActiveGenerationJobs.mockResolvedValueOnce([{ id: 'job-2' }]);
+    const nextRecords = [{ id: 'job-2' }];
+    serviceMocks.fetchActiveGenerationJobs.mockResolvedValueOnce(nextRecords);
 
-    await expect(transport.fetchJobs()).resolves.toEqual([{ id: 'job-2' }]);
-    expect(serviceMocks.fetchLegacyJobStatuses).toHaveBeenCalledTimes(1);
+    await expect(transport.fetchJobs()).resolves.toEqual(nextRecords);
+    expect(transport.apiAvailable.value).toBe(true);
 
     stop();
   });
