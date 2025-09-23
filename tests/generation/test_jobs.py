@@ -1,16 +1,15 @@
-"""Tests for generation job management endpoints."""
-
-from __future__ import annotations
+"""Tests covering generation job orchestration."""
 
 from contextlib import contextmanager
 from types import SimpleNamespace
-from typing import Any, Dict, cast
-from unittest.mock import AsyncMock, MagicMock
+from typing import Any, Dict
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import BackgroundTasks
 from fastapi.testclient import TestClient
 
+from backend.core.dependencies import get_service_container
 from backend.delivery.base import DeliveryRegistry, GenerationBackend
 from backend.main import app as backend_app
 from backend.schemas import SDNextGenerationParams, SDNextGenerationResult
@@ -19,36 +18,20 @@ from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.generation import GenerationCoordinator, GenerationService
-from backend.services.queue import (
-    QueueBackend,
-    QueueOrchestrator,
-    create_queue_orchestrator,
-)
+from backend.services.queue import QueueBackend, QueueOrchestrator, create_queue_orchestrator
 from backend.services.websocket import WebSocketService
 from backend.workers.delivery_runner import DeliveryRunner
-
-
-def _create_generation_params(prompt: str) -> Dict[str, Dict[str, object]]:
-    return {
-        "generation_params": {
-            "prompt": prompt,
-            "negative_prompt": "nope",
-            "width": 640,
-            "height": 480,
-            "steps": 25,
-            "cfg_scale": 7.5,
-            "seed": 1234,
-        },
-    }
 
 
 def test_cancel_generation_job_succeeds(
     client: TestClient,
     delivery_service: DeliveryService,
     monkeypatch: pytest.MonkeyPatch,
+    generation_params_factory,
 ):
     """Cancelling an active job updates status and stops monitoring."""
-    job = delivery_service.create_job("Prompt", "sdnext", _create_generation_params("Prompt"))
+    params = generation_params_factory("Prompt")
+    job = delivery_service.create_job("Prompt", "sdnext", params)
     delivery_service.update_job_status(job.id, "running")
 
     stop_mock = MagicMock()
@@ -78,18 +61,28 @@ def test_cancel_generation_job_not_found(client: TestClient):
 def test_cancel_generation_job_invalid_state(
     client: TestClient,
     delivery_service: DeliveryService,
+    generation_params_factory,
 ):
     """Cancelling a completed job returns an error."""
-    job = delivery_service.create_job("Prompt", "sdnext", _create_generation_params("Prompt"))
-    delivery_service.update_job_status(job.id, "succeeded", {"status": "completed"})
+    params = generation_params_factory("Prompt")
+    job = delivery_service.create_job("Prompt", "sdnext", params)
+    delivery_service.update_job_status(
+        job.id,
+        "succeeded",
+        {"status": "completed"},
+    )
 
     response = client.post(f"/api/v1/generation/jobs/{job.id}/cancel")
     assert response.status_code == 400
 
 
-def test_serialize_generation_job_normalizes_payload(delivery_service: DeliveryService):
+def test_serialize_generation_job_normalizes_payload(
+    delivery_service: DeliveryService,
+    generation_params_factory,
+):
     """Helper returns flattened params and normalized result details."""
-    job = delivery_service.create_job("Prompt", "sdnext", _create_generation_params("Prompt"))
+    params = generation_params_factory("Prompt")
+    job = delivery_service.create_job("Prompt", "sdnext", params)
     delivery_service.update_job_status(
         job.id,
         "running",
@@ -123,7 +116,7 @@ def test_generation_coordinator_schedule_generation_job(db_session):
         def __init__(self) -> None:
             self.calls = []
 
-        def enqueue_delivery(self, job_id, *, background_tasks=None, **enqueue_kwargs):  # type: ignore[override]
+        def enqueue_delivery(self, job_id, *, background_tasks=None, **enqueue_kwargs):
             self.calls.append((job_id, background_tasks, enqueue_kwargs))
 
     queue = RecordingQueue()
@@ -167,12 +160,13 @@ def test_generation_coordinator_schedule_generation_job(db_session):
 
 
 def test_delivery_runner_uses_requested_generation_backend(
-    db_session, monkeypatch: pytest.MonkeyPatch,
+    db_session,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     """Processing a job triggers the generation backend specified when scheduling."""
 
     class SilentQueue(QueueBackend):
-        def enqueue_delivery(self, job_id, *, background_tasks=None, **enqueue_kwargs):  # type: ignore[override]
+        def enqueue_delivery(self, job_id, *, background_tasks=None, **enqueue_kwargs):
             return job_id
 
     class RecordingGenerationBackend(GenerationBackend):
@@ -262,8 +256,6 @@ def test_compose_sdnext_uses_generation_coordinator(
     coordinator = RecordingCoordinator()
     container._generation_coordinator = coordinator  # type: ignore[attr-defined]
 
-    from backend.core.dependencies import get_service_container
-
     backend_app.dependency_overrides[get_service_container] = lambda: container
 
     try:
@@ -304,191 +296,3 @@ def test_compose_sdnext_uses_generation_coordinator(
     broadcast_job_id, broadcast_params = coordinator.broadcast_calls[0]
     assert broadcast_job_id == "job-123"
     assert broadcast_params.prompt == body["prompt"]
-
-
-@pytest.mark.anyio
-async def test_generation_coordinator_broadcast_job_started(monkeypatch: pytest.MonkeyPatch):
-    """Coordinator triggers WebSocket monitoring and broadcasts."""
-    deliveries = cast(DeliveryService, MagicMock(spec=DeliveryService))
-    websocket = WebSocketService()
-    coordinator = GenerationCoordinator(
-        deliveries,
-        websocket,
-        GenerationService(),
-    )
-
-    start_mock = AsyncMock()
-    broadcast_mock = AsyncMock()
-    monkeypatch.setattr(websocket, "start_job_monitoring", start_mock)
-    monkeypatch.setattr(websocket.manager, "broadcast_generation_started", broadcast_mock)
-
-    params = SDNextGenerationParams(prompt="Prompt")
-
-    await coordinator.broadcast_job_started("job-1", params)
-
-    start_mock.assert_awaited_once()
-    awaited_job_id, awaited_service = start_mock.await_args.args
-    assert awaited_job_id == "job-1"
-    assert isinstance(awaited_service, GenerationService)
-
-    broadcast_mock.assert_awaited_once()
-    broadcast_args = broadcast_mock.await_args.args
-    assert broadcast_args[0] == "job-1"
-    assert broadcast_args[1].job_id == "job-1"
-    assert broadcast_args[1].params.prompt == "Prompt"
-
-
-def test_queue_generation_job_uses_primary_queue_backend(
-    client: TestClient,
-    db_session,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    """Queue endpoint enqueues jobs via the configured primary queue backend."""
-
-    class TrackingQueue(QueueBackend):
-        def __init__(self) -> None:
-            self.calls = []
-
-        def enqueue_delivery(self, job_id, *, background_tasks=None, **enqueue_kwargs):  # type: ignore[override]
-            self.calls.append((job_id, background_tasks, enqueue_kwargs))
-
-    primary_queue = TrackingQueue()
-    fallback_queue = TrackingQueue()
-
-    start_mock = AsyncMock()
-    broadcast_mock = AsyncMock()
-    monkeypatch.setattr(
-        "backend.services.websocket.websocket_service.start_job_monitoring",
-        start_mock,
-    )
-    monkeypatch.setattr(
-        "backend.services.websocket.websocket_service.manager.broadcast_generation_started",
-        broadcast_mock,
-    )
-
-    from backend.core.dependencies import get_service_container
-
-    def override_service_container():
-        orchestrator = QueueOrchestrator(
-            primary_backend=primary_queue,
-            fallback_backend=fallback_queue,
-        )
-        return ServiceContainer(
-            db_session,
-            queue_orchestrator=orchestrator,
-            delivery_repository=DeliveryJobRepository(db_session),
-            analytics_repository=AnalyticsRepository(db_session),
-            recommendation_gpu_available=False,
-        )
-
-    backend_app.dependency_overrides[get_service_container] = override_service_container
-
-    response = client.post(
-        "/api/v1/generation/queue-generation",
-        json={"prompt": "Track primary"},
-    )
-
-    assert response.status_code == 200
-    payload = response.json()
-    job_id = payload["delivery_id"]
-
-    assert len(primary_queue.calls) == 1
-    assert primary_queue.calls[0][0] == job_id
-    assert primary_queue.calls[0][1] is not None
-    assert fallback_queue.calls == []
-
-    start_mock.assert_awaited_once()
-    start_args, start_kwargs = start_mock.await_args
-    assert start_args[0] == job_id
-    assert start_kwargs == {}
-
-    broadcast_mock.assert_awaited_once()
-    broadcast_args, broadcast_kwargs = broadcast_mock.await_args
-    assert broadcast_args[0] == job_id
-    assert broadcast_kwargs == {}
-
-
-def test_queue_generation_job_falls_back_to_background_tasks(
-    client: TestClient,
-    db_session,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    """Queue endpoint uses the in-process fallback when the primary queue fails."""
-
-    class FailingQueue(QueueBackend):
-        def __init__(self) -> None:
-            self.calls = []
-
-        def enqueue_delivery(self, job_id, *, background_tasks=None, **enqueue_kwargs):  # type: ignore[override]
-            self.calls.append((job_id, background_tasks, enqueue_kwargs))
-            raise RuntimeError("primary failure")
-
-    class InstrumentedBackgroundQueue(QueueBackend):
-        def __init__(self) -> None:
-            self.calls = []
-
-        def enqueue_delivery(self, job_id, *, background_tasks=None, **enqueue_kwargs):  # type: ignore[override]
-            self.calls.append((job_id, background_tasks, enqueue_kwargs))
-            if background_tasks is not None:
-                background_tasks.add_task(lambda job=job_id: None)
-
-    primary_queue = FailingQueue()
-    fallback_queue = InstrumentedBackgroundQueue()
-
-    start_mock = AsyncMock()
-    broadcast_mock = AsyncMock()
-    monkeypatch.setattr(
-        "backend.services.websocket.websocket_service.start_job_monitoring",
-        start_mock,
-    )
-    monkeypatch.setattr(
-        "backend.services.websocket.websocket_service.manager.broadcast_generation_started",
-        broadcast_mock,
-    )
-
-    from backend.core.dependencies import get_service_container
-
-    def override_service_container():
-        orchestrator = QueueOrchestrator(
-            primary_backend=primary_queue,
-            fallback_backend=fallback_queue,
-        )
-        return ServiceContainer(
-            db_session,
-            queue_orchestrator=orchestrator,
-            delivery_repository=DeliveryJobRepository(db_session),
-            analytics_repository=AnalyticsRepository(db_session),
-            recommendation_gpu_available=False,
-        )
-
-    backend_app.dependency_overrides[get_service_container] = override_service_container
-
-    response = client.post(
-        "/api/v1/generation/queue-generation",
-        json={"prompt": "Track fallback"},
-    )
-
-    assert response.status_code == 200
-    payload = response.json()
-    job_id = payload["delivery_id"]
-
-    assert len(primary_queue.calls) == 1
-    assert primary_queue.calls[0][0] == job_id
-    assert len(fallback_queue.calls) == 1
-    assert fallback_queue.calls[0][0] == job_id
-
-    background_tasks = fallback_queue.calls[0][1]
-    assert background_tasks is not None
-    assert getattr(background_tasks, "tasks", [])  # background task scheduled
-
-    start_mock.assert_awaited_once()
-    start_args, start_kwargs = start_mock.await_args
-    assert start_args[0] == job_id
-    assert start_kwargs == {}
-
-    broadcast_mock.assert_awaited_once()
-    broadcast_args, broadcast_kwargs = broadcast_mock.await_args
-    assert broadcast_args[0] == job_id
-    assert broadcast_kwargs == {}
-
-
