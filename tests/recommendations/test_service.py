@@ -9,14 +9,18 @@ from backend.services import ServiceContainer
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.recommendations import (
     EmbeddingCoordinator,
+    EmbeddingStack,
     FeedbackManager,
+    PersistenceComponents,
     RecommendationConfig,
     RecommendationMetricsTracker,
     RecommendationService,
     RecommendationServiceBuilder,
     StatsReporter,
+    UseCaseBundle,
 )
 from backend.schemas.recommendations import RecommendationStats
+from backend.services.providers.recommendations import make_recommendation_service
 
 
 class TestRecommendationService:
@@ -152,46 +156,75 @@ class TestRecommendationService:
         assert service.device == "cpu"
         assert service.gpu_enabled is False
 
-    def test_service_from_legacy_dependencies_factory(self):
+    def test_service_provider_uses_supplied_builder(self):
+        db_session = MagicMock()
+
         bootstrap = MagicMock()
         bootstrap.device = "cpu"
         bootstrap.gpu_enabled = False
-
-        model_registry = MagicMock()
-        model_registry.get_recommendation_engine = MagicMock()
-        model_registry.get_semantic_embedder = MagicMock()
-        bootstrap.get_model_registry.return_value = model_registry
+        bootstrap.get_model_registry.return_value = MagicMock()
 
         repository = MagicMock()
-        repository.record_feedback.return_value = MagicMock()
-        repository.update_user_preference.return_value = MagicMock()
-        repository.get_embedding.return_value = None
 
-        embedding_workflow = MagicMock()
-        embedding_workflow.compute_embeddings_for_lora = AsyncMock(return_value=True)
-        embedding_workflow.batch_compute_embeddings = AsyncMock(return_value={"processed": 0})
+        embedding_stack = EmbeddingStack(
+            repository=MagicMock(),
+            manager=MagicMock(),
+        )
 
         persistence_service = MagicMock()
-        persistence_service.rebuild_similarity_index = AsyncMock(return_value="rebuilt")
         persistence_service.index_cache_path = "index"
         persistence_service.embedding_cache_dir = "embeddings"
 
-        metrics_tracker = RecommendationMetricsTracker()
-
-        service = RecommendationService.from_legacy_dependencies(
-            bootstrap=bootstrap,
-            repository=repository,
-            embedding_workflow=embedding_workflow,
-            persistence_service=persistence_service,
-            metrics_tracker=metrics_tracker,
+        persistence_components = PersistenceComponents(
+            manager=MagicMock(),
+            service=persistence_service,
+            config=RecommendationConfig(persistence_service),
         )
 
-        assert service.device == "cpu"
-        assert service.gpu_enabled is False
+        metrics_tracker = RecommendationMetricsTracker()
 
-        payload = MagicMock()
-        service.feedback.record_feedback(payload)
-        repository.record_feedback.assert_called_once_with(payload)
+        similar_use_case = MagicMock()
+        prompt_use_case = MagicMock()
+        use_case_bundle = UseCaseBundle(
+            similar_lora=similar_use_case,
+            prompt_recommendation=prompt_use_case,
+        )
 
-        status = service.embedding_status("missing")
-        assert status.needs_recomputation is True
+        embedding_coordinator = MagicMock()
+        embedding_coordinator.gpu_enabled = False
+        embedding_coordinator.device = "cpu"
+
+        feedback_manager = MagicMock()
+        stats_reporter = MagicMock()
+
+        builder = MagicMock()
+        builder.with_components.return_value = builder
+        expected_service = MagicMock()
+        builder.build.return_value = expected_service
+
+        service = make_recommendation_service(
+            db_session,
+            gpu_available=False,
+            model_bootstrap=bootstrap,
+            repository=repository,
+            embedding_stack=embedding_stack,
+            persistence_components=persistence_components,
+            metrics_tracker=metrics_tracker,
+            use_case_bundle=use_case_bundle,
+            embedding_coordinator=embedding_coordinator,
+            feedback_manager=feedback_manager,
+            stats_reporter=stats_reporter,
+            builder=builder,
+        )
+
+        assert service is expected_service
+        builder.with_components.assert_called_once_with(
+            embedding_coordinator=embedding_coordinator,
+            feedback_manager=feedback_manager,
+            stats_reporter=stats_reporter,
+            similar_lora_use_case=similar_use_case,
+            prompt_recommendation_use_case=prompt_use_case,
+            config=persistence_components.config,
+        )
+        builder.build.assert_called_once_with()
+        bootstrap.get_model_registry.assert_called_once_with()

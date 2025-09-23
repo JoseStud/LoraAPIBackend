@@ -15,15 +15,6 @@ from backend.schemas.recommendations import (
 from .config import RecommendationConfig
 from .embedding_coordinator import EmbeddingCoordinator
 from .feedback_manager import FeedbackManager
-from .interfaces import (
-    EmbeddingWorkflow,
-    RecommendationBootstrap,
-    RecommendationPersistenceService,
-    RecommendationRepository,
-)
-from .interfaces import (
-    RecommendationMetricsTracker as RecommendationMetricsTrackerProtocol,
-)
 from .stats_reporter import StatsReporter
 from .use_cases import (
     PromptRecommendationUseCase,
@@ -53,33 +44,6 @@ class RecommendationService:
         self._similar_lora_use_case = similar_lora_use_case
         self._prompt_recommendation_use_case = prompt_recommendation_use_case
         self._config = config
-
-    @classmethod
-    def from_legacy_dependencies(
-        cls,
-        *,
-        bootstrap: RecommendationBootstrap,
-        repository: RecommendationRepository,
-        embedding_workflow: EmbeddingWorkflow,
-        persistence_service: RecommendationPersistenceService,
-        metrics_tracker: Optional[RecommendationMetricsTrackerProtocol] = None,
-        logger: Optional[logging.Logger] = None,
-    ) -> "RecommendationService":
-        """Assemble the service from the pre-refactor dependency set."""
-        from .builder import RecommendationServiceBuilder
-
-        builder = RecommendationServiceBuilder()
-        if logger is not None:
-            builder = builder.with_logger(logger)
-
-        return builder.with_legacy_dependencies(
-            bootstrap=bootstrap,
-            repository=repository,
-            embedding_workflow=embedding_workflow,
-            persistence_service=persistence_service,
-            metrics_tracker=metrics_tracker,
-            logger=logger,
-        ).build()
 
     # ------------------------------------------------------------------
     # Static helpers delegating to the embedding coordinator bootstrap
