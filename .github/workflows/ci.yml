@@ -6,6 +6,19 @@ on:
   pull_request:
 
 jobs:
+  node-modules-sanity:
+    name: Ensure node_modules directory is absent
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Verify node_modules is not committed
+        run: |
+          if [ -d node_modules ]; then
+            echo "node_modules/ should not be committed to the repository." >&2
+            exit 1
+          fi
+
   backend-settings:
     name: Backend settings validation
     runs-on: ubuntu-latest

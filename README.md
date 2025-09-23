@@ -42,6 +42,8 @@ npm install
 npm run dev
 ```
 
+> **Note:** Node packages are not vendored in this repository. Run `npm install` (or `npm ci`) locally after cloning and keep the generated `node_modules/` directory out of version control.
+
 Visit `http://localhost:8000` to access the application.
 
 By default the SPA calls the backend relative to the same origin at `/api/v1`. If you run the backend separately (for example on another host or port), set the `BACKEND_URL` environment variable to the full base path such as `http://localhost:8000/api/v1` before starting the FastAPI wrapper.
