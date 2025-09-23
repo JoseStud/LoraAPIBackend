@@ -67,7 +67,6 @@ class EmbeddingManager:
         force_recompute: bool = False,
     ) -> bool:
         """Compute and persist embeddings for a single adapter."""
-
         return await self._computer.compute(
             adapter_id,
             force_recompute=force_recompute,
@@ -80,7 +79,6 @@ class EmbeddingManager:
         batch_size: int = 32,
     ) -> Dict[str, Any]:
         """Compute embeddings for multiple adapters efficiently."""
-
         return await self._batch_runner.run(
             adapter_ids,
             force_recompute=force_recompute,
@@ -89,7 +87,6 @@ class EmbeddingManager:
 
     async def ensure_embeddings_exist(self, adapters: Sequence[Adapter]) -> None:
         """Ensure embeddings exist for the provided adapters."""
-
         adapter_ids = [adapter.id for adapter in adapters]
         existing_ids = self._repository.list_existing_embedding_ids(adapter_ids)
         missing_ids = [adapter_id for adapter_id in adapter_ids if adapter_id not in existing_ids]
@@ -99,5 +96,4 @@ class EmbeddingManager:
 
     async def build_similarity_index(self) -> None:
         """Build the in-memory similarity index for active adapters."""
-
         await self._index_builder.build()

@@ -62,7 +62,6 @@ class RecommendationMetricsTracker:
     @property
     def metrics(self) -> RecommendationMetrics:
         """Expose the mutable metrics state."""
-
         return self._metrics
 
     def record_query(self, elapsed_ms: float) -> None:
@@ -89,7 +88,6 @@ class RecommendationMetricsTracker:
         gpu_enabled: bool,
     ) -> RecommendationStats:
         """Assemble a ``RecommendationStats`` snapshot."""
-
         total_loras = repository.count_active_adapters()
         loras_with_embeddings = repository.count_lora_embeddings()
         embedding_coverage = (
@@ -122,7 +120,6 @@ class RecommendationMetricsTracker:
     @staticmethod
     def _default_memory_probe() -> float:
         """Inspect GPU memory usage via ``torch`` when available."""
-
         try:  # pragma: no cover - optional dependency
             import torch
 

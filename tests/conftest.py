@@ -27,7 +27,6 @@ from backend.services.queue import create_queue_orchestrator
 @pytest.fixture
 def anyio_backend():
     """Force AnyIO tests to execute using the asyncio backend."""
-
     return "asyncio"
 
 

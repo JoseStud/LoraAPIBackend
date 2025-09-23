@@ -14,7 +14,6 @@ async def get_dashboard_stats(
     application: ApplicationServices = Depends(get_application_services),
 ):
     """Get dashboard statistics and system health information."""
-
     stats = domain.adapters.get_dashboard_statistics()
     stats["active_jobs"] = application.deliveries.count_active_jobs()
 
@@ -29,7 +28,6 @@ async def get_dashboard_stats(
 @router.get("/featured-loras")
 async def get_featured_loras(services: DomainServices = Depends(get_domain_services)):
     """Get featured LoRAs for the dashboard."""
-
     featured_loras = services.adapters.get_featured_adapters(limit=5)
 
     return [
@@ -51,5 +49,4 @@ async def get_activity_feed(
     services: ApplicationServices = Depends(get_application_services),
 ):
     """Get recent activity feed for the dashboard."""
-
     return services.deliveries.get_recent_activity(limit=10)

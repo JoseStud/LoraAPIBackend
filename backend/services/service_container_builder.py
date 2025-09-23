@@ -108,7 +108,6 @@ class ServiceContainerBuilder:
         recommendation_gpu_available: Optional[bool] = None,
     ) -> ServiceRegistry:
         """Create a :class:`ServiceRegistry` wired with the configured dependencies."""
-
         queue = queue_orchestrator or self._get_queue_orchestrator()
         gpu_available = (
             recommendation_gpu_available

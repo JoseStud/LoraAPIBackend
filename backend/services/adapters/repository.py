@@ -10,7 +10,6 @@ from backend.schemas.adapters import AdapterCreate
 
 def save_adapter(db_session: Session, payload: AdapterCreate) -> Adapter:
     """Create and persist an Adapter from a creation payload."""
-
     adapter = Adapter(
         name=payload.name,
         version=payload.version,
@@ -51,7 +50,6 @@ def save_adapter(db_session: Session, payload: AdapterCreate) -> Adapter:
 
 def _apply_payload_updates(adapter: Adapter, payload: AdapterCreate) -> None:
     """Apply mutable payload fields to an existing adapter."""
-
     adapter.canonical_version_name = (
         payload.canonical_version_name or adapter.canonical_version_name
     )
@@ -106,7 +104,6 @@ def _apply_payload_updates(adapter: Adapter, payload: AdapterCreate) -> None:
 
 def upsert_adapter(db_session: Session, payload: AdapterCreate) -> Adapter:
     """Idempotently create or update an adapter by (name, version)."""
-
     query = select(Adapter).where(Adapter.name == payload.name)
     if payload.version is None:
         query = query.where(Adapter.version.is_(None))
@@ -133,7 +130,6 @@ def update_adapter(
     refresh: bool = True,
 ) -> Optional[Adapter]:
     """Update an adapter with the given changes."""
-
     adapter = db_session.get(Adapter, adapter_id)
     if adapter is None:
         return None

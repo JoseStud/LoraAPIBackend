@@ -39,7 +39,6 @@ def build_active_job(
     job: DeliveryJob, coordinator: GenerationCoordinator,
 ) -> GenerationJobStatus:
     """Return an API-facing representation of an active job."""
-
     serialized = coordinator.serialize_delivery_job(job)
     params = serialized.get("params") or {}
     result_payload = serialized.get("result") or {}
@@ -64,7 +63,6 @@ def build_result(
     job: DeliveryJob, coordinator: GenerationCoordinator,
 ) -> GenerationResultSummary:
     """Return an API-facing representation of a completed generation job."""
-
     serialized = coordinator.serialize_delivery_job(job)
     params = serialized.get("params") or {}
     result_payload = serialized.get("result") or {}

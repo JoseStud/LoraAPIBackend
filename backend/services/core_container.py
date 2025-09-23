@@ -30,7 +30,6 @@ class CoreServiceRegistry:
     @property
     def storage(self) -> StorageService:
         """Return the lazily constructed storage service."""
-
         if self._storage_service is None:
             self._storage_service = self._storage_provider()
         return self._storage_service
@@ -38,7 +37,6 @@ class CoreServiceRegistry:
     @property
     def delivery_repository(self) -> DeliveryJobRepository:
         """Return the delivery repository configured for this registry."""
-
         if self._delivery_repository is None:
             raise ValueError("DeliveryService requires a delivery repository")
         return self._delivery_repository
@@ -46,7 +44,6 @@ class CoreServiceRegistry:
     @property
     def analytics_repository(self) -> AnalyticsRepository:
         """Return the analytics repository configured for this registry."""
-
         if self._analytics_repository is None:
             raise ValueError("AnalyticsService requires an analytics repository")
         return self._analytics_repository

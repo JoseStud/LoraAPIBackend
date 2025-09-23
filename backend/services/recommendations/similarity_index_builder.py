@@ -22,7 +22,6 @@ class SimilarityIndexBuilder:
 
     async def build(self) -> None:
         """Fetch eligible adapters and rebuild the similarity index."""
-
         adapters = self._repository.list_active_adapters_with_embeddings()
         if not adapters:
             return

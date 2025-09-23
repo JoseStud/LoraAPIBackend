@@ -22,7 +22,6 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
         logger: Optional[logging.Logger] = None,
     ) -> None:
         """Initialize recommendation engine."""
-
         self.feature_extractor = feature_extractor
         self.device = device
         self._logger = logger or logging.getLogger(__name__)

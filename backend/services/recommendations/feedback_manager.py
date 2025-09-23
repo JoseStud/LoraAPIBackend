@@ -19,12 +19,10 @@ class FeedbackManager:
 
     def record_feedback(self, feedback: UserFeedbackRequest) -> RecommendationFeedback:
         """Persist recommendation feedback for later learning."""
-
         return self._repository.record_feedback(feedback)
 
     def update_user_preference(
         self, preference: UserPreferenceRequest,
     ) -> UserPreference:
         """Create or update a persisted user preference record."""
-
         return self._repository.update_user_preference(preference)

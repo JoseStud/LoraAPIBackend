@@ -22,7 +22,6 @@ class EmbeddingComputer:
 
     async def compute(self, adapter_id: str, *, force_recompute: bool = False) -> bool:
         """Compute embeddings for ``adapter_id`` and persist them."""
-
         adapter = self._repository.get_adapter(adapter_id)
         if adapter is None:
             raise ValueError(f"Adapter {adapter_id} not found")

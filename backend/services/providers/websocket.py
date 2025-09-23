@@ -22,7 +22,6 @@ def make_websocket_service(
     job_monitor=None,
 ) -> WebSocketService:
     """Create or return a :class:`WebSocketService` configured with explicit collaborators."""
-
     if service is not None:
         return service
     return WebSocketService(connection_manager=connection_manager, job_monitor=job_monitor)
@@ -30,7 +29,6 @@ def make_websocket_service(
 
 def default_websocket_service_factory() -> WebSocketService:
     """Return the application-wide WebSocket service instance."""
-
     return make_websocket_service(service=websocket_service)
 
 

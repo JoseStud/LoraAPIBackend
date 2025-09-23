@@ -22,22 +22,18 @@ class LoRAEmbeddingRepository:
     # ------------------------------------------------------------------
     def get_adapter(self, adapter_id: str) -> Adapter | None:
         """Return the adapter identified by ``adapter_id`` if it exists."""
-
         return self._session.get(Adapter, adapter_id)
 
     def get_embedding(self, adapter_id: str) -> LoRAEmbedding | None:
         """Return the persisted embedding entry for ``adapter_id``."""
-
         return self._session.get(LoRAEmbedding, adapter_id)
 
     def embedding_exists(self, adapter_id: str) -> bool:
         """Return ``True`` when an embedding record already exists."""
-
         return self.get_embedding(adapter_id) is not None
 
     def list_adapters(self, adapter_ids: Sequence[str] | None = None) -> list[Adapter]:
         """Return adapters by id or all active adapters when ``adapter_ids`` is ``None``."""
-
         if adapter_ids:
             stmt = select(Adapter).where(Adapter.id.in_(adapter_ids))
         else:
@@ -47,7 +43,6 @@ class LoRAEmbeddingRepository:
 
     def list_existing_embedding_ids(self, adapter_ids: Sequence[str]) -> Set[str]:
         """Return the subset of ``adapter_ids`` that already have embeddings."""
-
         if not adapter_ids:
             return set()
 
@@ -58,7 +53,6 @@ class LoRAEmbeddingRepository:
 
     def list_active_adapters_with_embeddings(self) -> list[Adapter]:
         """Return active adapters that have stored embeddings."""
-
         stmt = (
             select(Adapter)
             .join(LoRAEmbedding, Adapter.id == LoRAEmbedding.adapter_id)
@@ -71,7 +65,6 @@ class LoRAEmbeddingRepository:
     # ------------------------------------------------------------------
     def save_features(self, adapter_id: str, features: Mapping[str, Any]) -> None:
         """Persist the computed ``features`` for ``adapter_id``."""
-
         try:
             self._upsert_features(adapter_id, features)
             self._session.commit()

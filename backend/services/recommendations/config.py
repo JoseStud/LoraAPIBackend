@@ -14,7 +14,6 @@ class RecommendationConfig:
     @property
     def index_cache_path(self) -> str:
         """Return the persisted similarity index path."""
-
         return self._persistence.index_cache_path
 
     @index_cache_path.setter
@@ -24,7 +23,6 @@ class RecommendationConfig:
     @property
     def embedding_cache_dir(self) -> str:
         """Return the embedding cache directory path."""
-
         return self._persistence.embedding_cache_dir
 
     @embedding_cache_dir.setter

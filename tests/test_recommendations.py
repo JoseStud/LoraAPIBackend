@@ -44,7 +44,6 @@ from backend.services.recommendations import (
 @pytest.fixture(autouse=True)
 def force_cpu_mode():
     """Ensure tests run with GPU detection disabled unless overridden."""
-
     with patch.object(
         RecommendationModelBootstrap, "is_gpu_available", return_value=False,
     ):
@@ -54,7 +53,6 @@ def force_cpu_mode():
 @pytest.fixture
 def sample_adapter() -> Adapter:
     """Create a sample adapter for testing."""
-
     return Adapter(
         id="adapter-1",
         name="Adapter",
@@ -67,7 +65,6 @@ def sample_adapter() -> Adapter:
 @pytest.fixture
 def repository(db_session):
     """Return a repository tied to the ephemeral session."""
-
     return RecommendationRepository(db_session)
 
 
@@ -78,13 +75,13 @@ def model_registry(monkeypatch):
     )
 
     monkeypatch.setattr(
-        RecommendationModelRegistry, "_shared_semantic_embedder", None
+        RecommendationModelRegistry, "_shared_semantic_embedder", None,
     )
     monkeypatch.setattr(
-        RecommendationModelRegistry, "_shared_feature_extractor", None
+        RecommendationModelRegistry, "_shared_feature_extractor", None,
     )
     monkeypatch.setattr(
-        RecommendationModelRegistry, "_shared_recommendation_engine", None
+        RecommendationModelRegistry, "_shared_recommendation_engine", None,
     )
 
     return RecommendationModelRegistry
@@ -97,16 +94,16 @@ class TestRecommendationModelStatus:
         assert RecommendationService.models_loaded() is False
 
     def test_models_loaded_true_when_registry_populated(
-        self, model_registry, monkeypatch
+        self, model_registry, monkeypatch,
     ):
         monkeypatch.setattr(
-            model_registry, "_shared_semantic_embedder", object()
+            model_registry, "_shared_semantic_embedder", object(),
         )
         monkeypatch.setattr(
-            model_registry, "_shared_feature_extractor", object()
+            model_registry, "_shared_feature_extractor", object(),
         )
         monkeypatch.setattr(
-            model_registry, "_shared_recommendation_engine", object()
+            model_registry, "_shared_recommendation_engine", object(),
         )
 
         assert RecommendationService.models_loaded() is True
@@ -563,7 +560,7 @@ class TestRecommendationService:
 
         await service.similar_loras(target_lora_id="adapter-1", limit=2)
         await service.similar_loras(
-            target_lora_id="adapter-2", limit=3, diversify_results=False
+            target_lora_id="adapter-2", limit=3, diversify_results=False,
         )
         assert similar_use_case.execute.await_count == 2
         first_call_kwargs = similar_use_case.execute.await_args_list[0].kwargs

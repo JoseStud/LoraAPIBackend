@@ -53,7 +53,6 @@ class AnalyticsService:
     # ------------------------------------------------------------------
     def get_summary(self, time_range: PerformanceTimeRange = "24h") -> PerformanceAnalyticsSummary:
         """Return a comprehensive analytics snapshot for the requested window."""
-
         stats = self.get_generation_stats(time_range)
         error_breakdown = self.get_error_breakdown(time_range)
         charts = self.get_time_series_metrics(time_range)
@@ -74,7 +73,6 @@ class AnalyticsService:
 
     def get_generation_stats(self, time_range: PerformanceTimeRange = "24h") -> PerformanceKpiSummary:
         """Aggregate key performance indicators for the requested range."""
-
         window_start, window_end, previous_start = self._resolve_time_bounds(time_range)
 
         total_generations = self.repository.count_jobs(window_start, window_end)
@@ -110,7 +108,6 @@ class AnalyticsService:
 
     def get_error_breakdown(self, time_range: PerformanceTimeRange = "24h") -> List[ErrorAnalysisEntry]:
         """Return error distribution for failed jobs in the selected window."""
-
         window_start, window_end, _ = self._resolve_time_bounds(time_range)
 
         query = (
@@ -149,7 +146,6 @@ class AnalyticsService:
         self, time_range: PerformanceTimeRange = "24h",
     ) -> PerformanceAnalyticsCharts:
         """Produce chart datasets for the requested time window."""
-
         window_start, window_end, _ = self._resolve_time_bounds(time_range)
 
         rows = self.repository.fetch_time_series_rows(window_start, window_end)
@@ -162,7 +158,6 @@ class AnalyticsService:
         charts: PerformanceAnalyticsCharts,
     ) -> List[PerformanceInsightEntry]:
         """Derive human-readable insights from analytics data."""
-
         return self.insight_generator.generate(stats, errors, charts)
 
     # ------------------------------------------------------------------

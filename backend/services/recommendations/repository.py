@@ -133,7 +133,6 @@ class RecommendationRepository:
 
     def get_embedding(self, adapter_id: str) -> Optional[LoRAEmbedding]:
         """Return the embedding entry for ``adapter_id`` if present."""
-
         return self._session.get(LoRAEmbedding, adapter_id)
 
     def count_active_adapters(self) -> int:

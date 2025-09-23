@@ -33,7 +33,6 @@ def make_analytics_service(
     insight_generator: Optional[InsightGenerator] = None,
 ) -> AnalyticsService:
     """Create an :class:`AnalyticsService` with explicit collaborators."""
-
     return AnalyticsService(
         db_session,
         repository=repository,

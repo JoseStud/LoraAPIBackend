@@ -25,7 +25,6 @@ class SDNextGenerationBackend(GenerationBackend):
         storage: Optional[ImageStorage] = None,
     ) -> None:
         """Initialize SDNext backend."""
-
         self.timeout = settings.SDNEXT_TIMEOUT
         self.poll_interval = settings.SDNEXT_POLL_INTERVAL
 
@@ -44,17 +43,14 @@ class SDNextGenerationBackend(GenerationBackend):
 
     async def close(self) -> None:
         """Close HTTP session."""
-
         await self._session.close()
 
     def is_available(self) -> bool:
         """Check if SDNext backend is configured and available."""
-
         return self._session.is_configured()
 
     async def generate_image(self, prompt: str, params: Dict[str, Any]) -> SDNextGenerationResult:
         """Generate image using SDNext API."""
-
         job_id = str(uuid4())
 
         if not self.is_available():
@@ -110,7 +106,6 @@ class SDNextGenerationBackend(GenerationBackend):
 
     async def check_progress(self, job_id: str) -> SDNextGenerationResult:
         """Check generation progress."""
-
         if not self.is_available():
             return SDNextGenerationResult(
                 job_id=job_id,
@@ -139,6 +134,5 @@ class SDNextGenerationBackend(GenerationBackend):
 
     def get_backend_name(self) -> str:
         """Return backend name."""
-
         return "sdnext"
 

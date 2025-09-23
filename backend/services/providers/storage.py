@@ -33,7 +33,6 @@ class AdapterServiceFactory(Protocol):
 
 def make_storage_service(*, backend: Optional[StorageBackend] = None) -> StorageService:
     """Create a :class:`StorageService` using the provided backend."""
-
     backend = backend or get_storage_backend()
     return StorageService(backend)
 
@@ -45,7 +44,6 @@ def make_adapter_service(
     storage_backend: Optional[StorageBackend] = None,
 ) -> AdapterService:
     """Create an :class:`AdapterService` with explicit collaborators."""
-
     backend = storage_backend or storage_service.backend
     return AdapterService(db_session, storage_backend=backend)
 

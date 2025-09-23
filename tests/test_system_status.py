@@ -5,7 +5,6 @@ from backend.models.deliveries import DeliveryJob
 
 def test_system_status_endpoint_returns_expected_payload(client):
     """The /system/status endpoint should return the expected payload shape."""
-
     response = client.get("/api/v1/system/status")
 
     assert response.status_code == 200
@@ -35,7 +34,6 @@ def test_system_status_endpoint_returns_expected_payload(client):
 
 def test_system_status_reports_queue_activity(client, db_session):
     """Queue stats should include pending jobs as part of the active queue length."""
-
     job = DeliveryJob(prompt="test", mode="cli")
     db_session.add(job)
     db_session.commit()

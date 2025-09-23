@@ -45,7 +45,6 @@ def build_worker_context(
     recommendation_gpu_available: Optional[bool] = None,
 ) -> WorkerContext:
     """Create a new :class:`WorkerContext` instance."""
-
     return WorkerContext.build_default(
         queue_orchestrator=queue_orchestrator,
         async_runner=async_runner,
@@ -55,7 +54,6 @@ def build_worker_context(
 
 def get_worker_context() -> WorkerContext:
     """Return the shared worker context, constructing it on first use."""
-
     global _worker_context
     if _worker_context is None:
         _worker_context = build_worker_context()
@@ -64,14 +62,12 @@ def get_worker_context() -> WorkerContext:
 
 def set_worker_context(context: WorkerContext) -> None:
     """Replace the shared worker context (used primarily for tests)."""
-
     global _worker_context
     _worker_context = context
 
 
 def reset_worker_context() -> None:
     """Reset the cached worker context forcing re-construction on next access."""
-
     global _worker_context
     _worker_context = None
 
@@ -225,7 +221,6 @@ def process_embeddings_batch(
     context: Optional[WorkerContext] = None,
 ):
     """Synchronously execute :func:`process_embeddings_batch_async`."""
-
     ctx = context or get_worker_context()
     return ctx.run_async(
         process_embeddings_batch_async(
@@ -287,7 +282,6 @@ def compute_single_embedding(
     context: Optional[WorkerContext] = None,
 ) -> bool:
     """Synchronously execute :func:`compute_single_embedding_async`."""
-
     ctx = context or get_worker_context()
     return ctx.run_async(
         compute_single_embedding_async(

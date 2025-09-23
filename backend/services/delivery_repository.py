@@ -22,12 +22,10 @@ class DeliveryJobMapper:
 
     def serialize_params(self, params: Optional[Dict[str, Any]]) -> str:
         """Convert job parameter payloads into a JSON string."""
-
         return json.dumps(params or {})
 
     def deserialize_params(self, params: Optional[str]) -> Dict[str, Any]:
         """Convert the stored JSON params into a dictionary."""
-
         if not params:
             return {}
 
@@ -45,7 +43,6 @@ class DeliveryJobMapper:
         error: Optional[str],
     ) -> Optional[str]:
         """Merge result payloads and error messages into a JSON string."""
-
         payload: Optional[Dict[str, Any]] = None
         if result is not None:
             payload = dict(result)
@@ -63,7 +60,6 @@ class DeliveryJobMapper:
 
     def deserialize_result(self, result: Optional[str]) -> Optional[Dict[str, Any]]:
         """Decode the stored result JSON blob."""
-
         if not result:
             return None
 
@@ -77,7 +73,6 @@ class DeliveryJobMapper:
 
     def apply_status(self, job: DeliveryJob, status: str) -> None:
         """Update job status and lifecycle timestamps."""
-
         job.status = status
         now = self._now()
         if status == "running" and job.started_at is None:
@@ -87,7 +82,6 @@ class DeliveryJobMapper:
 
     def build_activity(self, job: DeliveryJob) -> Dict[str, Any]:
         """Create the activity feed payload for ``job``."""
-
         status = job.status or "pending"
         created_at = job.created_at or self._now()
         return {
@@ -132,7 +126,6 @@ class DeliveryJobRepository:
     @property
     def session(self) -> Session:
         """Expose the underlying database session for collaborators."""
-
         return self._session
 
     def create_job(

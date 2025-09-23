@@ -60,7 +60,6 @@ class DomainServiceRegistry:
     @property
     def adapters(self) -> AdapterService:
         """Return the adapter service bound to the configured session."""
-
         if self.db_session is None:
             raise ValueError("AdapterService requires an active database session")
         if self._adapter_service is None:
@@ -73,7 +72,6 @@ class DomainServiceRegistry:
     @property
     def compose(self) -> ComposeService:
         """Return the compose service."""
-
         if self._compose_service is None:
             self._compose_service = self._compose_provider()
         return self._compose_service
@@ -81,7 +79,6 @@ class DomainServiceRegistry:
     @property
     def generation(self) -> GenerationService:
         """Return the generation service."""
-
         if self._generation_service is None:
             self._generation_service = self._generation_provider()
         return self._generation_service
@@ -89,7 +86,6 @@ class DomainServiceRegistry:
     @property
     def analytics(self) -> AnalyticsService:
         """Return the analytics service bound to the configured session."""
-
         if self.db_session is None:
             raise ValueError("AnalyticsService requires an active database session")
         if self._analytics_repository is None:
@@ -104,7 +100,6 @@ class DomainServiceRegistry:
     @property
     def recommendations(self) -> RecommendationService:
         """Return the recommendation service bound to the configured session."""
-
         if self.db_session is None:
             raise ValueError("RecommendationService requires an active database session")
         if self._recommendation_gpu_available is None:

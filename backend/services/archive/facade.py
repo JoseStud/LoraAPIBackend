@@ -51,12 +51,10 @@ class ArchiveService:
     # ------------------------------------------------------------------
     def estimate_adapter_export(self, adapter_ids: Optional[Sequence[str]] = None) -> ExportEstimation:
         """Estimate archive size for adapters and approximate transfer time."""
-
         return self._planner.estimate(adapter_ids)
 
     def build_export_archive(self, adapter_ids: Optional[Sequence[str]] = None) -> ExportArchive:
         """Create a streaming archive for the selected adapters."""
-
         plan = self._planner.build_plan(adapter_ids)
         spool = tempfile.SpooledTemporaryFile(max_size=self._spooled_file_max_size)
         with zipfile.ZipFile(spool, "w", compression=zipfile.ZIP_DEFLATED) as archive:
@@ -93,7 +91,6 @@ class ArchiveService:
         validate: bool = True,
     ) -> ImportResult:
         """Load adapters from an archive into the database/storage backend."""
-
         return self._executor.execute(
             file_obj,
             target_directory=target_directory,
@@ -107,11 +104,9 @@ class ArchiveService:
     @property
     def planner(self) -> ArchiveExportPlanner:
         """Expose the planner for testing purposes."""
-
         return self._planner
 
     @property
     def executor(self) -> ArchiveImportExecutor:
         """Expose the executor for testing purposes."""
-
         return self._executor

@@ -66,7 +66,6 @@ class JobProgressMonitor:
         on_complete: CompletionCallback,
     ) -> asyncio.Task[None]:
         """Begin monitoring a job, returning the created polling task."""
-
         if job_id in self._tasks:
             return self._tasks[job_id]
 
@@ -79,7 +78,6 @@ class JobProgressMonitor:
 
     def stop(self, job_id: str) -> None:
         """Cancel monitoring for a job if it is running."""
-
         task = self._tasks.pop(job_id, None)
         if task is None:
             return

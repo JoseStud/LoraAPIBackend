@@ -124,7 +124,6 @@ class SentenceTransformerProvider:
         show_progress_bar: bool = False,
     ) -> np.ndarray:
         """Encode the provided input(s) using the requested model."""
-
         model = self.get_model(model_key)
         encode_kwargs: Dict[str, Any] = {
             "show_progress_bar": show_progress_bar,

@@ -111,14 +111,12 @@ class RecommendationModelRegistry:
         logger: Optional[logging.Logger] = None,
     ) -> None:
         """Eagerly load shared models for the provided device."""
-
         effective_logger = logger or cls._shared_logger
         cls._ensure_shared_models_for_device(device, gpu_enabled, effective_logger)
 
     @classmethod
     def models_loaded(cls) -> bool:
         """Return whether the shared models have been initialised."""
-
         return (
             cls._shared_semantic_embedder is not None
             and cls._shared_feature_extractor is not None

@@ -73,7 +73,6 @@ class Settings(BaseSettings):
     @classmethod
     def _normalise_environment(cls, value: str | None) -> str:
         """Normalise the ENVIRONMENT value and ensure it is supported."""
-
         if value is None or (isinstance(value, str) and not value.strip()):
             return "development"
 
@@ -88,7 +87,6 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _require_production_settings(self) -> "Settings":
         """Enforce required settings when running in production."""
-
         if self.ENVIRONMENT != "production":
             return self
 
@@ -119,7 +117,6 @@ class Settings(BaseSettings):
     @classmethod
     def from_env(cls) -> "Settings":
         """Load settings from the environment, surfacing validation errors."""
-
         try:
             return cls()
         except ValidationError as exc:  # pragma: no cover - defensive re-raise

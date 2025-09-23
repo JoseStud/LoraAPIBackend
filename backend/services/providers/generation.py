@@ -39,13 +39,11 @@ class GenerationCoordinatorFactory(Protocol):
 
 def make_compose_service() -> ComposeService:
     """Create a :class:`ComposeService`."""
-
     return ComposeService()
 
 
 def make_generation_service() -> GenerationService:
     """Create a :class:`GenerationService`."""
-
     return GenerationService()
 
 
@@ -55,7 +53,6 @@ def make_generation_coordinator(
     generation_service: GenerationService,
 ) -> GenerationCoordinator:
     """Create a :class:`GenerationCoordinator` with its collaborators."""
-
     return GenerationCoordinator(delivery_service, websocket_service, generation_service)
 
 

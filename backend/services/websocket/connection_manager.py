@@ -39,7 +39,6 @@ class ConnectionManager:
 
     async def connect(self, websocket: WebSocket) -> str:
         """Accept a new connection and return an internal identifier."""
-
         await websocket.accept()
 
         self._connection_counter += 1
@@ -66,7 +65,6 @@ class ConnectionManager:
 
     def disconnect(self, connection_id: str) -> None:
         """Clean up tracking for a disconnected client."""
-
         if connection_id not in self.active_connections:
             return
 
@@ -89,7 +87,6 @@ class ConnectionManager:
         self, connection_id: str, subscription: WebSocketSubscription,
     ) -> None:
         """Update routing tables based on a subscription request."""
-
         if subscription.job_ids is None:
             self.global_subscribers.add(connection_id)
             logger.info(
@@ -112,7 +109,6 @@ class ConnectionManager:
         self, job_id: str, progress_data: ProgressUpdate,
     ) -> None:
         """Fan out a progress update to interested connections."""
-
         message = WebSocketMessage(
             type="progress_update",
             timestamp=datetime.now(timezone.utc),
@@ -132,7 +128,6 @@ class ConnectionManager:
         self, job_id: str, started_data: GenerationStarted,
     ) -> None:
         """Fan out a generation-started notification."""
-
         message = WebSocketMessage(
             type="generation_started",
             timestamp=datetime.now(timezone.utc),
@@ -145,7 +140,6 @@ class ConnectionManager:
         self, job_id: str, complete_data: GenerationComplete,
     ) -> None:
         """Fan out a generation completion notification."""
-
         message = WebSocketMessage(
             type="generation_complete",
             timestamp=datetime.now(timezone.utc),
@@ -162,7 +156,6 @@ class ConnectionManager:
         self, connection_id: str, message: Dict[str, object],
     ) -> None:
         """Send a direct message to a specific connection."""
-
         await self._send_to_connection(connection_id, message)
 
     async def _broadcast(self, job_id: str, message: Dict[str, object]) -> None:

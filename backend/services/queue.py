@@ -115,7 +115,6 @@ class QueueOrchestrator:
 
     def get_backends(self) -> PrimaryFallbackQueues:
         """Return the configured primary and fallback queue backends."""
-
         primary = self._ensure_primary_backend()
         fallback = self._ensure_fallback_backend()
 
@@ -132,7 +131,6 @@ class QueueOrchestrator:
         **enqueue_kwargs: Any,
     ) -> Any:
         """Enqueue ``job_id`` using the configured queue strategy."""
-
         primary, fallback = self.get_backends()
 
         last_error: Optional[Exception] = None
@@ -159,14 +157,12 @@ class QueueOrchestrator:
 
     def get_delivery_runner(self) -> DeliveryRunner:
         """Return (and lazily construct) the DeliveryRunner used by the fallback."""
-
         if self._delivery_runner is None:
             self._delivery_runner = self._delivery_runner_factory()
         return self._delivery_runner
 
     def reset(self) -> None:
         """Reset cached queue instances (used primarily by tests)."""
-
         self._primary_backend = self._initial_primary
         self._fallback_backend = self._initial_fallback
         self._delivery_runner = None
@@ -198,7 +194,6 @@ def create_queue_orchestrator(
     delivery_runner_factory: Optional[Callable[[], DeliveryRunner]] = None,
 ) -> QueueOrchestrator:
     """Factory helper that builds the default :class:`QueueOrchestrator`."""
-
     return QueueOrchestrator(
         redis_url_factory=redis_url_factory,
         delivery_runner_factory=delivery_runner_factory,

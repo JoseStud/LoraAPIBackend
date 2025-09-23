@@ -46,7 +46,6 @@ class LoRASemanticEmbedder(SemanticEmbedderProtocol):
         payload_builder: MultiModalTextPayloadBuilder | None = None,
     ) -> None:
         """Initialize semantic embedding orchestrator."""
-
         self.batch_size = batch_size
         self.mixed_precision = mixed_precision
         self._logger = logger or logging.getLogger(__name__)
@@ -114,7 +113,6 @@ class LoRASemanticEmbedder(SemanticEmbedderProtocol):
     # ------------------------------------------------------------------
     def create_multi_modal_embedding(self, lora: Any) -> Dict[str, np.ndarray]:
         """Generate multiple specialized embeddings for different aspects."""
-
         content_texts = self._payload_builder.build_payload(lora)
 
         embeddings: Dict[str, np.ndarray] = {
@@ -127,7 +125,6 @@ class LoRASemanticEmbedder(SemanticEmbedderProtocol):
 
     def batch_encode_collection(self, loras: Sequence[Any]) -> Dict[str, np.ndarray]:
         """Efficiently batch process entire LoRA collection using GPU."""
-
         if not loras:
             return {
                 "semantic": np.zeros((0, self._get_semantic_dim()), dtype=np.float32),

@@ -36,7 +36,6 @@ def make_archive_service(
     spooled_file_max_size: int = 32 * 1024 * 1024,
 ) -> ArchiveService:
     """Create an :class:`ArchiveService` wired with planner and executor collaborators."""
-
     return ArchiveService(
         adapter_service,
         storage_service,

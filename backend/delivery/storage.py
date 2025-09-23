@@ -24,7 +24,6 @@ class ImageStorage:
         return_format: str,
     ) -> List[str]:
         """Persist images and return processed representations."""
-
         raise NotImplementedError
 
 

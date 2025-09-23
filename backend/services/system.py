@@ -138,7 +138,6 @@ class SystemService:
 
     def get_system_status_payload(self) -> Dict[str, Any]:
         """Return the full system status payload consumed by API clients."""
-
         observed_at = datetime.now(timezone.utc).isoformat()
 
         gpu_info = detect_gpu()
@@ -204,7 +203,6 @@ class SystemService:
 
     def get_health_summary(self) -> SystemHealthSummary:
         """Compute a lightweight system health summary for dashboard views."""
-
         payload = self.get_system_status_payload()
 
         used_bytes = _megabytes_to_bytes(payload.get("memory_used"))

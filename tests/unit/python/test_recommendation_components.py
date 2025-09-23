@@ -43,7 +43,6 @@ from backend.services.recommendations.components.text_features import KeywordExt
 
 def test_fallback_embedder_generates_normalized_vectors() -> None:
     """Ensure the fallback encoder produces deterministic, normalized vectors."""
-
     logger = logging.getLogger("test_fallback_embedder")
     embedder = LoRASemanticEmbedder(
         device="cpu",
@@ -61,7 +60,6 @@ def test_fallback_embedder_generates_normalized_vectors() -> None:
 
 def test_sentence_transformer_provider_fallback() -> None:
     """The provider should expose deterministic hashed embeddings when forced."""
-
     provider = SentenceTransformerProvider(
         device="cuda",
         force_fallback=True,
@@ -83,7 +81,6 @@ def test_sentence_transformer_provider_fallback() -> None:
 
 def test_text_payload_builder_compiles_multimodal_text() -> None:
     """The payload builder should combine semantic, artistic, and technical cues."""
-
     builder = MultiModalTextPayloadBuilder()
     lora = SimpleNamespace(
         description="A vibrant anime portrait with watercolor textures",
@@ -142,7 +139,6 @@ class _FeatureExtractorStub:
 
 def test_keyword_extractor_uses_fallback_when_model_missing() -> None:
     """KeyBERT is optional, and the heuristic fallback should still work."""
-
     extractor = KeywordExtractor(logger=logging.getLogger("test_keyword_extractor"))
     extractor._model = "fallback"
     result = extractor.extract("Beautiful anime hero with vibrant colors and glowing eyes")
@@ -153,14 +149,12 @@ def test_keyword_extractor_uses_fallback_when_model_missing() -> None:
 
 def test_keyword_extractor_handles_empty_text() -> None:
     """Empty strings should not raise and must return empty collections."""
-
     extractor = KeywordExtractor(logger=logging.getLogger("test_keyword_empty"))
     assert extractor.extract("") == {"extracted_keywords": [], "keyword_scores": []}
 
 
 def test_sentiment_style_analyzer_fallback_positive_signal() -> None:
     """Positive adjectives should trigger the fallback positive sentiment."""
-
     analyzer = SentimentStyleAnalyzer(device="cpu", logger=logging.getLogger("test_sentiment"))
     analyzer._sentiment_pipeline = "fallback"
     analyzer._style_pipeline = "fallback"
@@ -174,7 +168,6 @@ def test_sentiment_style_analyzer_fallback_positive_signal() -> None:
 
 def test_sentiment_style_analyzer_handles_neutral_text() -> None:
     """Text without keywords should default to neutral and unknown style."""
-
     analyzer = SentimentStyleAnalyzer(device="cpu", logger=logging.getLogger("test_sentiment_neutral"))
     analyzer._sentiment_pipeline = "fallback"
     analyzer._style_pipeline = "fallback"
@@ -187,7 +180,6 @@ def test_sentiment_style_analyzer_handles_neutral_text() -> None:
 
 def test_score_calculator_defaults_for_missing_stats() -> None:
     """When metadata is missing the calculator should fall back to defaults."""
-
     calculator = ScoreCalculator(logger=logging.getLogger("test_score_defaults"))
     lora = SimpleNamespace(
         stats=None,
@@ -211,7 +203,6 @@ def test_score_calculator_defaults_for_missing_stats() -> None:
 
 def test_score_calculator_populates_metrics_from_data() -> None:
     """Provide realistic stats to ensure the calculator emits rich metrics."""
-
     now = datetime.now(timezone.utc)
     calculator = ScoreCalculator(logger=logging.getLogger("test_score_values"))
     lora = SimpleNamespace(
@@ -241,7 +232,6 @@ def test_score_calculator_populates_metrics_from_data() -> None:
 
 def test_feature_extractor_orchestrates_helpers() -> None:
     """The feature extractor should orchestrate helpers in a predictable order."""
-
     embeddings = {
         "adapter": {
             "semantic": np.ones(4, dtype=np.float32),
@@ -339,7 +329,6 @@ def test_feature_extractor_orchestrates_helpers() -> None:
 
 def test_recommendation_engine_applies_boosts() -> None:
     """Verify the engine computes boosted scores for compatible LoRAs."""
-
     now = datetime.now(timezone.utc)
 
     embeddings = {
@@ -417,7 +406,6 @@ def test_recommendation_engine_applies_boosts() -> None:
 
 def test_recommendation_engine_can_disable_diversification() -> None:
     """When diversification is disabled, boosts should not alter scores."""
-
     now = datetime.now(timezone.utc)
 
     embeddings = {
@@ -464,7 +452,7 @@ def test_recommendation_engine_can_disable_diversification() -> None:
 
     engine.build_similarity_index([target, candidate])
     recommendations = engine.get_recommendations(
-        target, n_recommendations=1, diversify_results=False
+        target, n_recommendations=1, diversify_results=False,
     )
 
     assert recommendations

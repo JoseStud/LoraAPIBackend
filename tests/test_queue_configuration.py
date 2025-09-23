@@ -17,7 +17,6 @@ from backend.workers.tasks import reset_worker_context, set_worker_context
 
 def test_queue_factory_shared_backend_with_redis(db_session) -> None:
     """API services and worker tasks should share the Redis queue backend."""
-
     original_url = settings.REDIS_URL
     orchestrator: QueueOrchestrator | None = None
     try:
@@ -54,7 +53,6 @@ def test_queue_factory_shared_backend_with_redis(db_session) -> None:
 
 def test_queue_factory_shared_backend_without_redis(db_session) -> None:
     """Fallback queue should be shared when Redis is not configured."""
-
     original_url = settings.REDIS_URL
     orchestrator: QueueOrchestrator | None = None
     try:

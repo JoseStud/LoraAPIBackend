@@ -24,18 +24,15 @@ class RecommendationModelBootstrap:
     @property
     def device(self) -> str:
         """Return the preferred torch device for the recommendation models."""
-
         return self._device
 
     @property
     def gpu_enabled(self) -> bool:
         """Return whether GPU acceleration should be used."""
-
         return self._gpu_enabled
 
     def get_model_registry(self) -> RecommendationModelRegistry:
         """Return a lazily created model registry instance."""
-
         if self._model_registry is None:
             self._model_registry = RecommendationModelRegistry(
                 device=self._device,
@@ -48,12 +45,10 @@ class RecommendationModelBootstrap:
         self, registry: RecommendationModelRegistry,
     ) -> None:
         """Inject a custom model registry implementation."""
-
         self._model_registry = registry
 
     def preload_models(self) -> None:
         """Preload heavy models using the configured device."""
-
         RecommendationModelRegistry.preload_models(
             device=self._device,
             gpu_enabled=self._gpu_enabled,
@@ -64,14 +59,12 @@ class RecommendationModelBootstrap:
         cls, *, gpu_enabled: Optional[bool] = None,
     ) -> None:
         """Preload models for the detected runtime environment."""
-
         bootstrap = cls(gpu_enabled=gpu_enabled)
         bootstrap.preload_models()
 
     @classmethod
     def is_gpu_available(cls) -> bool:
         """Detect GPU availability across CUDA, ROCm, and MPS runtimes."""
-
         try:
             import torch
 
@@ -95,6 +88,5 @@ class RecommendationModelBootstrap:
     @classmethod
     def models_loaded(cls) -> bool:
         """Return whether shared models have been loaded for the process."""
-
         return RecommendationModelRegistry.models_loaded()
 

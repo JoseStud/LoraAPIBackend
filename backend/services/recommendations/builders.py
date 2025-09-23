@@ -54,7 +54,6 @@ def build_embedding_stack(
     embedding_manager: Optional[EmbeddingManager] = None,
 ) -> EmbeddingStack:
     """Return embedding collaborators, creating missing pieces as needed."""
-
     if embedding_repository is None:
         if db_session is None:
             raise ValueError(
@@ -83,7 +82,6 @@ def build_persistence_components(
     config: Optional[RecommendationConfig] = None,
 ) -> PersistenceComponents:
     """Return persistence collaborators, inferring missing pieces."""
-
     manager = persistence_manager
     if manager is None:
         if persistence_service is not None:
@@ -119,7 +117,6 @@ def build_use_cases(
     prompt_use_case: Optional[PromptRecommendationUseCase] = None,
 ) -> UseCaseBundle:
     """Return high level use cases, defaulting to standard implementations."""
-
     similar = similar_use_case or SimilarLoraUseCase(
         repository=repository,
         embedding_workflow=embedding_workflow,

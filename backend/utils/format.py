@@ -9,7 +9,6 @@ __all__ = ["format_bytes", "format_duration"]
 
 def format_bytes(num_bytes: int) -> str:
     """Return a human-readable representation of a byte count."""
-
     if num_bytes <= 0:
         return "0 Bytes"
 
@@ -27,7 +26,6 @@ def format_bytes(num_bytes: int) -> str:
 
 def format_duration(seconds: float) -> str:
     """Render a duration in seconds into a user-friendly string."""
-
     if seconds <= 0:
         return "0 seconds"
     if seconds < 60:

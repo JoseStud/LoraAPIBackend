@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import List, Sequence, Tuple
 
 from sqlalchemy import func, select
@@ -36,7 +35,6 @@ class AnalyticsRepository:
         status: str | None = None,
     ) -> int:
         """Count generation jobs within the supplied window."""
-
         query = (
             select(func.count(DeliveryJob.id))
             .where(DeliveryJob.mode == "sdnext")
@@ -51,7 +49,6 @@ class AnalyticsRepository:
 
     def average_duration(self, start: datetime, end: datetime) -> float:
         """Return the mean execution time for completed jobs in the window."""
-
         bind = self._session.get_bind()
         dialect_name = bind.dialect.name if bind is not None else ""
 
@@ -85,7 +82,6 @@ class AnalyticsRepository:
 
     def fetch_time_series_rows(self, start: datetime, end: datetime) -> List[TimeSeriesRow]:
         """Return time-series raw data for aggregation."""
-
         query = (
             select(
                 DeliveryJob.created_at,
@@ -106,7 +102,6 @@ class AnalyticsRepository:
     # ------------------------------------------------------------------
     def active_lora_usage_counts(self) -> List[Tuple[str, int]]:
         """Return ordered usage counts for active LoRA adapters."""
-
         query = select(Adapter.name, Adapter.stats).where(Adapter.active.is_(True))
         usage: List[Tuple[str, int]] = []
 
@@ -126,7 +121,6 @@ class AnalyticsRepository:
 
     def count_active_loras(self) -> int:
         """Count currently active adapters."""
-
         result = self._session.exec(
             select(func.count(Adapter.id)).where(Adapter.active.is_(True)),
         ).one()
@@ -134,7 +128,6 @@ class AnalyticsRepository:
 
     def count_total_loras(self) -> int:
         """Count all registered adapters."""
-
         result = self._session.exec(select(func.count(Adapter.id))).one()
         return int(result or 0)
 

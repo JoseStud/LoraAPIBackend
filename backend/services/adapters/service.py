@@ -87,17 +87,14 @@ class AdapterService:
 
     def save_adapter(self, payload: AdapterCreate) -> Adapter:
         """Create and persist an Adapter from a creation payload."""
-
         return repository_save_adapter(self.db_session, payload)
 
     def upsert_adapter(self, payload: AdapterCreate) -> Adapter:
         """Idempotently create or update an adapter by (name, version)."""
-
         return repository_upsert_adapter(self.db_session, payload)
 
     def get_adapter(self, adapter_id: str) -> Optional[Adapter]:
         """Get an adapter by ID."""
-
         return self.db_session.get(Adapter, adapter_id)
 
     def list_adapters(
@@ -107,7 +104,6 @@ class AdapterService:
         offset: int = 0,
     ) -> List[Adapter]:
         """List adapters with optional filtering and pagination."""
-
         query = select(Adapter)
         if active_only:
             query = query.where(Adapter.active)
@@ -117,12 +113,10 @@ class AdapterService:
 
     def count_total(self) -> int:
         """Return the total number of adapters stored."""
-
         return statistics_count_total(self.db_session)
 
     def count_active(self) -> int:
         """Return the number of adapters flagged as active."""
-
         return statistics_count_active(self.db_session)
 
     def count_recent_imports(
@@ -132,17 +126,14 @@ class AdapterService:
         hours: int = 24,
     ) -> int:
         """Return number of adapters ingested within the recent window."""
-
         return statistics_count_recent_imports(self.db_session, since=since, hours=hours)
 
     def get_dashboard_statistics(self, *, recent_hours: int = 24) -> Dict[str, int]:
         """Return aggregate statistics used by the dashboard view."""
-
         return statistics_get_dashboard_statistics(self.db_session, recent_hours=recent_hours)
 
     def get_featured_adapters(self, limit: int = 5) -> List[Adapter]:
         """Return a list of adapters to highlight on the dashboard."""
-
         return statistics_get_featured_adapters(self.db_session, limit=limit)
 
     def search_adapters(
@@ -156,7 +147,6 @@ class AdapterService:
         per_page: int = 24,
     ) -> AdapterSearchResult:
         """Search adapters with filtering, sorting, and pagination rules."""
-
         return repository_search_adapters(
             self.db_session,
             search=search,
@@ -169,7 +159,6 @@ class AdapterService:
 
     def list_active_ordered(self) -> List[Adapter]:
         """Return active adapters ordered and deduplicated."""
-
         query = select(Adapter).where(Adapter.active)
         adapters = self.db_session.exec(query).all()
         adapters.sort(key=lambda a: (a.ordinal if a.ordinal is not None else 0, a.name))
@@ -190,7 +179,6 @@ class AdapterService:
         refresh: bool = True,
     ) -> Optional[Adapter]:
         """Update an adapter with the given changes."""
-
         return repository_update_adapter(
             self.db_session,
             adapter_id,
@@ -201,7 +189,6 @@ class AdapterService:
 
     def delete_adapter(self, adapter_id: str, *, commit: bool = True) -> bool:
         """Delete an adapter by ID."""
-
         adapter = self.get_adapter(adapter_id)
         if adapter is None:
             return False
@@ -213,7 +200,6 @@ class AdapterService:
 
     def activate_adapter(self, adapter_id: str, ordinal: Optional[int] = None) -> Optional[Adapter]:
         """Activate an adapter and optionally set its ordinal."""
-
         updates: Dict[str, Any] = {"active": True, "updated_at": datetime.now(timezone.utc)}
         if ordinal is not None:
             updates["ordinal"] = ordinal
@@ -222,7 +208,6 @@ class AdapterService:
 
     def deactivate_adapter(self, adapter_id: str) -> Optional[Adapter]:
         """Deactivate an adapter."""
-
         return self.update_adapter(
             adapter_id,
             {"active": False, "updated_at": datetime.now(timezone.utc)},
@@ -230,7 +215,6 @@ class AdapterService:
 
     def get_all_tags(self) -> List[str]:
         """Return a sorted list of all unique adapter tags."""
-
         rows = self.db_session.exec(select(Adapter.tags)).all()
         unique: Set[str] = set()
 
@@ -253,7 +237,6 @@ class AdapterService:
 
     def bulk_adapter_action(self, action: str, adapter_ids: Sequence[str]) -> List[str]:
         """Apply bulk state changes or deletions within a single transaction."""
-
         if not adapter_ids:
             return []
 
@@ -292,7 +275,6 @@ class AdapterService:
 
     def patch_adapter(self, adapter_id: str, payload: Dict[str, Any]) -> Adapter:
         """Apply a validated partial update to an adapter."""
-
         adapter = self.get_adapter(adapter_id)
         if adapter is None:
             raise LookupError("adapter not found")

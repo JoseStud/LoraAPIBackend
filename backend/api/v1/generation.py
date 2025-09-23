@@ -219,7 +219,6 @@ async def list_active_generation_jobs(
     services: ApplicationServices = Depends(get_application_services),
 ):
     """Return active generation jobs for frontend queues."""
-
     coordinator = services.generation_coordinator
     jobs_by_id = {}
     for status in ACTIVE_JOB_STATUSES:

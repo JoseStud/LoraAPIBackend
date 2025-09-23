@@ -40,7 +40,6 @@ DEFAULT_NORMALIZED_STATUS = NormalizedGenerationStatus.PROCESSING
 
 def normalize_status(status: Optional[str]) -> NormalizedGenerationStatus:
     """Normalize a delivery status into a canonical API value."""
-
     if not status:
         return DEFAULT_NORMALIZED_STATUS
 

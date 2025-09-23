@@ -52,7 +52,6 @@ _DEFAULT_BUILDER = ServiceContainerBuilder()
 
 def get_service_container_builder() -> ServiceContainerBuilder:
     """Return the shared service container builder."""
-
     return _DEFAULT_BUILDER
 
 
@@ -161,7 +160,6 @@ class ServiceContainer:
 
 def create_service_container(db_session: Session) -> ServiceRegistry:
     """Create a service registry for the provided database session."""
-
     return _DEFAULT_BUILDER.build(db_session)
 
 

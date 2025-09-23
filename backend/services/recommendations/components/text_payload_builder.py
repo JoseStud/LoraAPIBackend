@@ -53,7 +53,6 @@ class MultiModalTextPayloadBuilder:
 
     def build_payload(self, lora: Any) -> Dict[str, str]:
         """Create multi-modal text payloads from a LoRA object."""
-
         return {
             "semantic": self._build_semantic_payload(lora),
             "artistic": self._build_artistic_payload(lora),

@@ -10,7 +10,6 @@ from backend.services.analytics_repository import AnalyticsRepository
 
 def test_average_duration_returns_zero_without_matching_jobs(db_session):
     """Empty windows should return a duration of zero seconds."""
-
     repository = AnalyticsRepository(db_session)
     start = datetime(2024, 1, 1, tzinfo=timezone.utc)
     end = start + timedelta(days=1)
@@ -20,7 +19,6 @@ def test_average_duration_returns_zero_without_matching_jobs(db_session):
 
 def test_average_duration_aggregates_in_database(db_session):
     """The average duration is computed via SQL aggregation for qualifying jobs."""
-
     repository = AnalyticsRepository(db_session)
     window_start = datetime(2024, 1, 1, tzinfo=timezone.utc)
     window_end = window_start + timedelta(days=1)
@@ -75,11 +73,11 @@ def test_average_duration_aggregates_in_database(db_session):
             non_sdnext,
             unfinished,
             outside_window,
-        ]
+        ],
     )
     db_session.commit()
 
     expected_average = (5 + 12) / 2
     assert repository.average_duration(window_start, window_end) == pytest.approx(
-        expected_average
+        expected_average,
     )

@@ -22,12 +22,10 @@ class StatsReporter:
     @property
     def metrics_tracker(self) -> RecommendationMetricsTracker:
         """Expose the underlying metrics tracker for compatibility."""
-
         return self._metrics_tracker
 
     def build_stats(self, *, gpu_enabled: bool) -> RecommendationStats:
         """Build a statistics snapshot for the recommendation system."""
-
         return self._metrics_tracker.build_stats(
             self._repository,
             gpu_enabled=gpu_enabled,
@@ -35,7 +33,6 @@ class StatsReporter:
 
     def embedding_status(self, adapter_id: str) -> EmbeddingStatus:
         """Return embedding status information for a LoRA adapter."""
-
         embedding = self._repository.get_embedding(adapter_id)
 
         if not embedding:

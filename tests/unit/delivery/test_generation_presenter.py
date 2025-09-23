@@ -13,7 +13,6 @@ from backend.services.websocket import WebSocketService
 @pytest.fixture
 def coordinator(delivery_service: DeliveryService) -> GenerationCoordinator:
     """Coordinator fixture bound to the delivery service."""
-
     return GenerationCoordinator(
         delivery_service,
         WebSocketService(),
@@ -39,7 +38,6 @@ def test_build_active_job_normalizes_cancelled_status(
     delivery_service: DeliveryService, coordinator: GenerationCoordinator,
 ):
     """Cancelled jobs are exposed as failed with retained result payload."""
-
     job = delivery_service.create_job("Prompt", "sdnext", _params())
     delivery_service.update_job_status(job.id, "cancelled", {"status": "cancelled"})
 
@@ -54,7 +52,6 @@ def test_build_result_handles_missing_images(
     delivery_service: DeliveryService, coordinator: GenerationCoordinator,
 ):
     """Missing images or invalid thumbnail URLs result in empty links."""
-
     job = delivery_service.create_job("Prompt", "sdnext", _params())
     delivery_service.update_job_status(
         job.id,
@@ -76,7 +73,6 @@ def test_build_result_parses_generation_info_string(
     delivery_service: DeliveryService, coordinator: GenerationCoordinator,
 ):
     """Stringified generation info payloads are parsed into dictionaries."""
-
     job = delivery_service.create_job("Prompt", "sdnext", _params())
     delivery_service.update_job_status(
         job.id,
@@ -95,7 +91,6 @@ def test_build_result_handles_malformed_generation_info(
     delivery_service: DeliveryService, coordinator: GenerationCoordinator,
 ):
     """Malformed generation info strings are coerced to None."""
-
     job = delivery_service.create_job("Prompt", "sdnext", _params())
     delivery_service.update_job_status(
         job.id,

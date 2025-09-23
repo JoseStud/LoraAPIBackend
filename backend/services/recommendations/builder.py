@@ -50,7 +50,6 @@ class RecommendationServiceBuilder:
         config: RecommendationConfig,
     ) -> "RecommendationServiceBuilder":
         """Set all collaborators explicitly."""
-
         self._embedding_coordinator = embedding_coordinator
         self._feedback_manager = feedback_manager
         self._stats_reporter = stats_reporter
@@ -61,7 +60,6 @@ class RecommendationServiceBuilder:
 
     def with_logger(self, logger: logging.Logger) -> "RecommendationServiceBuilder":
         """Override the logger used by the service facade."""
-
         self._logger = logger
         return self
 
@@ -76,7 +74,6 @@ class RecommendationServiceBuilder:
         logger: Optional[logging.Logger] = None,
     ) -> "RecommendationServiceBuilder":
         """Populate collaborators from the legacy dependency set."""
-
         metrics = metrics_tracker or RecommendationMetricsTracker()
         model_registry = bootstrap.get_model_registry()
 
@@ -120,7 +117,6 @@ class RecommendationServiceBuilder:
     # ------------------------------------------------------------------
     def build(self) -> RecommendationService:
         """Construct a :class:`RecommendationService` instance."""
-
         if self._embedding_coordinator is None:
             raise ValueError("embedding_coordinator must be provided before build()")
         if self._feedback_manager is None:

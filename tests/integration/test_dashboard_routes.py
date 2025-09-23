@@ -28,7 +28,6 @@ def _make_adapter(
 
 def test_dashboard_stats_reflects_live_data(client, db_session):
     """Dashboard stats should mirror values from the database."""
-
     now = datetime.now(timezone.utc)
     earlier = now - timedelta(days=2)
 
@@ -83,7 +82,6 @@ def test_dashboard_stats_reflects_live_data(client, db_session):
 
 def test_dashboard_endpoints_handle_empty_dataset(client):
     """Endpoints should gracefully handle empty databases."""
-
     stats_response = client.get("/api/v1/dashboard/stats")
     assert stats_response.status_code == 200
     stats_payload = stats_response.json()
@@ -107,7 +105,6 @@ def test_dashboard_endpoints_handle_empty_dataset(client):
 
 def test_featured_loras_returns_recent_active_adapters(client, db_session):
     """Featured endpoint should return active adapters ordered by recency."""
-
     now = datetime.now(timezone.utc)
     adapters = [
         _make_adapter("alpha", created_at=now - timedelta(hours=4), updated_at=now - timedelta(hours=2)),
@@ -129,7 +126,6 @@ def test_featured_loras_returns_recent_active_adapters(client, db_session):
 
 def test_activity_feed_reflects_recent_jobs(client, db_session):
     """Activity feed should include delivery jobs sorted by recency."""
-
     now = datetime.now(timezone.utc)
     jobs = [
         DeliveryJob(prompt="first", mode="api", status="succeeded", created_at=now - timedelta(hours=2)),

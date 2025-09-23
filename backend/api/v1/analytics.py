@@ -26,7 +26,6 @@ def get_analytics_summary(
     services: DomainServices = Depends(get_domain_services),
 ) -> PerformanceAnalyticsSummary:
     """Return a comprehensive analytics snapshot for the requested range."""
-
     return services.analytics.get_summary(time_range)
 
 
@@ -36,7 +35,6 @@ def get_generation_stats(
     services: DomainServices = Depends(get_domain_services),
 ) -> PerformanceKpiSummary:
     """Expose headline generation KPIs for the requested range."""
-
     return services.analytics.get_generation_stats(time_range)
 
 
@@ -46,7 +44,6 @@ def get_error_breakdown(
     services: DomainServices = Depends(get_domain_services),
 ) -> List[ErrorAnalysisEntry]:
     """Return error distribution for failed generation jobs."""
-
     return services.analytics.get_error_breakdown(time_range)
 
 
@@ -56,7 +53,6 @@ def get_time_series_metrics(
     services: DomainServices = Depends(get_domain_services),
 ) -> PerformanceAnalyticsCharts:
     """Return time-series metrics for dashboard visualisations."""
-
     return services.analytics.get_time_series_metrics(time_range)
 
 
@@ -66,7 +62,6 @@ def get_performance_insights(
     services: DomainServices = Depends(get_domain_services),
 ) -> List[PerformanceInsightEntry]:
     """Return derived performance insights for the requested window."""
-
     stats = services.analytics.get_generation_stats(time_range)
     errors = services.analytics.get_error_breakdown(time_range)
     charts = services.analytics.get_time_series_metrics(time_range)

@@ -29,7 +29,6 @@ class EmbeddingBatchRunner:
         batch_size: int = 32,
     ) -> Dict[str, Any]:
         """Compute embeddings for ``adapter_ids`` (or all active adapters)."""
-
         start_time = time.time()
 
         adapters = self._repository.list_adapters(adapter_ids)

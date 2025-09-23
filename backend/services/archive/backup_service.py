@@ -38,13 +38,11 @@ class BackupService:
     # ------------------------------------------------------------------
     def list_history(self) -> List[BackupHistoryItem]:
         """Return the stored backup history sorted by creation time."""
-
         history = self._load_history()
         return sorted(history, key=lambda item: item.created_at, reverse=True)
 
     def create_backup(self, backup_type: str = "full") -> BackupHistoryItem:
         """Create a new backup archive and persist metadata."""
-
         timestamp = datetime.now(timezone.utc)
         backup_id = self._generate_backup_id(timestamp)
         archive = self._archive_service.build_export_archive()
@@ -66,7 +64,6 @@ class BackupService:
 
     def delete_backup(self, backup_id: str) -> bool:
         """Remove a backup archive and associated metadata."""
-
         history = self._load_history()
         remaining: List[BackupHistoryItem] = []
         removed = False
@@ -83,7 +80,6 @@ class BackupService:
 
     def get_backup_path(self, backup_id: str) -> Path:
         """Return the expected archive path for a backup ID."""
-
         return self._backups_dir / f"{backup_id}.zip"
 
     # ------------------------------------------------------------------

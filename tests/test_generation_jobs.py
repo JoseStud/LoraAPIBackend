@@ -48,7 +48,6 @@ def test_cancel_generation_job_succeeds(
     monkeypatch: pytest.MonkeyPatch,
 ):
     """Cancelling an active job updates status and stops monitoring."""
-
     job = delivery_service.create_job("Prompt", "sdnext", _create_generation_params("Prompt"))
     delivery_service.update_job_status(job.id, "running")
 
@@ -72,7 +71,6 @@ def test_cancel_generation_job_succeeds(
 
 def test_cancel_generation_job_not_found(client: TestClient):
     """Cancelling a nonexistent job returns 404."""
-
     response = client.post("/api/v1/generation/jobs/unknown/cancel")
     assert response.status_code == 404
 
@@ -82,7 +80,6 @@ def test_cancel_generation_job_invalid_state(
     delivery_service: DeliveryService,
 ):
     """Cancelling a completed job returns an error."""
-
     job = delivery_service.create_job("Prompt", "sdnext", _create_generation_params("Prompt"))
     delivery_service.update_job_status(job.id, "succeeded", {"status": "completed"})
 
@@ -92,7 +89,6 @@ def test_cancel_generation_job_invalid_state(
 
 def test_serialize_generation_job_normalizes_payload(delivery_service: DeliveryService):
     """Helper returns flattened params and normalized result details."""
-
     job = delivery_service.create_job("Prompt", "sdnext", _create_generation_params("Prompt"))
     delivery_service.update_job_status(
         job.id,
@@ -313,7 +309,6 @@ def test_compose_sdnext_uses_generation_coordinator(
 @pytest.mark.anyio
 async def test_generation_coordinator_broadcast_job_started(monkeypatch: pytest.MonkeyPatch):
     """Coordinator triggers WebSocket monitoring and broadcasts."""
-
     deliveries = cast(DeliveryService, MagicMock(spec=DeliveryService))
     websocket = WebSocketService()
     coordinator = GenerationCoordinator(

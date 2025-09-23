@@ -40,7 +40,6 @@ class RecommendationPersistenceManager:
     @property
     def embedding_cache_dir(self) -> Path:
         """Return the directory used for cached embeddings."""
-
         return self._embedding_cache_dir
 
     @embedding_cache_dir.setter
@@ -52,7 +51,6 @@ class RecommendationPersistenceManager:
     @property
     def index_cache_path(self) -> Path:
         """Return the persisted similarity index path."""
-
         return self._index_cache_path
 
     @index_cache_path.setter
@@ -63,7 +61,6 @@ class RecommendationPersistenceManager:
 
     async def rebuild_similarity_index(self, *, force: bool = False) -> IndexRebuildResponse:
         """Rebuild the similarity index and persist it to disk."""
-
         engine = self._engine_getter()
         index_file = self._index_cache_path
 

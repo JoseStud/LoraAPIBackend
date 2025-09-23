@@ -56,7 +56,6 @@ def list_adapters(
     services: DomainServices = Depends(get_domain_services),  # noqa: B008
 ):
     """Return a paginated list of adapters via the service layer."""
-
     tag_filters = [tag.strip() for tag in tags.split(",") if tag.strip()] if tags else []
 
     adapter_service = services.adapters

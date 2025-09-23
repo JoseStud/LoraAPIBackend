@@ -50,7 +50,6 @@ class FailingQueueBackend(QueueBackend):
 
 def _create_active_adapter(client: TestClient, mock_storage: MagicMock) -> None:
     """Helper to create and activate a test adapter."""
-
     mock_storage.exists.return_value = True
     import uuid
 
@@ -74,7 +73,6 @@ def _create_active_adapter(client: TestClient, mock_storage: MagicMock) -> None:
 @pytest.mark.anyio
 async def test_lifespan_preloads_recommendations_in_background(monkeypatch, caplog):
     """The lifespan context should not block on recommendation preload."""
-
     caplog.set_level(logging.INFO, logger="lora.recommendations.startup")
 
     monkeypatch.setattr(backend_main, "setup_logging", lambda: None)
@@ -111,7 +109,6 @@ async def test_lifespan_preloads_recommendations_in_background(monkeypatch, capl
 @pytest.mark.anyio
 async def test_lifespan_logs_recommendation_preload_failure(monkeypatch, caplog):
     """Failures during recommendation preload should be logged but not block startup."""
-
     caplog.set_level(logging.INFO, logger="lora.recommendations.startup")
 
     monkeypatch.setattr(backend_main, "setup_logging", lambda: None)
@@ -148,7 +145,6 @@ def test_health(client: TestClient):
 
 def test_progress_websocket_uses_versioned_route(client: TestClient):
     """The progress WebSocket should be reachable via the versioned API path."""
-
     with client.websocket_connect("/api/v1/ws/progress") as websocket:
         websocket.send_json({"type": "subscribe", "job_ids": None})
 
@@ -168,7 +164,6 @@ def test_import_export_export_streams_archive(
     tmp_path,
 ):
     """The import/export export endpoint should stream a ZIP archive."""
-
     adapter_file = tmp_path / "adapter.safetensors"
     adapter_file.write_bytes(b"fake-weights")
 
@@ -246,7 +241,6 @@ def test_create_adapters_allows_same_name_with_different_versions(
     client: TestClient, mock_storage: MagicMock,
 ):
     """Adapters may share a name as long as their versions differ."""
-
     mock_storage.exists.return_value = True
     import uuid
 
@@ -309,7 +303,6 @@ def test_deliveries_enqueue(client: TestClient, mock_storage: MagicMock):
 
 def test_compose_returns_warnings_when_no_active_adapters(client: TestClient):
     """Compose should surface validation warnings from the composition service."""
-
     response = client.post("/api/v1/compose", json={"prefix": "hello"})
     assert response.status_code == 200
     body = response.json()
@@ -323,7 +316,6 @@ def test_compose_uses_primary_queue_backend(
     mock_storage: MagicMock,
 ):
     """Compose should enqueue via the configured primary queue backend."""
-
     _create_active_adapter(client, mock_storage)
 
     queue_backend = RecordingQueueBackend()
@@ -366,7 +358,6 @@ def test_compose_falls_back_to_background_queue(
     mock_storage: MagicMock,
 ):
     """Compose should fall back when the primary queue raises."""
-
     _create_active_adapter(client, mock_storage)
 
     primary_queue = FailingQueueBackend()
@@ -412,7 +403,6 @@ def test_compose_sdnext_delivery(
     client: TestClient, mock_storage: MagicMock, monkeypatch,
 ):
     """Compose endpoint should accept SDNext delivery configuration."""
-
     mock_storage.exists.return_value = True
     import uuid
 

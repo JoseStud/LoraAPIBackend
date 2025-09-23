@@ -6,7 +6,6 @@ from backend.core.config import Settings
 @pytest.fixture(autouse=True)
 def reset_core_env(monkeypatch):
     """Ensure core settings are reset between tests."""
-
     for key in ('ENVIRONMENT', 'DATABASE_URL', 'REDIS_URL', 'SDNEXT_BASE_URL'):
         monkeypatch.delenv(key, raising=False)
 

@@ -23,7 +23,6 @@ class KeywordExtractor(KeywordExtractorProtocol):
 
     def extract(self, text: str) -> Dict[str, List[Any]]:
         """Extract keywords for *text*, applying a robust fallback if necessary."""
-
         if not text:
             return {"extracted_keywords": [], "keyword_scores": []}
 

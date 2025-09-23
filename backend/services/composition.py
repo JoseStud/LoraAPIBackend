@@ -92,7 +92,6 @@ class ComposeService:
             CompositionResult containing the composed prompt, tokens, and warnings.
 
         """
-
         adapters = adapter_service.list_active_ordered()
         warnings = self.validate_adapters(adapters)
         prompt, tokens = self.compose_prompt(adapters, prefix or "", suffix or "")

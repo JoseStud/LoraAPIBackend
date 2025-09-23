@@ -28,7 +28,6 @@ def make_delivery_service(
     queue_orchestrator: QueueOrchestrator,
 ) -> DeliveryService:
     """Create a :class:`DeliveryService` with explicit repository and queue orchestrator."""
-
     return DeliveryService(repository, queue_orchestrator=queue_orchestrator)
 
 

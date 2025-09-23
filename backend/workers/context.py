@@ -27,7 +27,6 @@ AsyncRunner = Callable[[Coroutine[Any, Any, T]], T]
 
 def _default_async_runner(coro: Coroutine[Any, Any, T]) -> T:
     """Execute a coroutine to completion using ``asyncio.run``."""
-
     try:
         asyncio.get_running_loop()
     except RuntimeError:
@@ -84,7 +83,6 @@ class WorkerContext:
         recommendation_gpu_available: Optional[bool] = None,
     ) -> "WorkerContext":
         """Create a context using the shared queue backend factory."""
-
         return cls(
             queue_orchestrator=queue_orchestrator or create_queue_orchestrator(),
             recommendation_gpu_available=recommendation_gpu_available,
@@ -93,13 +91,11 @@ class WorkerContext:
 
     def run_async(self, coro: Coroutine[Any, Any, T]) -> T:
         """Execute ``coro`` using the configured asynchronous runner."""
-
         return self._async_runner(coro)
 
     @property
     def rq_queue(self):
         """Return the underlying RQ queue when Redis is configured."""
-
         if isinstance(self.queue_backend, RedisQueueBackend):
             try:
                 return self.queue_backend.queue
@@ -109,7 +105,6 @@ class WorkerContext:
 
     def create_service_container(self, db_session: Optional[Session]) -> ServiceRegistry:
         """Instantiate a service container sharing this context's dependencies."""
-
         delivery_repository = (
             DeliveryJobRepository(db_session) if db_session is not None else None
         )

@@ -79,7 +79,6 @@ class ArchiveExportPlanner:
     # ------------------------------------------------------------------
     def build_plan(self, adapter_ids: Optional[Sequence[str]] = None) -> ExportPlan:
         """Construct the manifest and payload plan for selected adapters."""
-
         adapters = self._load_adapters(adapter_ids)
         manifest_adapters: List[Dict[str, Any]] = []
         metadata_entries: List[MetadataEntry] = []
@@ -154,7 +153,6 @@ class ArchiveExportPlanner:
 
     def estimate(self, adapter_ids: Optional[Sequence[str]] = None) -> ExportEstimation:
         """Return a summarized size/time estimation for adapters."""
-
         plan = self.build_plan(adapter_ids)
         total_bytes = plan.total_bytes
         metadata_bytes = plan.metadata_total_bytes

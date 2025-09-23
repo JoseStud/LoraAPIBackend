@@ -18,13 +18,11 @@ class RecommendationPersistenceService(PersistenceServiceProtocol):
 
     async def rebuild_similarity_index(self, *, force: bool = False) -> IndexRebuildResponse:
         """Delegate to the underlying persistence manager."""
-
         return await self._manager.rebuild_similarity_index(force=force)
 
     @property
     def index_cache_path(self) -> str:
         """Expose the configured similarity index path as a string."""
-
         return str(self._manager.index_cache_path)
 
     @index_cache_path.setter
@@ -34,7 +32,6 @@ class RecommendationPersistenceService(PersistenceServiceProtocol):
     @property
     def embedding_cache_dir(self) -> str:
         """Expose the embedding cache directory as a string."""
-
         return str(self._manager.embedding_cache_dir)
 
     @embedding_cache_dir.setter

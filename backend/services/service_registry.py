@@ -27,7 +27,6 @@ class CoreServices:
     @property
     def storage(self) -> StorageService:
         """Return the shared storage service."""
-
         return self._registry.storage
 
 
@@ -112,31 +111,26 @@ class ServiceRegistry:
     @property
     def core(self) -> CoreServices:
         """Return the core service facade."""
-
         return self._core_services
 
     @property
     def domain(self) -> DomainServices:
         """Return the domain service facade."""
-
         return self._domain_services
 
     @property
     def application(self) -> ApplicationServices:
         """Return the application service facade."""
-
         return self._application_services
 
     @property
     def infrastructure(self) -> ApplicationServices:
         """Backward compatible alias for application services."""
-
         return self._application_services
 
     @property
     def db_session(self):
         """Expose the database session associated with the registries."""
-
         return self._core_registry.db_session
 
     @property

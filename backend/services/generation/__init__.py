@@ -19,7 +19,6 @@ from .statuses import normalize_status
 
 def normalize_generation_status(status: Optional[str]) -> str:
     """Convert a delivery/job status into the UI vocabulary."""
-
     return normalize_status(status).value
 
 
@@ -202,7 +201,6 @@ class GenerationCoordinator:
         **enqueue_kwargs: Any,
     ) -> DeliveryJob:
         """Create and enqueue a generation delivery job."""
-
         delivery_params = {
             "generation_params": generation_params.model_dump(),
             "mode": mode,
@@ -224,7 +222,6 @@ class GenerationCoordinator:
 
     def serialize_delivery_job(self, job: DeliveryJob) -> Dict[str, Any]:
         """Return normalized parameters and result payload data for a job."""
-
         raw_params = self._deliveries.get_job_params(job)
         backend_name: Optional[str] = None
         generation_params: Dict[str, Any] = {}
@@ -282,7 +279,6 @@ class GenerationCoordinator:
         self, job_id: str, generation_params: SDNextGenerationParams,
     ) -> None:
         """Kick off monitoring and fan out job start notifications."""
-
         await self._websocket.start_job_monitoring(job_id, self._generation_service)
 
         started_notification = GenerationStarted(

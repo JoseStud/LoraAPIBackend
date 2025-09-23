@@ -84,7 +84,6 @@ def make_recommendation_service(
     builder: Optional[RecommendationServiceBuilder] = None,
 ) -> RecommendationService:
     """Create a :class:`RecommendationService` wired with explicit collaborators."""
-
     bootstrap = model_bootstrap or RecommendationModelBootstrap(gpu_enabled=gpu_available)
     model_registry = bootstrap.get_model_registry()
 

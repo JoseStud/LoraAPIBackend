@@ -27,7 +27,6 @@ async def estimate_export(
     services: ApplicationServices = Depends(get_application_services),
 ) -> ExportEstimate:
     """Calculate export size and time estimates using archive metadata."""
-
     if not config.loras:
         return ExportEstimate(size="0 Bytes", time="0 seconds")
 
@@ -45,7 +44,6 @@ async def export_data(
     services: ApplicationServices = Depends(get_application_services),
 ):
     """Stream an archive export of adapters using the archive helper."""
-
     if not config.loras:
         raise HTTPException(status_code=400, detail="LoRA export must be enabled")
     if config.format.lower() != "zip":
@@ -71,7 +69,6 @@ async def import_data(
     services: ApplicationServices = Depends(get_application_services),
 ):
     """Import adapters from uploaded archives after validation."""
-
     try:
         parsed_config = ImportConfig.model_validate_json(config)
     except Exception as exc:  # pragma: no cover - defensive guard
@@ -131,7 +128,6 @@ async def get_backup_history(
     services: ApplicationServices = Depends(get_application_services),
 ) -> List[BackupHistoryItem]:
     """Get persisted backup history entries."""
-
     return services.backups.list_history()
 
 
@@ -141,7 +137,6 @@ async def create_backup(
     services: ApplicationServices = Depends(get_application_services),
 ):
     """Create a new backup and return the created metadata."""
-
     entry = services.backups.create_backup(payload.backup_type)
     return {
         "success": True,
@@ -159,7 +154,6 @@ async def delete_backup(
     services: ApplicationServices = Depends(get_application_services),
 ) -> Response:
     """Delete a backup entry and its archive."""
-
     removed = services.backups.delete_backup(backup_id)
     if not removed:
         raise HTTPException(status_code=404, detail="Backup not found")

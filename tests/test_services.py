@@ -65,7 +65,6 @@ class TestAdapterService:
 
     def test_search_adapters_filters_and_pagination(self, adapter_service, db_session):
         """Service search applies filters, sorting, and pagination."""
-
         now = datetime.now(timezone.utc)
         adapters = [
             Adapter(
@@ -143,7 +142,6 @@ class TestAdapterService:
 
     def test_search_adapters_tag_filters_deduplicate_results(self, adapter_service, db_session):
         """Tag filtering occurs at the database level and avoids duplicates."""
-
         now = datetime.now(timezone.utc)
         adapters = [
             Adapter(
@@ -189,7 +187,6 @@ class TestAdapterService:
 
     def test_get_all_tags(self, adapter_service, db_session):
         """Unique tags are aggregated and sorted case-insensitively."""
-
         adapters = [
             Adapter(name="a", tags=["fantasy", "Portrait"], file_path="/tmp/a"),
             Adapter(name="b", tags=["sci-fi"], file_path="/tmp/b"),
@@ -202,7 +199,6 @@ class TestAdapterService:
 
     def test_bulk_adapter_action_activate_and_delete(self, adapter_service, db_session):
         """Bulk actions reuse service helpers and persist state changes."""
-
         adapters = [
             Adapter(name="one", active=False, file_path="/tmp/1"),
             Adapter(name="two", active=False, file_path="/tmp/2"),
@@ -228,7 +224,6 @@ class TestAdapterService:
         self, adapter_service, db_session, monkeypatch,
     ):
         """Failures trigger rollback and propagate errors."""
-
         adapter = Adapter(name="rollback", active=False, file_path="/tmp/r")
         db_session.add(adapter)
         db_session.commit()
@@ -259,7 +254,6 @@ class TestAdapterService:
 
     def test_patch_adapter_validation(self, adapter_service, db_session):
         """Patch helper enforces allowed fields and value types."""
-
         adapter = Adapter(name="patch", active=False, weight=1.0, file_path="/tmp/p")
         db_session.add(adapter)
         db_session.commit()
@@ -307,7 +301,6 @@ class TestDeliveryService:
     @staticmethod
     def _make_runner() -> DeliveryRunner:
         """Create a delivery runner bound to an isolated registry."""
-
         return DeliveryRunner(DeliveryRegistry())
 
     def test_create_job(self, delivery_service):
@@ -323,7 +316,6 @@ class TestDeliveryService:
 
     def test_schedule_job_uses_primary_queue(self, db_session):
         """Primary queue is used when available and succeeds."""
-
         primary = self.DummyQueue()
         fallback = self.DummyQueue()
         repository = DeliveryJobRepository(db_session)
@@ -343,7 +335,6 @@ class TestDeliveryService:
 
     def test_schedule_job_falls_back_when_primary_fails(self, db_session):
         """Fallback queue is invoked when the primary queue raises."""
-
         primary = self.DummyQueue(should_fail=True)
         fallback = self.DummyQueue()
         repository = DeliveryJobRepository(db_session)
@@ -363,7 +354,6 @@ class TestDeliveryService:
 
     def test_process_delivery_job_success(self, db_session, monkeypatch):
         """Processing a delivery job marks it as succeeded with the result."""
-
         service = DeliveryService(DeliveryJobRepository(db_session))
         job = service.create_job("p", "cli", {"key": "value"})
 
@@ -389,7 +379,6 @@ class TestDeliveryService:
 
     def test_process_delivery_job_failure_sets_retry(self, db_session, monkeypatch):
         """Failures with retries left set the job to retrying."""
-
         service = DeliveryService(DeliveryJobRepository(db_session))
         job = service.create_job("p", "cli", {"key": "value"})
 
@@ -414,7 +403,6 @@ class TestDeliveryService:
 
     def test_process_delivery_job_raises_when_requested(self, db_session, monkeypatch):
         """raise_on_error propagates the original exception."""
-
         service = DeliveryService(DeliveryJobRepository(db_session))
         job = service.create_job("p", "cli", {})
 
@@ -448,7 +436,6 @@ class TestComposeService:
 
     def test_compose_from_adapter_service_builds_prompt(self, compose_service):
         """Helper should compose prompt, tokens, and warnings in one place."""
-
         adapters = [
             Adapter(name="alpha", file_path="/tmp/a", weight=0.5, active=True),
             Adapter(name="beta", file_path="/tmp/b", weight=0.75, active=True),
@@ -482,7 +469,6 @@ class TestComposeService:
 
     def test_compose_from_adapter_service_captures_warnings(self, compose_service):
         """Warnings from validation should propagate through the helper."""
-
         adapters = [
             Adapter(name="gamma", file_path="/tmp/a", weight=0.0, active=True),
             Adapter(name="gamma", file_path="/tmp/b", weight=0.0, active=True),
@@ -504,7 +490,6 @@ class TestComposeService:
 
     def test_validate_adapters_reports_each_duplicate_once(self, compose_service):
         """Duplicate adapter warnings should enumerate each repeated name once."""
-
         adapters = [
             Adapter(name="alpha", file_path="/tmp/a", weight=0.5, active=True),
             Adapter(name="beta", file_path="/tmp/b", weight=0.6, active=True),

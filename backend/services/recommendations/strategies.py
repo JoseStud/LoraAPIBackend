@@ -26,7 +26,6 @@ async def get_similar_loras(
     engine,
 ) -> List[RecommendationItem]:
     """Return LoRAs similar to the target LoRA."""
-
     target_lora = repository.get_adapter(target_lora_id)
     if target_lora is None:
         raise ValueError(f"LoRA {target_lora_id} not found")
@@ -96,7 +95,6 @@ async def get_recommendations_for_prompt(
     device: str,
 ) -> List[RecommendationItem]:
     """Return LoRAs that enhance the provided prompt."""
-
     active_loras = active_loras or []
 
     prompt_embedding = await asyncio.to_thread(

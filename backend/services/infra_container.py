@@ -61,7 +61,6 @@ class InfrastructureServiceRegistry:
     @property
     def archive(self) -> ArchiveService:
         """Return the archive service."""
-
         if self._archive_service is None:
             self._archive_service = self._archive_provider(
                 self._domain.adapters,
@@ -72,7 +71,6 @@ class InfrastructureServiceRegistry:
     @property
     def backups(self) -> BackupService:
         """Return the backup service derived from the archive service."""
-
         if self._backup_service is None:
             self._backup_service = BackupService(self.archive)
         return self._backup_service
@@ -80,7 +78,6 @@ class InfrastructureServiceRegistry:
     @property
     def deliveries(self) -> DeliveryService:
         """Return the delivery service configured with orchestrator and repository."""
-
         if self._domain.db_session is None:
             raise ValueError("DeliveryService requires an active database session")
         if self._queue_orchestrator is None:
@@ -96,7 +93,6 @@ class InfrastructureServiceRegistry:
     @property
     def websocket(self) -> WebSocketService:
         """Return the websocket service."""
-
         if self._websocket_service is None:
             self._websocket_service = self._websocket_provider()
         return self._websocket_service
@@ -104,7 +100,6 @@ class InfrastructureServiceRegistry:
     @property
     def system(self) -> SystemService:
         """Return the system service monitoring delivery status."""
-
         if self._system_service is None:
             self._system_service = self._system_provider(self.deliveries)
         return self._system_service
@@ -112,7 +107,6 @@ class InfrastructureServiceRegistry:
     @property
     def generation_coordinator(self) -> GenerationCoordinator:
         """Return the generation coordinator tying together key services."""
-
         if self._generation_coordinator is None:
             self._generation_coordinator = self._generation_coordinator_provider(
                 self.deliveries,

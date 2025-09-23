@@ -57,7 +57,6 @@ class DeliveryRunner:
         raise_on_error: bool = False,
     ) -> None:
         """Internal coroutine that loads state and executes the backend."""
-
         prompt: str
         mode: str
         params: Dict[str, Any]
@@ -104,7 +103,6 @@ class DeliveryRunner:
         params: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Execute the delivery backend associated with the job mode."""
-
         params_dict = params if isinstance(params, dict) else {}
 
         backend_name: Optional[str] = None

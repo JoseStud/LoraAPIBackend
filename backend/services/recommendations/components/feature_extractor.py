@@ -29,7 +29,6 @@ class GPULoRAFeatureExtractor(FeatureExtractorProtocol):
         logger: Optional[logging.Logger] = None,
     ) -> None:
         """Initialize feature extractor."""
-
         self.device = device
         self._logger = logger or logging.getLogger(__name__)
         self.semantic_embedder = semantic_embedder or LoRASemanticEmbedder(

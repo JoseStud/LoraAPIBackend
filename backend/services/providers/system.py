@@ -18,7 +18,6 @@ class SystemServiceFactory(Protocol):
 
 def make_system_service(delivery_service: DeliveryService) -> SystemService:
     """Create a :class:`SystemService` bound to the delivery service."""
-
     return SystemService(delivery_service)
 
 

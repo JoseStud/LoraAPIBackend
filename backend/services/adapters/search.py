@@ -28,7 +28,6 @@ class AdapterSearchResult:
 
 def _normalize_tags(tags: Optional[Sequence[str]]) -> List[str]:
     """Normalize tag filters for comparison."""
-
     if not tags:
         return []
 
@@ -44,7 +43,6 @@ def _normalize_tags(tags: Optional[Sequence[str]]) -> List[str]:
 
 def _build_tag_filter_expression(db_session: Session, tag_filters: List[str]):
     """Create a SQL expression that checks for any matching tag."""
-
     if not tag_filters:
         return None
 
@@ -76,7 +74,6 @@ def search_adapters(
     per_page: int = 24,
 ) -> AdapterSearchResult:
     """Search adapters with filtering, sorting, and pagination rules."""
-
     total_count = count_total(db_session)
     base_query = select(Adapter)
     filters = []

@@ -39,7 +39,6 @@ class WebSocketService:
 
     async def handle_connection(self, websocket: WebSocket) -> None:
         """Accept a WebSocket and process incoming messages."""
-
         connection_id = await self.manager.connect(websocket)
         try:
             while True:
@@ -98,7 +97,6 @@ class WebSocketService:
 
     def stop_job_monitoring(self, job_id: str) -> None:
         """Stop monitoring a job."""
-
         self.job_monitor.stop(job_id)
 
 

@@ -47,7 +47,6 @@ class SimilarLoraUseCase:
         weights: Optional[Dict[str, float]],
     ) -> List[RecommendationItem]:
         """Return LoRAs similar to ``target_lora_id`` while capturing metrics."""
-
         start = time.perf_counter()
         try:
             engine = self._engine_provider()
@@ -91,7 +90,6 @@ class PromptRecommendationUseCase:
         style_preference: Optional[str],
     ) -> List[RecommendationItem]:
         """Return LoRAs that enhance ``prompt`` while recording metrics."""
-
         start = time.perf_counter()
         try:
             embedder = self._embedder_provider()

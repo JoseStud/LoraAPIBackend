@@ -37,17 +37,14 @@ class SDNextSession:
 
     def is_configured(self) -> bool:
         """Return whether the underlying HTTP client is configured."""
-
         return self._http_client.is_configured()
 
     async def close(self) -> None:
         """Close the underlying HTTP client."""
-
         await self._http_client.close()
 
     async def health_check(self) -> bool:
         """Perform a health check against the SDNext API."""
-
         return await self._http_client.health_check()
 
     async def submit_txt2img(
@@ -56,7 +53,6 @@ class SDNextSession:
         generation_params: Optional[Dict[str, Any]] = None,
     ) -> SDNextResponse:
         """Submit a txt2img request and return a structured response."""
-
         payload = self._build_txt2img_payload(prompt, generation_params or {})
         return await self._request(
             "POST",
@@ -66,7 +62,6 @@ class SDNextSession:
 
     async def get_progress(self) -> SDNextResponse:
         """Fetch progress information from the SDNext API."""
-
         return await self._request("GET", "/sdapi/v1/progress")
 
     async def _request(

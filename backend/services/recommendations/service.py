@@ -66,7 +66,6 @@ class RecommendationService:
         logger: Optional[logging.Logger] = None,
     ) -> "RecommendationService":
         """Assemble the service from the pre-refactor dependency set."""
-
         from .builder import RecommendationServiceBuilder
 
         builder = RecommendationServiceBuilder()
@@ -88,19 +87,16 @@ class RecommendationService:
     @staticmethod
     def is_gpu_available() -> bool:
         """Detect GPU availability across CUDA, ROCm, and MPS runtimes."""
-
         return EmbeddingCoordinator.is_gpu_available()
 
     @classmethod
     def preload_models(cls, gpu_enabled: Optional[bool] = None) -> None:
         """Eagerly load heavy shared models so the first request is fast."""
-
         EmbeddingCoordinator.preload_models(gpu_enabled=gpu_enabled)
 
     @staticmethod
     def models_loaded() -> bool:
         """Return whether required models have already been loaded."""
-
         return EmbeddingCoordinator.models_loaded()
 
     # ------------------------------------------------------------------
@@ -116,7 +112,6 @@ class RecommendationService:
         weights: Optional[Dict[str, float]] = None,
     ) -> List[RecommendationItem]:
         """Return LoRAs similar to the target adapter."""
-
         return await self._similar_lora_use_case.execute(
             target_lora_id=target_lora_id,
             limit=limit,
@@ -134,7 +129,6 @@ class RecommendationService:
         style_preference: Optional[str] = None,
     ) -> List[RecommendationItem]:
         """Return LoRA recommendations that enhance the provided prompt."""
-
         return await self._prompt_recommendation_use_case.execute(
             prompt=prompt,
             active_loras=list(active_loras) if active_loras is not None else None,
@@ -147,7 +141,6 @@ class RecommendationService:
     # ------------------------------------------------------------------
     async def refresh_indexes(self, *, force: bool = False) -> IndexRebuildResponse:
         """Refresh the persisted similarity index."""
-
         return await self._embedding_coordinator.refresh_similarity_index(force=force)
 
     # ------------------------------------------------------------------
@@ -155,12 +148,10 @@ class RecommendationService:
     # ------------------------------------------------------------------
     def stats(self) -> RecommendationStats:
         """Return recommendation system statistics."""
-
         return self._stats_reporter.build_stats(gpu_enabled=self.gpu_enabled)
 
     def embedding_status(self, adapter_id: str) -> EmbeddingStatus:
         """Get embedding status for a specific adapter."""
-
         return self._stats_reporter.embedding_status(adapter_id)
 
     # ------------------------------------------------------------------
@@ -169,7 +160,6 @@ class RecommendationService:
     @property
     def config(self) -> RecommendationConfig:
         """Return configuration helpers for cache management."""
-
         return self._config
 
     # ------------------------------------------------------------------
@@ -178,19 +168,16 @@ class RecommendationService:
     @property
     def embeddings(self) -> EmbeddingCoordinator:
         """Expose embedding coordination helpers."""
-
         return self._embedding_coordinator
 
     @property
     def feedback(self) -> FeedbackManager:
         """Expose feedback and preference management helpers."""
-
         return self._feedback_manager
 
     @property
     def reporter(self) -> StatsReporter:
         """Expose statistics reporting helpers."""
-
         return self._stats_reporter
 
     # ------------------------------------------------------------------
@@ -199,11 +186,9 @@ class RecommendationService:
     @property
     def gpu_enabled(self) -> bool:
         """Return whether GPU acceleration is enabled."""
-
         return self._embedding_coordinator.gpu_enabled
 
     @property
     def device(self) -> str:
         """Return the configured device for embeddings."""
-
         return self._embedding_coordinator.device

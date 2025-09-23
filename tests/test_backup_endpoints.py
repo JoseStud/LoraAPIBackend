@@ -9,7 +9,6 @@ from backend.core.config import settings
 
 def test_backup_history_roundtrip(client, tmp_path, monkeypatch):
     """Ensure backup creation persists metadata and supports deletion."""
-
     monkeypatch.setattr(settings, "IMPORT_PATH", str(tmp_path))
 
     history_response = client.get("/api/v1/backups/history")
