@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
+from .builders import build_persistence_components, build_use_cases
 from .config import RecommendationConfig
 from .embedding_coordinator import EmbeddingCoordinator
 from .feedback_manager import FeedbackManager
@@ -77,10 +78,23 @@ class RecommendationServiceBuilder:
         metrics = metrics_tracker or RecommendationMetricsTracker()
         model_registry = bootstrap.get_model_registry()
 
+        persistence = build_persistence_components(
+            embedding_manager=None,
+            model_registry=model_registry,
+            persistence_service=persistence_service,
+        )
+        use_cases = build_use_cases(
+            repository=repository,
+            embedding_workflow=embedding_workflow,
+            model_registry=model_registry,
+            metrics_tracker=metrics,
+            device=bootstrap.device,
+        )
+
         embedding_coordinator = EmbeddingCoordinator(
             bootstrap=bootstrap,
             embedding_workflow=embedding_workflow,
-            persistence_service=persistence_service,
+            persistence_service=persistence.service,
             logger=logger,
         )
         feedback_manager = FeedbackManager(repository)
@@ -88,26 +102,14 @@ class RecommendationServiceBuilder:
             metrics_tracker=metrics,
             repository=repository,
         )
-        similar_use_case = SimilarLoraUseCase(
-            repository=repository,
-            embedding_workflow=embedding_workflow,
-            engine_provider=model_registry.get_recommendation_engine,
-            metrics=metrics,
-        )
-        prompt_use_case = PromptRecommendationUseCase(
-            repository=repository,
-            embedder_provider=model_registry.get_semantic_embedder,
-            metrics=metrics,
-            device=bootstrap.device,
-        )
-        config = RecommendationConfig(persistence_service)
+        config = persistence.config
 
         return self.with_components(
             embedding_coordinator=embedding_coordinator,
             feedback_manager=feedback_manager,
             stats_reporter=stats_reporter,
-            similar_lora_use_case=similar_use_case,
-            prompt_recommendation_use_case=prompt_use_case,
+            similar_lora_use_case=use_cases.similar_lora,
+            prompt_recommendation_use_case=use_cases.prompt_recommendation,
             config=config,
         )
 

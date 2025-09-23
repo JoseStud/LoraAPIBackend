@@ -18,8 +18,10 @@ from backend.services.queue import QueueOrchestrator
 from backend.services.recommendations import (
     EmbeddingCoordinator,
     EmbeddingManager,
+    EmbeddingStack,
     FeedbackManager,
     LoRAEmbeddingRepository,
+    PersistenceComponents,
     RecommendationConfig,
     RecommendationMetricsTracker,
     RecommendationModelBootstrap,
@@ -31,6 +33,10 @@ from backend.services.recommendations import (
     SimilarLoraUseCase,
     StatsReporter,
     PromptRecommendationUseCase,
+    UseCaseBundle,
+    build_embedding_stack,
+    build_persistence_components,
+    build_use_cases,
 )
 from backend.services.storage import StorageBackend, StorageService, get_storage_backend
 from backend.services.system import SystemService
@@ -152,13 +158,16 @@ def make_recommendation_service(
     model_bootstrap: Optional[RecommendationModelBootstrap] = None,
     embedding_repository: Optional[LoRAEmbeddingRepository] = None,
     embedding_manager: Optional[EmbeddingManager] = None,
+    embedding_stack: Optional[EmbeddingStack] = None,
     repository: Optional[RecommendationRepository] = None,
     persistence_manager: Optional[RecommendationPersistenceManager] = None,
     persistence_service: Optional[RecommendationPersistenceService] = None,
+    persistence_components: Optional[PersistenceComponents] = None,
     metrics_tracker: Optional[RecommendationMetricsTracker] = None,
     config: Optional[RecommendationConfig] = None,
     similar_use_case: Optional[SimilarLoraUseCase] = None,
     prompt_use_case: Optional[PromptRecommendationUseCase] = None,
+    use_case_bundle: Optional[UseCaseBundle] = None,
     embedding_coordinator: Optional[EmbeddingCoordinator] = None,
     feedback_manager: Optional[FeedbackManager] = None,
     stats_reporter: Optional[StatsReporter] = None,
@@ -170,32 +179,43 @@ def make_recommendation_service(
     model_registry = bootstrap.get_model_registry()
 
     repository = repository or RecommendationRepository(db_session)
-    embedding_repository = embedding_repository or LoRAEmbeddingRepository(db_session)
-    embedding_manager = embedding_manager or EmbeddingManager(embedding_repository, model_registry)
 
-    persistence_manager = persistence_manager or RecommendationPersistenceManager(
-        embedding_manager,
-        model_registry.get_recommendation_engine,
-    )
-    persistence_service = persistence_service or RecommendationPersistenceService(
-        persistence_manager
-    )
+    if embedding_stack is None:
+        embedding_stack = build_embedding_stack(
+            db_session=db_session,
+            model_registry=model_registry,
+            embedding_repository=embedding_repository,
+            embedding_manager=embedding_manager,
+        )
+    embedding_repository = embedding_stack.repository
+    embedding_manager = embedding_stack.manager
+
+    if persistence_components is None:
+        persistence_components = build_persistence_components(
+            embedding_manager=embedding_manager,
+            model_registry=model_registry,
+            persistence_manager=persistence_manager,
+            persistence_service=persistence_service,
+            config=config,
+        )
+    persistence_manager = persistence_components.manager
+    persistence_service = persistence_components.service
+    config = persistence_components.config
 
     metrics_tracker = metrics_tracker or RecommendationMetricsTracker()
-    config = config or RecommendationConfig(persistence_service)
 
-    similar_use_case = similar_use_case or SimilarLoraUseCase(
-        repository=repository,
-        embedding_workflow=embedding_manager,
-        engine_provider=model_registry.get_recommendation_engine,
-        metrics=metrics_tracker,
-    )
-    prompt_use_case = prompt_use_case or PromptRecommendationUseCase(
-        repository=repository,
-        embedder_provider=model_registry.get_semantic_embedder,
-        metrics=metrics_tracker,
-        device=bootstrap.device,
-    )
+    if use_case_bundle is None:
+        use_case_bundle = build_use_cases(
+            repository=repository,
+            embedding_workflow=embedding_manager,
+            model_registry=model_registry,
+            metrics_tracker=metrics_tracker,
+            device=bootstrap.device,
+            similar_use_case=similar_use_case,
+            prompt_use_case=prompt_use_case,
+        )
+    similar_use_case = use_case_bundle.similar_lora
+    prompt_use_case = use_case_bundle.prompt_recommendation
 
     embedding_coordinator = embedding_coordinator or EmbeddingCoordinator(
         bootstrap=bootstrap,
