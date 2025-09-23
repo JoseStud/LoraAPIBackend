@@ -32,7 +32,7 @@ export const exportAnalyticsReport = async (
   };
 
   const { blob, response } = await requestBlob(
-    resolveBackendUrl('/import-export/export', baseUrl ?? undefined),
+    resolveBackendUrl('/export', baseUrl ?? undefined),
     {
       method: 'POST',
       credentials: 'same-origin',

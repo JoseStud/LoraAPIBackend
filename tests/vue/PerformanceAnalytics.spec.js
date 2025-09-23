@@ -15,6 +15,13 @@ const downloadFileMock = vi.hoisted(() => vi.fn());
 vi.mock('@/composables/useNotifications', () => ({
   useNotifications: () => notificationSpies,
 }));
+vi.mock('@/composables/shared', async () => {
+  const actual = await vi.importActual('@/composables/shared');
+  return {
+    ...actual,
+    useNotifications: () => notificationSpies,
+  };
+});
 
 vi.mock('@/utils/browser', () => ({
   downloadFile: downloadFileMock,
@@ -221,7 +228,7 @@ describe('PerformanceAnalyticsPage.vue', () => {
       if (url.includes('/adapters')) {
         return createJsonResponse(adapterListResponse);
       }
-      if (url.includes('/import-export/export')) {
+      if (url.includes('/api/v1/export')) {
         return createBlobResponse();
       }
       return createJsonResponse({});
