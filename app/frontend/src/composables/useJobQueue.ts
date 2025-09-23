@@ -8,7 +8,7 @@ import {
   fetchActiveGenerationJobs,
   fetchLegacyJobStatuses,
 } from '@/services/generationService';
-import { useGenerationStore } from '@/stores/generation';
+import { useGenerationQueueStore, useGenerationResultsStore } from '@/stores/generation';
 import { useNotifications } from '@/composables/useNotifications';
 import { useBackendBase } from '@/utils/backend';
 import type { GenerationJob, GenerationResult } from '@/types';
@@ -96,8 +96,9 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
   const pollIntervalMs = computed(() => resolveNumber(options.pollInterval));
   const isDisabled = computed(() => resolveBoolean(options.disabled));
 
-  const generationStore = useGenerationStore();
-  const { activeJobs } = storeToRefs(generationStore);
+  const queueStore = useGenerationQueueStore();
+  const resultsStore = useGenerationResultsStore();
+  const { activeJobs } = storeToRefs(queueStore);
   const notifications = useNotifications();
   const backendBase = useBackendBase();
 
@@ -135,10 +136,10 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
 
     if (status === 'completed') {
       if (record.result) {
-        generationStore.addResult(record.result as GenerationResult);
+        resultsStore.addResult(record.result as GenerationResult);
       }
       if (wasTracked) {
-        generationStore.removeJob(existing!.id);
+        queueStore.removeJob(existing!.id);
         notifications.showSuccess('Generation completed!');
       }
       return;
@@ -146,7 +147,7 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
 
     if (status === 'failed') {
       if (wasTracked) {
-        generationStore.removeJob(existing!.id);
+        queueStore.removeJob(existing!.id);
         const errorMessage = extractErrorMessage(record);
         if (rawStatus?.toLowerCase() === 'cancelled') {
           notifications.showInfo('Generation cancelled');
@@ -180,7 +181,7 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
     }
 
     if (!wasTracked) {
-      generationStore.enqueueJob({
+      queueStore.enqueueJob({
         id: jobId,
         jobId: typeof record.jobId === 'string' ? record.jobId : undefined,
         startTime:
@@ -192,7 +193,7 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
       return;
     }
 
-    generationStore.updateJob(existing!.id, updates);
+    queueStore.updateJob(existing!.id, updates);
   };
 
   const refresh = async () => {
@@ -324,7 +325,7 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
         return false;
       }
 
-      generationStore.removeJob(jobId);
+      queueStore.removeJob(jobId);
       notifications.showInfo('Job cancelled');
       return true;
     } finally {
@@ -333,7 +334,7 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
   };
 
   const clearCompletedJobs = () => {
-    generationStore.clearCompletedJobs();
+    queueStore.clearCompletedJobs();
   };
 
   watch(isDisabled, (nextDisabled) => {

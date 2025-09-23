@@ -6,7 +6,11 @@ import { mount } from '@vue/test-utils'
 
 import GenerationStudio from '../../app/frontend/src/components/GenerationStudio.vue'
 import { useAppStore } from '../../app/frontend/src/stores/app'
-import { useGenerationStore } from '../../app/frontend/src/stores/generation'
+import {
+  useGenerationConnectionStore,
+  useGenerationQueueStore,
+  useGenerationResultsStore,
+} from '../../app/frontend/src/stores/generation'
 
 const mocks = vi.hoisted(() => ({
   startGenerationMock: vi.fn(),
@@ -73,14 +77,20 @@ global.fetch = vi.fn()
 describe('GenerationStudio.vue', () => {
   let wrapper
   let appStore
-  let generationStore
+  let queueStore
+  let resultsStore
+  let connectionStore
 
   beforeEach(() => {
     vi.clearAllMocks()
     appStore = useAppStore()
     appStore.$reset()
-    generationStore = useGenerationStore()
-    generationStore.$reset()
+    queueStore = useGenerationQueueStore()
+    resultsStore = useGenerationResultsStore()
+    connectionStore = useGenerationConnectionStore()
+    queueStore.reset()
+    resultsStore.reset()
+    connectionStore.reset()
     localStorageMock.getItem.mockReturnValue(null)
     mocks.startGenerationMock.mockResolvedValue({ job_id: 'job-123', status: 'queued', progress: 0 })
     mocks.cancelGenerationJobMock.mockResolvedValue(undefined)
