@@ -42,6 +42,8 @@ npm install
 npm run dev
 ```
 
+> **Note:** Node packages are not vendored in this repository. Run `npm install` (or `npm ci`) locally after cloning and keep the generated `node_modules/` directory out of version control.
+
 Visit `http://localhost:8000` to access the application.
 
 ### Alternative Development Workflow
