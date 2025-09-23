@@ -5,20 +5,9 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from .builders import build_persistence_components, build_use_cases
 from .config import RecommendationConfig
 from .embedding_coordinator import EmbeddingCoordinator
 from .feedback_manager import FeedbackManager
-from .interfaces import (
-    EmbeddingWorkflow,
-    RecommendationBootstrap,
-    RecommendationPersistenceService,
-    RecommendationRepository,
-)
-from .interfaces import (
-    RecommendationMetricsTracker as RecommendationMetricsTrackerProtocol,
-)
-from .metrics import RecommendationMetricsTracker
 from .service import RecommendationService
 from .stats_reporter import StatsReporter
 from .use_cases import PromptRecommendationUseCase, SimilarLoraUseCase
@@ -62,55 +51,6 @@ class RecommendationServiceBuilder:
         """Override the logger used by the service facade."""
         self._logger = logger
         return self
-
-    def with_legacy_dependencies(
-        self,
-        *,
-        bootstrap: RecommendationBootstrap,
-        repository: RecommendationRepository,
-        embedding_workflow: EmbeddingWorkflow,
-        persistence_service: RecommendationPersistenceService,
-        metrics_tracker: Optional[RecommendationMetricsTrackerProtocol] = None,
-        logger: Optional[logging.Logger] = None,
-    ) -> "RecommendationServiceBuilder":
-        """Populate collaborators from the legacy dependency set."""
-        metrics = metrics_tracker or RecommendationMetricsTracker()
-        model_registry = bootstrap.get_model_registry()
-
-        persistence = build_persistence_components(
-            embedding_manager=None,
-            model_registry=model_registry,
-            persistence_service=persistence_service,
-        )
-        use_cases = build_use_cases(
-            repository=repository,
-            embedding_workflow=embedding_workflow,
-            model_registry=model_registry,
-            metrics_tracker=metrics,
-            device=bootstrap.device,
-        )
-
-        embedding_coordinator = EmbeddingCoordinator(
-            bootstrap=bootstrap,
-            embedding_workflow=embedding_workflow,
-            persistence_service=persistence.service,
-            logger=logger,
-        )
-        feedback_manager = FeedbackManager(repository)
-        stats_reporter = StatsReporter(
-            metrics_tracker=metrics,
-            repository=repository,
-        )
-        config = persistence.config
-
-        return self.with_components(
-            embedding_coordinator=embedding_coordinator,
-            feedback_manager=feedback_manager,
-            stats_reporter=stats_reporter,
-            similar_lora_use_case=use_cases.similar_lora,
-            prompt_recommendation_use_case=use_cases.prompt_recommendation,
-            config=config,
-        )
 
     # ------------------------------------------------------------------
     # Build
