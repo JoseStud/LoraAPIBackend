@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import LoraCard from '../../app/frontend/src/components/LoraCard.vue';
+import LoraCardGrid from '../../app/frontend/src/components/LoraCardGrid.vue';
 
 const mocks = vi.hoisted(() => ({
   updateLoraWeightMock: vi.fn(),
@@ -178,16 +179,22 @@ describe('LoraCard', () => {
     const wrapper = mount(LoraCard, {
       props: {
         lora: mockLora,
+        viewMode: 'grid',
       },
     });
 
-    await wrapper.vm.updateWeight();
-    expect(mocks.updateLoraWeightMock).toHaveBeenCalledWith('/api/v1', 1, expect.any(Number));
+    const grid = wrapper.findComponent(LoraCardGrid);
 
-    await wrapper.vm.toggleActive();
+    grid.vm.$emit('change-weight', 1.25);
+    await flushPromises();
+    expect(mocks.updateLoraWeightMock).toHaveBeenCalledWith('/api/v1', 1, 1.25);
+
+    grid.vm.$emit('toggle-active');
+    await flushPromises();
     expect(mocks.toggleLoraActiveStateMock).toHaveBeenCalledWith('/api/v1', 1, false);
 
-    await wrapper.vm.generatePreview();
+    grid.vm.$emit('generate-preview');
+    await flushPromises();
     expect(mocks.triggerPreviewGenerationMock).toHaveBeenCalledWith('/api/v1', 1);
   });
 });
