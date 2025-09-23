@@ -1,24 +1,30 @@
 """Recommendation service package exports."""
 
+from .config import RecommendationConfig
 from .embedding_batch_runner import EmbeddingBatchRunner
+from .embedding_coordinator import EmbeddingCoordinator
 from .embedding_computer import EmbeddingComputer
 from .embedding_manager import EmbeddingManager
 from .embedding_repository import LoRAEmbeddingRepository
+from .feedback_manager import FeedbackManager
 from .metrics import RecommendationMetricsTracker, RecommendationMetrics
 from .model_bootstrap import RecommendationModelBootstrap
 from .persistence_manager import RecommendationPersistenceManager
 from .persistence_service import RecommendationPersistenceService
 from .repository import RecommendationRepository
 from .service import RecommendationService
-from .config import RecommendationConfig
 from .similarity_index_builder import SimilarityIndexBuilder
-from .use_cases import SimilarLoraUseCase, PromptRecommendationUseCase
+from .stats_reporter import StatsReporter
+from .use_cases import PromptRecommendationUseCase, SimilarLoraUseCase
 
 __all__ = [
+    'RecommendationConfig',
     'EmbeddingBatchRunner',
+    'EmbeddingCoordinator',
     'EmbeddingComputer',
     'EmbeddingManager',
     'LoRAEmbeddingRepository',
+    'FeedbackManager',
     'RecommendationMetrics',
     'RecommendationMetricsTracker',
     'RecommendationModelBootstrap',
@@ -26,8 +32,8 @@ __all__ = [
     'RecommendationPersistenceService',
     'RecommendationRepository',
     'RecommendationService',
-    'RecommendationConfig',
     'SimilarityIndexBuilder',
+    'StatsReporter',
     'SimilarLoraUseCase',
     'PromptRecommendationUseCase',
 ]

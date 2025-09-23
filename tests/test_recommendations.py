@@ -23,12 +23,16 @@ from backend.schemas.recommendations import (
 from backend.services import ServiceContainer
 from backend.services.recommendations import (
     EmbeddingBatchRunner,
+    EmbeddingCoordinator,
+    FeedbackManager,
     LoRAEmbeddingRepository,
+    RecommendationConfig,
     RecommendationMetricsTracker,
     RecommendationModelBootstrap,
     RecommendationPersistenceManager,
     RecommendationPersistenceService,
     RecommendationRepository,
+    StatsReporter,
     PromptRecommendationUseCase,
     SimilarLoraUseCase,
     RecommendationService,
@@ -208,6 +212,124 @@ class TestRecommendationRepository:
         assert stored.learned_from == "feedback"
 
 
+class TestEmbeddingCoordinator:
+    """Validate embedding coordinator behaviour."""
+
+    @pytest.mark.anyio("asyncio")
+    async def test_coordinates_runtime_and_workflows(self):
+        bootstrap = MagicMock()
+        bootstrap.device = "cpu"
+        bootstrap.gpu_enabled = False
+
+        workflow = MagicMock()
+        workflow.compute_embeddings_for_lora = AsyncMock(return_value=True)
+        workflow.batch_compute_embeddings = AsyncMock(return_value={"processed": 1})
+
+        persistence_service = MagicMock()
+        persistence_service.rebuild_similarity_index = AsyncMock(return_value="rebuilt")
+
+        coordinator = EmbeddingCoordinator(
+            bootstrap=bootstrap,
+            embedding_workflow=workflow,
+            persistence_service=persistence_service,
+        )
+
+        assert coordinator.device == "cpu"
+        assert coordinator.gpu_enabled is False
+
+        await coordinator.compute_for_lora("adapter-1", force_recompute=True)
+        workflow.compute_embeddings_for_lora.assert_awaited_once_with(
+            "adapter-1", force_recompute=True
+        )
+
+        await coordinator.compute_batch(["adapter-2"], batch_size=16)
+        workflow.batch_compute_embeddings.assert_awaited_once_with(
+            ["adapter-2"], force_recompute=False, batch_size=16
+        )
+
+        await coordinator.refresh_similarity_index(force=True)
+        persistence_service.rebuild_similarity_index.assert_awaited_once_with(force=True)
+
+    def test_gpu_helpers_delegate_to_bootstrap(self):
+        with patch.object(
+            RecommendationModelBootstrap, "is_gpu_available", return_value=True
+        ) as available:
+            assert EmbeddingCoordinator.is_gpu_available() is True
+            available.assert_called_once()
+
+        with patch.object(
+            RecommendationModelBootstrap,
+            "preload_models_for_environment",
+        ) as preload:
+            EmbeddingCoordinator.preload_models(gpu_enabled=False)
+            preload.assert_called_once_with(gpu_enabled=False)
+
+
+class TestFeedbackManager:
+    """Ensure feedback manager proxies to the repository."""
+
+    def test_delegates_to_repository(self):
+        repository = MagicMock()
+        manager = FeedbackManager(repository)
+
+        feedback_request = MagicMock()
+        manager.record_feedback(feedback_request)
+        repository.record_feedback.assert_called_once_with(feedback_request)
+
+        preference_request = MagicMock()
+        manager.update_user_preference(preference_request)
+        repository.update_user_preference.assert_called_once_with(preference_request)
+
+
+class TestStatsReporter:
+    """Verify stats reporter interactions."""
+
+    def test_build_stats_uses_tracker(self):
+        metrics_tracker = MagicMock()
+        repository = MagicMock()
+        reporter = StatsReporter(metrics_tracker=metrics_tracker, repository=repository)
+
+        reporter.build_stats(gpu_enabled=True)
+        metrics_tracker.build_stats.assert_called_once_with(
+            repository,
+            gpu_enabled=True,
+        )
+
+    def test_embedding_status_handles_missing(self, repository):
+        reporter = StatsReporter(
+            metrics_tracker=MagicMock(),
+            repository=repository,
+        )
+
+        status = reporter.embedding_status("unknown")
+
+        assert status.adapter_id == "unknown"
+        assert status.needs_recomputation is True
+
+    def test_embedding_status_for_existing_record(
+        self, repository, db_session, sample_adapter
+    ):
+        db_session.add(sample_adapter)
+        db_session.add(
+            LoRAEmbedding(
+                adapter_id=sample_adapter.id,
+                semantic_embedding=b"data",
+                last_computed=datetime.now(timezone.utc),
+            )
+        )
+        db_session.commit()
+
+        reporter = StatsReporter(
+            metrics_tracker=MagicMock(),
+            repository=repository,
+        )
+
+        status = reporter.embedding_status(sample_adapter.id)
+
+        assert status.needs_recomputation is False
+        assert status.has_semantic_embedding is True
+
+
 class TestRecommendationUseCases:
     """Ensure focused use cases delegate correctly."""
 
@@ -317,35 +439,130 @@ class TestRecommendationMetricsTracker:
 class TestRecommendationService:
     """Minimal smoke tests for the service wiring."""
 
-    def test_service_uses_injected_dependencies(self):
+    @pytest.mark.anyio("asyncio")
+    async def test_service_facade_delegates_to_components(self):
         bootstrap = MagicMock()
-        bootstrap.get_model_registry.return_value = MagicMock()
-        bootstrap.gpu_enabled = False
         bootstrap.device = "cpu"
+        bootstrap.gpu_enabled = False
 
-        repository = MagicMock()
         embedding_workflow = MagicMock()
-        persistence_service = MagicMock()
-        metrics_tracker = MagicMock(spec=RecommendationMetricsTracker)
+        embedding_workflow.compute_embeddings_for_lora = AsyncMock(return_value=True)
+        embedding_workflow.batch_compute_embeddings = AsyncMock(return_value={"processed": 1})
 
-        service = RecommendationService(
+        persistence_service = MagicMock()
+        persistence_service.rebuild_similarity_index = AsyncMock(return_value="rebuilt")
+        persistence_service.index_cache_path = "index.pkl"
+        persistence_service.embedding_cache_dir = "embeddings"
+
+        embedding_coordinator = EmbeddingCoordinator(
             bootstrap=bootstrap,
-            repository=repository,
             embedding_workflow=embedding_workflow,
             persistence_service=persistence_service,
-            metrics_tracker=metrics_tracker,
         )
 
-        service.config.index_cache_path
-        service.config.embedding_cache_dir
+        repository = MagicMock()
+        repository.record_feedback.return_value = MagicMock()
+        repository.update_user_preference.return_value = MagicMock()
+        repository.count_active_adapters.return_value = 1
+        repository.count_lora_embeddings.return_value = 1
+        repository.count_user_preferences.return_value = 1
+        repository.count_recommendation_sessions.return_value = 1
+        repository.count_feedback.return_value = 0
+        repository.get_last_embedding_update.return_value = datetime.now(timezone.utc)
+        repository.get_embedding.return_value = MagicMock(
+            semantic_embedding=b"sem",
+            artistic_embedding=b"art",
+            technical_embedding=b"tech",
+            extracted_keywords=b"kw",
+            last_computed=datetime.now(timezone.utc),
+        )
+
+        feedback_manager = FeedbackManager(repository)
+        metrics_tracker = RecommendationMetricsTracker()
+        stats_reporter = StatsReporter(
+            metrics_tracker=metrics_tracker,
+            repository=repository,
+        )
+
+        similar_use_case = MagicMock()
+        similar_use_case.execute = AsyncMock(return_value=[MagicMock()])
+        prompt_use_case = MagicMock()
+        prompt_use_case.execute = AsyncMock(return_value=[MagicMock()])
+
+        config = RecommendationConfig(persistence_service)
+
+        service = RecommendationService(
+            embedding_coordinator=embedding_coordinator,
+            feedback_manager=feedback_manager,
+            stats_reporter=stats_reporter,
+            similar_lora_use_case=similar_use_case,
+            prompt_recommendation_use_case=prompt_use_case,
+            config=config,
+        )
+
+        await service.similar_loras(target_lora_id="adapter-1", limit=2)
+        assert similar_use_case.execute.await_count == 1
+
+        await service.recommend_for_prompt(prompt="hello", active_loras=["a"], limit=1)
+        assert prompt_use_case.execute.await_count == 1
+
+        await service.compute_embeddings(adapter_id="adapter-1", force_recompute=True)
+        embedding_workflow.compute_embeddings_for_lora.assert_awaited_with(
+            "adapter-1", force_recompute=True
+        )
+
+        await service.compute_embeddings_batch(adapter_ids=["adapter-1"], batch_size=8)
+        embedding_workflow.batch_compute_embeddings.assert_awaited_with(
+            ["adapter-1"], force_recompute=False, batch_size=8
+        )
+
+        await service.refresh_indexes(force=True)
+        persistence_service.rebuild_similarity_index.assert_awaited_with(force=True)
+
+        feedback_payload = MagicMock()
+        service.record_feedback(feedback_payload)
+        repository.record_feedback.assert_called_once_with(feedback_payload)
+
+        preference_payload = MagicMock()
+        service.update_user_preference(preference_payload)
+        repository.update_user_preference.assert_called_once_with(preference_payload)
+
+        assert service.config.index_cache_path == "index.pkl"
         service.config.index_cache_path = "cache/index.pkl"
-        service.config.embedding_cache_dir = "cache/embeddings"
-
         assert persistence_service.index_cache_path == "cache/index.pkl"
-        assert persistence_service.embedding_cache_dir == "cache/embeddings"
 
-        service.record_feedback(MagicMock())
-        repository.record_feedback.assert_called()
+        stats = service.stats()
+        assert isinstance(stats, RecommendationStats)
+
+        status = service.embedding_status("adapter-1")
+        assert status.needs_recomputation is False
+
+        assert service.gpu_enabled is False
+        assert service.device == "cpu"
+
+        assert service._total_queries == 0
+        assert service._cache_hits == 0
+
+        await service.get_similar_loras("adapter-1")
+        assert similar_use_case.execute.await_count == 2
+
+        await service.get_recommendations_for_prompt("hello")
+        assert prompt_use_case.execute.await_count == 2
+
+        await service.compute_embeddings_for_lora("adapter-1")
+        assert embedding_workflow.compute_embeddings_for_lora.await_count == 2
+
+        await service.batch_compute_embeddings()
+        assert embedding_workflow.batch_compute_embeddings.await_count == 2
+
+        await service.rebuild_similarity_index()
+        assert persistence_service.rebuild_similarity_index.await_count == 2
+
+        stats_alias = service.get_recommendation_stats()
+        assert stats_alias.total_loras == stats.total_loras
+
+        status_alias = service.get_embedding_status("adapter-1")
+        assert status_alias.needs_recomputation == status.needs_recomputation
 
     def test_service_container_builds_dependencies(self, db_session):
         container = ServiceContainer(db_session)
@@ -353,3 +570,4 @@ class TestRecommendationService:
 
         assert isinstance(service, RecommendationService)
         assert service.device == "cpu"
+        assert service.gpu_enabled is False
