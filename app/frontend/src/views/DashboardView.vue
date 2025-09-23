@@ -22,7 +22,7 @@
     </section>
 
     <section class="grid gap-6 xl:grid-cols-2">
-      <PerformanceAnalytics />
+      <PerformanceAnalytics :show-page-header="false" :show-system-status="false" />
       <SystemStatusPanel />
     </section>
 
@@ -53,7 +53,7 @@ import ImportExport from '@/components/ImportExport.vue';
 import JobQueue from '@/components/JobQueue.vue';
 import LoraGallery from '@/components/LoraGallery.vue';
 import PageHeader from '@/components/PageHeader.vue';
-import PerformanceAnalytics from '@/components/PerformanceAnalytics.vue';
+import PerformanceAnalytics from '@/views/analytics/PerformanceAnalyticsPage.vue';
 import PromptComposer from '@/components/PromptComposer.vue';
 import RecommendationsPanel from '@/components/RecommendationsPanel.vue';
 import SystemAdminStatusCard from '@/components/SystemAdminStatusCard.vue';

@@ -1,15 +1,98 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { defineComponent, h, watchEffect } from 'vue';
 
-const { chartConstructorSpy } = vi.hoisted(() => ({
-  chartConstructorSpy: vi.fn()
+import PerformanceAnalyticsPage from '../../app/frontend/src/views/analytics/PerformanceAnalyticsPage.vue';
+
+const notificationSpies = vi.hoisted(() => ({
+  showSuccess: vi.fn(),
+  showError: vi.fn(),
+  showInfo: vi.fn(),
 }));
 
-vi.mock('chart.js/auto', () => ({
-  default: chartConstructorSpy
+const downloadFileMock = vi.hoisted(() => vi.fn());
+
+vi.mock('@/composables/useNotifications', () => ({
+  useNotifications: () => notificationSpies,
 }));
 
-import PerformanceAnalytics from '../../app/frontend/src/components/PerformanceAnalytics.vue';
+vi.mock('@/utils/browser', () => ({
+  downloadFile: downloadFileMock,
+}));
+
+const createRecordingStub = (name, propsConfig, record) => defineComponent({
+  name,
+  props: propsConfig,
+  emits: ['apply', 'export', 'schedule'],
+  setup(props, { slots }) {
+    watchEffect(() => {
+      record.current = { ...props };
+    });
+    return () => h('div', { class: `${name}-stub` }, slots.default ? slots.default() : []);
+  },
+});
+
+let kpiGridProps;
+let chartGridProps;
+let insightsProps;
+
+const PerformanceAnalyticsKpiGridStub = createRecordingStub(
+  'PerformanceAnalyticsKpiGrid',
+  {
+    kpis: { type: Object, required: true },
+    formatDuration: { type: Function, required: true },
+  },
+  { get current() { return kpiGridProps; }, set current(value) { kpiGridProps = value; } },
+);
+
+const PerformanceAnalyticsChartGridStub = createRecordingStub(
+  'PerformanceAnalyticsChartGrid',
+  {
+    chartData: { type: Object, required: true },
+  },
+  { get current() { return chartGridProps; }, set current(value) { chartGridProps = value; } },
+);
+
+const PerformanceAnalyticsInsightsStub = createRecordingStub(
+  'PerformanceAnalyticsInsights',
+  {
+    insights: { type: Array, required: true },
+  },
+  { get current() { return insightsProps; }, set current(value) { insightsProps = value; } },
+);
+
+const PerformanceAnalyticsExportToolbarStub = defineComponent({
+  name: 'PerformanceAnalyticsExportToolbar',
+  emits: ['export', 'schedule'],
+  setup(_, { emit }) {
+    return () => h('button', {
+      class: 'export-toolbar-stub',
+      onClick: () => emit('export', 'csv'),
+    }, 'export');
+  },
+});
+
+const PageHeaderStub = defineComponent({
+  name: 'PageHeader',
+  props: {
+    title: { type: String, required: true },
+    subtitle: { type: String, required: true },
+  },
+  setup(props, { slots }) {
+    return () => h('div', { class: 'page-header-stub' }, slots.actions ? slots.actions() : slots.default ? slots.default() : []);
+  },
+});
+
+const SystemStatusStub = defineComponent({
+  name: 'SystemStatusPanel',
+  setup: () => () => h('div', { class: 'system-status-panel-stub' }),
+});
+
+const SystemStatusCardStub = defineComponent({
+  name: 'SystemStatusCard',
+  props: { variant: { type: String, default: '' } },
+  setup: () => () => h('div', { class: 'system-status-card-stub' }),
+});
 
 const analyticsSummary = {
   time_range: '24h',
@@ -62,75 +145,13 @@ const adapterListResponse = {
       id: 'adapter-1',
       name: 'LoRA Alpha',
       version: '1.0',
-      canonical_version_name: null,
-      description: null,
-      author_username: null,
-      visibility: 'Public',
-      published_at: null,
-      tags: [],
-      trained_words: [],
-      triggers: [],
-      file_path: '/tmp/alpha.safetensors',
-      weight: 1,
-      active: true,
-      ordinal: null,
-      archetype: null,
-      archetype_confidence: null,
-      primary_file_name: null,
-      primary_file_size_kb: null,
-      primary_file_sha256: null,
-      primary_file_download_url: null,
-      primary_file_local_path: null,
-      supports_generation: true,
-      sd_version: null,
-      nsfw_level: 0,
-      activation_text: null,
       stats: { usage_count: 12, success_rate: 96.5, avg_time: 43.2 },
-      extra: null,
-      json_file_path: null,
-      json_file_mtime: null,
-      json_file_size: null,
-      last_ingested_at: null,
-      last_updated: null,
-      created_at: '2024-01-01T00:00:00Z',
-      updated_at: '2024-01-01T00:00:00Z',
     },
     {
       id: 'adapter-2',
       name: 'LoRA Beta',
       version: '1.1',
-      canonical_version_name: null,
-      description: null,
-      author_username: null,
-      visibility: 'Public',
-      published_at: null,
-      tags: [],
-      trained_words: [],
-      triggers: [],
-      file_path: '/tmp/beta.safetensors',
-      weight: 1,
-      active: true,
-      ordinal: null,
-      archetype: null,
-      archetype_confidence: null,
-      primary_file_name: null,
-      primary_file_size_kb: null,
-      primary_file_sha256: null,
-      primary_file_download_url: null,
-      primary_file_local_path: null,
-      supports_generation: true,
-      sd_version: null,
-      nsfw_level: 0,
-      activation_text: null,
       stats: { usage_count: 9, success_rate: 94.1, avg_time: 46.7 },
-      extra: null,
-      json_file_path: null,
-      json_file_mtime: null,
-      json_file_size: null,
-      last_ingested_at: null,
-      last_updated: null,
-      created_at: '2024-01-01T00:00:00Z',
-      updated_at: '2024-01-01T00:00:00Z',
     },
   ],
   total: 2,
@@ -146,17 +167,51 @@ const createJsonResponse = (payload) =>
     headers: { 'Content-Type': 'application/json' },
   });
 
+const createBlobResponse = () =>
+  new Response(new Blob(['id,metric\n1,42'], { type: 'text/csv' }), {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/csv',
+      'Content-Disposition': 'attachment; filename="analytics.csv"',
+    },
+  });
+
 const flushPromises = async () => {
   await Promise.resolve();
   await new Promise((resolve) => setTimeout(resolve, 0));
 };
 
-describe('PerformanceAnalytics.vue', () => {
+const mountPage = () =>
+  mount(PerformanceAnalyticsPage, {
+    props: {
+      showPageHeader: false,
+      showSystemStatus: false,
+    },
+    global: {
+      stubs: {
+        PageHeader: PageHeaderStub,
+        SystemStatusPanel: SystemStatusStub,
+        SystemStatusCard: SystemStatusCardStub,
+        PerformanceAnalyticsKpiGrid: PerformanceAnalyticsKpiGridStub,
+        PerformanceAnalyticsChartGrid: PerformanceAnalyticsChartGridStub,
+        PerformanceAnalyticsInsights: PerformanceAnalyticsInsightsStub,
+        PerformanceAnalyticsExportToolbar: PerformanceAnalyticsExportToolbarStub,
+      },
+    },
+  });
+;
+
+describe('PerformanceAnalyticsPage.vue', () => {
   let wrapper;
 
   beforeEach(() => {
-    // Reset all mocks
-    vi.clearAllMocks();
+    kpiGridProps = undefined;
+    chartGridProps = undefined;
+    insightsProps = undefined;
+    downloadFileMock.mockReset();
+    notificationSpies.showSuccess.mockReset();
+    notificationSpies.showError.mockReset();
+    notificationSpies.showInfo.mockReset();
 
     global.fetch = vi.fn(async (input) => {
       const url = typeof input === 'string' ? input : input.url || '';
@@ -166,140 +221,77 @@ describe('PerformanceAnalytics.vue', () => {
       if (url.includes('/adapters')) {
         return createJsonResponse(adapterListResponse);
       }
+      if (url.includes('/import-export/export')) {
+        return createBlobResponse();
+      }
       return createJsonResponse({});
     });
-
-    chartConstructorSpy.mockReset();
-    chartConstructorSpy.mockImplementation((context, config = {}) => {
-      const baseData = config && typeof config === 'object' && 'data' in config && config.data
-        ? JSON.parse(JSON.stringify(config.data))
-        : { labels: [], datasets: [] };
-
-      const instance = {
-        update: vi.fn(),
-        destroy: vi.fn(),
-        data: baseData
-      };
-
-      return instance;
-    });
   });
 
-  it('renders the component correctly', async () => {
-    wrapper = mount(PerformanceAnalytics);
+  afterEach(() => {
+    wrapper?.unmount();
+  });
 
-    // Should show loading initially
+  it('renders loading state and resolves analytics view', async () => {
+    wrapper = mountPage();
+
     expect(wrapper.text()).toContain('Loading analytics...');
 
-    // Wait for component to initialize
     await flushPromises();
     await wrapper.vm.$nextTick();
 
-    // Should eventually show the analytics content
     expect(wrapper.find('.analytics-container').exists()).toBe(true);
+    expect(kpiGridProps?.kpis.total_generations).toBe(analyticsSummary.kpis.total_generations);
   });
 
-  it('displays KPIs correctly', async () => {
-    wrapper = mount(PerformanceAnalytics);
+  it('forwards KPI and chart data to child components', async () => {
+    wrapper = mountPage();
 
     await flushPromises();
     await wrapper.vm.$nextTick();
 
-    // Should contain KPI sections
-    expect(wrapper.text()).toContain('Total Generations');
-    expect(wrapper.text()).toContain('Average Generation Time');
-    expect(wrapper.text()).toContain('Success Rate');
-    expect(wrapper.text()).toContain('Active LoRAs');
+    expect(kpiGridProps).toBeDefined();
+    expect(kpiGridProps.kpis.total_generations).toBe(analyticsSummary.kpis.total_generations);
+    expect(kpiGridProps.kpis.success_rate).toBe(analyticsSummary.kpis.success_rate);
+    expect(typeof kpiGridProps.formatDuration).toBe('function');
 
-    expect(wrapper.vm.kpis.total_generations).toBe(analyticsSummary.kpis.total_generations);
-    expect(wrapper.vm.kpis.success_rate).toBe(analyticsSummary.kpis.success_rate);
-    expect(wrapper.vm.kpis.active_loras).toBe(analyticsSummary.kpis.active_loras);
+    expect(chartGridProps).toBeDefined();
+    expect(chartGridProps.chartData.generationVolume).toEqual(analyticsSummary.chart_data.generation_volume);
+    expect(chartGridProps.chartData.performance).toEqual(analyticsSummary.chart_data.performance);
   });
 
-  it('handles time range changes without errors', async () => {
-    wrapper = mount(PerformanceAnalytics);
+  it('passes insights to the insights component and handles apply events', async () => {
+    wrapper = mountPage();
 
     await flushPromises();
     await wrapper.vm.$nextTick();
 
-    // Find and change the time range selector
-    const select = wrapper.find('select');
-    expect(select.exists()).toBe(true);
+    expect(insightsProps).toBeDefined();
+    expect(insightsProps.insights).toEqual(analyticsSummary.performance_insights);
 
-    // Change time range programmatically to avoid chart update errors
-    wrapper.vm.timeRange = '7d';
-    await wrapper.vm.$nextTick();
-    
-    expect(wrapper.vm.timeRange).toBe('7d');
+    const insightsStub = wrapper.findComponent({ name: 'PerformanceAnalyticsInsights' });
+    insightsStub.vm.$emit('apply', analyticsSummary.performance_insights[0]);
+
+    expect(notificationSpies.showInfo).toHaveBeenCalledWith(
+      expect.stringContaining('Applying recommendation'),
+    );
   });
 
-  it('displays charts sections', async () => {
-    wrapper = mount(PerformanceAnalytics);
+  it('handles export requests via the toolbar', async () => {
+    wrapper = mountPage();
 
     await flushPromises();
     await wrapper.vm.$nextTick();
 
-    // Should contain chart sections
-    expect(wrapper.text()).toContain('Generation Volume');
-    expect(wrapper.text()).toContain('Generation Performance');
-    expect(wrapper.text()).toContain('LoRA Usage Distribution');
-    expect(wrapper.text()).toContain('System Resources');
-  });
-
-  it('maps analytics payload into chart and error state', async () => {
-    wrapper = mount(PerformanceAnalytics);
+    const toolbarStub = wrapper.findComponent({ name: 'PerformanceAnalyticsExportToolbar' });
+    toolbarStub.vm.$emit('export', 'csv');
 
     await flushPromises();
-    await wrapper.vm.$nextTick();
 
-    expect(wrapper.vm.chartData.generationVolume).toEqual(analyticsSummary.chart_data.generation_volume);
-    expect(wrapper.vm.chartData.performance).toEqual(analyticsSummary.chart_data.performance);
-    expect(wrapper.vm.errorAnalysis).toEqual(analyticsSummary.error_breakdown);
-    expect(wrapper.vm.performanceInsights).toEqual(analyticsSummary.performance_insights);
-  });
-
-  it('displays export options', async () => {
-    wrapper = mount(PerformanceAnalytics);
-
-    await flushPromises();
-    await wrapper.vm.$nextTick();
-
-    // Should contain export options
-    expect(wrapper.text()).toContain('Export Analytics');
-    expect(wrapper.text()).toContain('Export CSV');
-    expect(wrapper.text()).toContain('Export JSON');
-    expect(wrapper.text()).toContain('Export PDF Report');
-  });
-
-  it('handles auto-refresh toggle', async () => {
-    wrapper = mount(PerformanceAnalytics);
-
-    await flushPromises();
-    await wrapper.vm.$nextTick();
-
-    // Find auto-refresh checkbox
-    const checkbox = wrapper.find('input[type="checkbox"]');
-    expect(checkbox.exists()).toBe(true);
-
-    // Initially should be false
-    expect(wrapper.vm.autoRefresh).toBe(false);
-    
-    // Toggle auto-refresh programmatically
-    wrapper.vm.autoRefresh = true;
-    await wrapper.vm.$nextTick();
-    
-    expect(wrapper.vm.autoRefresh).toBe(true);
-  });
-
-  it('formats duration correctly', async () => {
-    wrapper = mount(PerformanceAnalytics);
-
-    // Wait for initialization
-    await wrapper.vm.$nextTick();
-    
-    // Test duration formatting
-    expect(wrapper.vm.formatDuration(30)).toBe('30.0s');
-    expect(wrapper.vm.formatDuration(90)).toBe('1m 30s');
-    expect(wrapper.vm.formatDuration(3720)).toBe('1h 2m');
+    expect(downloadFileMock).toHaveBeenCalled();
+    const [blobArg, filenameArg] = downloadFileMock.mock.calls[0];
+    expect(blobArg).toMatchObject({ size: expect.any(Number), type: 'text/csv' });
+    expect(filenameArg).toBe('analytics.csv');
+    expect(notificationSpies.showSuccess).toHaveBeenCalledWith('Export completed successfully');
   });
 });

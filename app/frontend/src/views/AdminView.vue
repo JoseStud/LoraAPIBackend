@@ -19,7 +19,7 @@
       <ImportExport />
     </div>
     <div class="grid gap-6 xl:grid-cols-2">
-      <PerformanceAnalytics />
+      <PerformanceAnalytics :show-page-header="false" :show-system-status="false" />
       <RecommendationsPanel />
     </div>
   </div>
@@ -31,7 +31,7 @@ import { RouterLink } from 'vue-router';
 import ImportExport from '@/components/ImportExport.vue';
 import JobQueue from '@/components/JobQueue.vue';
 import PageHeader from '@/components/PageHeader.vue';
-import PerformanceAnalytics from '@/components/PerformanceAnalytics.vue';
+import PerformanceAnalytics from '@/views/analytics/PerformanceAnalyticsPage.vue';
 import RecommendationsPanel from '@/components/RecommendationsPanel.vue';
 import SystemAdminStatusCard from '@/components/SystemAdminStatusCard.vue';
 import SystemStatusPanel from '@/components/SystemStatusPanel.vue';

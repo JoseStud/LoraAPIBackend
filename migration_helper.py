@@ -19,8 +19,7 @@ FILE_MIGRATION_MAP: Dict[str, List[str]] = {
         "app/frontend/src/views/ImportExportView.vue",
     ],
     "Analytics overview": [
-        "app/frontend/src/components/PerformanceAnalytics.vue",
-        "app/frontend/src/views/AnalyticsView.vue",
+        "app/frontend/src/views/analytics/PerformanceAnalyticsPage.vue",
     ],
     "Offline messaging": [
         "app/frontend/src/components/OfflineFeatureCard.vue",
