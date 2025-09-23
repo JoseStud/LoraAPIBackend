@@ -8,7 +8,8 @@ from sqlmodel import Session
 from backend.services.storage import get_storage_service
 
 from .adapters import AdapterService
-from .analytics import AnalyticsService
+from .analytics import AnalyticsService, InsightGenerator, TimeSeriesBuilder
+from .analytics_repository import AnalyticsRepository
 from .archive import ArchiveExportPlanner, ArchiveImportExecutor, ArchiveService
 from .composition import ComposeService
 from .deliveries import DeliveryService
@@ -179,7 +180,13 @@ class ServiceContainer:
             raise ValueError("AnalyticsService requires an active database session")
 
         if self._analytics_service is None:
-            self._analytics_service = AnalyticsService(self.db_session)
+            repository = AnalyticsRepository(self.db_session)
+            self._analytics_service = AnalyticsService(
+                self.db_session,
+                repository=repository,
+                time_series_builder=TimeSeriesBuilder(),
+                insight_generator=InsightGenerator(),
+            )
         return self._analytics_service
 
     @property
