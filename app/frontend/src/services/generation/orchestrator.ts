@@ -1,4 +1,4 @@
-import { onScopeDispose, watch, type Ref } from 'vue';
+import { getCurrentScope, onScopeDispose, watch, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import {
@@ -117,7 +117,7 @@ export const createGenerationOrchestrator = ({
   };
 
   const cleanup = (): void => {
-    transport.stopUpdates();
+    transport.clear();
   };
 
   const startGeneration = async (
@@ -200,9 +200,11 @@ export const createGenerationOrchestrator = ({
     transport.setPollInterval(next);
   });
 
-  onScopeDispose(() => {
-    transport.clear();
-  });
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      transport.clear();
+    });
+  }
 
   return {
     initialize,
