@@ -106,4 +106,29 @@ describe('LoraGallery', () => {
     expect(mocks.fetchAdaptersMock).toHaveBeenCalledWith('/api/v1', expect.objectContaining({ perPage: 100 }));
     expect(mocks.fetchAdapterTagsMock).toHaveBeenCalledWith('/api/v1');
   });
+
+  it('performs bulk actions using shared selection state', async () => {
+    const wrapper = await mountGallery();
+
+    expect(wrapper.vm.selectedCount).toBe(0);
+
+    wrapper.vm.handleSelectionChange('1');
+    await flushPromises();
+
+    expect(wrapper.vm.selectedCount).toBe(1);
+    expect(wrapper.vm.selectedLoras).toEqual(['1']);
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    await wrapper.vm.performBulkAction('activate');
+    await flushPromises();
+
+    expect(mocks.performBulkLoraActionMock).toHaveBeenCalledWith('/api/v1', {
+      action: 'activate',
+      lora_ids: ['1'],
+    });
+    expect(wrapper.vm.selectedCount).toBe(0);
+
+    confirmSpy.mockRestore();
+  });
 });
