@@ -9,9 +9,8 @@ from enum import Enum
 from typing import Dict, Optional
 
 
-class GenerationStatus(Enum):
+class NormalizedGenerationStatus(str, Enum):
     """Canonical generation statuses exposed by the API."""
-
 
     QUEUED = "queued"
     PROCESSING = "processing"
@@ -19,37 +18,43 @@ class GenerationStatus(Enum):
     FAILED = "failed"
 
 
-_VALUE_TO_STATUS: Dict[str, GenerationStatus] = {
-    status.value: status for status in GenerationStatus
+# Backwards compatibility alias for legacy imports
+GenerationStatus = NormalizedGenerationStatus
+
+
+STATUS_NORMALIZATION_MAP: Dict[str, NormalizedGenerationStatus] = {
+    status.value: status for status in NormalizedGenerationStatus
 }
+STATUS_NORMALIZATION_MAP.update(
+    {
+        "pending": NormalizedGenerationStatus.QUEUED,
+        "running": NormalizedGenerationStatus.PROCESSING,
+        "retrying": NormalizedGenerationStatus.PROCESSING,
+        "starting": NormalizedGenerationStatus.PROCESSING,
+        "succeeded": NormalizedGenerationStatus.COMPLETED,
+        "cancelled": NormalizedGenerationStatus.FAILED,
+    }
+)
 
-_DELIVERY_TO_STATUS: Dict[str, GenerationStatus] = {
-    "pending": GenerationStatus.QUEUED,
-    "running": GenerationStatus.PROCESSING,
-    "retrying": GenerationStatus.PROCESSING,
-    "succeeded": GenerationStatus.COMPLETED,
-    "failed": GenerationStatus.FAILED,
-    "cancelled": GenerationStatus.FAILED,
-}
+DEFAULT_NORMALIZED_STATUS = NormalizedGenerationStatus.PROCESSING
 
 
-def normalize_status(status: Optional[str]) -> GenerationStatus:
+def normalize_status(status: Optional[str]) -> NormalizedGenerationStatus:
     """Normalize a delivery status into a canonical API value."""
 
     if not status:
-        return GenerationStatus.PROCESSING
+        return DEFAULT_NORMALIZED_STATUS
 
     normalized = status.lower()
 
-    mapped = _DELIVERY_TO_STATUS.get(normalized)
-    if mapped is not None:
-        return mapped
-
-    existing = _VALUE_TO_STATUS.get(normalized)
-    if existing is not None:
-        return existing
-
-    return GenerationStatus.PROCESSING
+    mapped = STATUS_NORMALIZATION_MAP.get(normalized)
+    return mapped if mapped is not None else DEFAULT_NORMALIZED_STATUS
 
 
-__all__ = ["GenerationStatus", "normalize_status"]
+__all__ = [
+    "GenerationStatus",
+    "NormalizedGenerationStatus",
+    "STATUS_NORMALIZATION_MAP",
+    "normalize_status",
+    "DEFAULT_NORMALIZED_STATUS",
+]
