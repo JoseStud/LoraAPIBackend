@@ -197,7 +197,7 @@ async def process_embeddings_batch_async(
                 len(adapter_ids) if adapter_ids else "all",
             )
 
-            result = await recommendation_service.batch_compute_embeddings(
+            result = await recommendation_service.embeddings.compute_batch(
                 adapter_ids=adapter_ids,
                 force_recompute=force_recompute,
                 batch_size=batch_size,
@@ -263,8 +263,8 @@ async def compute_single_embedding_async(
 
             logger.info("Computing embeddings for adapter %s", adapter_id)
 
-            result = await recommendation_service.compute_embeddings_for_lora(
-                adapter_id=adapter_id,
+            result = await recommendation_service.embeddings.compute_for_lora(
+                adapter_id,
                 force_recompute=force_recompute,
             )
 

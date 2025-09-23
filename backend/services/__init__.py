@@ -18,17 +18,21 @@ from .generation import GenerationCoordinator, GenerationService
 from .queue import QueueOrchestrator, create_queue_orchestrator
 from .storage import StorageService
 from .recommendations import (
+    EmbeddingCoordinator,
     EmbeddingManager,
+    FeedbackManager,
     LoRAEmbeddingRepository,
+    RecommendationConfig,
     RecommendationMetricsTracker,
     RecommendationModelBootstrap,
     RecommendationPersistenceManager,
     RecommendationPersistenceService,
     RecommendationRepository,
-    RecommendationConfig,
-    SimilarLoraUseCase,
-    PromptRecommendationUseCase,
     RecommendationService,
+    RecommendationServiceBuilder,
+    SimilarLoraUseCase,
+    StatsReporter,
+    PromptRecommendationUseCase,
 )
 from .system import SystemService
 from .websocket import WebSocketService, websocket_service
@@ -233,15 +237,28 @@ class ServiceContainer:
                 device=model_bootstrap.device,
             )
 
-            self._recommendation_service = RecommendationService(
+            embedding_coordinator = EmbeddingCoordinator(
                 bootstrap=model_bootstrap,
-                repository=repository,
                 embedding_workflow=embedding_manager,
                 persistence_service=persistence_service,
+            )
+            feedback_manager = FeedbackManager(repository)
+            stats_reporter = StatsReporter(
                 metrics_tracker=metrics_tracker,
-                similar_lora_use_case=similar_use_case,
-                prompt_recommendation_use_case=prompt_use_case,
-                config=config,
+                repository=repository,
+            )
+
+            self._recommendation_service = (
+                RecommendationServiceBuilder()
+                .with_components(
+                    embedding_coordinator=embedding_coordinator,
+                    feedback_manager=feedback_manager,
+                    stats_reporter=stats_reporter,
+                    similar_lora_use_case=similar_use_case,
+                    prompt_recommendation_use_case=prompt_use_case,
+                    config=config,
+                )
+                .build()
             )
 
         return self._recommendation_service

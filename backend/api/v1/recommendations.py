@@ -50,7 +50,7 @@ async def get_similar_loras(
         start_time = datetime.now()
         
         # Generate recommendations
-        recommendations = await recommendation_service.get_similar_loras(
+        recommendations = await recommendation_service.similar_loras(
             target_lora_id=lora_id,
             limit=limit,
             similarity_threshold=similarity_threshold,
@@ -97,7 +97,7 @@ async def get_recommendations_for_prompt(
         start_time = datetime.now()
         
         # Generate recommendations
-        recommendations = await recommendation_service.get_recommendations_for_prompt(
+        recommendations = await recommendation_service.recommend_for_prompt(
             prompt=request.prompt,
             active_loras=request.active_loras,
             limit=request.limit,
@@ -135,7 +135,7 @@ async def get_recommendation_stats(
 
     """
     try:
-        stats = recommendation_service.get_recommendation_stats()
+        stats = recommendation_service.stats()
         return stats
         
     except Exception as e:
@@ -159,14 +159,14 @@ async def compute_embeddings(
     try:
         if request.compute_all:
             # Compute for all active LoRAs
-            result = await recommendation_service.batch_compute_embeddings(
+            result = await recommendation_service.embeddings.compute_batch(
                 adapter_ids=None,
                 force_recompute=request.force_recompute,
                 batch_size=request.batch_size,
             )
         else:
             # Compute for specific LoRAs
-            result = await recommendation_service.batch_compute_embeddings(
+            result = await recommendation_service.embeddings.compute_batch(
                 adapter_ids=request.adapter_ids,
                 force_recompute=request.force_recompute,
                 batch_size=request.batch_size,
@@ -193,7 +193,7 @@ async def get_embedding_status(
 
     """
     try:
-        status = recommendation_service.get_embedding_status(lora_id)
+        status = recommendation_service.embedding_status(lora_id)
         return status
         
     except Exception as e:
@@ -217,8 +217,8 @@ async def compute_single_embedding(
 
     """
     try:
-        success = await recommendation_service.compute_embeddings_for_lora(
-            adapter_id=lora_id,
+        success = await recommendation_service.embeddings.compute_for_lora(
+            lora_id,
             force_recompute=force_recompute,
         )
         
@@ -248,7 +248,7 @@ async def submit_recommendation_feedback(
 
     """
     try:
-        record = recommendation_service.record_feedback(feedback)
+        record = recommendation_service.feedback.record_feedback(feedback)
         return RecommendationFeedbackRead.from_orm(record)
 
     except ValueError as e:
@@ -272,7 +272,7 @@ async def update_user_preferences(
 
     """
     try:
-        preference_record = recommendation_service.update_user_preference(preference)
+        preference_record = recommendation_service.feedback.update_user_preference(preference)
         return UserPreferenceRead.from_orm(preference_record)
 
     except Exception as e:
@@ -297,7 +297,7 @@ async def rebuild_similarity_index(
 
     """
     try:
-        result = await recommendation_service.rebuild_similarity_index(force=force)
+        result = await recommendation_service.refresh_indexes(force=force)
         return result
 
     except Exception as e:
@@ -315,7 +315,7 @@ async def get_recommendation_health(
 
     """
     try:
-        stats = recommendation_service.get_recommendation_stats()
+        stats = recommendation_service.stats()
         
         # Basic health checks
         health_status = {
