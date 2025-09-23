@@ -11,7 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 from backend.core.dependencies import get_service_container
 from backend.schemas import ComposeRequest, ComposeResponse
 from backend.schemas.generation import SDNextGenerationParams
-from backend.services import ServiceContainer
+from backend.services import ServiceRegistry
 
 logger = structlog.get_logger(__name__)
 
@@ -22,7 +22,7 @@ router = APIRouter()
 async def compose(
     req: ComposeRequest,
     background_tasks: BackgroundTasks,
-    services: ServiceContainer = Depends(get_service_container),
+    services: ServiceRegistry = Depends(get_service_container),
 ):
     """Compose a prompt from active adapters and optionally schedule delivery."""
     # Compose prompt and collect warnings via the shared helper

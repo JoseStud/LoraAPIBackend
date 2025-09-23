@@ -9,7 +9,7 @@ from typing import Any, Callable, Coroutine, Optional, TypeVar
 from sqlmodel import Session
 
 from backend.delivery.base import delivery_registry
-from backend.services import ServiceContainer
+from backend.services import ServiceRegistry, get_service_container_builder
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.queue import (
@@ -107,7 +107,7 @@ class WorkerContext:
                 return None
         return None
 
-    def create_service_container(self, db_session: Optional[Session]) -> ServiceContainer:
+    def create_service_container(self, db_session: Optional[Session]) -> ServiceRegistry:
         """Instantiate a service container sharing this context's dependencies."""
 
         delivery_repository = (
@@ -117,7 +117,8 @@ class WorkerContext:
             AnalyticsRepository(db_session) if db_session is not None else None
         )
 
-        return ServiceContainer(
+        builder = get_service_container_builder()
+        return builder.build(
             db_session,
             queue_orchestrator=self.queue_orchestrator,
             delivery_repository=delivery_repository,

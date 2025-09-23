@@ -20,7 +20,7 @@ from backend.schemas import (
     SDNextGenerationParams,
     SDNextGenerationResult,
 )
-from backend.services import ServiceContainer
+from backend.services import ServiceRegistry
 from backend.services.generation import normalize_generation_status
 from backend.services.generation.presenter import build_active_job, build_result
 
@@ -47,7 +47,7 @@ async def generate_image(
     mode: str = "immediate",
     save_images: bool = True,
     return_format: str = "base64",
-    services: ServiceContainer = Depends(get_service_container),
+    services: ServiceRegistry = Depends(get_service_container),
 ):
     """Generate an image using the specified backend.
     
@@ -120,7 +120,7 @@ async def compose_and_generate(
     mode: str = "immediate",
     save_images: bool = True,
     return_format: str = "base64",
-    services: ServiceContainer = Depends(get_service_container),
+    services: ServiceRegistry = Depends(get_service_container),
 ):
     """Compose LoRA prompt and immediately generate images.
     
@@ -190,7 +190,7 @@ async def queue_generation_job(
     mode: str = "deferred",
     save_images: bool = True,
     return_format: str = "base64",
-    services: ServiceContainer = Depends(get_service_container),
+    services: ServiceRegistry = Depends(get_service_container),
 ):
     """Queue a generation job for background processing.
     
@@ -215,7 +215,7 @@ async def queue_generation_job(
 @router.get("/jobs/active", response_model=List[GenerationJobStatus])
 async def list_active_generation_jobs(
     limit: int = Query(50, ge=1, le=200),
-    services: ServiceContainer = Depends(get_service_container),
+    services: ServiceRegistry = Depends(get_service_container),
 ):
     """Return active generation jobs for frontend queues."""
 
@@ -240,7 +240,7 @@ async def list_active_generation_jobs(
 @router.get("/jobs/{job_id}", response_model=DeliveryWrapper)
 async def get_generation_job(
     job_id: str,
-    services: ServiceContainer = Depends(get_service_container),
+    services: ServiceRegistry = Depends(get_service_container),
 ):
     """Get generation job status and results."""
     job = services.deliveries.get_job(job_id)
@@ -271,7 +271,7 @@ async def get_generation_job(
 @router.post("/jobs/{job_id}/cancel", response_model=GenerationCancelResponse)
 async def cancel_generation_job(
     job_id: str,
-    services: ServiceContainer = Depends(get_service_container),
+    services: ServiceRegistry = Depends(get_service_container),
 ):
     """Cancel an active generation job."""
     job = services.deliveries.get_job(job_id)
@@ -291,7 +291,7 @@ async def cancel_generation_job(
 async def list_generation_results(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    services: ServiceContainer = Depends(get_service_container),
+    services: ServiceRegistry = Depends(get_service_container),
 ):
     """Return recent completed generation results."""
     jobs = services.deliveries.list_jobs(status="succeeded", limit=limit, offset=offset)

@@ -50,21 +50,19 @@ def mock_storage_fixture(monkeypatch) -> MagicMock:
     mock_storage_service.backend = mock_backend
     mock_storage_service.validate_file_path.side_effect = lambda path: mock.exists(path)
     
-    # Patch the storage service factory in all possible locations
-    # Since we moved to backend, we need to patch the backend app's services
-    monkeypatch.setattr(
-        "backend.services.storage.get_storage_service", 
-        lambda: mock_storage_service,
-    )
-    
-    # Also patch the ServiceContainer's property method directly
-    from backend.services import ServiceContainer
-    
+    # Patch the default builder to reuse the mock storage service
+    from backend.services import ServiceContainer, get_service_container_builder
+
+    builder = get_service_container_builder()
+
+    monkeypatch.setattr(builder, "_storage_provider", lambda: mock_storage_service)
+
     def mock_storage_property(self):
         return mock_storage_service
-    
+
     monkeypatch.setattr(ServiceContainer, "storage", property(mock_storage_property))
     
+    mock.storage_service = mock_storage_service
     return mock
 
 
@@ -109,12 +107,13 @@ def adapter_service(db_session: Session, mock_storage) -> AdapterService:
         db_session,
         analytics_repository=AnalyticsRepository(db_session),
         recommendation_gpu_available=False,
+        storage_provider=lambda: mock_storage.storage_service,
     )
     return container.adapters
 
 
 @pytest.fixture
-def delivery_service(db_session: Session) -> DeliveryService:
+def delivery_service(db_session: Session, mock_storage) -> DeliveryService:
     """DeliveryService fixture using the new modular service."""
     container = ServiceContainer(
         db_session,
@@ -122,6 +121,7 @@ def delivery_service(db_session: Session) -> DeliveryService:
         delivery_repository=DeliveryJobRepository(db_session),
         analytics_repository=AnalyticsRepository(db_session),
         recommendation_gpu_available=False,
+        storage_provider=lambda: mock_storage.storage_service,
     )
     return container.deliveries
 
