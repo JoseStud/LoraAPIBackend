@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Dict, cast
+from types import SimpleNamespace
 
 from unittest.mock import AsyncMock, MagicMock
 
@@ -155,6 +156,63 @@ def test_generation_coordinator_schedule_generation_job(db_session):
     assert stored_params["mode"] == "deferred"
     assert stored_params["save_images"] is False
     assert stored_params["return_format"] == "url"
+
+
+def test_compose_sdnext_uses_generation_coordinator(
+    client: TestClient,
+    db_session,
+):
+    """Compose endpoint delegates SDNext deliveries to the coordinator."""
+
+    class RecordingCoordinator:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def schedule_generation_job(self, generation_params, **kwargs):
+            self.calls.append((generation_params, kwargs))
+            return SimpleNamespace(id="job-123", status="pending")
+
+    container = ServiceContainer(db_session)
+    coordinator = RecordingCoordinator()
+    container._generation_coordinator = coordinator  # type: ignore[attr-defined]
+
+    from backend.core.dependencies import get_service_container
+
+    backend_app.dependency_overrides[get_service_container] = lambda: container
+
+    try:
+        response = client.post(
+            "/api/v1/compose",
+            json={
+                "prefix": "pref",
+                "delivery": {
+                    "mode": "sdnext",
+                    "sdnext": {
+                        "generation_params": {"prompt": "seed"},
+                        "mode": "deferred",
+                        "save_images": False,
+                        "return_format": "url",
+                    },
+                },
+            },
+        )
+    finally:
+        backend_app.dependency_overrides.pop(get_service_container, None)
+
+    assert response.status_code == 200
+    body = response.json()
+
+    assert coordinator.calls
+    generation_params, call_kwargs = coordinator.calls[0]
+    assert generation_params.prompt == body["prompt"]
+    assert call_kwargs["backend"] == "sdnext"
+    assert call_kwargs["mode"] == "deferred"
+    assert call_kwargs["save_images"] is False
+    assert call_kwargs["return_format"] == "url"
+    assert call_kwargs["background_tasks"] is not None
+
+    delivery_info = body.get("delivery")
+    assert delivery_info == {"id": "job-123", "status": "pending"}
 
 
 @pytest.mark.anyio

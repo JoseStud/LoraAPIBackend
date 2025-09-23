@@ -10,6 +10,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 
 from backend.core.dependencies import get_service_container
 from backend.schemas import ComposeRequest, ComposeResponse
+from backend.schemas.generation import SDNextGenerationParams
 from backend.services import ServiceContainer
 
 logger = structlog.get_logger(__name__)
@@ -37,12 +38,26 @@ async def compose(
 
     delivery_info = None
     if req.delivery:
-        job = services.deliveries.schedule_job(
-            composition.prompt,
-            req.delivery.mode,
-            req.delivery.model_dump(),
-            background_tasks=background_tasks,
-        )
+        sdnext_config = req.delivery.sdnext
+        if sdnext_config is not None:
+            generation_params: SDNextGenerationParams = sdnext_config.generation_params.model_copy()
+            generation_params.prompt = composition.prompt
+            job = services.generation_coordinator.schedule_generation_job(
+                generation_params,
+                backend=req.delivery.mode,
+                mode=sdnext_config.mode,
+                save_images=sdnext_config.save_images,
+                return_format=sdnext_config.return_format,
+                background_tasks=background_tasks,
+            )
+        else:
+            job = services.deliveries.schedule_job(
+                composition.prompt,
+                req.delivery.mode,
+                req.delivery.model_dump(),
+                background_tasks=background_tasks,
+            )
+
         delivery_info = {"id": job.id, "status": job.status}
 
     return ComposeResponse(
