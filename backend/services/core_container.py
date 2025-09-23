@@ -6,7 +6,7 @@ from sqlmodel import Session
 
 from .analytics_repository import AnalyticsRepository
 from .delivery_repository import DeliveryJobRepository
-from .providers import make_storage_service
+from .providers.storage import StorageServiceFactory, make_storage_service
 from .storage import StorageService
 
 
@@ -17,7 +17,7 @@ class CoreServiceRegistry:
         self,
         db_session: Optional[Session],
         *,
-        storage_provider: Callable[[], StorageService] = make_storage_service,
+        storage_provider: StorageServiceFactory = make_storage_service,
         delivery_repository: Optional[DeliveryJobRepository] = None,
         analytics_repository: Optional[AnalyticsRepository] = None,
     ) -> None:

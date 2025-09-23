@@ -20,20 +20,23 @@ from .composition import ComposeService
 from .deliveries import DeliveryService
 from .delivery_repository import DeliveryJobRepository
 from .generation import GenerationCoordinator, GenerationService
-from .providers import (
-    make_adapter_service,
-    make_analytics_service,
-    make_archive_service,
+from .providers.analytics import make_analytics_service
+from .providers.archive import make_archive_service
+from .providers.deliveries import make_delivery_service
+from .providers.generation import (
     make_compose_service,
-    make_delivery_service,
     make_generation_coordinator,
     make_generation_service,
-    make_recommendation_service,
-    make_storage_service,
-    make_system_service,
 )
+from .providers.recommendations import make_recommendation_service
+from .providers.storage import make_adapter_service, make_storage_service
+from .providers.system import make_system_service
 from .queue import QueueOrchestrator
-from .service_container_builder import ServiceContainerBuilder
+from .service_container_builder import (
+    DomainFactories,
+    InfrastructureFactories,
+    ServiceContainerBuilder,
+)
 from .service_registry import (
     ApplicationServices,
     CoreServices,
@@ -77,22 +80,35 @@ class ServiceContainer:
         analytics_provider=make_analytics_service,
         recommendation_provider=make_recommendation_service,
     ) -> None:
-        effective_storage_provider = (
-            storage_provider if storage_provider is not None else _DEFAULT_BUILDER._storage_provider
+        storage_config = _DEFAULT_BUILDER._storage
+        if storage_provider is not None:
+            storage_config = replace(storage_config, storage=storage_provider)
+        if adapter_provider is not None:
+            storage_config = replace(storage_config, adapter=adapter_provider)
+
+        domain_factories = _DEFAULT_BUILDER._domain_factories
+        domain_factories = replace(
+            domain_factories,
+            compose=compose_provider,
+            generation=generation_provider,
+            analytics=analytics_provider,
+            recommendation=recommendation_provider,
+        )
+
+        infrastructure_factories = _DEFAULT_BUILDER._infrastructure_factories
+        infrastructure_factories = replace(
+            infrastructure_factories,
+            archive=archive_provider,
+            delivery=delivery_provider,
+            generation_coordinator=generation_coordinator_provider,
+            system=system_provider,
         )
 
         builder = ServiceContainerBuilder(
-            storage_provider=effective_storage_provider,
-            adapter_provider=adapter_provider,
-            archive_provider=archive_provider,
-            delivery_provider=delivery_provider,
-            compose_provider=compose_provider,
-            generation_provider=generation_provider,
-            generation_coordinator_provider=generation_coordinator_provider,
-            websocket_provider=websocket_provider,
-            system_provider=system_provider,
-            analytics_provider=analytics_provider,
-            recommendation_provider=recommendation_provider,
+            storage=storage_config,
+            domain_factories=domain_factories,
+            infrastructure_factories=infrastructure_factories,
+            websocket_factory=websocket_provider,
         )
         registry = builder.build(
             db_session,

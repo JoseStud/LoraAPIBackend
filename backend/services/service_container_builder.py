@@ -1,35 +1,60 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, replace
 from typing import Callable, Optional
 
 from sqlmodel import Session
 
-from .analytics import AnalyticsService
 from .analytics_repository import AnalyticsRepository
 from .core_container import CoreServiceRegistry
 from .delivery_repository import DeliveryJobRepository
-from .deliveries import DeliveryService
 from .domain_container import DomainServiceRegistry
 from .infra_container import InfrastructureServiceRegistry
-from .providers import (
-    make_adapter_service,
-    make_analytics_service,
-    make_archive_service,
+from .providers.analytics import AnalyticsServiceFactory, make_analytics_service
+from .providers.archive import ArchiveServiceFactory, make_archive_service
+from .providers.deliveries import DeliveryServiceFactory, make_delivery_service
+from .providers.generation import (
+    ComposeServiceFactory,
+    GenerationCoordinatorFactory,
+    GenerationServiceFactory,
     make_compose_service,
-    make_delivery_service,
     make_generation_coordinator,
     make_generation_service,
+)
+from .providers.recommendations import (
+    RecommendationServiceFactory,
     make_recommendation_service,
-    make_storage_service,
-    make_system_service,
-    make_websocket_service,
+)
+from .providers.storage import StorageProviders
+from .providers.system import SystemServiceFactory, make_system_service
+from .providers.websocket import (
+    WebSocketServiceFactory,
+    default_websocket_service_factory,
 )
 from .queue import QueueOrchestrator, create_queue_orchestrator
 from .recommendations import RecommendationService
 from .service_registry import ServiceRegistry
-from .storage import StorageService
-from .system import SystemService
-from .websocket import WebSocketService, websocket_service
+
+
+@dataclass(frozen=True)
+class DomainFactories:
+    """Grouped domain-level service factories."""
+
+    compose: ComposeServiceFactory = make_compose_service
+    generation: GenerationServiceFactory = make_generation_service
+    analytics: AnalyticsServiceFactory = make_analytics_service
+    recommendation: RecommendationServiceFactory = make_recommendation_service
+
+
+@dataclass(frozen=True)
+class InfrastructureFactories:
+    """Grouped infrastructure-level service factories."""
+
+    archive: ArchiveServiceFactory = make_archive_service
+    delivery: DeliveryServiceFactory = make_delivery_service
+    generation_coordinator: GenerationCoordinatorFactory = make_generation_coordinator
+    websocket: WebSocketServiceFactory = default_websocket_service_factory
+    system: SystemServiceFactory = make_system_service
 
 
 class ServiceContainerBuilder:
@@ -38,37 +63,23 @@ class ServiceContainerBuilder:
     def __init__(
         self,
         *,
-        storage_provider: Callable[[], StorageService] = make_storage_service,
-        adapter_provider=make_adapter_service,
-        archive_provider=make_archive_service,
-        delivery_provider=make_delivery_service,
-        compose_provider=make_compose_service,
-        generation_provider=make_generation_service,
-        generation_coordinator_provider=make_generation_coordinator,
-        websocket_provider: Optional[Callable[[], WebSocketService]] = None,
-        system_provider: Callable[[DeliveryService], SystemService] = make_system_service,
-        analytics_provider: Callable[..., AnalyticsService] = make_analytics_service,
-        recommendation_provider=make_recommendation_service,
+        storage: StorageProviders = StorageProviders(),
+        domain_factories: DomainFactories = DomainFactories(),
+        infrastructure_factories: InfrastructureFactories = InfrastructureFactories(),
+        websocket_factory: Optional[WebSocketServiceFactory] = None,
         queue_orchestrator_factory: Callable[[], QueueOrchestrator] = create_queue_orchestrator,
         analytics_repository_factory: Callable[[Session], AnalyticsRepository] = AnalyticsRepository,
         delivery_repository_factory: Callable[[Session], DeliveryJobRepository] = DeliveryJobRepository,
         recommendation_gpu_detector: Callable[[], bool] = RecommendationService.is_gpu_available,
     ) -> None:
-        self._storage_provider = storage_provider
-        self._adapter_provider = adapter_provider
-        self._archive_provider = archive_provider
-        self._delivery_provider = delivery_provider
-        self._compose_provider = compose_provider
-        self._generation_provider = generation_provider
-        self._generation_coordinator_provider = generation_coordinator_provider
-        self._websocket_provider = (
-            websocket_provider
-            if websocket_provider is not None
-            else (lambda: make_websocket_service(service=websocket_service))
-        )
-        self._system_provider = system_provider
-        self._analytics_provider = analytics_provider
-        self._recommendation_provider = recommendation_provider
+        if websocket_factory is not None:
+            infrastructure_factories = replace(
+                infrastructure_factories, websocket=websocket_factory
+            )
+
+        self._storage = storage
+        self._domain_factories = domain_factories
+        self._infrastructure_factories = infrastructure_factories
         self._queue_orchestrator_factory = queue_orchestrator_factory
         self._analytics_repository_factory = analytics_repository_factory
         self._delivery_repository_factory = delivery_repository_factory
@@ -119,7 +130,7 @@ class ServiceContainerBuilder:
 
         core = CoreServiceRegistry(
             db_session,
-            storage_provider=self._storage_provider,
+            storage_provider=self._storage.storage,
             delivery_repository=delivery_repository,
             analytics_repository=analytics_repository,
         )
@@ -128,11 +139,11 @@ class ServiceContainerBuilder:
             core,
             db_session=db_session,
             analytics_repository=analytics_repository,
-            adapter_provider=self._adapter_provider,
-            compose_provider=self._compose_provider,
-            generation_provider=self._generation_provider,
-            analytics_provider=self._analytics_provider,
-            recommendation_provider=self._recommendation_provider,
+            adapter_provider=self._storage.adapter,
+            compose_provider=self._domain_factories.compose,
+            generation_provider=self._domain_factories.generation,
+            analytics_provider=self._domain_factories.analytics,
+            recommendation_provider=self._domain_factories.recommendation,
             recommendation_gpu_available=gpu_available,
         )
 
@@ -140,11 +151,11 @@ class ServiceContainerBuilder:
             core,
             domain,
             queue_orchestrator=queue,
-            archive_provider=self._archive_provider,
-            delivery_provider=self._delivery_provider,
-            generation_coordinator_provider=self._generation_coordinator_provider,
-            websocket_provider=self._websocket_provider,
-            system_provider=self._system_provider,
+            archive_provider=self._infrastructure_factories.archive,
+            delivery_provider=self._infrastructure_factories.delivery,
+            generation_coordinator_provider=self._infrastructure_factories.generation_coordinator,
+            websocket_provider=self._infrastructure_factories.websocket,
+            system_provider=self._infrastructure_factories.system,
         )
 
         return ServiceRegistry(core, domain, infrastructure)

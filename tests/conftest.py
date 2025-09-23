@@ -1,6 +1,7 @@
 """Shared fixtures for the test suite."""
 
 from contextlib import contextmanager
+from dataclasses import replace
 from unittest.mock import MagicMock
 
 import pytest
@@ -18,7 +19,7 @@ from backend.services.composition import ComposeService
 from backend.services.deliveries import DeliveryService
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.delivery_repository import DeliveryJobRepository
-from backend.services.providers import make_compose_service
+from backend.services.providers.generation import make_compose_service
 from backend.services.queue import create_queue_orchestrator
 
 
@@ -55,7 +56,11 @@ def mock_storage_fixture(monkeypatch) -> MagicMock:
 
     builder = get_service_container_builder()
 
-    monkeypatch.setattr(builder, "_storage_provider", lambda: mock_storage_service)
+    monkeypatch.setattr(
+        builder,
+        "_storage",
+        replace(builder._storage, storage=lambda: mock_storage_service),
+    )
     
     mock.storage_service = mock_storage_service
     return mock
