@@ -85,7 +85,9 @@ export function useImportExportActions(options: UseImportExportActionsOptions) {
 
   const handleCancelOperation = () => {
     const operation = currentOperation.value;
-    cancelHandlers[operation ?? undefined]?.();
+    if (operation && cancelHandlers[operation]) {
+      cancelHandlers[operation]?.();
+    }
     endProgress();
     notify('Operation cancelled', 'warning');
   };
