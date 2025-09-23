@@ -38,7 +38,7 @@ def test_import_export_streams_archive(
     assert create_response.status_code == 201
 
     export_response = client.post(
-        "/api/v1/import-export/export",
+        "/api/v1/export",
         json={"loras": True, "format": "zip"},
     )
 

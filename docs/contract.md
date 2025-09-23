@@ -140,18 +140,20 @@ with full test coverage and proper separation of concerns.
   service’s featured query.【F:backend/api/v1/dashboard.py†L25-L37】
 * `GET /v1/dashboard/activity-feed` – expose recent delivery job activity.【F:backend/api/v1/dashboard.py†L39-L40】
 
-### Import/export (`/v1/import-export`)
+### Import/export (`/v1/export`, `/v1/import`, `/v1/backups`)
 
-* `POST /v1/import-export/export/estimate` – returns estimated archive size and
-  duration using adapter statistics; if LoRA export is disabled, returns zeros.【F:backend/api/v1/import_export.py†L1-L64】
-* `POST /v1/import-export/export` – streams a ZIP archive built from adapters via
-  the archive service; rejects unsupported formats.【F:backend/api/v1/import_export.py†L66-L98】
-* `POST /v1/import-export/import` – validate and import uploaded archives into
-  the local filesystem. Errors are reported per file, and the import path defaults
-  to `settings.IMPORT_PATH` or `./loras`.【F:backend/api/v1/import_export.py†L100-L170】
-* `GET /v1/import-export/backups/history` & `POST /v1/import-export/backup/create`
-  – placeholder backup endpoints that currently return mock data or simple
-  success payloads pending a full backup workflow.【F:backend/api/v1/import_export.py†L172-L209】
+* `POST /v1/export/estimate` – returns estimated archive size and duration using
+  adapter statistics; if LoRA export is disabled, returns zeros.【F:backend/api/v1/import_export.py†L24-L38】
+* `POST /v1/export` – streams a ZIP archive built from adapters via the archive
+  service; rejects unsupported formats.【F:backend/api/v1/import_export.py†L41-L62】
+* `POST /v1/import` – validate and import uploaded archives into the local
+  filesystem. Errors are reported per file, and the import path defaults to
+  `settings.IMPORT_PATH` or `./loras`.【F:backend/api/v1/import_export.py†L65-L123】
+* `GET /v1/backups/history` & `POST /v1/backup/create` – placeholder backup
+  endpoints that currently return mock data or simple success payloads pending a
+  full backup workflow.【F:backend/api/v1/import_export.py†L126-L148】
+* `DELETE /v1/backups/{backup_id}` – remove a backup entry and its archive,
+  returning `204` or `404` when missing.【F:backend/api/v1/import_export.py†L151-L160】
 
 ### System status (`/v1/system`)
 

@@ -160,16 +160,3 @@ async def delete_backup(
     return Response(status_code=204)
 
 
-# ---------------------------------------------------------------------------
-# Prefixed route aliases for `/import-export/*`
-# ---------------------------------------------------------------------------
-# Maintain backwards compatibility by exposing import/export endpoints with
-# the expected `/import-export` prefix used by the frontend SPA. Legacy routes
-# without the prefix remain available because the primary decorators above use
-# the original paths.
-router.add_api_route("/import-export/export", export_data, methods=["POST"])
-router.add_api_route("/import-export/export/estimate", estimate_export, methods=["POST"])
-router.add_api_route("/import-export/import", import_data, methods=["POST"])
-router.add_api_route("/import-export/backups/history", get_backup_history, methods=["GET"])
-router.add_api_route("/import-export/backup/create", create_backup, methods=["POST"])
-router.add_api_route("/import-export/backups/{backup_id}", delete_backup, methods=["DELETE"])
