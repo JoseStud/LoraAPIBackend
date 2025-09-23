@@ -1,6 +1,7 @@
 """Tests covering generation job orchestration."""
 
 from contextlib import contextmanager
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any, Dict
 from unittest.mock import MagicMock
@@ -13,7 +14,7 @@ from backend.core.dependencies import get_service_container
 from backend.delivery.base import DeliveryRegistry, GenerationBackend
 from backend.main import app as backend_app
 from backend.schemas import SDNextGenerationParams, SDNextGenerationResult
-from backend.services import ServiceContainer
+from backend.services import get_service_container_builder
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
@@ -246,17 +247,22 @@ def test_compose_sdnext_uses_generation_coordinator(
         async def broadcast_job_started(self, job_id, params):
             self.broadcast_calls.append((job_id, params))
 
-    container = ServiceContainer(
+    coordinator = RecordingCoordinator()
+    builder = get_service_container_builder().with_overrides(
+        infrastructure=lambda factories: replace(
+            factories,
+            generation_coordinator=lambda deliveries, websocket, generation: coordinator,
+        )
+    )
+    services = builder.build(
         db_session,
         queue_orchestrator=create_queue_orchestrator(),
         delivery_repository=DeliveryJobRepository(db_session),
         analytics_repository=AnalyticsRepository(db_session),
         recommendation_gpu_available=False,
     )
-    coordinator = RecordingCoordinator()
-    container._generation_coordinator = coordinator  # type: ignore[attr-defined]
 
-    backend_app.dependency_overrides[get_service_container] = lambda: container
+    backend_app.dependency_overrides[get_service_container] = lambda: services
 
     try:
         response = client.post(

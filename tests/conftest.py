@@ -14,7 +14,7 @@ from app.main import app as fastapi_app
 # Use new app import paths
 from backend.core.database import get_session
 from backend.main import app as backend_app
-from backend.services import ServiceContainer
+from backend.services import get_service_container_builder
 from backend.services.adapters import AdapterService
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.composition import ComposeService
@@ -95,27 +95,27 @@ def db_session_fixture():
 def adapter_service(db_session: Session, mock_storage) -> AdapterService:
     """AdapterService fixture using the new modular service."""
     # Use the mocked storage service
-    container = ServiceContainer(
+    builder = get_service_container_builder()
+    services = builder.build(
         db_session,
         analytics_repository=AnalyticsRepository(db_session),
         recommendation_gpu_available=False,
-        storage_provider=lambda: mock_storage.storage_service,
     )
-    return container.domain.adapters
+    return services.domain.adapters
 
 
 @pytest.fixture
 def delivery_service(db_session: Session, mock_storage) -> DeliveryService:
     """DeliveryService fixture using the new modular service."""
-    container = ServiceContainer(
+    builder = get_service_container_builder()
+    services = builder.build(
         db_session,
         queue_orchestrator=create_queue_orchestrator(),
         delivery_repository=DeliveryJobRepository(db_session),
         analytics_repository=AnalyticsRepository(db_session),
         recommendation_gpu_available=False,
-        storage_provider=lambda: mock_storage.storage_service,
     )
-    return container.application.deliveries
+    return services.application.deliveries
 
 
 @pytest.fixture

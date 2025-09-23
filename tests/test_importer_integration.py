@@ -25,20 +25,17 @@ def test_importer_integration_creates_adapter(
     # Ensure storage check returns True
     mock_storage.exists.return_value = True
 
-    # Monkeypatch importer and services get_session to use the test db_session
+    # Monkeypatch importer session helper to use the test db_session
     from contextlib import contextmanager
     
     @contextmanager
     def get_test_session():
         yield db_session
     
-    monkeypatch.setattr(importer, "get_session", get_test_session)
-    # Patch the backend.services module to ensure service helpers use test session
-    import backend.services as _backend_services
-    monkeypatch.setattr(_backend_services, "get_session", get_test_session)
+    monkeypatch.setattr(importer, "get_session_context", get_test_session)
 
     # Parse and register (non-dry run). register_adapter_from_metadata will
-    # call the service helper which now uses the patched get_session.
+    # call the session helper which now uses the patched get_session_context.
     parsed = importer.parse_civitai_json(str(jp))
     result = importer.register_adapter_from_metadata(
         parsed, json_path=str(jp), dry_run=False,
