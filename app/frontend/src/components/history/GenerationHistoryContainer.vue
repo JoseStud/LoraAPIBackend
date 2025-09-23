@@ -199,7 +199,7 @@ const {
 
 const selectableIds = computed(() => filteredResults.value.map((result) => result.id));
 
-const isModalOpen = computed(() => modalController.value?.isModalOpen?.value ?? false);
+const isModalOpen = computed(() => modalController.value?.isModalOpen ?? false);
 
 watch(
   error,
