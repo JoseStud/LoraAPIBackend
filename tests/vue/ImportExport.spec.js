@@ -4,10 +4,10 @@ import { flushPromises, mount } from '@vue/test-utils';
 
 import ImportExportContainer from '../../app/frontend/src/components/import-export/ImportExportContainer.vue';
 
-function stubComponent(name) {
+function stubComponent(name, emits = []) {
   return defineComponent({
     name,
-    emits: [],
+    emits,
     setup(_, { slots }) {
       return () => h('div', { class: name }, slots.default ? slots.default() : name);
     }
@@ -85,19 +85,37 @@ vi.mock('@/composables/useMigrationWorkflow', () => ({
 }));
 
 vi.mock('@/components/import-export/ExportConfigurationPanel.vue', () => ({
-  default: stubComponent('ExportConfigurationPanel')
+  default: stubComponent('ExportConfigurationPanel', ['update-config', 'validate', 'preview', 'start'])
 }));
 
 vi.mock('@/components/import-export/ImportProcessingPanel.vue', () => ({
-  default: stubComponent('ImportProcessingPanel')
+  default: stubComponent('ImportProcessingPanel', [
+    'update-config',
+    'add-files',
+    'remove-file',
+    'analyze',
+    'validate',
+    'start'
+  ])
 }));
 
 vi.mock('@/components/import-export/BackupManagementPanel.vue', () => ({
-  default: stubComponent('BackupManagementPanel')
+  default: stubComponent('BackupManagementPanel', [
+    'create-full-backup',
+    'create-quick-backup',
+    'schedule-backup',
+    'download-backup',
+    'restore-backup',
+    'delete-backup'
+  ])
 }));
 
 vi.mock('@/components/import-export/MigrationWorkflowPanel.vue', () => ({
-  default: stubComponent('MigrationWorkflowPanel')
+  default: stubComponent('MigrationWorkflowPanel', [
+    'update-config',
+    'start-version-migration',
+    'start-platform-migration'
+  ])
 }));
 
 describe('ImportExportContainer.vue', () => {
