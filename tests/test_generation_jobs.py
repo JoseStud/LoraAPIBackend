@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Dict, cast
+from contextlib import contextmanager
+from typing import Any, Dict, cast
 from types import SimpleNamespace
 
 from unittest.mock import AsyncMock, MagicMock
@@ -11,6 +12,7 @@ import pytest
 from fastapi import BackgroundTasks
 from fastapi.testclient import TestClient
 
+from backend.delivery.base import DeliveryRegistry, GenerationBackend
 from backend.main import app as backend_app
 from backend.services import ServiceContainer
 from backend.services.analytics_repository import AnalyticsRepository
@@ -19,7 +21,8 @@ from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.generation import GenerationCoordinator, GenerationService
 from backend.services.queue import QueueBackend, QueueOrchestrator, create_queue_orchestrator
 from backend.services.websocket import WebSocketService
-from backend.schemas import SDNextGenerationParams
+from backend.schemas import SDNextGenerationParams, SDNextGenerationResult
+from backend.workers.delivery_runner import DeliveryRunner
 
 
 def _create_generation_params(prompt: str) -> Dict[str, Dict[str, object]]:
@@ -107,6 +110,7 @@ def test_serialize_generation_job_normalizes_payload(delivery_service: DeliveryS
     serialized = coordinator.serialize_delivery_job(job)
 
     assert serialized["params"]["prompt"] == "Prompt"
+    assert serialized["params"]["backend"] == "sdnext"
     assert serialized["progress"] == 50.0
     assert serialized["message"] == "Working"
     assert serialized["error"] == "Minor issue"
@@ -147,6 +151,7 @@ def test_generation_coordinator_schedule_generation_job(db_session):
     )
 
     assert job.prompt == "Prompt"
+    assert job.mode == "custom"
 
     assert len(queue.calls) == 1
     call_job_id, call_background, call_kwargs = queue.calls[0]
@@ -160,6 +165,74 @@ def test_generation_coordinator_schedule_generation_job(db_session):
     assert stored_params["mode"] == "deferred"
     assert stored_params["save_images"] is False
     assert stored_params["return_format"] == "url"
+
+
+def test_delivery_runner_uses_requested_generation_backend(
+    db_session, monkeypatch: pytest.MonkeyPatch
+):
+    """Processing a job triggers the generation backend specified when scheduling."""
+
+    class SilentQueue(QueueBackend):
+        def enqueue_delivery(self, job_id, *, background_tasks=None, **enqueue_kwargs):  # type: ignore[override]
+            return job_id
+
+    class RecordingGenerationBackend(GenerationBackend):
+        def __init__(self, name: str) -> None:
+            self.name = name
+            self.calls = []
+
+        async def generate_image(self, prompt: str, params: Dict[str, Any]) -> SDNextGenerationResult:
+            self.calls.append((prompt, params))
+            return SDNextGenerationResult(job_id="generated", status="completed")
+
+        async def check_progress(self, job_id: str) -> SDNextGenerationResult:
+            return SDNextGenerationResult(job_id=job_id, status="completed")
+
+        def is_available(self) -> bool:
+            return True
+
+    queue = SilentQueue()
+    repository = DeliveryJobRepository(db_session)
+    orchestrator = QueueOrchestrator(primary_backend=queue)
+    deliveries = DeliveryService(repository, queue_orchestrator=orchestrator)
+    coordinator = GenerationCoordinator(
+        deliveries,
+        WebSocketService(),
+        GenerationService(),
+    )
+
+    params = SDNextGenerationParams(prompt="Custom backend test")
+    job = coordinator.schedule_generation_job(params, backend="custom-backend")
+
+    registry = DeliveryRegistry()
+    custom_backend = RecordingGenerationBackend("custom-backend")
+    default_backend = RecordingGenerationBackend("sdnext")
+    registry.register_generation_backend("custom-backend", custom_backend)
+    registry.register_generation_backend("sdnext", default_backend)
+
+    runner = DeliveryRunner(registry)
+
+    @contextmanager
+    def session_context():
+        yield db_session
+
+    monkeypatch.setattr(
+        "backend.core.database.get_session_context",
+        lambda: session_context(),
+    )
+
+    runner.process_delivery_job(job.id)
+
+    assert len(custom_backend.calls) == 1
+    assert custom_backend.calls[0][0] == "Custom backend test"
+    called_params = custom_backend.calls[0][1]
+    assert called_params["backend"] == "custom-backend"
+    assert default_backend.calls == []
+
+    db_session.expire_all()
+    refreshed = deliveries.get_job(job.id)
+    assert refreshed is not None
+    assert refreshed.status == "succeeded"
 
 
 def test_compose_sdnext_uses_generation_coordinator(
