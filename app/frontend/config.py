@@ -17,9 +17,9 @@ class FrontendSettings(BaseSettings):
     
     # Backend connection
     backend_url: str = Field(
-        default="http://localhost:8000/v1",
+        default="/api/v1",
         env="BACKEND_URL",
-        description="Backend API base URL with /v1 prefix",
+        description="Backend API base URL (relative or absolute) including the /api/v1 prefix",
     )
     
     backend_host: str = Field(
@@ -37,15 +37,27 @@ class FrontendSettings(BaseSettings):
     @field_validator('backend_url', mode='before')
     @classmethod
     def construct_backend_url(cls, v, info):
-        """Construct backend URL if not explicitly provided."""
-        backend_host_check = 'backend_host' in info.data
-        backend_port_check = 'backend_port' in info.data
-        default_url = "http://localhost:8000/v1"
-        if v == default_url and (backend_host_check or backend_port_check):
-            host = info.data.get('backend_host', 'localhost')
-            port = info.data.get('backend_port', 8000)
-            return f"http://{host}:{port}/v1"
-        return v.rstrip('/') if v.endswith('/') else v
+        """Normalise backend URL to match the /api/v1 mount."""
+        default_path = "/api/v1"
+
+        if v is None:
+            return default_path
+
+        if isinstance(v, str):
+            candidate = v.strip()
+            if not candidate:
+                return default_path
+
+            # Allow relative paths without leading slashes
+            if candidate.startswith(("http://", "https://")):
+                normalised = candidate.rstrip("/")
+            else:
+                normalised = candidate if candidate.startswith("/") else f"/{candidate}"
+                normalised = normalised.rstrip("/")
+
+            return normalised
+
+        raise TypeError("backend_url must be a string")
     
     # HTTP client configuration
     request_timeout: float = Field(
