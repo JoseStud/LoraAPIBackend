@@ -53,7 +53,7 @@ services:
       start_period: 120s  # SDNext takes time to start
 
   api:
-    build: 
+    build:
       context: ../../
       dockerfile: infrastructure/docker/Dockerfile
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
@@ -64,17 +64,8 @@ services:
       - ../../outputs:/app/outputs
     ports:
       - '8782:8000'
-    environment:
-      REDIS_URL: "redis://redis:6379/0"
-      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
-      # SDNext integration configuration
-      SDNEXT_BASE_URL: "http://sdnext:7860"
-      SDNEXT_TIMEOUT: "120"
-      SDNEXT_POLL_INTERVAL: "2"
-      SDNEXT_DEFAULT_STEPS: "20"
-      SDNEXT_DEFAULT_SAMPLER: "DPM++ 2M"
-      SDNEXT_DEFAULT_CFG_SCALE: "7.0"
-      SDNEXT_OUTPUT_DIR: "/app/outputs"
+    env_file:
+      - ./backend.env
     depends_on:
       - redis
       - postgres
@@ -87,7 +78,7 @@ services:
       start_period: 30s
 
   worker:
-    build: 
+    build:
       context: ../../
       dockerfile: infrastructure/docker/Dockerfile
     command: sh -c "rq worker --url $$REDIS_URL default"
@@ -96,17 +87,8 @@ services:
       - ../../app:/app/app
       - ../../loras:/app/loras
       - ../../outputs:/app/outputs
-    environment:
-      REDIS_URL: "redis://redis:6379/0"
-      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
-      # SDNext integration configuration for worker
-      SDNEXT_BASE_URL: "http://sdnext:7860"
-      SDNEXT_TIMEOUT: "120"
-      SDNEXT_POLL_INTERVAL: "2"
-      SDNEXT_DEFAULT_STEPS: "20"
-      SDNEXT_DEFAULT_SAMPLER: "DPM++ 2M"
-      SDNEXT_DEFAULT_CFG_SCALE: "7.0"
-      SDNEXT_OUTPUT_DIR: "/app/outputs"
+    env_file:
+      - ./backend.env
     depends_on:
       - redis
       - postgres

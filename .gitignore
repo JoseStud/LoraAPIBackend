@@ -36,6 +36,7 @@ db.sqlite
 data_store.json
 .env
 .env.*
+infrastructure/docker/backend.env.local
 
 # Logs
 *.log

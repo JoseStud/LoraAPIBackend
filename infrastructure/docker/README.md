@@ -112,6 +112,13 @@ Your DeepVault model structure is automatically mounted:
 
 ## 🌍 Environment Variables
 
+### Shared Defaults (`backend.env`)
+
+- The API and worker services both load values from [`backend.env`](./backend.env).
+- Copy this file to `backend.env.local` (kept out of git) to provide custom values, then run `docker compose --env-file backend.env.local ...`.
+- Alternatively override individual settings inline: `SDNEXT_TIMEOUT=300 docker compose up`.
+- The shared file keeps Redis, PostgreSQL, and SDNext configuration in sync across compose variants.
+
 ### Backend Configuration
 - `REDIS_URL` - Redis connection string
 - `DATABASE_URL` - PostgreSQL connection string

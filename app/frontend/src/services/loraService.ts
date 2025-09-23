@@ -2,6 +2,7 @@ import { computed, reactive, unref, isRef } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
 
 import { useApi } from '@/composables/useApi';
+import { DEFAULT_BACKEND_BASE } from '@/config/runtime';
 import { resolveBackendUrl } from '@/utils/backend';
 
 import type {
@@ -18,7 +19,6 @@ import type {
   TopLoraPerformance,
 } from '@/types';
 
-const DEFAULT_BASE = '/api/v1';
 const DEFAULT_ADAPTER_LIST_QUERY: AdapterListQuery = { page: 1, perPage: 100 };
 
 const isBaseUrlInput = (value: unknown): value is MaybeRefOrGetter<string> => {
@@ -31,9 +31,9 @@ const isBaseUrlInput = (value: unknown): value is MaybeRefOrGetter<string> => {
 
 const sanitizeBaseUrl = (value?: string): string => {
   if (!value) {
-    return DEFAULT_BASE;
+    return DEFAULT_BACKEND_BASE;
   }
-  return value.replace(/\/+$/, '') || DEFAULT_BASE;
+  return value.replace(/\/+$/, '') || DEFAULT_BACKEND_BASE;
 };
 
 const resolveBase = (baseUrl: MaybeRefOrGetter<string>) => {

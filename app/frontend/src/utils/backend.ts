@@ -1,9 +1,10 @@
 import { computed, unref, type ComputedRef, type MaybeRefOrGetter } from 'vue';
 import { storeToRefs } from 'pinia';
 
+import { runtimeConfig, DEFAULT_BACKEND_BASE } from '@/config/runtime';
 import { useSettingsStore } from '@/stores/settings';
 
-export const DEFAULT_BACKEND_BASE = '/api/v1';
+export { DEFAULT_BACKEND_BASE };
 
 export const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
 
@@ -82,7 +83,7 @@ const resolveMaybeRef = (
 
     return resolved ?? undefined;
   } catch (error) {
-    if (import.meta.env?.DEV) {
+    if (runtimeConfig.isDev) {
       console.warn('Failed to resolve backend override', error);
     }
     return undefined;
@@ -121,7 +122,7 @@ const resolvePathInput = (path: MaybeRefOrGetter<string>): string => {
     const resolved = typeof path === 'function' ? (path as () => string)() : unref(path);
     return typeof resolved === 'string' ? resolved : '';
   } catch (error) {
-    if (import.meta.env?.DEV) {
+    if (runtimeConfig.isDev) {
       console.warn('Failed to resolve backend path', error);
     }
     return '';
