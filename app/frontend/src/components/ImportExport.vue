@@ -212,16 +212,19 @@ import { formatDateTime, formatFileSize as formatBytes } from '@/utils/format';
 type OperationType = 'export' | 'import' | 'migration';
 
 type ExportConfigUpdate = {
-  [K in keyof ExportConfig]: { key: K; value: ExportConfig[K] }
-}[keyof ExportConfig];
+  key: keyof ExportConfig;
+  value: ExportConfig[keyof ExportConfig];
+};
 
 type ImportConfigUpdate = {
-  [K in keyof ImportConfig]: { key: K; value: ImportConfig[K] }
-}[keyof ImportConfig];
+  key: keyof ImportConfig;
+  value: ImportConfig[keyof ImportConfig];
+};
 
 type MigrationConfigUpdate = {
-  [K in keyof MigrationConfig]: { key: K; value: MigrationConfig[K] }
-}[keyof MigrationConfig];
+  key: keyof MigrationConfig;
+  value: MigrationConfig[keyof MigrationConfig];
+};
 
 const isInitialized = ref(false);
 const activeTab = ref<'export' | 'import' | 'backup' | 'migration'>('export');
@@ -378,8 +381,8 @@ const onMigrationConfigUpdate = (payload: MigrationConfigUpdate) => {
   migrationWorkflow.updateConfig(payload.key, payload.value);
 };
 
-const onImportFilesAdded = (files: File[]) => {
-  importWorkflow.addFiles(files);
+const onImportFilesAdded = (files: readonly File[]) => {
+  importWorkflow.addFiles([...files]);
 };
 
 const onImportFileRemoved = (file: File) => {

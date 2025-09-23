@@ -1,4 +1,4 @@
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch, type ComputedRef } from 'vue';
 
 import { ensureData, getFilenameFromContentDisposition, postJson, requestBlob } from '@/utils/api';
 import { downloadFile } from '@/utils/browser';
@@ -46,10 +46,10 @@ interface UseExportWorkflowOptions {
 
 export interface UseExportWorkflow {
   exportConfig: ExportConfig;
-  canExport: Readonly<boolean>;
-  estimatedSize: Readonly<string>;
-  estimatedTime: Readonly<string>;
-  isExporting: Readonly<boolean>;
+  canExport: ComputedRef<boolean>;
+  estimatedSize: ComputedRef<string>;
+  estimatedTime: ComputedRef<string>;
+  isExporting: ComputedRef<boolean>;
   initialize: () => Promise<void>;
   updateConfig: <K extends keyof ExportConfig>(key: K, value: ExportConfig[K]) => void;
   validateExport: () => void;
