@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from datetime import timedelta
 from typing import List, Sequence, Tuple
 
 from sqlalchemy import func, select
@@ -51,23 +52,36 @@ class AnalyticsRepository:
     def average_duration(self, start: datetime, end: datetime) -> float:
         """Return the mean execution time for completed jobs in the window."""
 
+        bind = self._session.get_bind()
+        dialect_name = bind.dialect.name if bind is not None else ""
+
+        if dialect_name == "sqlite":
+            duration_expression = (
+                func.julianday(DeliveryJob.finished_at)
+                - func.julianday(DeliveryJob.started_at)
+            ) * 86400.0
+        else:
+            duration_expression = (
+                func.extract("epoch", DeliveryJob.finished_at)
+                - func.extract("epoch", DeliveryJob.started_at)
+            )
+
         query = (
-            select(DeliveryJob.started_at, DeliveryJob.finished_at)
+            select(func.avg(duration_expression))
             .where(DeliveryJob.mode == "sdnext")
             .where(DeliveryJob.finished_at.is_not(None))
             .where(DeliveryJob.started_at.is_not(None))
+            .where(DeliveryJob.finished_at >= DeliveryJob.started_at)
             .where(DeliveryJob.created_at >= start)
             .where(DeliveryJob.created_at < end)
         )
 
-        durations: List[float] = []
-        for started_at, finished_at in self._session.exec(query):
-            if started_at and finished_at and finished_at >= started_at:
-                durations.append((finished_at - started_at).total_seconds())
-
-        if not durations:
+        result = self._session.exec(query).scalar()
+        if result is None:
             return 0.0
-        return sum(durations) / len(durations)
+        if isinstance(result, timedelta):
+            return result.total_seconds()
+        return float(result)
 
     def fetch_time_series_rows(self, start: datetime, end: datetime) -> List[TimeSeriesRow]:
         """Return time-series raw data for aggregation."""
