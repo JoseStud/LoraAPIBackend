@@ -1,395 +1,236 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { defineComponent, h, reactive, ref } from 'vue';
 import { mount } from '@vue/test-utils';
+
 import ImportExport from '../../app/frontend/src/components/ImportExport.vue';
 
-// Mock fetch globally for tests
-global.fetch = vi.fn();
+function stubComponent(name) {
+  return defineComponent({
+    name,
+    emits: [],
+    setup(_, { slots }) {
+      return () => h('div', { class: name }, slots.default ? slots.default() : name);
+    }
+  });
+}
+
+const exportProgressHandlers = [];
+
+const mockExportWorkflow = {
+  exportConfig: reactive({}),
+  canExport: ref(true),
+  estimatedSize: ref('10 MB'),
+  estimatedTime: ref('5 minutes'),
+  isExporting: ref(false),
+  initialize: vi.fn().mockResolvedValue(undefined),
+  updateConfig: vi.fn(),
+  validateExport: vi.fn(),
+  previewExport: vi.fn(),
+  startExport: vi.fn(),
+  quickExportAll: vi.fn(),
+  cancelExport: vi.fn()
+};
+
+const mockImportWorkflow = {
+  importConfig: reactive({}),
+  importFiles: ref([]),
+  importPreview: ref([]),
+  hasEncryptedFiles: ref(false),
+  isImporting: ref(false),
+  updateConfig: vi.fn(),
+  addFiles: vi.fn(),
+  removeFile: vi.fn(),
+  clearFiles: vi.fn(),
+  analyzeFiles: vi.fn(),
+  validateImport: vi.fn(),
+  startImport: vi.fn(),
+  cancelImport: vi.fn()
+};
+
+const mockBackupWorkflow = {
+  backupHistory: ref([]),
+  initialize: vi.fn().mockResolvedValue(undefined),
+  createFullBackup: vi.fn(),
+  createQuickBackup: vi.fn(),
+  scheduleBackup: vi.fn(),
+  downloadBackup: vi.fn(),
+  restoreBackup: vi.fn(),
+  deleteBackup: vi.fn()
+};
+
+const mockMigrationWorkflow = {
+  migrationConfig: reactive({}),
+  updateConfig: vi.fn(),
+  startVersionMigration: vi.fn(),
+  startPlatformMigration: vi.fn()
+};
+
+vi.mock('@/composables/useExportWorkflow', () => ({
+  useExportWorkflow: vi.fn((options) => {
+    exportProgressHandlers.push(options.progress);
+    return mockExportWorkflow;
+  })
+}));
+
+vi.mock('@/composables/useImportWorkflow', () => ({
+  useImportWorkflow: vi.fn(() => mockImportWorkflow)
+}));
+
+vi.mock('@/composables/useBackupWorkflow', () => ({
+  useBackupWorkflow: vi.fn(() => mockBackupWorkflow)
+}));
+
+vi.mock('@/composables/useMigrationWorkflow', () => ({
+  useMigrationWorkflow: vi.fn(() => mockMigrationWorkflow)
+}));
+
+vi.mock('@/components/import-export/ExportConfigurationPanel.vue', () => ({
+  default: stubComponent('ExportConfigurationPanel')
+}));
+
+vi.mock('@/components/import-export/ImportProcessingPanel.vue', () => ({
+  default: stubComponent('ImportProcessingPanel')
+}));
+
+vi.mock('@/components/import-export/BackupManagementPanel.vue', () => ({
+  default: stubComponent('BackupManagementPanel')
+}));
+
+vi.mock('@/components/import-export/MigrationWorkflowPanel.vue', () => ({
+  default: stubComponent('MigrationWorkflowPanel')
+}));
 
 describe('ImportExport.vue', () => {
-  let wrapper;
-
   beforeEach(() => {
-    // Reset fetch mock
-    fetch.mockClear();
-
-    // Mock fetch responses for different endpoints
-    fetch.mockImplementation((url) => {
-      if (url.includes('/api/v1/export/estimate')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ size: '10 MB', time: '5 minutes' })
-        });
-      } else if (url.includes('/api/v1/backups/history')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ history: [] })
-        });
-      } else if (url.includes('/api/v1/backup/create')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ backup_id: 'backup-123' })
-        });
-      } else if (url.includes('/api/v1/export')) {
-        return Promise.resolve({
-          ok: true,
-          blob: () => Promise.resolve(new Blob(['test'], { type: 'application/zip' })),
-          headers: new Map([['Content-Disposition', 'attachment; filename="test.zip"']])
-        });
-      } else if (url.includes('/api/v1/import')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ success: true, processed_files: 1, total_files: 1 })
-        });
-      }
-      
-      return Promise.reject(new Error('Not mocked'));
+    vi.useFakeTimers();
+    exportProgressHandlers.length = 0;
+    Object.values({
+      mockExportWorkflow,
+      mockImportWorkflow,
+      mockBackupWorkflow,
+      mockMigrationWorkflow
+    }).forEach((workflow) => {
+      Object.values(workflow).forEach((value) => {
+        if (typeof value === 'function') {
+          value.mock?.clear?.();
+        }
+      });
     });
-    
-    wrapper = mount(ImportExport);
   });
 
-  it('renders the component correctly', async () => {
-    // Wait for component to initialize and mocked API calls to complete
-    await new Promise(resolve => setTimeout(resolve, 100));
-    await wrapper.vm.$nextTick();
-    
-    expect(wrapper.exists()).toBe(true);
-    // Check if basic structure exists (component might still be initializing)
-    expect(wrapper.html()).toContain('Import/Export');
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
-  it('initializes with export tab active', async () => {
-    // Wait for component to initialize and API calls to resolve
-    await new Promise(resolve => setTimeout(resolve, 100));
-    await wrapper.vm.$nextTick();
-    
-    expect(wrapper.vm.activeTab).toBe('export');
-    // Check if the component has some content
-    expect(wrapper.html()).toContain('export');
+  it('initializes workflows on mount', async () => {
+    const wrapper = mount(ImportExport);
+    await vi.runAllTimersAsync();
+
+    expect(mockExportWorkflow.initialize).toHaveBeenCalled();
+    expect(mockBackupWorkflow.initialize).toHaveBeenCalled();
+    expect(wrapper.text()).toContain('Import/Export');
   });
 
-  it('switches between tabs correctly', async () => {
-    // Initially on export tab
-    expect(wrapper.vm.activeTab).toBe('export');
+  it('invokes quick export workflow from header action', async () => {
+    const wrapper = mount(ImportExport);
+    await vi.runAllTimersAsync();
 
-    // Change tab directly via component data
-    wrapper.vm.activeTab = 'import';
-    await wrapper.vm.$nextTick();
-    expect(wrapper.vm.activeTab).toBe('import');
-
-    // Change to backup tab
-    wrapper.vm.activeTab = 'backup';
-    await wrapper.vm.$nextTick();
-    expect(wrapper.vm.activeTab).toBe('backup');
-
-    // Change to migration tab
-    wrapper.vm.activeTab = 'migration';
-    await wrapper.vm.$nextTick();
-    expect(wrapper.vm.activeTab).toBe('migration');
+    await wrapper.find('button.btn-primary.btn-sm').trigger('click');
+    expect(mockExportWorkflow.quickExportAll).toHaveBeenCalled();
   });
 
-  it('calculates export estimates correctly', async () => {
-    // Enable some export options
-    wrapper.vm.exportConfig.loras = true;
-    wrapper.vm.exportConfig.lora_files = true;
-    wrapper.vm.exportConfig.generations = true;
-    wrapper.vm.exportConfig.generation_range = 'all';
+  it('routes history view to backup tab', async () => {
+    const wrapper = mount(ImportExport);
+    await vi.runAllTimersAsync();
 
-    // Allow async estimate calculation to complete
-    await new Promise(resolve => setTimeout(resolve, 50));
-    await wrapper.vm.$nextTick();
+    const historyButton = wrapper.findAll('button.btn-secondary.btn-sm').at(0);
+    await historyButton.trigger('click');
 
-    // The estimates should be calculated
-    expect(wrapper.vm.estimatedSize).not.toBe('0 MB');
-    expect(wrapper.vm.estimatedTime).not.toBe('0 minutes');
+    expect(wrapper.html()).toContain('Backup/Restore');
   });
 
-  it('validates export configuration', async () => {
-    // Mock console methods that might be used
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+  it('forwards export panel actions to workflow', async () => {
+    const wrapper = mount(ImportExport);
+    await vi.runAllTimersAsync();
 
-    // No data types selected
-    wrapper.vm.exportConfig.loras = false;
-    wrapper.vm.exportConfig.generations = false;
-    wrapper.vm.exportConfig.user_data = false;
-    wrapper.vm.exportConfig.system_config = false;
-    wrapper.vm.exportConfig.analytics = false;
+    const exportPanel = wrapper.findComponent({ name: 'ExportConfigurationPanel' });
+    exportPanel.vm.$emit('update-config', { key: 'loras', value: true });
+    exportPanel.vm.$emit('validate');
+    exportPanel.vm.$emit('preview');
+    exportPanel.vm.$emit('start');
 
-    await wrapper.vm.validateExport();
-    
-    // Should set toast state for error
-    expect(wrapper.vm.toastType).toBe('error');
-    expect(wrapper.vm.toastMessage).toContain('No data types selected for export');
-
-    // Valid configuration
-    wrapper.vm.exportConfig.loras = true;
-    await wrapper.vm.validateExport();
-    
-    // Should set toast state for success
-    expect(wrapper.vm.toastType).toBe('success');
-    expect(wrapper.vm.toastMessage).toBe('Export configuration is valid');
-
-    consoleSpy.mockRestore();
+    expect(mockExportWorkflow.updateConfig).toHaveBeenCalledWith('loras', true);
+    expect(mockExportWorkflow.validateExport).toHaveBeenCalled();
+    expect(mockExportWorkflow.previewExport).toHaveBeenCalled();
+    expect(mockExportWorkflow.startExport).toHaveBeenCalled();
   });
 
-  it('handles file selection for import', async () => {
-    // Wait for component to initialize
-    await wrapper.vm.$nextTick();
-    
-    // Create mock file
-    const mockFile = new File(['test content'], 'test.zip', { type: 'application/zip' });
-    
-    // Simulate file selection by directly calling the handler
-    const mockEvent = {
-      target: { files: [mockFile] }
-    };
-    
-    await wrapper.vm.handleFileSelect(mockEvent);
-    
-    // Should add the file to importFiles
-    expect(wrapper.vm.importFiles).toHaveLength(1);
-    expect(wrapper.vm.importFiles[0].name).toBe('test.zip');
+  it('forwards import panel events to workflow', async () => {
+    const wrapper = mount(ImportExport);
+    await vi.runAllTimersAsync();
+
+    const importPanel = wrapper.findComponent({ name: 'ImportProcessingPanel' });
+    const file = new File(['test'], 'test.zip');
+
+    importPanel.vm.$emit('update-config', { key: 'mode', value: 'replace' });
+    importPanel.vm.$emit('add-files', [file]);
+    importPanel.vm.$emit('remove-file', file);
+    importPanel.vm.$emit('analyze');
+    importPanel.vm.$emit('validate');
+    importPanel.vm.$emit('start');
+
+    expect(mockImportWorkflow.updateConfig).toHaveBeenCalledWith('mode', 'replace');
+    expect(mockImportWorkflow.addFiles).toHaveBeenCalled();
+    expect(mockImportWorkflow.removeFile).toHaveBeenCalledWith(file);
+    expect(mockImportWorkflow.analyzeFiles).toHaveBeenCalled();
+    expect(mockImportWorkflow.validateImport).toHaveBeenCalled();
+    expect(mockImportWorkflow.startImport).toHaveBeenCalled();
   });
 
-  it('handles file drop for import', async () => {
-    // Create mock files
-    const mockFile1 = new File(['test content 1'], 'test1.zip', { type: 'application/zip' });
-    const mockFile2 = new File(['test content 2'], 'test2.json', { type: 'application/json' });
+  it('invokes backup workflow handlers', async () => {
+    const wrapper = mount(ImportExport);
+    await vi.runAllTimersAsync();
 
-    // Create mock drop event
-    const dropEvent = {
-      preventDefault: vi.fn(),
-      dataTransfer: {
-        files: [mockFile1, mockFile2]
-      }
-    };
+    const backupPanel = wrapper.findComponent({ name: 'BackupManagementPanel' });
+    backupPanel.vm.$emit('create-full-backup');
+    backupPanel.vm.$emit('create-quick-backup');
+    backupPanel.vm.$emit('schedule-backup');
+    backupPanel.vm.$emit('download-backup', 'backup-1');
+    backupPanel.vm.$emit('restore-backup', 'backup-1');
+    backupPanel.vm.$emit('delete-backup', 'backup-1');
 
-    // Trigger drop
-    await wrapper.vm.handleFileDrop(dropEvent);
-
-    // Should add valid files to importFiles
-    expect(wrapper.vm.importFiles).toHaveLength(2);
-    expect(wrapper.vm.importFiles[0].name).toBe('test1.zip');
-    expect(wrapper.vm.importFiles[1].name).toBe('test2.json');
+    expect(mockBackupWorkflow.createFullBackup).toHaveBeenCalled();
+    expect(mockBackupWorkflow.createQuickBackup).toHaveBeenCalled();
+    expect(mockBackupWorkflow.scheduleBackup).toHaveBeenCalled();
+    expect(mockBackupWorkflow.downloadBackup).toHaveBeenCalledWith('backup-1');
+    expect(mockBackupWorkflow.restoreBackup).toHaveBeenCalledWith('backup-1');
+    expect(mockBackupWorkflow.deleteBackup).toHaveBeenCalledWith('backup-1');
   });
 
-  it('removes files from import list', () => {
-    // Add some files first
-    const mockFile1 = new File(['test1'], 'test1.zip');
-    const mockFile2 = new File(['test2'], 'test2.json');
-    wrapper.vm.importFiles = [mockFile1, mockFile2];
+  it('invokes migration workflow handlers', async () => {
+    const wrapper = mount(ImportExport);
+    await vi.runAllTimersAsync();
 
-    // Remove first file
-    wrapper.vm.removeFile(mockFile1);
-    
-    expect(wrapper.vm.importFiles).toHaveLength(1);
-    expect(wrapper.vm.importFiles[0]).toBe(mockFile2);
+    const migrationPanel = wrapper.findComponent({ name: 'MigrationWorkflowPanel' });
+    migrationPanel.vm.$emit('update-config', { key: 'from_version', value: '1.0' });
+    migrationPanel.vm.$emit('start-version-migration');
+    migrationPanel.vm.$emit('start-platform-migration');
+
+    expect(mockMigrationWorkflow.updateConfig).toHaveBeenCalledWith('from_version', '1.0');
+    expect(mockMigrationWorkflow.startVersionMigration).toHaveBeenCalled();
+    expect(mockMigrationWorkflow.startPlatformMigration).toHaveBeenCalled();
   });
 
-  it('detects encrypted files correctly', () => {
-    // No encrypted files initially
-    expect(wrapper.vm.hasEncryptedFiles).toBe(false);
+  it('cancels active operations through workflows', async () => {
+    const wrapper = mount(ImportExport);
+    await vi.runAllTimersAsync();
 
-    // Add encrypted file
-    const encryptedFile = new File(['encrypted content'], 'encrypted_backup.zip');
-    wrapper.vm.importFiles = [encryptedFile];
+    const [exportProgress] = exportProgressHandlers;
+    exportProgress.begin();
 
-    expect(wrapper.vm.hasEncryptedFiles).toBe(true);
-  });
+    const cancelButton = wrapper.findAll('button').find(btn => btn.text() === 'Cancel');
+    await cancelButton.trigger('click');
 
-  it('validates import configuration', async () => {
-    // No files selected
-    wrapper.vm.importFiles = [];
-    await wrapper.vm.validateImport();
-    expect(wrapper.vm.toastType).toBe('error');
-    expect(wrapper.vm.toastMessage).toContain('No files selected for import');
-
-    // Valid configuration
-    const mockFile = new File(['test'], 'test.zip');
-    wrapper.vm.importFiles = [mockFile];
-    await wrapper.vm.validateImport();
-    expect(wrapper.vm.toastType).toBe('success');
-    expect(wrapper.vm.toastMessage).toBe('Import configuration is valid');
-  });
-
-  it('analyzes import files', async () => {
-    // Add mock file
-    const mockFile = new File(['test'], 'test.zip');
-    wrapper.vm.importFiles = [mockFile];
-
-    // Mock setTimeout to avoid real delays
-    const originalSetTimeout = global.setTimeout;
-    global.setTimeout = vi.fn((fn) => fn());
-
-    // Analyze files
-    await wrapper.vm.analyzeFiles();
-
-    // Should show analysis messages and generate preview
-    expect(wrapper.vm.toastType).toBe('success');
-    expect(wrapper.vm.toastMessage).toBe('File analysis completed');
-    expect(wrapper.vm.importPreview.length).toBeGreaterThan(0);
-
-    // Restore setTimeout
-    global.setTimeout = originalSetTimeout;
-  });
-
-  it('starts export process', async () => {
-    // Mock document methods for download functionality
-    const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue({
-      href: '',
-      download: '',
-      click: vi.fn(),
-      style: {}
-    });
-    const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => {});
-    const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => {});
-    global.URL.createObjectURL = vi.fn().mockReturnValue('blob:test-url');
-    global.URL.revokeObjectURL = vi.fn();
-    
-    // Enable some export options
-    wrapper.vm.exportConfig.loras = true;
-
-    // Start export
-    await wrapper.vm.startExport();
-
-    // Should show completion message
-    expect(wrapper.vm.toastType).toBe('success');
-    expect(wrapper.vm.toastMessage).toBe('Export completed successfully');
-    expect(wrapper.vm.isExporting).toBe(false);
-
-    // Cleanup mocks
-    createElementSpy.mockRestore();
-    appendChildSpy.mockRestore();
-    removeChildSpy.mockRestore();
-  }, 10000); // Increase timeout for this test
-
-  it('starts import process', async () => {
-    // Add mock file
-    const mockFile = new File(['test'], 'test.zip');
-    wrapper.vm.importFiles = [mockFile];
-
-    // Start import
-    await wrapper.vm.startImport();
-
-    // Should show completion message and clear files
-    expect(wrapper.vm.toastType).toBe('success');
-    expect(wrapper.vm.toastMessage).toBe('Import completed: 1 files processed');
-    expect(wrapper.vm.importFiles).toHaveLength(0);
-    expect(wrapper.vm.isImporting).toBe(false);
-  }, 10000); // Increase timeout for this test
-
-  it('formats file sizes correctly', () => {
-    expect(wrapper.vm.formatFileSize(0)).toBe('0 Bytes');
-    expect(wrapper.vm.formatFileSize(1024)).toBe('1 KB');
-    expect(wrapper.vm.formatFileSize(1024 * 1024)).toBe('1 MB');
-    expect(wrapper.vm.formatFileSize(1024 * 1024 * 1024)).toBe('1 GB');
-  });
-
-  it('gets correct status classes', () => {
-    expect(wrapper.vm.getStatusClasses('new')).toBe('bg-green-100 text-green-800');
-    expect(wrapper.vm.getStatusClasses('conflict')).toBe('bg-yellow-100 text-yellow-800');
-    expect(wrapper.vm.getStatusClasses('existing')).toBe('bg-gray-100 text-gray-800');
-    expect(wrapper.vm.getStatusClasses('error')).toBe('bg-red-100 text-red-800');
-    expect(wrapper.vm.getStatusClasses('unknown')).toBe('bg-gray-100 text-gray-800');
-  });
-
-  it('shows and hides toast messages', async () => {
-    expect(wrapper.vm.showToast).toBe(false);
-    
-    // Call internal toast method by setting values directly
-    wrapper.vm.toastMessage = 'Test message';
-    wrapper.vm.toastType = 'success';
-    wrapper.vm.showToast = true;
-    
-    expect(wrapper.vm.showToast).toBe(true);
-    expect(wrapper.vm.toastMessage).toBe('Test message');
-    expect(wrapper.vm.toastType).toBe('success');
-  });
-
-  it('cancels operations correctly', () => {
-    // Set some operation states
-    wrapper.vm.isExporting = true;
-    wrapper.vm.isImporting = true;
-    wrapper.vm.showProgress = true;
-
-    wrapper.vm.cancelOperation();
-
-    expect(wrapper.vm.isExporting).toBe(false);
-    expect(wrapper.vm.isImporting).toBe(false);
-    expect(wrapper.vm.showProgress).toBe(false);
-    expect(wrapper.vm.toastType).toBe('warning');
-    expect(wrapper.vm.toastMessage).toBe('Operation cancelled');
-  });
-
-  it('quick export all sets correct configuration', () => {
-    // Start with some options disabled
-    wrapper.vm.exportConfig.loras = false;
-    wrapper.vm.exportConfig.generations = false;
-    wrapper.vm.exportConfig.user_data = false;
-    wrapper.vm.exportConfig.system_config = false;
-
-    wrapper.vm.quickExportAll();
-
-    // Should enable all main options
-    expect(wrapper.vm.exportConfig.loras).toBe(true);
-    expect(wrapper.vm.exportConfig.lora_files).toBe(true);
-    expect(wrapper.vm.exportConfig.generations).toBe(true);
-    expect(wrapper.vm.exportConfig.user_data).toBe(true);
-    expect(wrapper.vm.exportConfig.system_config).toBe(true);
-  });
-
-  it('view history switches to backup tab', () => {
-    wrapper.vm.activeTab = 'export';
-    wrapper.vm.viewHistory();
-    expect(wrapper.vm.activeTab).toBe('backup');
-  });
-
-  it('creates a full backup and refreshes history', async () => {
-    await wrapper.vm.createFullBackup();
-    await wrapper.vm.$nextTick();
-
-    const backupCall = fetch.mock.calls.find(([url]) => url.includes('/api/v1/backup/create'));
-    expect(backupCall).toBeTruthy();
-    expect(backupCall?.[1]?.body).toContain('"backup_type":"full"');
-
-    expect(wrapper.vm.toastType).toBe('success');
-    expect(wrapper.vm.toastMessage).toContain('Full backup initiated');
-  });
-
-  it('creates a quick backup and refreshes history', async () => {
-    await wrapper.vm.createQuickBackup();
-    await wrapper.vm.$nextTick();
-
-    const backupCall = fetch.mock.calls.find(([url, options]) => {
-      return url.includes('/api/v1/backup/create') && options?.body?.includes('"backup_type":"quick"');
-    });
-
-    expect(backupCall).toBeTruthy();
-    expect(wrapper.vm.toastType).toBe('success');
-    expect(wrapper.vm.toastMessage).toContain('Quick backup initiated');
-  });
-
-  it('surfaces informational toasts for backup utilities', () => {
-    wrapper.vm.scheduleBackup();
-    expect(wrapper.vm.toastType).toBe('info');
-    expect(wrapper.vm.toastMessage).toBe('Schedule backup functionality coming soon');
-
-    wrapper.vm.downloadBackup('backup-123');
-    expect(wrapper.vm.toastMessage).toBe('Download backup backup-123 functionality coming soon');
-
-    wrapper.vm.restoreBackup('backup-123');
-    expect(wrapper.vm.toastMessage).toBe('Restore backup backup-123 functionality coming soon');
-
-    wrapper.vm.deleteBackup('backup-123');
-    expect(wrapper.vm.toastMessage).toBe('Delete backup backup-123 functionality coming soon');
-  });
-
-  it('announces upcoming migration flows', () => {
-    wrapper.vm.startVersionMigration();
-    expect(wrapper.vm.toastType).toBe('info');
-    expect(wrapper.vm.toastMessage).toBe('Version migration functionality coming soon');
-
-    wrapper.vm.startPlatformMigration();
-    expect(wrapper.vm.toastMessage).toBe('Platform migration functionality coming soon');
+    expect(mockExportWorkflow.cancelExport).toHaveBeenCalled();
   });
 });
