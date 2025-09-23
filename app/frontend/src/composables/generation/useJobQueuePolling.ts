@@ -1,11 +1,10 @@
-import { onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch, type ComputedRef } from 'vue';
 
 import type { JobQueueRecord } from '@/composables/generation';
 
 export interface UseJobQueuePollingOptions {
   disabled: ComputedRef<boolean>;
   pollInterval: ComputedRef<number>;
-  apiAvailable: Ref<boolean>;
   fetchJobs: () => Promise<JobQueueRecord[] | null>;
   onRecord: (record: JobQueueRecord) => void;
 }
@@ -13,7 +12,6 @@ export interface UseJobQueuePollingOptions {
 export const useJobQueuePolling = ({
   disabled,
   pollInterval,
-  apiAvailable,
   fetchJobs,
   onRecord,
 }: UseJobQueuePollingOptions) => {
@@ -30,7 +28,7 @@ export const useJobQueuePolling = ({
   };
 
   const refresh = async (): Promise<void> => {
-    if (isPolling.value || disabled.value || !apiAvailable.value) {
+    if (isPolling.value || disabled.value) {
       if (!isReady.value) {
         isReady.value = true;
       }
@@ -70,7 +68,7 @@ export const useJobQueuePolling = ({
     void refresh();
 
     pollTimer.value = setInterval(() => {
-      if (!isPolling.value && !disabled.value && apiAvailable.value) {
+      if (!isPolling.value && !disabled.value) {
         void refresh();
       }
     }, pollInterval.value);
@@ -79,7 +77,7 @@ export const useJobQueuePolling = ({
   watch(disabled, (nextDisabled) => {
     if (nextDisabled) {
       stopPolling();
-    } else if (!pollTimer.value && apiAvailable.value) {
+    } else if (!pollTimer.value) {
       startPolling();
     }
   });

@@ -1,7 +1,7 @@
 import { ref, unref, type MaybeRefOrGetter } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { cancelGenerationJob, cancelLegacyJob } from '@/services';
+import { cancelGenerationJob } from '@/services';
 import { useGenerationQueueStore } from '@/stores/generation';
 import { useNotifications } from '@/composables/shared';
 import { useBackendBase } from '@/utils/backend';
@@ -51,36 +51,21 @@ export const useJobQueueActions = (options: UseJobQueueActionsOptions = {}) => {
 
     try {
       const backendBaseUrl = resolveBackendBase();
-      let cancelled = false;
-
       try {
         const response = await cancelGenerationJob(backendJobId, backendBaseUrl);
-        cancelled = response?.success !== false;
+        const cancelled = response?.success !== false;
+        if (!cancelled) {
+          notifications.showError('Failed to cancel job');
+          return false;
+        }
+
+        queueStore.removeJob(jobId);
+        notifications.showInfo('Job cancelled');
+        return true;
       } catch (error) {
-        if (import.meta.env.DEV) {
-          console.info('[JobQueue] Generation cancellation failed, retrying legacy endpoint', error);
-        }
-      }
-
-      if (!cancelled) {
-        try {
-          cancelled = await cancelLegacyJob(backendJobId, backendBaseUrl);
-        } catch (error) {
-          if (import.meta.env.DEV) {
-            console.warn('[JobQueue] Legacy cancellation failed', error);
-          }
-          cancelled = false;
-        }
-      }
-
-      if (!cancelled) {
         notifications.showError('Failed to cancel job');
         return false;
       }
-
-      queueStore.removeJob(jobId);
-      notifications.showInfo('Job cancelled');
-      return true;
     } finally {
       isCancelling.value = false;
     }

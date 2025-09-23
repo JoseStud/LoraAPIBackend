@@ -2,13 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, ref } from 'vue';
 import { mount } from '@vue/test-utils';
 
-import { useJobQueue } from '@/composables/useJobQueue';
+import { useJobQueue } from '@/composables/generation/useJobQueue';
 import { useGenerationQueueStore } from '@/stores/generation';
-import { ApiError } from '@/types';
 
 const serviceMocks = vi.hoisted(() => ({
   fetchActiveGenerationJobs: vi.fn(),
-  fetchLegacyJobStatuses: vi.fn(),
 }));
 
 vi.mock('@/services', () => serviceMocks);
@@ -24,7 +22,7 @@ const notificationMocks = vi.hoisted(() => ({
   clearAll: vi.fn(),
 }));
 
-vi.mock('@/composables/useNotifications', () => ({
+vi.mock('@/composables/shared', () => ({
   useNotifications: () => notificationMocks,
 }));
 
@@ -58,15 +56,7 @@ describe('useJobQueue', () => {
     notificationMocks.notifications.value = [];
   });
 
-  it('retries the primary endpoint when fallback returns 404 and continues polling', async () => {
-    const fallbackNotFound = new ApiError({
-      message: 'Not Found',
-      status: 404,
-      statusText: 'Not Found',
-      payload: null,
-      meta: { ok: false, status: 404, statusText: 'Not Found' },
-    });
-
+  it('continues polling after transient failures', async () => {
     serviceMocks.fetchActiveGenerationJobs
       .mockRejectedValueOnce(new Error('Primary endpoint failed'))
       .mockResolvedValueOnce([
@@ -78,24 +68,21 @@ describe('useJobQueue', () => {
         },
       ]);
 
-    serviceMocks.fetchLegacyJobStatuses.mockRejectedValueOnce(fallbackNotFound);
-
     const disabled = ref(true);
 
     await withQueue(async (queue) => {
       disabled.value = false;
+
       await queue.refresh();
       await Promise.resolve();
 
-      expect(queue.apiAvailable.value).toBe(true);
       expect(serviceMocks.fetchActiveGenerationJobs).toHaveBeenCalledTimes(1);
-      expect(serviceMocks.fetchLegacyJobStatuses).toHaveBeenCalledTimes(1);
+      expect(queue.jobs.value).toHaveLength(0);
 
       await queue.refresh();
       await Promise.resolve();
 
       expect(serviceMocks.fetchActiveGenerationJobs).toHaveBeenCalledTimes(2);
-      expect(serviceMocks.fetchLegacyJobStatuses).toHaveBeenCalledTimes(1);
       expect(queue.jobs.value).toHaveLength(1);
       expect(queue.jobs.value[0]).toMatchObject({ id: 'job-1', status: 'processing', progress: 25 });
     }, () => ({

@@ -2,19 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, effectScope } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { useJobQueueActions } from '@/composables/useJobQueueActions';
+import { useJobQueueActions } from '@/composables/generation/useJobQueueActions';
 import { useGenerationQueueStore } from '@/stores/generation';
 
 const serviceMocks = vi.hoisted(() => ({
   cancelGenerationJob: vi.fn(),
-  cancelLegacyJob: vi.fn(),
 }));
 
 vi.mock('@/services', () => ({
   fetchActiveGenerationJobs: vi.fn(),
-  fetchLegacyJobStatuses: vi.fn(),
   cancelGenerationJob: serviceMocks.cancelGenerationJob,
-  cancelLegacyJob: serviceMocks.cancelLegacyJob,
 }));
 
 const notificationMocks = vi.hoisted(() => ({
@@ -28,7 +25,7 @@ const notificationMocks = vi.hoisted(() => ({
   clearAll: vi.fn(),
 }));
 
-vi.mock('@/composables/useNotifications', () => ({
+vi.mock('@/composables/shared', () => ({
   useNotifications: () => notificationMocks,
 }));
 
@@ -70,33 +67,13 @@ describe('useJobQueueActions', () => {
       const result = await actions.cancelJob('job-1');
 
       expect(result).toBe(true);
-      expect(serviceMocks.cancelLegacyJob).not.toHaveBeenCalled();
-      expect(notificationMocks.showInfo).toHaveBeenCalledWith('Job cancelled');
-      expect(jobs.value).toHaveLength(0);
-    });
-  });
-
-  it('falls back to the legacy endpoint when the primary fails', async () => {
-    serviceMocks.cancelGenerationJob.mockRejectedValueOnce(new Error('primary failed'));
-    serviceMocks.cancelLegacyJob.mockResolvedValueOnce(true);
-
-    await withActions(async (actions) => {
-      const queueStore = useGenerationQueueStore();
-      const { jobs } = storeToRefs(queueStore);
-      queueStore.enqueueJob({ id: 'job-2', jobId: 'backend-2', status: 'queued' });
-
-      const result = await actions.cancelJob('job-2');
-
-      expect(result).toBe(true);
-      expect(serviceMocks.cancelLegacyJob).toHaveBeenCalledWith('backend-2', '/api/v1');
       expect(notificationMocks.showInfo).toHaveBeenCalledWith('Job cancelled');
       expect(jobs.value).toHaveLength(0);
     });
   });
 
   it('notifies when cancellation fails', async () => {
-    serviceMocks.cancelGenerationJob.mockRejectedValueOnce(new Error('primary failed'));
-    serviceMocks.cancelLegacyJob.mockResolvedValueOnce(false);
+    serviceMocks.cancelGenerationJob.mockResolvedValueOnce({ success: false });
 
     await withActions(async (actions) => {
       const queueStore = useGenerationQueueStore();
@@ -104,6 +81,22 @@ describe('useJobQueueActions', () => {
       queueStore.enqueueJob({ id: 'job-3', jobId: 'backend-3', status: 'queued' });
 
       const result = await actions.cancelJob('job-3');
+
+      expect(result).toBe(false);
+      expect(notificationMocks.showError).toHaveBeenCalledWith('Failed to cancel job');
+      expect(jobs.value).toHaveLength(1);
+    });
+  });
+
+  it('handles request failures gracefully', async () => {
+    serviceMocks.cancelGenerationJob.mockRejectedValueOnce(new Error('primary failed'));
+
+    await withActions(async (actions) => {
+      const queueStore = useGenerationQueueStore();
+      const { jobs } = storeToRefs(queueStore);
+      queueStore.enqueueJob({ id: 'job-4', jobId: 'backend-4', status: 'queued' });
+
+      const result = await actions.cancelJob('job-4');
 
       expect(result).toBe(false);
       expect(notificationMocks.showError).toHaveBeenCalledWith('Failed to cancel job');
