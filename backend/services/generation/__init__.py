@@ -279,7 +279,7 @@ class GenerationCoordinator:
         }
 
     async def broadcast_job_started(
-        self, job_id: str, generation_params: SDNextGenerationParams
+        self, job_id: str, generation_params: SDNextGenerationParams,
     ) -> None:
         """Kick off monitoring and fan out job start notifications."""
 

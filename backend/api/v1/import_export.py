@@ -102,7 +102,7 @@ async def import_data(
                     "file": upload.filename,
                     "status": "error",
                     "detail": str(exc),
-                }
+                },
             )
             continue
 
@@ -114,7 +114,7 @@ async def import_data(
                 "created": summary.created,
                 "updated": summary.updated,
                 "adapters": summary.adapters,
-            }
+            },
         )
 
     processed = sum(1 for item in results if item.get("status") != "error")

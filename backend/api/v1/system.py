@@ -9,7 +9,6 @@ from fastapi import APIRouter, Depends
 from backend.core.dependencies import get_application_services
 from backend.services import ApplicationServices
 
-
 router = APIRouter(prefix="/system", tags=["system"])
 
 

@@ -30,7 +30,7 @@ class TimeSeriesBuilder:
         default_timestamp: datetime,
     ) -> PerformanceAnalyticsCharts:
         bucket_stats: MutableMapping[datetime, Dict[str, float]] = defaultdict(
-            lambda: {"count": 0, "succeeded": 0, "failed": 0}
+            lambda: {"count": 0, "succeeded": 0, "failed": 0},
         )
         durations: Dict[datetime, List[float]] = defaultdict(list)
 
@@ -64,7 +64,7 @@ class TimeSeriesBuilder:
                     "timestamp": bucket,
                     "avg_time": round(avg_time, 2),
                     "success_rate": round(success_rate, 2),
-                }
+                },
             )
 
         max_count = max((entry["count"] for entry in generation_volume), default=0) or 1
@@ -78,7 +78,7 @@ class TimeSeriesBuilder:
                     cpu_percent=round(35 + load_factor * 55, 2),
                     memory_percent=round(45 + load_factor * 45, 2),
                     gpu_percent=round(40 + load_factor * 60, 2),
-                )
+                ),
             )
 
         charts = PerformanceAnalyticsCharts(
@@ -100,7 +100,7 @@ class TimeSeriesBuilder:
         return charts
 
     def _bucket_timestamp(
-        self, timestamp: datetime, time_range: PerformanceTimeRange
+        self, timestamp: datetime, time_range: PerformanceTimeRange,
     ) -> datetime:
         if timestamp.tzinfo is None:
             timestamp = timestamp.replace(tzinfo=timezone.utc)

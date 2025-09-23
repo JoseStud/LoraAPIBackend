@@ -64,7 +64,7 @@ class EmbeddingBatchRunner:
                         {
                             'adapter_id': adapter.id,
                             'error': str(exc),
-                        }
+                        },
                     )
 
         processing_time = time.time() - start_time

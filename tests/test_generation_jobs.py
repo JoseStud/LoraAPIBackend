@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Any, Dict, cast
 from types import SimpleNamespace
-
+from typing import Any, Dict, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -14,14 +13,18 @@ from fastapi.testclient import TestClient
 
 from backend.delivery.base import DeliveryRegistry, GenerationBackend
 from backend.main import app as backend_app
+from backend.schemas import SDNextGenerationParams, SDNextGenerationResult
 from backend.services import ServiceContainer
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.generation import GenerationCoordinator, GenerationService
-from backend.services.queue import QueueBackend, QueueOrchestrator, create_queue_orchestrator
+from backend.services.queue import (
+    QueueBackend,
+    QueueOrchestrator,
+    create_queue_orchestrator,
+)
 from backend.services.websocket import WebSocketService
-from backend.schemas import SDNextGenerationParams, SDNextGenerationResult
 from backend.workers.delivery_runner import DeliveryRunner
 
 
@@ -35,7 +38,7 @@ def _create_generation_params(prompt: str) -> Dict[str, Dict[str, object]]:
             "steps": 25,
             "cfg_scale": 7.5,
             "seed": 1234,
-        }
+        },
     }
 
 
@@ -168,7 +171,7 @@ def test_generation_coordinator_schedule_generation_job(db_session):
 
 
 def test_delivery_runner_uses_requested_generation_backend(
-    db_session, monkeypatch: pytest.MonkeyPatch
+    db_session, monkeypatch: pytest.MonkeyPatch,
 ):
     """Processing a job triggers the generation backend specified when scheduling."""
 

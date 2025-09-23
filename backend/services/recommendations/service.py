@@ -18,9 +18,11 @@ from .feedback_manager import FeedbackManager
 from .interfaces import (
     EmbeddingWorkflow,
     RecommendationBootstrap,
-    RecommendationMetricsTracker as RecommendationMetricsTrackerProtocol,
     RecommendationPersistenceService,
     RecommendationRepository,
+)
+from .interfaces import (
+    RecommendationMetricsTracker as RecommendationMetricsTrackerProtocol,
 )
 from .stats_reporter import StatsReporter
 from .use_cases import (

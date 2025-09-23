@@ -31,12 +31,12 @@ def _params(prompt: str = "Prompt") -> dict:
             "steps": 20,
             "cfg_scale": 7.0,
             "seed": 123,
-        }
+        },
     }
 
 
 def test_build_active_job_normalizes_cancelled_status(
-    delivery_service: DeliveryService, coordinator: GenerationCoordinator
+    delivery_service: DeliveryService, coordinator: GenerationCoordinator,
 ):
     """Cancelled jobs are exposed as failed with retained result payload."""
 
@@ -51,7 +51,7 @@ def test_build_active_job_normalizes_cancelled_status(
 
 
 def test_build_result_handles_missing_images(
-    delivery_service: DeliveryService, coordinator: GenerationCoordinator
+    delivery_service: DeliveryService, coordinator: GenerationCoordinator,
 ):
     """Missing images or invalid thumbnail URLs result in empty links."""
 
@@ -73,7 +73,7 @@ def test_build_result_handles_missing_images(
 
 
 def test_build_result_parses_generation_info_string(
-    delivery_service: DeliveryService, coordinator: GenerationCoordinator
+    delivery_service: DeliveryService, coordinator: GenerationCoordinator,
 ):
     """Stringified generation info payloads are parsed into dictionaries."""
 
@@ -92,7 +92,7 @@ def test_build_result_parses_generation_info_string(
 
 
 def test_build_result_handles_malformed_generation_info(
-    delivery_service: DeliveryService, coordinator: GenerationCoordinator
+    delivery_service: DeliveryService, coordinator: GenerationCoordinator,
 ):
     """Malformed generation info strings are coerced to None."""
 

@@ -34,7 +34,7 @@ class InsightGenerator:
                     description="Success rate dropped below 90% in the selected window.",
                     severity="high",
                     recommendation="review_failed_jobs",
-                )
+                ),
             )
             identifier += 1
 
@@ -46,7 +46,7 @@ class InsightGenerator:
                     description="Average generation time increased compared to the previous period.",
                     severity="medium",
                     recommendation="investigate_performance",
-                )
+                ),
             )
             identifier += 1
 
@@ -60,7 +60,7 @@ class InsightGenerator:
                         description=f"{top_error.percentage:.1f}% of failures were '{top_error.type}'.",
                         severity="medium",
                         recommendation="analyse_error_trends",
-                    )
+                    ),
                 )
                 identifier += 1
 
@@ -72,7 +72,7 @@ class InsightGenerator:
                     description="System performance is stable with no major issues detected.",
                     severity="low",
                     recommendation=None,
-                )
+                ),
             )
 
         return insights

@@ -27,6 +27,7 @@ from backend.services.recommendations import (
     EmbeddingCoordinator,
     FeedbackManager,
     LoRAEmbeddingRepository,
+    PromptRecommendationUseCase,
     RecommendationConfig,
     RecommendationMetricsTracker,
     RecommendationModelBootstrap,
@@ -35,9 +36,8 @@ from backend.services.recommendations import (
     RecommendationRepository,
     RecommendationService,
     RecommendationServiceBuilder,
-    StatsReporter,
-    PromptRecommendationUseCase,
     SimilarLoraUseCase,
+    StatsReporter,
 )
 
 
@@ -46,7 +46,7 @@ def force_cpu_mode():
     """Ensure tests run with GPU detection disabled unless overridden."""
 
     with patch.object(
-        RecommendationModelBootstrap, "is_gpu_available", return_value=False
+        RecommendationModelBootstrap, "is_gpu_available", return_value=False,
     ):
         yield
 
@@ -127,7 +127,7 @@ class TestEmbeddingBatchRunner:
 
     @pytest.mark.anyio("asyncio")
     async def test_batch_compute_skips_existing_embeddings(
-        self, db_session, sample_adapter
+        self, db_session, sample_adapter,
     ):
         db_session.add(sample_adapter)
         db_session.add(
@@ -137,7 +137,7 @@ class TestEmbeddingBatchRunner:
                 description="",
                 file_path="/tmp/a2.safetensors",
                 active=True,
-            )
+            ),
         )
         db_session.commit()
 
@@ -151,7 +151,7 @@ class TestEmbeddingBatchRunner:
             LoRAEmbedding(
                 adapter_id=sample_adapter.id,
                 semantic_embedding=b"existing",
-            )
+            ),
         )
         db_session.commit()
 
@@ -205,7 +205,7 @@ class TestRecommendationRepository:
                 preference_value="anime",
                 confidence=0.9,
                 explicit=False,
-            )
+            ),
         )
 
         assert first.id == updated.id
@@ -241,12 +241,12 @@ class TestEmbeddingCoordinator:
 
         await coordinator.compute_for_lora("adapter-1", force_recompute=True)
         workflow.compute_embeddings_for_lora.assert_awaited_once_with(
-            "adapter-1", force_recompute=True
+            "adapter-1", force_recompute=True,
         )
 
         await coordinator.compute_batch(["adapter-2"], batch_size=16)
         workflow.batch_compute_embeddings.assert_awaited_once_with(
-            ["adapter-2"], force_recompute=False, batch_size=16
+            ["adapter-2"], force_recompute=False, batch_size=16,
         )
 
         await coordinator.refresh_similarity_index(force=True)
@@ -254,7 +254,7 @@ class TestEmbeddingCoordinator:
 
     def test_gpu_helpers_delegate_to_bootstrap(self):
         with patch.object(
-            RecommendationModelBootstrap, "is_gpu_available", return_value=True
+            RecommendationModelBootstrap, "is_gpu_available", return_value=True,
         ) as available:
             assert EmbeddingCoordinator.is_gpu_available() is True
             available.assert_called_once()
@@ -309,7 +309,7 @@ class TestStatsReporter:
         assert status.needs_recomputation is True
 
     def test_embedding_status_for_existing_record(
-        self, repository, db_session, sample_adapter
+        self, repository, db_session, sample_adapter,
     ):
         db_session.add(sample_adapter)
         db_session.add(
@@ -317,7 +317,7 @@ class TestStatsReporter:
                 adapter_id=sample_adapter.id,
                 semantic_embedding=b"data",
                 last_computed=datetime.now(timezone.utc),
-            )
+            ),
         )
         db_session.commit()
 
@@ -411,14 +411,14 @@ class TestRecommendationMetricsTracker:
                 description="",
                 file_path="/tmp/stats.safetensors",
                 active=True,
-            )
+            ),
         )
         db_session.add(
             LoRAEmbedding(
                 adapter_id="adapter-stats",
                 semantic_embedding=b"bytes",
                 last_computed=now,
-            )
+            ),
         )
         db_session.add(UserPreference(preference_type="style", preference_value="anime"))
         db_session.add(RecommendationSession(id="sess", context_prompt="", active_loras=[]))
@@ -518,12 +518,12 @@ class TestRecommendationService:
 
         await service.embeddings.compute_for_lora("adapter-1", force_recompute=True)
         embedding_workflow.compute_embeddings_for_lora.assert_awaited_with(
-            "adapter-1", force_recompute=True
+            "adapter-1", force_recompute=True,
         )
 
         await service.embeddings.compute_batch(adapter_ids=["adapter-1"], batch_size=8)
         embedding_workflow.batch_compute_embeddings.assert_awaited_with(
-            ["adapter-1"], force_recompute=False, batch_size=8
+            ["adapter-1"], force_recompute=False, batch_size=8,
         )
 
         await service.refresh_indexes(force=True)

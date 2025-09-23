@@ -51,7 +51,7 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
         self._logger.info("Building similarity index for %s LoRAs", len(loras))
 
         embeddings = self.feature_extractor.semantic_embedder.batch_encode_collection(
-            loras
+            loras,
         )
 
         self.semantic_embeddings = embeddings["semantic"].astype("float32")
@@ -103,17 +103,17 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
             }
 
         target_embeddings = self.feature_extractor.semantic_embedder.create_multi_modal_embedding(
-            target_lora
+            target_lora,
         )
 
         semantic_query = self._normalize_embeddings(
-            target_embeddings["semantic"].reshape(1, -1)
+            target_embeddings["semantic"].reshape(1, -1),
         )[0]
         artistic_query = self._normalize_embeddings(
-            target_embeddings["artistic"].reshape(1, -1)
+            target_embeddings["artistic"].reshape(1, -1),
         )[0]
         technical_query = self._normalize_embeddings(
-            target_embeddings["technical"].reshape(1, -1)
+            target_embeddings["technical"].reshape(1, -1),
         )[0]
 
         semantic_similarities = np.dot(self.semantic_embeddings, semantic_query)
@@ -162,7 +162,7 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
                         "quality_boost": float(quality_boost),
                         "popularity_boost": float(popularity_boost),
                         "recency_boost": float(recency_boost),
-                    }
+                    },
                 )
 
                 if len(final_recommendations) >= n_recommendations:
@@ -173,7 +173,7 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
 
     def _is_compatible(self, target_lora: Any, candidate_lora: Any) -> bool:
         if getattr(target_lora, "sd_version", None) and getattr(
-            candidate_lora, "sd_version", None
+            candidate_lora, "sd_version", None,
         ):
             return target_lora.sd_version == candidate_lora.sd_version
         return True
@@ -182,7 +182,7 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
         explanations: List[str] = []
 
         if getattr(target_lora, "description", None) and getattr(
-            candidate_lora, "description", None
+            candidate_lora, "description", None,
         ):
             common_keywords = self._find_common_keywords(
                 target_lora.description,
@@ -190,20 +190,20 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
             )
             if common_keywords:
                 explanations.append(
-                    f"Similar content: {', '.join(common_keywords[:3])}"
+                    f"Similar content: {', '.join(common_keywords[:3])}",
                 )
 
         if getattr(target_lora, "tags", None) and getattr(
-            candidate_lora, "tags", None
+            candidate_lora, "tags", None,
         ):
             common_tags = set(target_lora.tags) & set(candidate_lora.tags)
             if common_tags:
                 explanations.append(
-                    f"Shared tags: {', '.join(list(common_tags)[:3])}"
+                    f"Shared tags: {', '.join(list(common_tags)[:3])}",
                 )
 
         if getattr(target_lora, "sd_version", None) == getattr(
-            candidate_lora, "sd_version", None
+            candidate_lora, "sd_version", None,
         ) and getattr(target_lora, "sd_version", None):
             explanations.append(f"Same SD version ({target_lora.sd_version})")
 
@@ -284,17 +284,17 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
         self._logger.info("Adding %s new LoRAs to index", len(new_loras))
 
         new_embeddings = self.feature_extractor.semantic_embedder.batch_encode_collection(
-            new_loras
+            new_loras,
         )
 
         new_semantic = self._normalize_embeddings(
-            new_embeddings["semantic"].astype("float32")
+            new_embeddings["semantic"].astype("float32"),
         )
         new_artistic = self._normalize_embeddings(
-            new_embeddings["artistic"].astype("float32")
+            new_embeddings["artistic"].astype("float32"),
         )
         new_technical = self._normalize_embeddings(
-            new_embeddings["technical"].astype("float32")
+            new_embeddings["technical"].astype("float32"),
         )
 
         if self.semantic_embeddings is not None:

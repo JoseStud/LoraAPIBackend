@@ -5,7 +5,6 @@ from active adapters and optionally schedules a delivery.
 """
 
 import structlog
-
 from fastapi import APIRouter, BackgroundTasks, Depends
 
 from backend.core.dependencies import get_application_services, get_domain_services

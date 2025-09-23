@@ -45,7 +45,7 @@ class RecommendationModelBootstrap:
         return self._model_registry
 
     def set_model_registry(
-        self, registry: RecommendationModelRegistry
+        self, registry: RecommendationModelRegistry,
     ) -> None:
         """Inject a custom model registry implementation."""
 
@@ -61,7 +61,7 @@ class RecommendationModelBootstrap:
 
     @classmethod
     def preload_models_for_environment(
-        cls, *, gpu_enabled: Optional[bool] = None
+        cls, *, gpu_enabled: Optional[bool] = None,
     ) -> None:
         """Preload models for the detected runtime environment."""
 

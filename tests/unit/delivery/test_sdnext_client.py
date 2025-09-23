@@ -54,7 +54,7 @@ class FakeDeliveryHTTPClient:
 async def test_submit_txt2img_success() -> None:
     http_client = FakeDeliveryHTTPClient()
     http_client.responses["/sdapi/v1/txt2img"] = _FakeResponse(
-        200, {"images": ["img"], "info": {}}
+        200, {"images": ["img"], "info": {}},
     )
 
     session = SDNextSession(http_client)

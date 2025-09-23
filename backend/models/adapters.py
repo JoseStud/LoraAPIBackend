@@ -7,7 +7,6 @@ from uuid import uuid4
 from sqlalchemy import JSON, Column, Index
 from sqlmodel import Field, SQLModel
 
-
 adapter_table_args = (
     Index("ux_adapter_name_version", "name", "version", unique=True),
     Index("idx_adapter_active", "active"),

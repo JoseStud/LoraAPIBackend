@@ -109,10 +109,10 @@ class SDNextSession:
             "negative_prompt": generation_params.get("negative_prompt", ""),
             "steps": generation_params.get("steps", settings.SDNEXT_DEFAULT_STEPS),
             "sampler_name": generation_params.get(
-                "sampler_name", settings.SDNEXT_DEFAULT_SAMPLER
+                "sampler_name", settings.SDNEXT_DEFAULT_SAMPLER,
             ),
             "cfg_scale": generation_params.get(
-                "cfg_scale", settings.SDNEXT_DEFAULT_CFG_SCALE
+                "cfg_scale", settings.SDNEXT_DEFAULT_CFG_SCALE,
             ),
             "width": generation_params.get("width", 512),
             "height": generation_params.get("height", 512),

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from pathlib import Path
-from types import SimpleNamespace
 import logging
 import sys
 import types
+from datetime import datetime, timezone
+from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -16,7 +16,7 @@ import pytest
 if "backend.services" not in sys.modules:
     services_stub = types.ModuleType("backend.services")
     services_stub.__path__ = [
-        str(Path(__file__).resolve().parents[3] / "backend" / "services")
+        str(Path(__file__).resolve().parents[3] / "backend" / "services"),
     ]
     from importlib.machinery import ModuleSpec
 
@@ -247,7 +247,7 @@ def test_feature_extractor_orchestrates_helpers() -> None:
             "semantic": np.ones(4, dtype=np.float32),
             "artistic": np.ones(3, dtype=np.float32),
             "technical": np.ones(2, dtype=np.float32),
-        }
+        },
     }
     semantic_embedder = _SemanticEmbedderStub(embeddings)
 

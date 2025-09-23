@@ -66,5 +66,5 @@ def test_insight_generator_reports_stable_when_no_flags() -> None:
             description="System performance is stable with no major issues detected.",
             severity="low",
             recommendation=None,
-        )
+        ),
     ]

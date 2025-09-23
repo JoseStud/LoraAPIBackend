@@ -10,7 +10,11 @@ from typing import List
 
 import pytest
 
-from backend.schemas import ProgressUpdate, SDNextGenerationResult, WebSocketSubscription
+from backend.schemas import (
+    ProgressUpdate,
+    SDNextGenerationResult,
+    WebSocketSubscription,
+)
 from backend.services.deliveries import DeliveryService
 from backend.services.websocket import (
     ConnectionManager,
@@ -43,11 +47,11 @@ async def test_connection_manager_routes_subscriptions() -> None:
     conn_other = await manager.connect(ws_other)
 
     await manager.handle_subscription(
-        conn_specific, WebSocketSubscription(job_ids=["job-123"])
+        conn_specific, WebSocketSubscription(job_ids=["job-123"]),
     )
     await manager.handle_subscription(conn_global, WebSocketSubscription(job_ids=None))
     await manager.handle_subscription(
-        conn_other, WebSocketSubscription(job_ids=["job-456"])
+        conn_other, WebSocketSubscription(job_ids=["job-456"]),
     )
 
     update = ProgressUpdate(job_id="job-123", progress=0.25, status="running")

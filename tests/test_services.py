@@ -212,7 +212,7 @@ class TestAdapterService:
         db_session.commit()
 
         activate_ids = adapter_service.bulk_adapter_action(
-            "activate", [adapters[0].id, adapters[1].id]
+            "activate", [adapters[0].id, adapters[1].id],
         )
         assert set(activate_ids) == {adapters[0].id, adapters[1].id}
 
@@ -225,7 +225,7 @@ class TestAdapterService:
         assert adapter_service.get_adapter(adapters[2].id) is None
 
     def test_bulk_adapter_action_rolls_back_on_failure(
-        self, adapter_service, db_session, monkeypatch
+        self, adapter_service, db_session, monkeypatch,
     ):
         """Failures trigger rollback and propagate errors."""
 

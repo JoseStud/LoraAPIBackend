@@ -175,7 +175,7 @@ class SentenceTransformerProvider:
         if self.device in {"cuda", "gpu"}:
             if torch.cuda.is_available():
                 self._logger.info(
-                    "Using CUDA GPU acceleration with %s", torch.cuda.get_device_name()
+                    "Using CUDA GPU acceleration with %s", torch.cuda.get_device_name(),
                 )
                 self.device = "cuda"
             elif getattr(torch.version, "hip", None) is not None:

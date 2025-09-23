@@ -85,7 +85,7 @@ async def test_generate_image_success_flow() -> None:
             ok=True,
             status=200,
             data={"images": ["raw"], "info": {"mode": "test"}},
-        )
+        ),
     )
     storage = FakeImageStorage(processed=["processed"])
     backend = SDNextGenerationBackend(session=session, storage=storage)
@@ -138,7 +138,7 @@ async def test_generate_image_storage_failure_returns_error() -> None:
             ok=True,
             status=200,
             data={"images": ["img"], "info": {}},
-        )
+        ),
     )
     storage = FakeImageStorage(fail=True)
     backend = SDNextGenerationBackend(session=session, storage=storage)
@@ -152,7 +152,7 @@ async def test_generate_image_storage_failure_returns_error() -> None:
 @pytest.mark.anyio("asyncio")
 async def test_progress_success_and_status_translation() -> None:
     session = FakeSDNextSession(
-        progress_response=SDNextResponse(ok=True, status=200, data={"progress": 1.0})
+        progress_response=SDNextResponse(ok=True, status=200, data={"progress": 1.0}),
     )
     backend = SDNextGenerationBackend(session=session, storage=FakeImageStorage())
 

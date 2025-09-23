@@ -1,10 +1,9 @@
 """Composition service for LoRA prompt formatting."""
 
 from dataclasses import dataclass
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from backend.models.adapters import Adapter
-
 
 if TYPE_CHECKING:  # pragma: no cover - import used for type hints only
     from backend.services.adapters import AdapterService

@@ -36,7 +36,7 @@ def count_recent_imports(
 
     timestamp_column = func.coalesce(Adapter.last_ingested_at, Adapter.created_at)
     result = db_session.exec(
-        select(func.count(Adapter.id)).where(timestamp_column >= since)
+        select(func.count(Adapter.id)).where(timestamp_column >= since),
     ).one()
     return int(result or 0)
 

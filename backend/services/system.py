@@ -42,7 +42,7 @@ def _gpu_status_label(gpu_info: Dict[str, Any]) -> str:
 
 
 def _collect_gpu_metrics(
-    memory_used_mb: int, memory_total_mb: int, gpu_info: Dict[str, Any]
+    memory_used_mb: int, memory_total_mb: int, gpu_info: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
     if not gpu_info.get("available"):
         return []

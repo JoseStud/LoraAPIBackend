@@ -26,7 +26,7 @@ class RecordingQueueBackend(QueueBackend):
                 "job_id": job_id,
                 "background_tasks": background_tasks,
                 "enqueue_kwargs": enqueue_kwargs,
-            }
+            },
         )
 
 
@@ -168,7 +168,7 @@ def test_adapter_lifecycle(client: TestClient, mock_storage: MagicMock):
 
 
 def test_create_adapters_allows_same_name_with_different_versions(
-    client: TestClient, mock_storage: MagicMock
+    client: TestClient, mock_storage: MagicMock,
 ):
     """Adapters may share a name as long as their versions differ."""
 
@@ -334,7 +334,7 @@ def test_compose_falls_back_to_background_queue(
 
 
 def test_compose_sdnext_delivery(
-    client: TestClient, mock_storage: MagicMock, monkeypatch
+    client: TestClient, mock_storage: MagicMock, monkeypatch,
 ):
     """Compose endpoint should accept SDNext delivery configuration."""
 

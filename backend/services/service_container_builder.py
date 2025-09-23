@@ -74,7 +74,7 @@ class ServiceContainerBuilder:
     ) -> None:
         if websocket_factory is not None:
             infrastructure_factories = replace(
-                infrastructure_factories, websocket=websocket_factory
+                infrastructure_factories, websocket=websocket_factory,
             )
 
         self._storage = storage

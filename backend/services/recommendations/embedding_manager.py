@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Callable, Dict, Sequence
 
 from backend.models import Adapter
+
 from .components.interfaces import (
     FeatureExtractorProtocol,
     RecommendationEngineProtocol,

@@ -11,12 +11,12 @@ from .builders import (
 )
 from .config import RecommendationConfig
 from .embedding_batch_runner import EmbeddingBatchRunner
-from .embedding_coordinator import EmbeddingCoordinator
 from .embedding_computer import EmbeddingComputer
+from .embedding_coordinator import EmbeddingCoordinator
 from .embedding_manager import EmbeddingManager
 from .embedding_repository import LoRAEmbeddingRepository
 from .feedback_manager import FeedbackManager
-from .metrics import RecommendationMetricsTracker, RecommendationMetrics
+from .metrics import RecommendationMetrics, RecommendationMetricsTracker
 from .model_bootstrap import RecommendationModelBootstrap
 from .persistence_manager import RecommendationPersistenceManager
 from .persistence_service import RecommendationPersistenceService

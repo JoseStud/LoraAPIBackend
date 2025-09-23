@@ -14,8 +14,8 @@ if str(REPO_ROOT) not in sys.path:
 
 from backend.services.generation.statuses import (  # noqa: E402
     DEFAULT_NORMALIZED_STATUS,
-    NormalizedGenerationStatus,
     STATUS_NORMALIZATION_MAP,
+    NormalizedGenerationStatus,
 )
 
 GENERATED_TS_PATH = (
@@ -44,7 +44,7 @@ def _format_default_status() -> str:
         [
             "export type GeneratedNormalizedJobStatus = (typeof NORMALIZED_JOB_STATUSES)[number];",
             f"export const DEFAULT_NORMALIZED_JOB_STATUS: GeneratedNormalizedJobStatus = '{value}';",
-        ]
+        ],
     )
 
 

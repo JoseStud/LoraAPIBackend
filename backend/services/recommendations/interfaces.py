@@ -11,6 +11,7 @@ from backend.schemas.recommendations import (
     UserFeedbackRequest,
     UserPreferenceRequest,
 )
+
 from .model_registry import RecommendationModelRegistry
 
 

@@ -233,7 +233,7 @@ def process_embeddings_batch(
             force_recompute=force_recompute,
             batch_size=batch_size,
             context=ctx,
-        )
+        ),
     )
 
 
@@ -294,7 +294,7 @@ def compute_single_embedding(
             adapter_id=adapter_id,
             force_recompute=force_recompute,
             context=ctx,
-        )
+        ),
     )
 
 

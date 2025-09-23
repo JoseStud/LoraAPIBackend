@@ -16,8 +16,8 @@ from backend.schemas.recommendations import (
     RecommendationResponse,
     RecommendationStats,
     UserFeedbackRequest,
-    UserPreferenceRequest,
     UserPreferenceRead,
+    UserPreferenceRequest,
 )
 from backend.services import DomainServices
 

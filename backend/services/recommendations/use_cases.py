@@ -15,6 +15,8 @@ from .interfaces import (
 )
 from .strategies import (
     get_recommendations_for_prompt as prompt_strategy,
+)
+from .strategies import (
     get_similar_loras as similar_loras_strategy,
 )
 

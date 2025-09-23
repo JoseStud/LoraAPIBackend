@@ -109,7 +109,7 @@ class DomainServiceRegistry:
             raise ValueError("RecommendationService requires an active database session")
         if self._recommendation_gpu_available is None:
             raise ValueError(
-                "RecommendationService requires an explicit recommendation_gpu_available flag"
+                "RecommendationService requires an explicit recommendation_gpu_available flag",
             )
         if self._recommendation_service is None:
             self._recommendation_service = self._recommendation_provider(

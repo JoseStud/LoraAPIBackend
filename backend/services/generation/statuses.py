@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 from enum import Enum
-
 from typing import Dict, Optional
 
 
@@ -33,7 +32,7 @@ STATUS_NORMALIZATION_MAP.update(
         "starting": NormalizedGenerationStatus.PROCESSING,
         "succeeded": NormalizedGenerationStatus.COMPLETED,
         "cancelled": NormalizedGenerationStatus.FAILED,
-    }
+    },
 )
 
 DEFAULT_NORMALIZED_STATUS = NormalizedGenerationStatus.PROCESSING

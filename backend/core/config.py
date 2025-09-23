@@ -65,7 +65,7 @@ class Settings(BaseSettings):
             "http://127.0.0.1:8782",
             "http://localhost:8000",
             "http://127.0.0.1:8000",
-        ]
+        ],
     )
     CORS_ALLOW_CREDENTIALS: bool = True
 
@@ -104,7 +104,7 @@ class Settings(BaseSettings):
         if missing:
             joined = ", ".join(sorted(missing))
             raise ValueError(
-                f"Missing required configuration for production environment: {joined}"
+                f"Missing required configuration for production environment: {joined}",
             )
 
         return self

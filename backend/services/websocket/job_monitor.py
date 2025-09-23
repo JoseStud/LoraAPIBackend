@@ -71,7 +71,7 @@ class JobProgressMonitor:
             return self._tasks[job_id]
 
         task = asyncio.create_task(
-            self._monitor_job(job_id, generation_service, on_progress, on_complete)
+            self._monitor_job(job_id, generation_service, on_progress, on_complete),
         )
         self._tasks[job_id] = task
         logger.info("Started job monitoring", job_id=job_id)
@@ -142,7 +142,7 @@ class JobProgressMonitor:
             self._tasks.pop(job_id, None)
 
     async def _call_generation_progress(
-        self, generation_service: GenerationProgressClient, job_id: str
+        self, generation_service: GenerationProgressClient, job_id: str,
     ) -> SDNextGenerationResult:
         if hasattr(generation_service, "check_progress"):
             return await generation_service.check_progress(job_id)
@@ -200,7 +200,7 @@ class JobProgressMonitor:
         return status_value, progress_value, error_message
 
     def _extract_progress_from_payload(
-        self, payload: Optional[Dict[str, Any]]
+        self, payload: Optional[Dict[str, Any]],
     ) -> Optional[float]:
         if not isinstance(payload, dict):
             return None
@@ -208,7 +208,7 @@ class JobProgressMonitor:
 
     @staticmethod
     def _extract_error_message(
-        payload: Optional[Dict[str, Any]]
+        payload: Optional[Dict[str, Any]],
     ) -> Optional[str]:
         if not isinstance(payload, dict):
             return None

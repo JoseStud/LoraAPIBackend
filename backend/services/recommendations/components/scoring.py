@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional, Sequence, Protocol
+from typing import Any, Dict, Optional, Protocol, Sequence
 
 import numpy as np
 
@@ -48,7 +48,7 @@ class ScoreCalculator(ScoreCalculatorProtocol):
             "popularity_score": self._popularity_score(stats),
             "community_engagement": self._engagement_score(stats),
             "file_size_normalized": self._normalize_file_size(
-                getattr(lora, "primary_file_size_kb", None)
+                getattr(lora, "primary_file_size_kb", None),
             ),
             "recency_score": self._recency_score(getattr(lora, "published_at", None)),
             "maturity_score": self._maturity_score(getattr(lora, "created_at", None)),

@@ -125,7 +125,7 @@ class ArchiveImportExecutor:
                     elif status == "updated":
                         updated += 1
                 adapter_results.append(
-                    ImportAdapterResult(id=adapter_id, name=payload.name, status=status)
+                    ImportAdapterResult(id=adapter_id, name=payload.name, status=status),
                 )
 
         file_obj.seek(0)

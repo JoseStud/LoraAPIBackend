@@ -70,9 +70,9 @@ def _build_plan(tmp_path):
                         "exists": True,
                         "size": file_entry.size,
                         "archive_path": file_entry.archive_path,
-                    }
+                    },
                 ],
-            }
+            },
         ],
         "adapter_count": 1,
         "file_total_bytes": file_entry.size,
@@ -107,7 +107,7 @@ def test_archive_service_streams_planned_archive(tmp_path):
     plan, estimation, weights = _build_plan(tmp_path)
     planner = RecordingPlanner(plan, estimation)
     executor = RecordingExecutor(
-        ImportResult(manifest={}, created=0, updated=0, adapters=[])
+        ImportResult(manifest={}, created=0, updated=0, adapters=[]),
     )
     service = ArchiveService(
         adapter_service=None,  # type: ignore[arg-type]
@@ -131,7 +131,7 @@ def test_archive_service_estimate_uses_planner(tmp_path):
     plan, estimation, _ = _build_plan(tmp_path)
     planner = RecordingPlanner(plan, estimation)
     executor = RecordingExecutor(
-        ImportResult(manifest={}, created=0, updated=0, adapters=[])
+        ImportResult(manifest={}, created=0, updated=0, adapters=[]),
     )
     service = ArchiveService(  # type: ignore[arg-type]
         adapter_service=None,

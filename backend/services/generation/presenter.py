@@ -36,7 +36,7 @@ def _coerce_generation_info(result_payload: Dict[str, Any]) -> Optional[Dict[str
 
 
 def build_active_job(
-    job: DeliveryJob, coordinator: GenerationCoordinator
+    job: DeliveryJob, coordinator: GenerationCoordinator,
 ) -> GenerationJobStatus:
     """Return an API-facing representation of an active job."""
 
@@ -61,7 +61,7 @@ def build_active_job(
 
 
 def build_result(
-    job: DeliveryJob, coordinator: GenerationCoordinator
+    job: DeliveryJob, coordinator: GenerationCoordinator,
 ) -> GenerationResultSummary:
     """Return an API-facing representation of a completed generation job."""
 

@@ -17,7 +17,6 @@ from backend.schemas.analytics import (
 )
 from backend.services import DomainServices
 
-
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 

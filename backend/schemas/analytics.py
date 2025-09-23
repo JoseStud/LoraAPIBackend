@@ -7,7 +7,6 @@ from typing import List, Literal
 
 from pydantic import BaseModel, Field
 
-
 PerformanceTimeRange = Literal["24h", "7d", "30d"]
 
 

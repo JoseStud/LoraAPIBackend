@@ -37,10 +37,10 @@ def test_execute_persists_adapter(tmp_path, db_session):
                         "exists": True,
                         "size": weights.stat().st_size,
                         "archive_path": "adapters/executor/files/0_executor.safetensors",
-                    }
+                    },
                 ],
-            }
-        ]
+            },
+        ],
     }
     metadata = {
         "name": "executor",
@@ -81,10 +81,10 @@ def test_execute_validates_missing_files(tmp_path, db_session):
                         "exists": True,
                         "size": weights.stat().st_size,
                         "archive_path": "adapters/missing/files/0_missing.safetensors",
-                    }
+                    },
                 ],
-            }
-        ]
+            },
+        ],
     }
     metadata = {
         "name": "missing",

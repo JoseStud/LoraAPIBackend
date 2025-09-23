@@ -9,15 +9,16 @@ from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
+from app.main import app as fastapi_app
+
 # Use new app import paths
 from backend.core.database import get_session
-from app.main import app as fastapi_app
 from backend.main import app as backend_app
 from backend.services import ServiceContainer
 from backend.services.adapters import AdapterService
+from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.composition import ComposeService
 from backend.services.deliveries import DeliveryService
-from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.providers.generation import make_compose_service
 from backend.services.queue import create_queue_orchestrator
@@ -52,7 +53,7 @@ def mock_storage_fixture(monkeypatch) -> MagicMock:
     mock_storage_service.validate_file_path.side_effect = lambda path: mock.exists(path)
     
     # Patch the default builder to reuse the mock storage service
-    from backend.services import ServiceContainer, get_service_container_builder
+    from backend.services import get_service_container_builder
 
     builder = get_service_container_builder()
 

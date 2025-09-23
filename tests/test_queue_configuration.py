@@ -6,7 +6,11 @@ from backend.core.config import settings
 from backend.services import ServiceContainer
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.delivery_repository import DeliveryJobRepository
-from backend.services.queue import BackgroundTaskQueueBackend, QueueOrchestrator, RedisQueueBackend
+from backend.services.queue import (
+    BackgroundTaskQueueBackend,
+    QueueOrchestrator,
+    RedisQueueBackend,
+)
 from backend.workers import tasks as worker_tasks
 from backend.workers.tasks import reset_worker_context, set_worker_context
 

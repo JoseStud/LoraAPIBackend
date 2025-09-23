@@ -1,9 +1,9 @@
 """Recommendation request/response schemas."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Literal
+from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class RecommendationRequest(BaseModel):

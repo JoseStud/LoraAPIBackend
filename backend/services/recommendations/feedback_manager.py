@@ -23,7 +23,7 @@ class FeedbackManager:
         return self._repository.record_feedback(feedback)
 
     def update_user_preference(
-        self, preference: UserPreferenceRequest
+        self, preference: UserPreferenceRequest,
     ) -> UserPreference:
         """Create or update a persisted user preference record."""
 

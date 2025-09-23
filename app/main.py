@@ -10,9 +10,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from backend.core.config import settings as backend_settings
+
 # Import backend application
 from backend.main import app as backend_app
-from backend.core.config import settings as backend_settings
 
 # Create the main application
 app = FastAPI(

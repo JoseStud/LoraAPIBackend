@@ -1,10 +1,8 @@
 """Router for SDNext generation endpoints."""
 
-import json
 from typing import Dict, List
 
 import structlog
-
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
 from backend.core.dependencies import get_application_services, get_domain_services

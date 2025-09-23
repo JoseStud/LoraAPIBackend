@@ -12,9 +12,11 @@ from .feedback_manager import FeedbackManager
 from .interfaces import (
     EmbeddingWorkflow,
     RecommendationBootstrap,
-    RecommendationMetricsTracker as RecommendationMetricsTrackerProtocol,
     RecommendationPersistenceService,
     RecommendationRepository,
+)
+from .interfaces import (
+    RecommendationMetricsTracker as RecommendationMetricsTrackerProtocol,
 )
 from .metrics import RecommendationMetricsTracker
 from .service import RecommendationService

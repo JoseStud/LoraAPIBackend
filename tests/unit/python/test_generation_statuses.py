@@ -3,10 +3,9 @@ import pytest
 from backend.services.generation import normalize_generation_status
 from backend.services.generation.statuses import (
     DEFAULT_NORMALIZED_STATUS,
-    NormalizedGenerationStatus,
     STATUS_NORMALIZATION_MAP,
+    NormalizedGenerationStatus,
 )
-
 
 EXPECTED_NORMALIZED_VALUES = {
     "queued",
@@ -37,7 +36,7 @@ def test_normalized_status_enum_values_are_expected() -> None:
     ],
 )
 def test_normalize_generation_status_matches_expected_values(
-    input_status: str | None, expected: str
+    input_status: str | None, expected: str,
 ) -> None:
     assert normalize_generation_status(input_status) == expected
 

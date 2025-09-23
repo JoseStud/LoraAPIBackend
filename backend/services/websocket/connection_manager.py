@@ -86,14 +86,14 @@ class ConnectionManager:
         logger.info("WebSocket disconnected", connection_id=connection_id)
 
     async def handle_subscription(
-        self, connection_id: str, subscription: WebSocketSubscription
+        self, connection_id: str, subscription: WebSocketSubscription,
     ) -> None:
         """Update routing tables based on a subscription request."""
 
         if subscription.job_ids is None:
             self.global_subscribers.add(connection_id)
             logger.info(
-                "Connection subscribed to all jobs", connection_id=connection_id
+                "Connection subscribed to all jobs", connection_id=connection_id,
             )
             return
 
@@ -109,7 +109,7 @@ class ConnectionManager:
         )
 
     async def broadcast_progress(
-        self, job_id: str, progress_data: ProgressUpdate
+        self, job_id: str, progress_data: ProgressUpdate,
     ) -> None:
         """Fan out a progress update to interested connections."""
 
@@ -129,7 +129,7 @@ class ConnectionManager:
         )
 
     async def broadcast_generation_started(
-        self, job_id: str, started_data: GenerationStarted
+        self, job_id: str, started_data: GenerationStarted,
     ) -> None:
         """Fan out a generation-started notification."""
 
@@ -142,7 +142,7 @@ class ConnectionManager:
         logger.info("Broadcasted generation started", job_id=job_id)
 
     async def broadcast_generation_complete(
-        self, job_id: str, complete_data: GenerationComplete
+        self, job_id: str, complete_data: GenerationComplete,
     ) -> None:
         """Fan out a generation completion notification."""
 
@@ -159,7 +159,7 @@ class ConnectionManager:
         )
 
     async def send_message(
-        self, connection_id: str, message: Dict[str, object]
+        self, connection_id: str, message: Dict[str, object],
     ) -> None:
         """Send a direct message to a specific connection."""
 
@@ -191,7 +191,7 @@ class ConnectionManager:
             self.disconnect(connection_id)
 
     async def _broadcast_to_connections(
-        self, connection_ids: Set[str], message: Dict[str, object]
+        self, connection_ids: Set[str], message: Dict[str, object],
     ) -> None:
         if not connection_ids:
             return

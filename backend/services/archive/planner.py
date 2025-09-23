@@ -113,7 +113,7 @@ class ArchiveExportPlanner:
                             size=candidate["size"],
                             kind=candidate["kind"],
                             original_name=candidate["name"],
-                        )
+                        ),
                     )
                     file_total_bytes += candidate["size"]
                 files_manifest.append(manifest_entry)
@@ -125,7 +125,7 @@ class ArchiveExportPlanner:
                     "version": adapter.version,
                     "metadata_path": metadata_path,
                     "files": files_manifest,
-                }
+                },
             )
 
         manifest = {
@@ -210,7 +210,7 @@ class ArchiveExportPlanner:
                     "kind": kind,
                     "exists": bool(exists),
                     "size": size,
-                }
+                },
             )
             seen.add(normalized)
         return results

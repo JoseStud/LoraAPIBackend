@@ -81,13 +81,13 @@ class AnalyticsService:
         previous_generations = self.repository.count_jobs(previous_start, window_start)
 
         succeeded = self.repository.count_jobs(
-            window_start, window_end, status="succeeded"
+            window_start, window_end, status="succeeded",
         )
         failed = self.repository.count_jobs(window_start, window_end, status="failed")
 
         avg_duration = self.repository.average_duration(window_start, window_end)
         previous_avg_duration = self.repository.average_duration(
-            previous_start, window_start
+            previous_start, window_start,
         )
 
         growth = self._calculate_growth(previous_generations, total_generations)
@@ -140,13 +140,13 @@ class AnalyticsService:
                     count=count,
                     percentage=round(percentage, 2),
                     description=descriptions.get(error_type, error_type),
-                )
+                ),
             )
 
         return breakdown
 
     def get_time_series_metrics(
-        self, time_range: PerformanceTimeRange = "24h"
+        self, time_range: PerformanceTimeRange = "24h",
     ) -> PerformanceAnalyticsCharts:
         """Produce chart datasets for the requested time window."""
 
@@ -169,7 +169,7 @@ class AnalyticsService:
     # Internal helpers
     # ------------------------------------------------------------------
     def _resolve_time_bounds(
-        self, time_range: PerformanceTimeRange
+        self, time_range: PerformanceTimeRange,
     ) -> tuple[datetime, datetime, datetime]:
         delta = self._TIME_RANGE_MAP.get(time_range, self._TIME_RANGE_MAP["24h"])
         now = datetime.now(timezone.utc)
@@ -178,7 +178,7 @@ class AnalyticsService:
         return start, now, previous_start
 
     def _calculate_growth(
-        self, previous: float, current: float, *, invert: bool = False
+        self, previous: float, current: float, *, invert: bool = False,
     ) -> float:
         if previous <= 0:
             return 0.0

@@ -43,7 +43,7 @@ class ArchiveService:
         self._spooled_file_max_size = spooled_file_max_size
         self._planner = planner or ArchiveExportPlanner(adapter_service, storage_service)
         self._executor = executor or ArchiveImportExecutor(
-            adapter_service, chunk_size=chunk_size
+            adapter_service, chunk_size=chunk_size,
         )
 
     # ------------------------------------------------------------------

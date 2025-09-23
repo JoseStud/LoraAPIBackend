@@ -170,7 +170,7 @@ class DeliveryJobRepository:
 
     def count_active_jobs(self) -> int:
         result = self._session.exec(
-            select(func.count(DeliveryJob.id)).where(DeliveryJob.status.in_(_ACTIVE_STATUSES))
+            select(func.count(DeliveryJob.id)).where(DeliveryJob.status.in_(_ACTIVE_STATUSES)),
         ).one()
         return int(result or 0)
 
@@ -179,13 +179,13 @@ class DeliveryJobRepository:
         active_jobs = self.count_active_jobs()
         running_jobs = (
             self._session.exec(
-                select(func.count(DeliveryJob.id)).where(DeliveryJob.status == "running")
+                select(func.count(DeliveryJob.id)).where(DeliveryJob.status == "running"),
             ).one()
             or 0
         )
         failed_jobs = (
             self._session.exec(
-                select(func.count(DeliveryJob.id)).where(DeliveryJob.status == "failed")
+                select(func.count(DeliveryJob.id)).where(DeliveryJob.status == "failed"),
             ).one()
             or 0
         )

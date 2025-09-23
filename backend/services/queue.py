@@ -187,7 +187,7 @@ class QueueOrchestrator:
 
         runner = self.get_delivery_runner()
         self._fallback_backend = BackgroundTaskQueueBackend(
-            runner.process_delivery_job
+            runner.process_delivery_job,
         )
         return self._fallback_backend
 

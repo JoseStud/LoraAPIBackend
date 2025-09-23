@@ -16,7 +16,10 @@ from backend.services.providers.generation import (
     make_generation_service,
 )
 from backend.services.providers.recommendations import make_recommendation_service
-from backend.services.providers.storage import make_adapter_service, make_storage_service
+from backend.services.providers.storage import (
+    make_adapter_service,
+    make_storage_service,
+)
 from backend.services.providers.system import make_system_service
 from backend.services.providers.websocket import make_websocket_service
 from backend.services.queue import QueueOrchestrator

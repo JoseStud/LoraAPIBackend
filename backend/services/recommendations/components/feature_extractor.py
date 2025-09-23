@@ -58,14 +58,14 @@ class GPULoRAFeatureExtractor(FeatureExtractorProtocol):
                 "semantic_embedding": embeddings["semantic"],
                 "artistic_embedding": embeddings["artistic"],
                 "technical_embedding": embeddings["technical"],
-            }
+            },
         )
 
         description = getattr(lora, "description", "") or ""
         if description:
             features.update(self.keyword_extractor.extract(description))
             features.update(
-                self.sentiment_style_analyzer.analyze_sentiment(description)
+                self.sentiment_style_analyzer.analyze_sentiment(description),
             )
             features.update(self.sentiment_style_analyzer.classify_style(description))
 

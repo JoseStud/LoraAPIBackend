@@ -11,15 +11,28 @@ from backend.services.storage import get_storage_service
 
 from .repository import (
     save_adapter as repository_save_adapter,
+)
+from .repository import (
     update_adapter as repository_update_adapter,
+)
+from .repository import (
     upsert_adapter as repository_upsert_adapter,
 )
-from .search import AdapterSearchResult, search_adapters as repository_search_adapters
+from .search import AdapterSearchResult
+from .search import search_adapters as repository_search_adapters
 from .statistics import (
     count_active as statistics_count_active,
+)
+from .statistics import (
     count_recent_imports as statistics_count_recent_imports,
+)
+from .statistics import (
     count_total as statistics_count_total,
+)
+from .statistics import (
     get_dashboard_statistics as statistics_get_dashboard_statistics,
+)
+from .statistics import (
     get_featured_adapters as statistics_get_featured_adapters,
 )
 
@@ -245,7 +258,7 @@ class AdapterService:
             return []
 
         adapters = self.db_session.exec(
-            select(Adapter).where(Adapter.id.in_(list(adapter_ids)))
+            select(Adapter).where(Adapter.id.in_(list(adapter_ids))),
         ).all()
 
         processed: List[str] = []
@@ -293,7 +306,7 @@ class AdapterService:
             if field not in self.PATCHABLE_FIELDS:
                 allowed = ", ".join(sorted(self.PATCHABLE_FIELDS))
                 raise ValueError(
-                    f"Field '{field}' is not allowed to be modified. Allowed fields: {allowed}"
+                    f"Field '{field}' is not allowed to be modified. Allowed fields: {allowed}",
                 )
 
             if field == "weight" and not isinstance(value, (int, float)):

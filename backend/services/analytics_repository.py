@@ -114,7 +114,7 @@ class AnalyticsRepository:
         """Count currently active adapters."""
 
         result = self._session.exec(
-            select(func.count(Adapter.id)).where(Adapter.active.is_(True))
+            select(func.count(Adapter.id)).where(Adapter.active.is_(True)),
         ).one()
         return int(result or 0)
 
