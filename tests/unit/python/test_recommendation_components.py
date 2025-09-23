@@ -31,6 +31,8 @@ from backend.services.recommendations.components import (
     GPULoRAFeatureExtractor,
     LoRARecommendationEngine,
     LoRASemanticEmbedder,
+    MultiModalTextPayloadBuilder,
+    SentenceTransformerProvider,
 )
 from backend.services.recommendations.components.scoring import ScoreCalculator
 from backend.services.recommendations.components.sentiment_style import (
@@ -55,6 +57,55 @@ def test_fallback_embedder_generates_normalized_vectors() -> None:
 
     zero_vector = embedder.primary_model.encode("", convert_to_numpy=True)
     assert np.allclose(zero_vector, 0.0)
+
+
+def test_sentence_transformer_provider_fallback() -> None:
+    """The provider should expose deterministic hashed embeddings when forced."""
+
+    provider = SentenceTransformerProvider(
+        device="cuda",
+        force_fallback=True,
+        logger=logging.getLogger("test_provider_fallback"),
+        model_configs={"semantic": {"model_name": "ignored", "default_dim": 32}},
+    )
+
+    assert provider.device == "cpu"
+    assert provider.get_dimension("semantic") == 32
+
+    single = provider.encode("semantic", "vivid anime hero")
+    assert single.shape == (32,)
+    assert np.isclose(np.linalg.norm(single), 1.0)
+
+    batch = provider.encode("semantic", ["", "anime scene"], batch_size=4)
+    assert batch.shape == (2, 32)
+    assert np.allclose(batch[0], 0.0)
+
+
+def test_text_payload_builder_compiles_multimodal_text() -> None:
+    """The payload builder should combine semantic, artistic, and technical cues."""
+
+    builder = MultiModalTextPayloadBuilder()
+    lora = SimpleNamespace(
+        description="A vibrant anime portrait with watercolor textures",
+        trained_words=["hero", "glow"],
+        triggers=["masterpiece"],
+        activation_text="use at full strength",
+        tags=["anime-style", "portrait", "cyberpunk"],
+        archetype="hero",
+        sd_version="SDXL",
+        supports_generation=True,
+        nsfw_level=0,
+        primary_file_size_kb=120 * 1024,
+    )
+
+    payload = builder.build_payload(lora)
+
+    assert "Description:" in payload["semantic"]
+    assert "Trained on:" in payload["semantic"]
+    assert "Art style:" in payload["artistic"]
+    assert "Character type:" in payload["artistic"]
+    assert "SD Version:" in payload["technical"]
+    assert "Model size:" in payload["technical"]
 
 
 class _SemanticEmbedderStub:
