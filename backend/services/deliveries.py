@@ -2,20 +2,16 @@
 
 from __future__ import annotations
 
-import json
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from fastapi import BackgroundTasks
-from sqlalchemy import func
-from sqlmodel import Session, select
 
 from backend.models import DeliveryJob
 
-if TYPE_CHECKING:  # pragma: no cover - used for type checking only
-    from .queue import QueueBackend
+from .delivery_repository import DeliveryJobRepository
 
-_ACTIVE_STATUSES = {"pending", "running", "retrying"}
+if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
+    from .queue import QueueOrchestrator
 
 
 class DeliveryService:
@@ -23,25 +19,24 @@ class DeliveryService:
 
     def __init__(
         self,
-        db_session: Session,
-        queue_backend: Optional["QueueBackend"] = None,
-        fallback_queue_backend: Optional["QueueBackend"] = None,
+        repository: DeliveryJobRepository,
+        queue_orchestrator: Optional["QueueOrchestrator"] = None,
     ) -> None:
-        """Initialize DeliveryService with a DB session."""
+        self._repository = repository
+        self._queue_orchestrator = queue_orchestrator
 
-        self.db_session = db_session
-        self._queue_backend = queue_backend
-        self._fallback_queue_backend = fallback_queue_backend
+    @property
+    def repository(self) -> DeliveryJobRepository:
+        return self._repository
 
-    def set_queue_backends(
-        self,
-        queue_backend: Optional["QueueBackend"],
-        fallback_queue_backend: Optional["QueueBackend"],
-    ) -> None:
-        """Configure queue backends after initialization."""
+    @property
+    def queue_orchestrator(self) -> Optional["QueueOrchestrator"]:
+        return self._queue_orchestrator
 
-        self._queue_backend = queue_backend
-        self._fallback_queue_backend = fallback_queue_backend
+    def set_queue_orchestrator(self, orchestrator: Optional["QueueOrchestrator"]) -> None:
+        """Configure or replace the queue orchestrator."""
+
+        self._queue_orchestrator = orchestrator
 
     def schedule_job(
         self,
@@ -64,31 +59,14 @@ class DeliveryService:
         background_tasks: Optional[BackgroundTasks] = None,
         **enqueue_kwargs: Any,
     ) -> None:
-        """Enqueue an existing job using the configured queue backends."""
+        """Enqueue an existing job using the configured queue orchestrator."""
 
-        last_error: Optional[Exception] = None
-        if self._queue_backend is not None:
-            try:
-                self._queue_backend.enqueue_delivery(
-                    job_id,
-                    background_tasks=background_tasks,
-                    **enqueue_kwargs,
-                )
-                return
-            except Exception as exc:  # pragma: no cover - defensive branch
-                last_error = exc
-
-        if self._fallback_queue_backend is not None:
-            self._fallback_queue_backend.enqueue_delivery(
-                job_id,
-                background_tasks=background_tasks,
-                **enqueue_kwargs,
-            )
-            return
-
-        if last_error is not None:
-            raise last_error
-        raise RuntimeError("No queue backend configured for delivery jobs")
+        orchestrator = self._require_orchestrator()
+        orchestrator.enqueue_delivery(
+            job_id,
+            background_tasks=background_tasks,
+            **enqueue_kwargs,
+        )
 
     def create_job(
         self,
@@ -98,20 +76,12 @@ class DeliveryService:
     ) -> DeliveryJob:
         """Create and persist a DeliveryJob record."""
 
-        dj = DeliveryJob(
-            prompt=prompt,
-            mode=mode,
-            params=json.dumps(params or {}),
-        )
-        self.db_session.add(dj)
-        self.db_session.commit()
-        self.db_session.refresh(dj)
-        return dj
+        return self._repository.create_job(prompt, mode, params or {})
 
     def get_job(self, job_id: str) -> Optional[DeliveryJob]:
         """Get a delivery job by ID."""
 
-        return self.db_session.get(DeliveryJob, job_id)
+        return self._repository.get_job(job_id)
 
     def list_jobs(
         self,
@@ -121,85 +91,22 @@ class DeliveryService:
     ) -> List[DeliveryJob]:
         """List delivery jobs with optional filtering and pagination."""
 
-        q = select(DeliveryJob)
-        if status:
-            q = q.where(DeliveryJob.status == status)
-
-        q = q.offset(offset).limit(limit).order_by(DeliveryJob.created_at.desc())
-        return list(self.db_session.exec(q).all())
+        return self._repository.list_jobs(status=status, limit=limit, offset=offset)
 
     def count_active_jobs(self) -> int:
         """Return the number of jobs currently in flight."""
 
-        result = self.db_session.exec(
-            select(func.count(DeliveryJob.id)).where(DeliveryJob.status.in_(_ACTIVE_STATUSES))
-        ).one()
-        return int(result or 0)
+        return self._repository.count_active_jobs()
 
     def get_queue_statistics(self) -> Dict[str, int]:
         """Return queue statistics derived from the delivery jobs table."""
 
-        total_jobs = self.db_session.exec(select(func.count(DeliveryJob.id))).one() or 0
-        active_jobs = self.count_active_jobs()
-        running_jobs = (
-            self.db_session.exec(
-                select(func.count(DeliveryJob.id)).where(DeliveryJob.status == "running")
-            ).one()
-            or 0
-        )
-        failed_jobs = (
-            self.db_session.exec(
-                select(func.count(DeliveryJob.id)).where(DeliveryJob.status == "failed")
-            ).one()
-            or 0
-        )
-
-        return {
-            "total": int(total_jobs),
-            "active": int(active_jobs),
-            "running": int(running_jobs),
-            "failed": int(failed_jobs),
-        }
+        return self._repository.get_queue_statistics()
 
     def get_recent_activity(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Return a recent activity feed derived from delivery jobs."""
 
-        q = (
-            select(DeliveryJob)
-            .order_by(DeliveryJob.created_at.desc())
-            .limit(max(1, limit))
-        )
-        jobs = list(self.db_session.exec(q).all())
-
-        def _status_icon(status: str) -> str:
-            return {
-                "pending": "⏳",
-                "running": "🚀",
-                "retrying": "🔁",
-                "succeeded": "✅",
-                "failed": "⚠️",
-                "cancelled": "🚫",
-            }.get(status, "ℹ️")
-
-        activities: List[Dict[str, Any]] = []
-        for job in jobs:
-            status = job.status or "pending"
-            created_at = job.created_at or datetime.now(timezone.utc)
-            message = f"Delivery job '{job.prompt}' {status}"
-            activities.append(
-                {
-                    "id": job.id,
-                    "type": status,
-                    "status": status,
-                    "message": message,
-                    "mode": job.mode,
-                    "prompt": job.prompt,
-                    "timestamp": created_at.isoformat(),
-                    "icon": _status_icon(status),
-                }
-            )
-
-        return activities
+        return self._repository.get_recent_activity(limit=limit)
 
     def update_job_status(
         self,
@@ -210,54 +117,24 @@ class DeliveryService:
     ) -> Optional[DeliveryJob]:
         """Update a delivery job's status and result."""
 
-        job = self.get_job(job_id)
-        if job is None:
-            return None
-
-        job.status = status
-        stored_result: Optional[Dict[str, Any]] = None
-        if result is not None:
-            stored_result = dict(result)
-
-        if error is not None:
-            if stored_result is None:
-                stored_result = {"error": error}
-            else:
-                stored_result = {**stored_result, "error": error}
-
-        if stored_result is not None:
-            job.result = json.dumps(stored_result)
-
-        # Set timestamps based on status
-        if status == "running" and job.started_at is None:
-            from datetime import datetime, timezone
-
-            job.started_at = datetime.now(timezone.utc)
-        elif status in ("succeeded", "failed", "cancelled") and job.finished_at is None:
-            from datetime import datetime, timezone
-
-            job.finished_at = datetime.now(timezone.utc)
-
-        self.db_session.add(job)
-        self.db_session.commit()
-        self.db_session.refresh(job)
-        return job
+        return self._repository.update_job_status(
+            job_id,
+            status,
+            result=result,
+            error=error,
+        )
 
     def get_job_params(self, job: DeliveryJob) -> Dict[str, Any]:
         """Parse and return job parameters as dict."""
 
-        try:
-            return json.loads(job.params) if job.params else {}
-        except json.JSONDecodeError:
-            return {}
+        return self._repository.get_job_params(job)
 
     def get_job_result(self, job: DeliveryJob) -> Optional[Dict[str, Any]]:
         """Parse and return job result as dict."""
 
-        if not job.result:
-            return None
+        return self._repository.get_job_result(job)
 
-        try:
-            return json.loads(job.result)
-        except json.JSONDecodeError:
-            return None
+    def _require_orchestrator(self) -> "QueueOrchestrator":
+        if self._queue_orchestrator is None:
+            raise RuntimeError("Queue orchestrator is not configured for delivery jobs")
+        return self._queue_orchestrator

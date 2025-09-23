@@ -8,7 +8,7 @@ from backend.core.dependencies import get_service_container
 from backend.main import app as backend_app
 from backend.schemas import SDNextGenerationResult
 from backend.services import ServiceContainer
-from backend.services.queue import QueueBackend
+from backend.services.queue import QueueBackend, QueueOrchestrator
 from backend.services.storage import get_storage_service
 
 
@@ -252,10 +252,10 @@ def test_compose_uses_primary_queue_backend(
     queue_backend = RecordingQueueBackend()
 
     def override_service_container():
+        orchestrator = QueueOrchestrator(primary_backend=queue_backend)
         return ServiceContainer(
             db_session,
-            queue_backend=queue_backend,
-            fallback_queue_backend=None,
+            queue_orchestrator=orchestrator,
         )
 
     backend_app.dependency_overrides[get_service_container] = override_service_container
@@ -291,10 +291,13 @@ def test_compose_falls_back_to_background_queue(
     fallback_queue = RecordingQueueBackend()
 
     def override_service_container():
+        orchestrator = QueueOrchestrator(
+            primary_backend=primary_queue,
+            fallback_backend=fallback_queue,
+        )
         return ServiceContainer(
             db_session,
-            queue_backend=primary_queue,
-            fallback_queue_backend=fallback_queue,
+            queue_orchestrator=orchestrator,
         )
 
     backend_app.dependency_overrides[get_service_container] = override_service_container

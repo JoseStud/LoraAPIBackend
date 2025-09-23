@@ -10,6 +10,7 @@ from sqlmodel import Session
 
 from backend.core.database import get_session_context
 from backend.services.deliveries import DeliveryService
+from backend.services.delivery_repository import DeliveryJobRepository
 
 from .job_monitor import JobStateRepository, PersistedJobState
 
@@ -27,7 +28,8 @@ class DeliveryJobStateRepository(JobStateRepository):
 
     def get_job_state(self, job_id: str) -> Optional[PersistedJobState]:
         with self._session_factory() as session:
-            service = DeliveryService(session)
+            repository = DeliveryJobRepository(session)
+            service = DeliveryService(repository)
             job = service.get_job(job_id)
             if job is None:
                 return None

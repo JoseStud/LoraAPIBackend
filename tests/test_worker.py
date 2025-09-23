@@ -11,7 +11,7 @@ from rq import Queue, SimpleWorker  # noqa: E402
 from backend.core.config import settings  # noqa: E402
 from backend.core.database import get_session_context, init_db  # noqa: E402
 from backend.models.deliveries import DeliveryJob  # noqa: E402
-from backend.services.queue import RedisQueueBackend, reset_queue_backends  # noqa: E402
+from backend.services.queue import QueueOrchestrator, RedisQueueBackend  # noqa: E402
 from backend.workers import tasks as worker_tasks  # noqa: E402
 from backend.workers.tasks import (  # noqa: E402
     enqueue_delivery,
@@ -25,11 +25,13 @@ def test_worker_process_cycle(tmp_path, monkeypatch):
     # Use FakeRedis for the queue connection
     fake_redis = fakeredis.FakeStrictRedis()
     original_url = settings.REDIS_URL
-    reset_queue_backends()
+    orchestrator: QueueOrchestrator | None = None
     try:
         settings.REDIS_URL = "redis://localhost:6379/0"
         reset_worker_context()
-        context = worker_tasks.build_worker_context()
+        orchestrator = QueueOrchestrator(redis_url_factory=lambda: settings.REDIS_URL)
+        orchestrator.reset()
+        context = worker_tasks.build_worker_context(queue_orchestrator=orchestrator)
         assert isinstance(context.queue_backend, RedisQueueBackend)
 
         # patch the queue in tasks to use a fake connection
@@ -66,7 +68,8 @@ def test_worker_process_cycle(tmp_path, monkeypatch):
     finally:
         settings.REDIS_URL = original_url
         reset_worker_context()
-        reset_queue_backends()
+        if orchestrator is not None:
+            orchestrator.reset()
 
 
 # duplicate test removed; the single test above exercises the worker cycle

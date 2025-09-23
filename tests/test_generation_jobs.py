@@ -14,8 +14,9 @@ from fastapi.testclient import TestClient
 from backend.main import app as backend_app
 from backend.services import ServiceContainer
 from backend.services.deliveries import DeliveryService
+from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.generation import GenerationCoordinator, GenerationService
-from backend.services.queue import QueueBackend
+from backend.services.queue import QueueBackend, QueueOrchestrator
 from backend.services.websocket import WebSocketService
 from backend.schemas import SDNextGenerationParams
 
@@ -122,7 +123,9 @@ def test_generation_coordinator_schedule_generation_job(db_session):
             self.calls.append((job_id, background_tasks, enqueue_kwargs))
 
     queue = RecordingQueue()
-    deliveries = DeliveryService(db_session, queue_backend=queue)
+    repository = DeliveryJobRepository(db_session)
+    orchestrator = QueueOrchestrator(primary_backend=queue)
+    deliveries = DeliveryService(repository, queue_orchestrator=orchestrator)
     coordinator = GenerationCoordinator(
         deliveries,
         WebSocketService(),
@@ -279,10 +282,13 @@ def test_queue_generation_job_uses_primary_queue_backend(
     from backend.core.dependencies import get_service_container
 
     def override_service_container():
+        orchestrator = QueueOrchestrator(
+            primary_backend=primary_queue,
+            fallback_backend=fallback_queue,
+        )
         return ServiceContainer(
             db_session,
-            queue_backend=primary_queue,
-            fallback_queue_backend=fallback_queue,
+            queue_orchestrator=orchestrator,
         )
 
     backend_app.dependency_overrides[get_service_container] = override_service_container
@@ -353,10 +359,13 @@ def test_queue_generation_job_falls_back_to_background_tasks(
     from backend.core.dependencies import get_service_container
 
     def override_service_container():
+        orchestrator = QueueOrchestrator(
+            primary_backend=primary_queue,
+            fallback_backend=fallback_queue,
+        )
         return ServiceContainer(
             db_session,
-            queue_backend=primary_queue,
-            fallback_queue_backend=fallback_queue,
+            queue_orchestrator=orchestrator,
         )
 
     backend_app.dependency_overrides[get_service_container] = override_service_container
