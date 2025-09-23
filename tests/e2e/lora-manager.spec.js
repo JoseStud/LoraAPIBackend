@@ -5,6 +5,8 @@
 
 import { test, expect } from '@playwright/test';
 
+import { waitForJobQueueBootstrap } from './utils/waits.js';
+
 test.describe('LoRA Manager E2E Tests', () => {
     test.beforeEach(async ({ page }) => {
         // Navigate to the application
@@ -94,10 +96,24 @@ test.describe('LoRA Manager E2E Tests', () => {
             
             // Select a tag filter
             await tagFilter.selectOption('character');
-            
-            // Wait for filtered results
-            await page.waitForTimeout(1000);
-            
+
+            await test.step('Wait for filtered results', async () => {
+                await expect.poll(async () => {
+                    return page.evaluate(() => {
+                        const cards = Array.from(
+                            document.querySelectorAll('[data-testid="lora-card"]'),
+                        );
+                        if (cards.length === 0) {
+                            return true;
+                        }
+                        return cards.every((card) => {
+                            const text = card.textContent || '';
+                            return text.toLowerCase().includes('character');
+                        });
+                    });
+                }).toBe(true);
+            });
+
             // Verify filtered results
             const loraCards = page.locator('[data-testid="lora-card"]');
             const count = await loraCards.count();
@@ -120,10 +136,28 @@ test.describe('LoRA Manager E2E Tests', () => {
             // Perform search
             await searchInput.fill('anime');
             await searchInput.press('Enter');
-            
-            // Wait for search results
-            await page.waitForTimeout(1000);
-            
+
+            await test.step('Wait for search results', async () => {
+                await expect.poll(async () => {
+                    return page.evaluate(() => {
+                        const container = document.querySelector('[data-testid="search-results"]');
+                        if (!container) {
+                            return false;
+                        }
+                        const cards = Array.from(
+                            container.querySelectorAll('[data-testid="lora-card"]'),
+                        );
+                        if (cards.length === 0) {
+                            return true;
+                        }
+                        return cards.some((card) => {
+                            const text = card.textContent || '';
+                            return text.toLowerCase().includes('anime');
+                        });
+                    });
+                }).toBe(true);
+            });
+
             // Verify search results
             const resultsContainer = page.locator('[data-testid="search-results"]');
             await expect(resultsContainer).toBeVisible();
@@ -259,11 +293,38 @@ test.describe('LoRA Manager E2E Tests', () => {
             
             // Apply preferences
             const applyButton = page.locator('[data-testid="apply-preferences"]');
-            await applyButton.click();
-            
-            // Wait for updated recommendations
-            await page.waitForTimeout(1000);
-            
+            const recommendationsRequest = page
+                .waitForResponse(
+                    (response) => {
+                        const url = response.url();
+                        return (
+                            response.request().method() === 'GET' &&
+                            url.includes('/api/v1/recommendations')
+                        );
+                    },
+                    { timeout: 5000 },
+                )
+                .catch(() => null);
+
+            await Promise.all([recommendationsRequest, applyButton.click()]);
+
+            await test.step('Wait for updated recommendations', async () => {
+                await expect.poll(async () => {
+                    return page.evaluate(() => {
+                        const cards = Array.from(
+                            document.querySelectorAll('[data-testid="recommendation-card"]'),
+                        );
+                        if (cards.length === 0) {
+                            return true;
+                        }
+                        return cards.some((card) => {
+                            const text = card.textContent || '';
+                            return text.toLowerCase().includes('anime');
+                        });
+                    });
+                }).toBe(true);
+            });
+
             // Verify recommendations updated
             const recCards = page.locator('[data-testid="recommendation-card"]');
             if (await recCards.count() > 0) {
@@ -277,7 +338,8 @@ test.describe('LoRA Manager E2E Tests', () => {
     test.describe('System Administration', () => {
         test('should access admin panel', async ({ page }) => {
             await page.goto('/admin');
-            
+            await waitForJobQueueBootstrap(page);
+
             // Check admin interface loaded
             await expect(page.locator('[data-testid="admin-interface"]')).toBeVisible();
             
@@ -291,7 +353,8 @@ test.describe('LoRA Manager E2E Tests', () => {
         
         test('should display system overview', async ({ page }) => {
             await page.goto('/admin');
-            
+            await waitForJobQueueBootstrap(page);
+
             // Overview tab should be active by default
             const overviewTab = page.locator('[data-testid="overview-tab"]');
             await expect(overviewTab).toHaveClass(/active/);
@@ -308,7 +371,8 @@ test.describe('LoRA Manager E2E Tests', () => {
         
         test('should manage workers', async ({ page }) => {
             await page.goto('/admin');
-            
+            await waitForJobQueueBootstrap(page);
+
             // Switch to workers tab
             await page.click('[data-testid="workers-tab"]');
             
@@ -328,7 +392,8 @@ test.describe('LoRA Manager E2E Tests', () => {
         
         test('should view system logs', async ({ page }) => {
             await page.goto('/admin');
-            
+            await waitForJobQueueBootstrap(page);
+
             // Switch to logs tab
             await page.click('[data-testid="logs-tab"]');
             
@@ -341,10 +406,24 @@ test.describe('LoRA Manager E2E Tests', () => {
             const levelFilter = page.locator('[data-testid="level-filter"]');
             await expect(levelFilter).toBeVisible();
             await levelFilter.selectOption('error');
-            
-            // Wait for filtered logs
-            await page.waitForTimeout(1000);
-            
+
+            await test.step('Wait for log filter results', async () => {
+                await expect.poll(async () => {
+                    return page.evaluate(() => {
+                        const entries = Array.from(
+                            document.querySelectorAll('[data-testid="log-entry"]'),
+                        );
+                        if (entries.length === 0) {
+                            return true;
+                        }
+                        return entries.every((entry) => {
+                            const text = entry.textContent || '';
+                            return text.toLowerCase().includes('error');
+                        });
+                    });
+                }).toBe(true);
+            });
+
             // Verify error logs are shown
             const logEntries = page.locator('[data-testid="log-entry"]');
             if (await logEntries.count() > 0) {
@@ -381,16 +460,30 @@ test.describe('LoRA Manager E2E Tests', () => {
             // Find time range selector
             const timeRangeSelect = page.locator('[data-testid="time-range-select"]');
             await expect(timeRangeSelect).toBeVisible();
-            
+
             // Change to 7 days
-            await timeRangeSelect.selectOption('7d');
-            
-            // Wait for charts to update
-            await page.waitForTimeout(2000);
-            
+            const analyticsRefresh = page
+                .waitForResponse(
+                    (response) => {
+                        const url = response.url();
+                        return (
+                            response.request().method() === 'GET' &&
+                            url.includes('/analytics/summary')
+                        );
+                    },
+                    { timeout: 5000 },
+                )
+                .catch(() => null);
+
+            await Promise.all([analyticsRefresh, timeRangeSelect.selectOption('7d')]);
+
+            await test.step('Wait for analytics data refresh', async () => {
+                await expect(page.locator('[data-testid="loading-indicator"]')).not.toBeVisible();
+            });
+
             // Verify time range changed
             await expect(timeRangeSelect).toHaveValue('7d');
-            
+
             // Charts should be updated (check for loading indicator gone)
             await expect(page.locator('[data-testid="loading-indicator"]')).not.toBeVisible();
         });
@@ -427,7 +520,8 @@ test.describe('LoRA Manager E2E Tests', () => {
     test.describe('Import/Export Functionality', () => {
         test('should access import/export interface', async ({ page }) => {
             await page.goto('/import-export');
-            
+            await waitForJobQueueBootstrap(page);
+
             // Check interface loaded
             await expect(page.locator('[data-testid="import-export-interface"]')).toBeVisible();
             
@@ -440,7 +534,8 @@ test.describe('LoRA Manager E2E Tests', () => {
         
         test('should configure data export', async ({ page }) => {
             await page.goto('/import-export');
-            
+            await waitForJobQueueBootstrap(page);
+
             // Export tab should be active
             const exportTab = page.locator('[data-testid="export-tab"]');
             await expect(exportTab).toHaveClass(/active/);
@@ -461,7 +556,8 @@ test.describe('LoRA Manager E2E Tests', () => {
         
         test('should handle file import', async ({ page }) => {
             await page.goto('/import-export');
-            
+            await waitForJobQueueBootstrap(page);
+
             // Switch to import tab
             await page.click('[data-testid="import-tab"]');
             
@@ -485,7 +581,8 @@ test.describe('LoRA Manager E2E Tests', () => {
         
         test('should manage backups', async ({ page }) => {
             await page.goto('/import-export');
-            
+            await waitForJobQueueBootstrap(page);
+
             // Switch to backup tab
             await page.click('[data-testid="backup-tab"]');
             
