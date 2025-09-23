@@ -9,64 +9,13 @@
     </div>
 
     <div v-else>
-      <div class="page-header">
-        <div class="flex justify-between items-center">
-          <div>
-            <h1 class="page-title">Generation History</h1>
-            <p class="page-subtitle">View and manage your generated images</p>
-          </div>
-          <div class="header-actions">
-            <div class="flex items-center space-x-3">
-              <div class="view-mode-toggle">
-                <button
-                  @click="viewMode = 'grid'"
-                  :class="viewMode === 'grid' ? 'view-mode-btn active' : 'view-mode-btn'"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-                    />
-                  </svg>
-                </button>
-                <button
-                  @click="viewMode = 'list'"
-                  :class="viewMode === 'list' ? 'view-mode-btn active' : 'view-mode-btn'"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                  </svg>
-                </button>
-              </div>
-
-              <select v-model="sortBy" @change="applyFilters()" class="form-input text-sm">
-                <option value="created_at">Newest First</option>
-                <option value="created_at_asc">Oldest First</option>
-                <option value="prompt">By Prompt</option>
-                <option value="rating">By Rating</option>
-              </select>
-
-              <button
-                @click="deleteSelected()"
-                class="btn btn-danger btn-sm"
-                :disabled="selectedCount === 0"
-              >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-                Delete ({{ selectedCount }})
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <HistoryActionToolbar
+        v-model:viewMode="viewMode"
+        v-model:sortBy="sortBy"
+        :selected-count="selectedCount"
+        @sort-change="applyFilters()"
+        @delete-selected="deleteSelected()"
+      />
 
       <HistoryFilters
         v-model:searchTerm="searchTerm"
@@ -77,32 +26,7 @@
         @change="applyFilters()"
       />
 
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div class="card">
-          <div class="card-body text-center">
-            <div class="text-2xl font-bold text-blue-600">{{ stats.total_results }}</div>
-            <div class="text-sm text-gray-600">Total Images</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-body text-center">
-            <div class="text-2xl font-bold text-green-600">{{ stats.avg_rating.toFixed(1) }}</div>
-            <div class="text-sm text-gray-600">Average Rating</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-body text-center">
-            <div class="text-2xl font-bold text-purple-600">{{ stats.total_favorites }}</div>
-            <div class="text-sm text-gray-600">Favorited</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-body text-center">
-            <div class="text-2xl font-bold text-orange-600">{{ formatFileSize(stats.total_size) }}</div>
-            <div class="text-sm text-gray-600">Storage Used</div>
-          </div>
-        </div>
-      </div>
+      <HistoryStatsSummary :stats="stats" />
 
       <div class="results-container">
         <HistoryBulkActions
@@ -173,10 +97,10 @@
         </div>
       </div>
 
-      <HistoryModal
+      <HistoryModalLauncher
         :visible="showModal"
         :result="selectedResult"
-        :formatted-date="selectedResult ? formatDate(selectedResult.created_at) : ''"
+        :format-date="formatDate"
         @close="showModal = false"
         @reuse="handleReuse"
         @download="downloadImage"
@@ -192,18 +116,21 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
+import HistoryActionToolbar from './HistoryActionToolbar.vue';
 import HistoryBulkActions from './HistoryBulkActions.vue';
 import HistoryFilters from './HistoryFilters.vue';
 import HistoryGrid from './HistoryGrid.vue';
 import HistoryList from './HistoryList.vue';
-import HistoryModal from './HistoryModal.vue';
+import HistoryModalLauncher from './HistoryModalLauncher.vue';
 import HistoryToast from './HistoryToast.vue';
+import HistoryStatsSummary from './HistoryStatsSummary.vue';
 
 import { useGenerationHistory } from '@/composables/useGenerationHistory';
 import { useHistoryShortcuts } from '@/composables/useHistoryShortcuts';
+import { useHistorySelection, type HistorySelectionChangePayload } from '@/composables/useHistorySelection';
+import { useHistoryToast } from '@/composables/useHistoryToast';
 import { downloadFile } from '@/utils/browser';
 import { useBackendBase } from '@/utils/backend';
-import { formatFileSize as formatBytes } from '@/utils/format';
 import {
   deleteResult as deleteHistoryResult,
   deleteResults as deleteHistoryResults,
@@ -215,13 +142,11 @@ import {
 } from '@/services/historyService';
 import type { GenerationHistoryResult } from '@/types';
 
-type ViewMode = 'grid' | 'list';
-type ToastType = 'success' | 'error' | 'info' | 'warning';
-type SelectionChangePayload = { id: GenerationHistoryResult['id']; selected: boolean };
+import type { HistoryViewMode } from './HistoryActionToolbar.vue';
+
 type RatePayload = { result: GenerationHistoryResult; rating: number };
 
-const viewMode = ref<ViewMode>('grid');
-const selectedItems = ref<Set<GenerationHistoryResult['id']>>(new Set());
+const viewMode = ref<HistoryViewMode>('grid');
 const selectedResult = ref<GenerationHistoryResult | null>(null);
 const showModal = ref(false);
 const isInitialized = ref(false);
@@ -248,38 +173,19 @@ const {
   clearFilters,
 } = useGenerationHistory({ apiBase: apiBaseUrl });
 
-const toastVisible = ref(false);
-const toastMessage = ref('');
-const toastType = ref<ToastType>('success');
-let toastTimeout: ReturnType<typeof setTimeout> | undefined;
+const {
+  selectedItems,
+  selectedSet,
+  selectedCount,
+  selectedIds,
+  withUpdatedSelection,
+  onSelectionChange: updateSelection,
+  clearSelection,
+} = useHistorySelection();
+
+const { toastVisible, toastMessage, toastType, showToastMessage } = useHistoryToast();
 
 const selectableIds = computed(() => filteredResults.value.map((result) => result.id));
-const selectedIds = computed(() => Array.from(selectedItems.value));
-const selectedCount = computed(() => selectedItems.value.size);
-const selectedSet = computed(() => selectedItems.value);
-
-const withUpdatedSelection = (
-  updater: (current: Set<GenerationHistoryResult['id']>) => void,
-): void => {
-  const next = new Set(selectedItems.value);
-  updater(next);
-  selectedItems.value = next;
-};
-
-const showToastMessage = (message: string, type: ToastType = 'success'): void => {
-  if (toastTimeout) {
-    clearTimeout(toastTimeout);
-  }
-
-  toastMessage.value = message;
-  toastType.value = type;
-  toastVisible.value = true;
-
-  toastTimeout = setTimeout(() => {
-    toastVisible.value = false;
-    toastTimeout = undefined;
-  }, 3000);
-};
 
 watch(
   error,
@@ -413,7 +319,7 @@ const deleteSelected = async (): Promise<void> => {
 
     const idsToRemove = new Set(ids);
     data.value = data.value.filter((item) => !idsToRemove.has(item.id));
-    selectedItems.value = new Set();
+    clearSelection();
     applyFilters();
 
     showToastMessage(`${count} images deleted successfully`);
@@ -466,10 +372,6 @@ const exportSelected = async (): Promise<void> => {
   }
 };
 
-const clearSelection = (): void => {
-  selectedItems.value = new Set();
-};
-
 const loadMore = async (): Promise<void> => {
   await loadMoreResults();
 };
@@ -497,19 +399,8 @@ const formatDate = (dateString: string): string => {
   return date.toLocaleDateString();
 };
 
-const formatFileSize = (bytes: number) => formatBytes(Number.isFinite(bytes) ? bytes : 0);
-
-const onSelectionChange = ({ id, selected }: SelectionChangePayload): void => {
-  if (selected) {
-    withUpdatedSelection((next) => {
-      next.add(id);
-    });
-    return;
-  }
-
-  withUpdatedSelection((next) => {
-    next.delete(id);
-  });
+const onSelectionChange = (payload: HistorySelectionChangePayload): void => {
+  updateSelection(payload);
 };
 
 const onRate = ({ result, rating }: RatePayload): void => {
@@ -540,13 +431,9 @@ onMounted(async () => {
 onUnmounted(() => {
   debouncedApplyFilters.cancel();
   unregisterShortcuts();
-  if (toastTimeout) {
-    clearTimeout(toastTimeout);
-    toastTimeout = undefined;
-  }
 });
 
-watch(viewMode, (newMode: ViewMode) => {
+watch(viewMode, (newMode: HistoryViewMode) => {
   localStorage.setItem('history-view-mode', newMode);
 });
 </script>
