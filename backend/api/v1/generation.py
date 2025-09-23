@@ -7,7 +7,7 @@ import structlog
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
-from backend.core.dependencies import get_service_container
+from backend.core.dependencies import get_application_services, get_domain_services
 from backend.delivery import get_generation_backend
 from backend.schemas import (
     ComposeRequest,
@@ -20,7 +20,7 @@ from backend.schemas import (
     SDNextGenerationParams,
     SDNextGenerationResult,
 )
-from backend.services import ServiceRegistry
+from backend.services import ApplicationServices, DomainServices
 from backend.services.generation import normalize_generation_status
 from backend.services.generation.presenter import build_active_job, build_result
 
@@ -47,7 +47,8 @@ async def generate_image(
     mode: str = "immediate",
     save_images: bool = True,
     return_format: str = "base64",
-    services: ServiceRegistry = Depends(get_service_container),
+    domain: DomainServices = Depends(get_domain_services),
+    application: ApplicationServices = Depends(get_application_services),
 ):
     """Generate an image using the specified backend.
     
@@ -60,7 +61,7 @@ async def generate_image(
 
     """
     # Validate parameters
-    warnings = await services.generation.validate_generation_params(generation_params)
+    warnings = await domain.generation.validate_generation_params(generation_params)
     if warnings:
         # For now, just log warnings but continue
         logger.warning(
@@ -77,7 +78,7 @@ async def generate_image(
         "return_format": return_format,
     }
     
-    result = await services.generation.generate_image(
+    result = await domain.generation.generate_image(
         generation_params.prompt,
         backend,
         generation_params,
@@ -86,7 +87,7 @@ async def generate_image(
     
     # Start WebSocket monitoring if job was created
     if result.job_id and mode == "deferred":
-        await services.generation_coordinator.broadcast_job_started(
+        await application.generation_coordinator.broadcast_job_started(
             result.job_id,
             generation_params,
         )
@@ -120,15 +121,16 @@ async def compose_and_generate(
     mode: str = "immediate",
     save_images: bool = True,
     return_format: str = "base64",
-    services: ServiceRegistry = Depends(get_service_container),
+    domain: DomainServices = Depends(get_domain_services),
+    application: ApplicationServices = Depends(get_application_services),
 ):
     """Compose LoRA prompt and immediately generate images.
     
     This endpoint combines the compose and generate operations for convenience.
     """
     # Step 1: Compose prompt via shared helper
-    composition = services.compose.compose_from_adapter_service(
-        services.adapters,
+    composition = domain.compose.compose_from_adapter_service(
+        domain.adapters,
         prefix=compose_request.prefix or "",
         suffix=compose_request.suffix or "",
     )
@@ -149,7 +151,7 @@ async def compose_and_generate(
     generation_params.prompt = composition.prompt
     
     # Validate generation parameters
-    gen_warnings = await services.generation.validate_generation_params(generation_params)
+    gen_warnings = await domain.generation.validate_generation_params(generation_params)
     if gen_warnings:
         logger.warning(
             "generation parameter validation warnings",
@@ -165,7 +167,7 @@ async def compose_and_generate(
         "return_format": return_format,
     }
     
-    result = await services.generation.generate_image(
+    result = await domain.generation.generate_image(
         composition.prompt,
         backend,
         generation_params,
@@ -174,7 +176,7 @@ async def compose_and_generate(
     
     # Start WebSocket monitoring if job was created
     if result.job_id and mode == "deferred":
-        await services.generation_coordinator.broadcast_job_started(
+        await application.generation_coordinator.broadcast_job_started(
             result.job_id,
             generation_params,
         )
@@ -190,13 +192,14 @@ async def queue_generation_job(
     mode: str = "deferred",
     save_images: bool = True,
     return_format: str = "base64",
-    services: ServiceRegistry = Depends(get_service_container),
+    domain: DomainServices = Depends(get_domain_services),
+    application: ApplicationServices = Depends(get_application_services),
 ):
     """Queue a generation job for background processing.
     
     This creates a delivery job that will be processed by a worker.
     """
-    coordinator = services.generation_coordinator
+    coordinator = application.generation_coordinator
 
     job = coordinator.schedule_generation_job(
         generation_params,
@@ -215,7 +218,7 @@ async def queue_generation_job(
 @router.get("/jobs/active", response_model=List[GenerationJobStatus])
 async def list_active_generation_jobs(
     limit: int = Query(50, ge=1, le=200),
-    services: ServiceRegistry = Depends(get_service_container),
+    services: ApplicationServices = Depends(get_application_services),
 ):
     """Return active generation jobs for frontend queues."""
 
@@ -240,7 +243,7 @@ async def list_active_generation_jobs(
 @router.get("/jobs/{job_id}", response_model=DeliveryWrapper)
 async def get_generation_job(
     job_id: str,
-    services: ServiceRegistry = Depends(get_service_container),
+    services: ApplicationServices = Depends(get_application_services),
 ):
     """Get generation job status and results."""
     job = services.deliveries.get_job(job_id)
@@ -271,7 +274,7 @@ async def get_generation_job(
 @router.post("/jobs/{job_id}/cancel", response_model=GenerationCancelResponse)
 async def cancel_generation_job(
     job_id: str,
-    services: ServiceRegistry = Depends(get_service_container),
+    services: ApplicationServices = Depends(get_application_services),
 ):
     """Cancel an active generation job."""
     job = services.deliveries.get_job(job_id)
@@ -291,7 +294,7 @@ async def cancel_generation_job(
 async def list_generation_results(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    services: ServiceRegistry = Depends(get_service_container),
+    services: ApplicationServices = Depends(get_application_services),
 ):
     """Return recent completed generation results."""
     jobs = services.deliveries.list_jobs(status="succeeded", limit=limit, offset=offset)

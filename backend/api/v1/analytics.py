@@ -6,7 +6,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, Query
 
-from backend.core.dependencies import get_service_container
+from backend.core.dependencies import get_domain_services
 from backend.schemas.analytics import (
     ErrorAnalysisEntry,
     PerformanceAnalyticsCharts,
@@ -15,7 +15,7 @@ from backend.schemas.analytics import (
     PerformanceKpiSummary,
     PerformanceTimeRange,
 )
-from backend.services import ServiceRegistry
+from backend.services import DomainServices
 
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -24,7 +24,7 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 @router.get("/summary", response_model=PerformanceAnalyticsSummary)
 def get_analytics_summary(
     time_range: PerformanceTimeRange = Query("24h"),
-    services: ServiceRegistry = Depends(get_service_container),
+    services: DomainServices = Depends(get_domain_services),
 ) -> PerformanceAnalyticsSummary:
     """Return a comprehensive analytics snapshot for the requested range."""
 
@@ -34,7 +34,7 @@ def get_analytics_summary(
 @router.get("/stats", response_model=PerformanceKpiSummary)
 def get_generation_stats(
     time_range: PerformanceTimeRange = Query("24h"),
-    services: ServiceRegistry = Depends(get_service_container),
+    services: DomainServices = Depends(get_domain_services),
 ) -> PerformanceKpiSummary:
     """Expose headline generation KPIs for the requested range."""
 
@@ -44,7 +44,7 @@ def get_generation_stats(
 @router.get("/errors", response_model=List[ErrorAnalysisEntry])
 def get_error_breakdown(
     time_range: PerformanceTimeRange = Query("24h"),
-    services: ServiceRegistry = Depends(get_service_container),
+    services: DomainServices = Depends(get_domain_services),
 ) -> List[ErrorAnalysisEntry]:
     """Return error distribution for failed generation jobs."""
 
@@ -54,7 +54,7 @@ def get_error_breakdown(
 @router.get("/timeseries", response_model=PerformanceAnalyticsCharts)
 def get_time_series_metrics(
     time_range: PerformanceTimeRange = Query("24h"),
-    services: ServiceRegistry = Depends(get_service_container),
+    services: DomainServices = Depends(get_domain_services),
 ) -> PerformanceAnalyticsCharts:
     """Return time-series metrics for dashboard visualisations."""
 
@@ -64,7 +64,7 @@ def get_time_series_metrics(
 @router.get("/insights", response_model=List[PerformanceInsightEntry])
 def get_performance_insights(
     time_range: PerformanceTimeRange = Query("24h"),
-    services: ServiceRegistry = Depends(get_service_container),
+    services: DomainServices = Depends(get_domain_services),
 ) -> List[PerformanceInsightEntry]:
     """Return derived performance insights for the requested window."""
 

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Optional
 
 from sqlmodel import Session
 
-from backend.core.database import get_session, get_session_context
+from backend.core.database import get_session
 
 from .adapters import AdapterService
 from .analytics import AnalyticsService, InsightGenerator, TimeSeriesBuilder
@@ -33,8 +34,13 @@ from .providers import (
 )
 from .queue import QueueOrchestrator
 from .service_container_builder import ServiceContainerBuilder
-from .service_registry import ServiceRegistry
-from .storage import StorageService, get_storage_service
+from .service_registry import (
+    ApplicationServices,
+    CoreServices,
+    DomainServices,
+    ServiceRegistry,
+)
+from .storage import StorageService
 from .system import SystemService
 from .websocket import WebSocketService
 
@@ -48,8 +54,8 @@ def get_service_container_builder() -> ServiceContainerBuilder:
     return _DEFAULT_BUILDER
 
 
-class ServiceContainer(ServiceRegistry):
-    """Backward compatible wrapper that delegates to :class:`ServiceRegistry`."""
+class ServiceContainer:
+    """Backward compatible wrapper around :class:`ServiceRegistry`."""
 
     def __init__(
         self,
@@ -95,22 +101,47 @@ class ServiceContainer(ServiceRegistry):
             analytics_repository=analytics_repository,
             recommendation_gpu_available=recommendation_gpu_available,
         )
-        super().__init__(registry.core, registry.domain, registry.infrastructure)
+        self._registry = registry
         self._builder = builder
         self._generation_coordinator_override: Optional[GenerationCoordinator] = None
+
+    def __getattr__(self, name: str):
+        return getattr(self._registry, name)
 
     def __setattr__(self, name, value):
         if name == "_generation_coordinator":
             object.__setattr__(self, "_generation_coordinator_override", value)
-        else:
-            super().__setattr__(name, value)
+            return
+        super().__setattr__(name, value)
 
     @property
-    def generation_coordinator(self) -> GenerationCoordinator:  # type: ignore[override]
-        override = getattr(self, "_generation_coordinator_override", None)
+    def registry(self) -> ServiceRegistry:
+        return self._registry
+
+    @property
+    def core(self) -> CoreServices:
+        return self._registry.core
+
+    @property
+    def domain(self) -> DomainServices:
+        return self._registry.domain
+
+    @property
+    def application(self) -> ApplicationServices:
+        application_services = self._registry.application
+        if self._generation_coordinator_override is None:
+            return application_services
+        return replace(
+            application_services,
+            _generation_coordinator_override=self._generation_coordinator_override,
+        )
+
+    @property
+    def generation_coordinator(self) -> GenerationCoordinator:
+        override = self._generation_coordinator_override
         if override is not None:
             return override
-        return super().generation_coordinator
+        return self._registry.generation_coordinator
 
 
 def create_service_container(db_session: Session) -> ServiceRegistry:
@@ -119,55 +150,10 @@ def create_service_container(db_session: Session) -> ServiceRegistry:
     return _DEFAULT_BUILDER.build(db_session)
 
 
-def file_exists(path: str) -> bool:
-    """Legacy helper to validate file paths via the storage service."""
-
-    storage_service = get_storage_service()
-    return storage_service.validate_file_path(path)
-
-
-def get_adapter_service(db_session: Session) -> AdapterService:
-    """Return an adapter service instance for the provided session."""
-
-    container = _DEFAULT_BUILDER.build(db_session)
-    return container.adapters
-
-
-def get_delivery_service(db_session: Session) -> DeliveryService:
-    """Return a delivery service instance for the provided session."""
-
-    container = _DEFAULT_BUILDER.build(db_session)
-    return container.deliveries
-
-
-def get_compose_service() -> ComposeService:
-    """Return a compose service instance."""
-
-    container = _DEFAULT_BUILDER.build(None)
-    return container.compose
-
-
-def get_generation_service() -> GenerationService:
-    """Return a generation service instance."""
-
-    container = _DEFAULT_BUILDER.build(None)
-    return container.generation
-
-
-def upsert_adapter_from_payload(payload):
-    """Upsert an adapter from payload for importer compatibility."""
-
-    from backend.schemas import AdapterCreate
-
-    if isinstance(payload, dict):
-        payload = AdapterCreate(**payload)
-
-    with get_session_context() as session:
-        container = _DEFAULT_BUILDER.build(session)
-        return container.adapters.upsert_adapter(payload)
-
-
 __all__ = [
+    "ApplicationServices",
+    "CoreServices",
+    "DomainServices",
     "ServiceRegistry",
     "ServiceContainer",
     "ServiceContainerBuilder",
@@ -180,12 +166,6 @@ __all__ = [
     "GenerationService",
     "StorageService",
     "QueueOrchestrator",
-    "get_adapter_service",
-    "get_delivery_service",
-    "get_compose_service",
-    "get_generation_service",
     "get_session",
-    "file_exists",
-    "upsert_adapter_from_payload",
     "get_service_container_builder",
 ]

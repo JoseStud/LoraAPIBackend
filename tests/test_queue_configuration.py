@@ -35,7 +35,7 @@ def test_queue_factory_shared_backend_with_redis(db_session) -> None:
             analytics_repository=AnalyticsRepository(db_session),
             recommendation_gpu_available=False,
         )
-        deliveries_service = container.deliveries
+        deliveries_service = container.application.deliveries
 
         assert deliveries_service.queue_orchestrator is orchestrator
         assert context.queue_orchestrator is orchestrator
@@ -72,7 +72,7 @@ def test_queue_factory_shared_backend_without_redis(db_session) -> None:
             analytics_repository=AnalyticsRepository(db_session),
             recommendation_gpu_available=False,
         )
-        deliveries_service = container.deliveries
+        deliveries_service = container.application.deliveries
 
         assert deliveries_service.queue_orchestrator is orchestrator
         assert context.queue_orchestrator is orchestrator

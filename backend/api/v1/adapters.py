@@ -6,10 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from sqlmodel import select
 
-from backend.core.dependencies import get_adapter_service
+from backend.core.dependencies import get_domain_services
 from backend.models import Adapter
 from backend.schemas import AdapterCreate, AdapterListResponse, AdapterWrapper
-from backend.services import AdapterService
+from backend.services import DomainServices
 
 router = APIRouter()
 
@@ -17,9 +17,10 @@ router = APIRouter()
 @router.post("/adapters", status_code=201, response_model=AdapterWrapper)
 def create_adapter(
     payload: AdapterCreate,
-    service: AdapterService = Depends(get_adapter_service),  # noqa: B008
+    services: DomainServices = Depends(get_domain_services),  # noqa: B008
 ):
     """Create a new adapter from the provided payload."""
+    service = services.adapters
     if not service.validate_file_path(payload.file_path):
         raise HTTPException(
             status_code=400,
@@ -52,13 +53,15 @@ def list_adapters(
     sort: str = "name",
     page: int = 1,
     per_page: int = 24,
-    service: AdapterService = Depends(get_adapter_service),  # noqa: B008
+    services: DomainServices = Depends(get_domain_services),  # noqa: B008
 ):
     """Return a paginated list of adapters via the service layer."""
 
     tag_filters = [tag.strip() for tag in tags.split(",") if tag.strip()] if tags else []
 
-    result = service.search_adapters(
+    adapter_service = services.adapters
+
+    result = adapter_service.search_adapters(
         search=search,
         active_only=active_only,
         tags=tag_filters,
@@ -92,13 +95,13 @@ class BulkActionRequest(BaseModel):
 
 
 @router.get("/adapters/tags")
-def get_adapter_tags(service: AdapterService = Depends(get_adapter_service)):
+def get_adapter_tags(services: DomainServices = Depends(get_domain_services)):
     """Return unique tag list across all adapters.
 
     Response shape matches frontend expectation: {"tags": [..]}.
     """
     try:
-        tags = service.get_all_tags()
+        tags = services.adapters.get_all_tags()
     except Exception as exc:  # pragma: no cover - defensive guard
         raise HTTPException(status_code=500, detail=f"Failed to load adapter tags: {exc}") from exc
 
@@ -108,7 +111,7 @@ def get_adapter_tags(service: AdapterService = Depends(get_adapter_service)):
 @router.post("/adapters/bulk")
 def bulk_adapter_action(
     request: BulkActionRequest,
-    service: AdapterService = Depends(get_adapter_service),  # noqa: B008
+    services: DomainServices = Depends(get_domain_services),  # noqa: B008
 ):
     """Perform a bulk action on a list of adapters in a transaction.
 
@@ -119,7 +122,7 @@ def bulk_adapter_action(
         return {"success": True, "processed": 0, "action": request.action, "ids": []}
 
     try:
-        processed_ids = service.bulk_adapter_action(request.action, request.lora_ids)
+        processed_ids = services.adapters.bulk_adapter_action(request.action, request.lora_ids)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -137,7 +140,7 @@ def bulk_adapter_action(
 def patch_adapter(
     adapter_id: str,
     payload: dict,
-    service: AdapterService = Depends(get_adapter_service),  # noqa: B008
+    services: DomainServices = Depends(get_domain_services),  # noqa: B008
 ):
     """Update an adapter's fields.
 
@@ -145,7 +148,7 @@ def patch_adapter(
     Only allows updating specific safe fields to prevent unauthorized modifications.
     """
     try:
-        updated = service.patch_adapter(adapter_id, payload)
+        updated = services.adapters.patch_adapter(adapter_id, payload)
     except LookupError:
         raise HTTPException(status_code=404, detail="adapter not found")
     except ValueError as exc:
@@ -159,13 +162,13 @@ def patch_adapter(
 @router.delete("/adapters/{adapter_id}", status_code=204)
 def delete_adapter(
     adapter_id: str,
-    service: AdapterService = Depends(get_adapter_service),  # noqa: B008
+    services: DomainServices = Depends(get_domain_services),  # noqa: B008
 ):
     """Delete an adapter by id.
 
     Returns 204 on success.
     """
-    if not service.delete_adapter(adapter_id):
+    if not services.adapters.delete_adapter(adapter_id):
         raise HTTPException(status_code=404, detail="adapter not found")
     return
 
@@ -173,13 +176,13 @@ def delete_adapter(
 @router.get("/adapters/{adapter_id}", response_model=AdapterWrapper)
 def get_adapter(
     adapter_id: str,
-    service: AdapterService = Depends(get_adapter_service),  # noqa: B008
+    services: DomainServices = Depends(get_domain_services),  # noqa: B008
 ):
     """Return a single adapter by id.
 
     Raises HTTPException(404) if not found.
     """
-    a = service.get_adapter(adapter_id)
+    a = services.adapters.get_adapter(adapter_id)
     if not a:
         raise HTTPException(status_code=404, detail="adapter not found")
     ra = a.model_dump()
@@ -190,10 +193,10 @@ def get_adapter(
 def activate_adapter(
     adapter_id: str,
     ordinal: int = None,
-    service: AdapterService = Depends(get_adapter_service),  # noqa: B008
+    services: DomainServices = Depends(get_domain_services),  # noqa: B008
 ):
     """Mark an adapter active and optionally set its ordinal."""
-    a = service.activate_adapter(adapter_id, ordinal)
+    a = services.adapters.activate_adapter(adapter_id, ordinal)
     if not a:
         raise HTTPException(status_code=404, detail="adapter not found")
     ra = a.model_dump()
@@ -203,10 +206,10 @@ def activate_adapter(
 @router.post("/adapters/{adapter_id}/deactivate", response_model=AdapterWrapper)
 def deactivate_adapter(
     adapter_id: str,
-    service: AdapterService = Depends(get_adapter_service),  # noqa: B008
+    services: DomainServices = Depends(get_domain_services),  # noqa: B008
 ):
     """Mark an adapter inactive."""
-    a = service.deactivate_adapter(adapter_id)
+    a = services.adapters.deactivate_adapter(adapter_id)
     if not a:
         raise HTTPException(status_code=404, detail="adapter not found")
     ra = a.model_dump()
