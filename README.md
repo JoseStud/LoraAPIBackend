@@ -44,6 +44,8 @@ npm run dev
 
 Visit `http://localhost:8000` to access the application.
 
+By default the SPA calls the backend relative to the same origin at `/api/v1`. If you run the backend separately (for example on another host or port), set the `BACKEND_URL` environment variable to the full base path such as `http://localhost:8000/api/v1` before starting the FastAPI wrapper.
+
 ### Alternative Development Workflow
 ```bash
 # Option 1: Run both backend and frontend simultaneously
@@ -271,7 +273,7 @@ pytest --cov             # Python test coverage
 - `SDNEXT_POLL_INTERVAL` - Progress polling interval (default: 2)
 
 ### Frontend Configuration
-- `BACKEND_URL` - Backend API base URL (default: `http://localhost:8000`)
+- `BACKEND_URL` - Backend API base URL (default: `/api/v1` relative to the SPA; override with a full URL like `http://localhost:8000/api/v1` for standalone backends)
 - `REQUEST_TIMEOUT` - Frontend request timeout (default: 30.0)
 - `ENVIRONMENT` - Application environment (`development`, `production`)
 

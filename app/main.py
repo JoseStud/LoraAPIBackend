@@ -66,7 +66,8 @@ SPA_STATIC_APP = SPAStaticFiles(SPA_DIST_DIR)
 @app.get("/frontend/settings", tags=["frontend"])
 async def frontend_settings():
     """Expose runtime configuration for the Vue SPA."""
-    backend_url = _fe_settings.backend_url.rstrip("/")
+    raw_backend_url = _fe_settings.backend_url or "/api/v1"
+    backend_url = raw_backend_url.rstrip("/") or "/api/v1"
     return {
         "backendUrl": backend_url,
         "backendApiKey": backend_settings.API_KEY or None,

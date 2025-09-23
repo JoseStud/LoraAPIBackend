@@ -155,7 +155,7 @@ def test_frontend_settings_endpoint(client: TestClient):
     assert response.status_code == 200
     payload = response.json()
     assert "backendUrl" in payload
-    assert payload["backendUrl"].endswith("/v1")
+    assert payload["backendUrl"].endswith("/api/v1")
 
 
 def test_import_export_export_streams_archive(
