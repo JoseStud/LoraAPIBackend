@@ -12,8 +12,9 @@ from .analytics import AnalyticsService
 from .archive import ArchiveExportPlanner, ArchiveImportExecutor, ArchiveService
 from .composition import ComposeService
 from .deliveries import DeliveryService
+from .delivery_repository import DeliveryJobRepository
 from .generation import GenerationCoordinator, GenerationService
-from .queue import QueueBackend, get_queue_backends
+from .queue import QueueOrchestrator, create_queue_orchestrator
 from .storage import StorageService
 from .recommendations import (
     EmbeddingManager,
@@ -44,14 +45,16 @@ class ServiceContainer:
         self,
         db_session: Optional[Session],
         *,
-        queue_backend: Optional[QueueBackend] = None,
-        fallback_queue_backend: Optional[QueueBackend] = None,
+        queue_orchestrator: Optional[QueueOrchestrator] = None,
+        delivery_repository: Optional[DeliveryJobRepository] = None,
         recommendation_gpu_available: Optional[bool] = None,
     ):
         """Initialize service container.
 
         Args:
-            db_session: Database session for services that need it
+            db_session: Database session for services that need it.
+            queue_orchestrator: Optional queue orchestrator shared with workers.
+            delivery_repository: Optional pre-configured delivery repository.
 
         """
         self.db_session = db_session
@@ -67,8 +70,8 @@ class ServiceContainer:
         self._analytics_service: Optional[AnalyticsService] = None
         self._recommendation_service: Optional[RecommendationService] = None
         self._recommendation_gpu_available: Optional[bool] = recommendation_gpu_available
-        self._queue_backend = queue_backend
-        self._fallback_queue_backend = fallback_queue_backend
+        self._queue_orchestrator = queue_orchestrator
+        self._delivery_repository = delivery_repository
     
     @property
     def storage(self) -> StorageService:
@@ -111,20 +114,15 @@ class ServiceContainer:
             raise ValueError("DeliveryService requires an active database session")
 
         if self._delivery_service is None:
-            primary_queue = self._queue_backend
-            fallback_queue = self._fallback_queue_backend
+            if self._delivery_repository is None:
+                self._delivery_repository = DeliveryJobRepository(self.db_session)
 
-            if primary_queue is None or fallback_queue is None:
-                default_primary, default_fallback = get_queue_backends()
-                if primary_queue is None:
-                    primary_queue = default_primary
-                if fallback_queue is None:
-                    fallback_queue = default_fallback
+            if self._queue_orchestrator is None:
+                self._queue_orchestrator = create_queue_orchestrator()
 
             self._delivery_service = DeliveryService(
-                self.db_session,
-                queue_backend=primary_queue,
-                fallback_queue_backend=fallback_queue,
+                self._delivery_repository,
+                queue_orchestrator=self._queue_orchestrator,
             )
         return self._delivery_service
     
@@ -318,9 +316,11 @@ __all__ = [
     'AdapterService',
     'AnalyticsService',
     'DeliveryService',
+    'DeliveryJobRepository',
     'ComposeService',
     'GenerationService',
     'StorageService',
+    'QueueOrchestrator',
     'get_adapter_service',
     'get_delivery_service',
     'get_compose_service',

@@ -10,7 +10,12 @@ from sqlmodel import Session
 
 from backend.delivery.base import delivery_registry
 from backend.services import ServiceContainer
-from backend.services.queue import QueueBackend, RedisQueueBackend, get_queue_backends
+from backend.services.queue import (
+    QueueBackend,
+    QueueOrchestrator,
+    RedisQueueBackend,
+    create_queue_orchestrator,
+)
 from backend.services.recommendations import RecommendationService
 from backend.workers.delivery_runner import DeliveryRunner
 
@@ -38,6 +43,7 @@ class WorkerContext:
     queue_backend: QueueBackend
     fallback_queue_backend: QueueBackend
     primary_queue_backend: Optional[RedisQueueBackend]
+    queue_orchestrator: QueueOrchestrator
     delivery_runner: DeliveryRunner
     recommendation_gpu_available: bool
     _async_runner: AsyncRunner
@@ -45,16 +51,20 @@ class WorkerContext:
     def __init__(
         self,
         *,
-        queue_backend: QueueBackend,
-        fallback_queue_backend: QueueBackend,
-        primary_queue_backend: Optional[RedisQueueBackend] = None,
+        queue_orchestrator: QueueOrchestrator,
         delivery_runner: Optional[DeliveryRunner] = None,
         recommendation_gpu_available: Optional[bool] = None,
         async_runner: Optional[AsyncRunner] = None,
     ) -> None:
+        primary, fallback = queue_orchestrator.get_backends()
+        queue_backend = primary or fallback
+        if queue_backend is None:  # pragma: no cover - defensive guard
+            raise RuntimeError("No queue backend available")
+
         self.queue_backend = queue_backend
-        self.fallback_queue_backend = fallback_queue_backend
-        self.primary_queue_backend = primary_queue_backend
+        self.fallback_queue_backend = fallback
+        self.primary_queue_backend = primary if isinstance(primary, RedisQueueBackend) else None
+        self.queue_orchestrator = queue_orchestrator
         self.delivery_runner = delivery_runner or DeliveryRunner(delivery_registry)
         self.recommendation_gpu_available = (
             recommendation_gpu_available
@@ -67,21 +77,14 @@ class WorkerContext:
     def build_default(
         cls,
         *,
+        queue_orchestrator: Optional[QueueOrchestrator] = None,
         async_runner: Optional[AsyncRunner] = None,
         recommendation_gpu_available: Optional[bool] = None,
     ) -> "WorkerContext":
         """Create a context using the shared queue backend factory."""
 
-        primary, fallback = get_queue_backends()
-
-        queue_backend = primary or fallback
-        if queue_backend is None:  # pragma: no cover - defensive guard
-            raise RuntimeError("No queue backend is available for worker context")
-
         return cls(
-            queue_backend=queue_backend,
-            fallback_queue_backend=fallback,
-            primary_queue_backend=primary if isinstance(primary, RedisQueueBackend) else None,
+            queue_orchestrator=queue_orchestrator or create_queue_orchestrator(),
             recommendation_gpu_available=recommendation_gpu_available,
             async_runner=async_runner,
         )
@@ -107,8 +110,7 @@ class WorkerContext:
 
         return ServiceContainer(
             db_session,
-            queue_backend=self.queue_backend,
-            fallback_queue_backend=self.fallback_queue_backend,
+            queue_orchestrator=self.queue_orchestrator,
             recommendation_gpu_available=self.recommendation_gpu_available,
         )
 

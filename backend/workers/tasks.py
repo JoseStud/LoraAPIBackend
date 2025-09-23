@@ -23,6 +23,7 @@ except Exception:
 
 
 from backend.core.database import get_session_context
+from backend.services.queue import QueueOrchestrator
 from backend.workers.context import AsyncRunner, WorkerContext
 
 # Basic structured-ish logger for worker events
@@ -39,12 +40,14 @@ _worker_context: Optional[WorkerContext] = None
 
 def build_worker_context(
     *,
+    queue_orchestrator: Optional[QueueOrchestrator] = None,
     async_runner: Optional[AsyncRunner] = None,
     recommendation_gpu_available: Optional[bool] = None,
 ) -> WorkerContext:
     """Create a new :class:`WorkerContext` instance."""
 
     return WorkerContext.build_default(
+        queue_orchestrator=queue_orchestrator,
         async_runner=async_runner,
         recommendation_gpu_available=recommendation_gpu_available,
     )

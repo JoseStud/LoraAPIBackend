@@ -10,7 +10,8 @@ from backend.models.adapters import Adapter
 from backend.schemas.adapters import AdapterCreate
 from backend.services.composition import CompositionResult
 from backend.services.deliveries import DeliveryService
-from backend.services.queue import QueueBackend
+from backend.services.delivery_repository import DeliveryJobRepository
+from backend.services.queue import QueueBackend, QueueOrchestrator
 from backend.workers.delivery_runner import DeliveryRunner
 
 
@@ -325,10 +326,14 @@ class TestDeliveryService:
 
         primary = self.DummyQueue()
         fallback = self.DummyQueue()
+        repository = DeliveryJobRepository(db_session)
+        orchestrator = QueueOrchestrator(
+            primary_backend=primary,
+            fallback_backend=fallback,
+        )
         service = DeliveryService(
-            db_session,
-            queue_backend=primary,
-            fallback_queue_backend=fallback,
+            repository,
+            queue_orchestrator=orchestrator,
         )
 
         job = service.schedule_job("prompt", "cli", {"foo": "bar"})
@@ -341,10 +346,14 @@ class TestDeliveryService:
 
         primary = self.DummyQueue(should_fail=True)
         fallback = self.DummyQueue()
+        repository = DeliveryJobRepository(db_session)
+        orchestrator = QueueOrchestrator(
+            primary_backend=primary,
+            fallback_backend=fallback,
+        )
         service = DeliveryService(
-            db_session,
-            queue_backend=primary,
-            fallback_queue_backend=fallback,
+            repository,
+            queue_orchestrator=orchestrator,
         )
 
         job = service.schedule_job("prompt", "cli", {"bar": 1})
@@ -355,7 +364,7 @@ class TestDeliveryService:
     def test_process_delivery_job_success(self, db_session, monkeypatch):
         """Processing a delivery job marks it as succeeded with the result."""
 
-        service = DeliveryService(db_session)
+        service = DeliveryService(DeliveryJobRepository(db_session))
         job = service.create_job("p", "cli", {"key": "value"})
 
         self._override_session(monkeypatch, db_session)
@@ -381,7 +390,7 @@ class TestDeliveryService:
     def test_process_delivery_job_failure_sets_retry(self, db_session, monkeypatch):
         """Failures with retries left set the job to retrying."""
 
-        service = DeliveryService(db_session)
+        service = DeliveryService(DeliveryJobRepository(db_session))
         job = service.create_job("p", "cli", {"key": "value"})
 
         self._override_session(monkeypatch, db_session)
@@ -406,7 +415,7 @@ class TestDeliveryService:
     def test_process_delivery_job_raises_when_requested(self, db_session, monkeypatch):
         """raise_on_error propagates the original exception."""
 
-        service = DeliveryService(db_session)
+        service = DeliveryService(DeliveryJobRepository(db_session))
         job = service.create_job("p", "cli", {})
 
         self._override_session(monkeypatch, db_session)

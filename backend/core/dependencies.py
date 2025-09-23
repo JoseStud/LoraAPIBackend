@@ -5,11 +5,15 @@ from sqlmodel import Session
 
 from backend.core.database import get_session
 from backend.services import ServiceContainer
+from backend.services.delivery_repository import DeliveryJobRepository
+from backend.services.queue import QueueOrchestrator, create_queue_orchestrator
 from backend.services.adapters import AdapterService
 from backend.services.composition import ComposeService
 from backend.services.deliveries import DeliveryService
 from backend.services.archive import ArchiveService
 from backend.services.recommendations import RecommendationService
+
+_QUEUE_ORCHESTRATOR: QueueOrchestrator = create_queue_orchestrator()
 
 
 def get_service_container(
@@ -17,7 +21,12 @@ def get_service_container(
 ) -> ServiceContainer:
     """Return a service container tied to the current database session."""
 
-    return ServiceContainer(db_session)
+    repository = DeliveryJobRepository(db_session)
+    return ServiceContainer(
+        db_session,
+        queue_orchestrator=_QUEUE_ORCHESTRATOR,
+        delivery_repository=repository,
+    )
 
 
 def get_adapter_service(

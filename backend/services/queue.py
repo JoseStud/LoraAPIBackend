@@ -92,51 +92,115 @@ class BackgroundTaskQueueBackend(QueueBackend):
             self._execute(job_id)
 
 
-_primary_queue_backend: Optional["QueueBackend"] = None
-_fallback_queue_backend: Optional["QueueBackend"] = None
-_delivery_runner: Optional[DeliveryRunner] = None
+class QueueOrchestrator:
+    """Coordinate selection and usage of queue backends."""
+
+    def __init__(
+        self,
+        *,
+        primary_backend: Optional[QueueBackend] = None,
+        fallback_backend: Optional[QueueBackend] = None,
+        redis_url_factory: Callable[[], Optional[str]] = lambda: settings.REDIS_URL,
+        delivery_runner_factory: Optional[Callable[[], DeliveryRunner]] = None,
+    ) -> None:
+        self._initial_primary = primary_backend
+        self._initial_fallback = fallback_backend
+        self._primary_backend = primary_backend
+        self._fallback_backend = fallback_backend
+        self._redis_url_factory = redis_url_factory
+        self._delivery_runner_factory = delivery_runner_factory or (
+            lambda: DeliveryRunner(delivery_registry)
+        )
+        self._delivery_runner: Optional[DeliveryRunner] = None
+
+    def get_backends(self) -> PrimaryFallbackQueues:
+        """Return the configured primary and fallback queue backends."""
+
+        primary = self._ensure_primary_backend()
+        fallback = self._ensure_fallback_backend()
+
+        if fallback is None:  # pragma: no cover - defensive guard
+            raise RuntimeError("Fallback queue backend could not be initialized")
+
+        return primary, fallback
+
+    def enqueue_delivery(
+        self,
+        job_id: str,
+        *,
+        background_tasks: Optional[BackgroundTasks] = None,
+        **enqueue_kwargs: Any,
+    ) -> Any:
+        """Enqueue ``job_id`` using the configured queue strategy."""
+
+        primary, fallback = self.get_backends()
+
+        last_error: Optional[Exception] = None
+        if primary is not None:
+            try:
+                return primary.enqueue_delivery(
+                    job_id,
+                    background_tasks=background_tasks,
+                    **enqueue_kwargs,
+                )
+            except Exception as exc:  # pragma: no cover - defensive branch
+                last_error = exc
+
+        try:
+            return fallback.enqueue_delivery(
+                job_id,
+                background_tasks=background_tasks,
+                **enqueue_kwargs,
+            )
+        except Exception:
+            if last_error is not None:
+                raise last_error
+            raise
+
+    def get_delivery_runner(self) -> DeliveryRunner:
+        """Return (and lazily construct) the DeliveryRunner used by the fallback."""
+
+        if self._delivery_runner is None:
+            self._delivery_runner = self._delivery_runner_factory()
+        return self._delivery_runner
+
+    def reset(self) -> None:
+        """Reset cached queue instances (used primarily by tests)."""
+
+        self._primary_backend = self._initial_primary
+        self._fallback_backend = self._initial_fallback
+        self._delivery_runner = None
+
+    def _ensure_primary_backend(self) -> Optional[QueueBackend]:
+        if self._primary_backend is not None:
+            return self._primary_backend
+
+        redis_url = self._redis_url_factory()
+        if redis_url:
+            self._primary_backend = RedisQueueBackend(redis_url)
+
+        return self._primary_backend
+
+    def _ensure_fallback_backend(self) -> Optional[QueueBackend]:
+        if self._fallback_backend is not None:
+            return self._fallback_backend
+
+        runner = self.get_delivery_runner()
+        self._fallback_backend = BackgroundTaskQueueBackend(
+            runner.process_delivery_job
+        )
+        return self._fallback_backend
 
 
-def _get_delivery_runner() -> DeliveryRunner:
-    global _delivery_runner
-    if _delivery_runner is None:
-        _delivery_runner = DeliveryRunner(delivery_registry)
-    return _delivery_runner
+def create_queue_orchestrator(
+    *,
+    redis_url_factory: Callable[[], Optional[str]] = lambda: settings.REDIS_URL,
+    delivery_runner_factory: Optional[Callable[[], DeliveryRunner]] = None,
+) -> QueueOrchestrator:
+    """Factory helper that builds the default :class:`QueueOrchestrator`."""
 
+    return QueueOrchestrator(
+        redis_url_factory=redis_url_factory,
+        delivery_runner_factory=delivery_runner_factory,
+    )
 
-def _build_primary_queue_backend() -> Optional["QueueBackend"]:
-    redis_url = settings.REDIS_URL
-    if redis_url:
-        return RedisQueueBackend(redis_url)
-    return None
-
-
-def _build_fallback_queue_backend() -> "QueueBackend":
-    runner = _get_delivery_runner()
-    return BackgroundTaskQueueBackend(runner.process_delivery_job)
-
-
-def get_queue_backends() -> PrimaryFallbackQueues:
-    """Return the lazily instantiated primary and fallback queue backends."""
-
-    global _primary_queue_backend, _fallback_queue_backend
-
-    if _primary_queue_backend is None:
-        _primary_queue_backend = _build_primary_queue_backend()
-
-    if _fallback_queue_backend is None:
-        _fallback_queue_backend = _build_fallback_queue_backend()
-
-    if _fallback_queue_backend is None:  # pragma: no cover - safety net
-        raise RuntimeError("Fallback queue backend could not be initialized")
-
-    return _primary_queue_backend, _fallback_queue_backend
-
-
-def reset_queue_backends() -> None:
-    """Reset cached queue backend instances (primarily for tests)."""
-
-    global _primary_queue_backend, _fallback_queue_backend, _delivery_runner
-    _primary_queue_backend = None
-    _fallback_queue_backend = None
-    _delivery_runner = None
