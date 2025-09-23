@@ -1,7 +1,7 @@
 """Router for SDNext generation endpoints."""
 
 import json
-from typing import Any, Dict, List
+from typing import Dict, List
 
 import structlog
 
@@ -22,6 +22,7 @@ from backend.schemas import (
 )
 from backend.services import ServiceContainer
 from backend.services.generation import normalize_generation_status
+from backend.services.generation.presenter import build_active_job, build_result
 
 ACTIVE_JOB_STATUSES = {"pending", "running"}
 CANCELLABLE_STATUSES = {"pending", "running"}
@@ -218,6 +219,7 @@ async def list_active_generation_jobs(
 ):
     """Return active generation jobs for frontend queues."""
 
+    coordinator = services.generation_coordinator
     jobs_by_id = {}
     for status in ACTIVE_JOB_STATUSES:
         for job in services.deliveries.list_jobs(status=status, limit=limit):
@@ -229,30 +231,10 @@ async def list_active_generation_jobs(
         reverse=True,
     )
 
-    active_jobs: List[GenerationJobStatus] = []
-    for job in ordered_jobs[:limit]:
-        serialized = services.generation_coordinator.serialize_delivery_job(job)
-        generation_params = serialized["params"]
-        result_payload = serialized["result"]
-
-        active_jobs.append(
-            GenerationJobStatus(
-                id=job.id,
-                jobId=job.id,
-                prompt=generation_params.get("prompt") or job.prompt,
-                status=normalize_generation_status(job.status),
-                progress=serialized["progress"],
-                message=serialized["message"],
-                error=serialized["error"],
-                params=generation_params,
-                created_at=job.created_at,
-                startTime=job.started_at or job.created_at,
-                finished_at=job.finished_at,
-                result=result_payload or None,
-            )
-        )
-
-    return active_jobs
+    return [
+        build_active_job(job, coordinator)
+        for job in ordered_jobs[:limit]
+    ]
 
 
 @router.get("/jobs/{job_id}", response_model=DeliveryWrapper)
@@ -265,14 +247,19 @@ async def get_generation_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # Convert to read model
+    presenter = build_active_job(job, services.generation_coordinator)
+
+    params = services.deliveries.get_job_params(job)
+    if not isinstance(params, dict):
+        params = {}
+
     delivery_read = DeliveryRead(
         id=job.id,
         prompt=job.prompt,
         mode=job.mode,
-        params=services.deliveries.get_job_params(job),
-                status=normalize_generation_status(job.status),
-        result=services.deliveries.get_job_result(job),
+        params=params,
+        status=presenter.status,
+        result=presenter.result,
         created_at=job.created_at,
         started_at=job.started_at,
         finished_at=job.finished_at,
@@ -309,50 +296,5 @@ async def list_generation_results(
     """Return recent completed generation results."""
     jobs = services.deliveries.list_jobs(status="succeeded", limit=limit, offset=offset)
 
-    results: List[GenerationResultSummary] = []
-    for job in jobs:
-        serialized = services.generation_coordinator.serialize_delivery_job(job)
-        generation_params = serialized["params"]
-        result_payload = serialized["result"]
-
-        images = result_payload.get("images")
-        image_url = None
-        if isinstance(images, list) and images:
-            first_image = images[0]
-            if isinstance(first_image, str):
-                image_url = first_image
-
-        thumbnail_url = result_payload.get("thumbnail_url")
-        if not isinstance(thumbnail_url, str):
-            thumbnail_url = None
-
-        generation_info = result_payload.get("generation_info")
-        if isinstance(generation_info, str):
-            try:
-                generation_info = json.loads(generation_info)
-            except (TypeError, json.JSONDecodeError):
-                generation_info = None
-        elif not isinstance(generation_info, dict):
-            generation_info = None
-
-        results.append(
-            GenerationResultSummary(
-                id=job.id,
-                job_id=job.id,
-                prompt=generation_params.get("prompt") or job.prompt,
-                negative_prompt=generation_params.get("negative_prompt"),
-                status=normalize_generation_status(job.status),
-                image_url=image_url,
-                thumbnail_url=thumbnail_url,
-                width=generation_params.get("width"),
-                height=generation_params.get("height"),
-                steps=generation_params.get("steps"),
-                cfg_scale=generation_params.get("cfg_scale"),
-                seed=generation_params.get("seed"),
-                created_at=job.created_at,
-                finished_at=job.finished_at,
-                generation_info=generation_info,
-            )
-        )
-
-    return results
+    coordinator = services.generation_coordinator
+    return [build_result(job, coordinator) for job in jobs]
