@@ -51,6 +51,10 @@ async def compose(
                 return_format=sdnext_config.return_format,
                 background_tasks=background_tasks,
             )
+            await application.generation_coordinator.broadcast_job_started(
+                job.id,
+                generation_params,
+            )
         else:
             job = application.deliveries.schedule_job(
                 composition.prompt,
