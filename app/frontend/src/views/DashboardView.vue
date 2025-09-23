@@ -37,7 +37,7 @@
     </section>
 
     <section class="grid gap-6 xl:grid-cols-2">
-      <ImportExport />
+      <ImportExportContainer />
       <HelloWorld />
     </section>
   </div>
@@ -49,7 +49,7 @@ import { RouterLink } from 'vue-router';
 import GenerationHistory from '@/components/GenerationHistory.vue';
 import GenerationStudio from '@/components/GenerationStudio.vue';
 import HelloWorld from '@/components/HelloWorld.vue';
-import ImportExport from '@/components/ImportExport.vue';
+import ImportExportContainer from '@/components/import-export/ImportExportContainer.vue';
 import JobQueue from '@/components/JobQueue.vue';
 import LoraGallery from '@/components/LoraGallery.vue';
 import PageHeader from '@/components/PageHeader.vue';
