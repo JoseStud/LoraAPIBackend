@@ -76,27 +76,32 @@ const props = defineProps<{
   config: MigrationConfig;
 }>();
 
-const emit = defineEmits<{
-  (e: 'update-config', payload: { key: MigrationConfigKey; value: MigrationConfig[MigrationConfigKey] }): void;
-  (e: 'start-version-migration'): void;
-  (e: 'start-platform-migration'): void;
-}>();
-
-const updateConfig = (key: MigrationConfigKey, value: MigrationConfig[MigrationConfigKey]) => {
-  emit('update-config', { key, value });
+type UpdateConfigEmitter<TConfig> = {
+  <K extends keyof TConfig>(event: 'update-config', key: K, value: TConfig[K]): void;
 };
 
-const onSelectChange = (key: MigrationConfigKey, event: Event) => {
+const emit = defineEmits<
+  UpdateConfigEmitter<MigrationConfig> & {
+    (e: 'start-version-migration'): void;
+    (e: 'start-platform-migration'): void;
+  }
+>();
+
+const updateConfig = <K extends MigrationConfigKey>(key: K, value: MigrationConfig[K]) => {
+  emit('update-config', key, value);
+};
+
+const onSelectChange = <K extends MigrationConfigKey>(key: K, event: Event) => {
   const target = event.target as HTMLSelectElement | null;
   if (target) {
-    updateConfig(key, target.value as MigrationConfig[MigrationConfigKey]);
+    updateConfig(key, target.value as MigrationConfig[K]);
   }
 };
 
-const onInputChange = (key: MigrationConfigKey, event: Event) => {
+const onInputChange = <K extends MigrationConfigKey>(key: K, event: Event) => {
   const target = event.target as HTMLInputElement | null;
   if (target) {
-    updateConfig(key, target.value as MigrationConfig[MigrationConfigKey]);
+    updateConfig(key, target.value as MigrationConfig[K]);
   }
 };
 </script>

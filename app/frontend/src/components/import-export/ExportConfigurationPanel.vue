@@ -307,50 +307,55 @@ const props = defineProps<{
   isExporting: boolean;
 }>();
 
-const emit = defineEmits<{
-  (e: 'update-config', payload: { key: ExportConfigKey; value: ExportConfig[ExportConfigKey] }): void;
-  (e: 'validate'): void;
-  (e: 'preview'): void;
-  (e: 'start'): void;
-}>();
-
-const updateConfig = (key: ExportConfigKey, value: ExportConfig[ExportConfigKey]) => {
-  emit('update-config', { key, value });
+type UpdateConfigEmitter<TConfig> = {
+  <K extends keyof TConfig>(event: 'update-config', key: K, value: TConfig[K]): void;
 };
 
-const onCheckboxChange = (key: ExportConfigKey, event: Event) => {
+const emit = defineEmits<
+  UpdateConfigEmitter<ExportConfig> & {
+    (e: 'validate'): void;
+    (e: 'preview'): void;
+    (e: 'start'): void;
+  }
+>();
+
+const updateConfig = <K extends ExportConfigKey>(key: K, value: ExportConfig[K]) => {
+  emit('update-config', key, value);
+};
+
+const onCheckboxChange = <K extends ExportConfigKey>(key: K, event: Event) => {
   const target = event.target as HTMLInputElement | null;
   if (target) {
-    updateConfig(key, target.checked as ExportConfig[ExportConfigKey]);
+    updateConfig(key, target.checked as ExportConfig[K]);
   }
 };
 
-const onRadioChange = (key: ExportConfigKey, event: Event) => {
+const onRadioChange = <K extends ExportConfigKey>(key: K, event: Event) => {
   const target = event.target as HTMLInputElement | null;
   if (target) {
-    updateConfig(key, target.value as ExportConfig[ExportConfigKey]);
+    updateConfig(key, target.value as ExportConfig[K]);
   }
 };
 
-const onSelectChange = (key: ExportConfigKey, event: Event) => {
+const onSelectChange = <K extends ExportConfigKey>(key: K, event: Event) => {
   const target = event.target as HTMLSelectElement | null;
   if (target) {
-    updateConfig(key, target.value as ExportConfig[ExportConfigKey]);
+    updateConfig(key, target.value as ExportConfig[K]);
   }
 };
 
-const onInputChange = (key: ExportConfigKey, event: Event) => {
+const onInputChange = <K extends ExportConfigKey>(key: K, event: Event) => {
   const target = event.target as HTMLInputElement | null;
   if (target) {
-    updateConfig(key, target.value as ExportConfig[ExportConfigKey]);
+    updateConfig(key, target.value as ExportConfig[K]);
   }
 };
 
-const onNumberInput = (key: ExportConfigKey, event: Event) => {
+const onNumberInput = <K extends ExportConfigKey>(key: K, event: Event) => {
   const target = event.target as HTMLInputElement | null;
   if (target) {
     const parsed = Number(target.value);
-    updateConfig(key, (Number.isNaN(parsed) ? 0 : parsed) as ExportConfig[ExportConfigKey]);
+    updateConfig(key, (Number.isNaN(parsed) ? 0 : parsed) as ExportConfig[K]);
   }
 };
 </script>

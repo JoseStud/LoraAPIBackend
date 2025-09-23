@@ -220,37 +220,42 @@ const props = defineProps<{
   getStatusClasses: (status: string) => string;
 }>();
 
-const emit = defineEmits<{
-  (e: 'update-config', payload: { key: ImportConfigKey; value: ImportConfig[ImportConfigKey] }): void;
-  (e: 'add-files', payload: readonly File[]): void;
-  (e: 'remove-file', payload: File): void;
-  (e: 'analyze'): void;
-  (e: 'validate'): void;
-  (e: 'start'): void;
-}>();
-
-const updateConfig = (key: ImportConfigKey, value: ImportConfig[ImportConfigKey]) => {
-  emit('update-config', { key, value });
+type UpdateConfigEmitter<TConfig> = {
+  <K extends keyof TConfig>(event: 'update-config', key: K, value: TConfig[K]): void;
 };
 
-const onCheckboxChange = (key: ImportConfigKey, event: Event) => {
+const emit = defineEmits<
+  UpdateConfigEmitter<ImportConfig> & {
+    (e: 'add-files', payload: readonly File[]): void;
+    (e: 'remove-file', payload: File): void;
+    (e: 'analyze'): void;
+    (e: 'validate'): void;
+    (e: 'start'): void;
+  }
+>();
+
+const updateConfig = <K extends ImportConfigKey>(key: K, value: ImportConfig[K]) => {
+  emit('update-config', key, value);
+};
+
+const onCheckboxChange = <K extends ImportConfigKey>(key: K, event: Event) => {
   const target = event.target as HTMLInputElement | null;
   if (target) {
-    updateConfig(key, target.checked as ImportConfig[ImportConfigKey]);
+    updateConfig(key, target.checked as ImportConfig[K]);
   }
 };
 
-const onSelectChange = (key: ImportConfigKey, event: Event) => {
+const onSelectChange = <K extends ImportConfigKey>(key: K, event: Event) => {
   const target = event.target as HTMLSelectElement | null;
   if (target) {
-    updateConfig(key, target.value as ImportConfig[ImportConfigKey]);
+    updateConfig(key, target.value as ImportConfig[K]);
   }
 };
 
-const onInputChange = (key: ImportConfigKey, event: Event) => {
+const onInputChange = <K extends ImportConfigKey>(key: K, event: Event) => {
   const target = event.target as HTMLInputElement | null;
   if (target) {
-    updateConfig(key, target.value as ImportConfig[ImportConfigKey]);
+    updateConfig(key, target.value as ImportConfig[K]);
   }
 };
 
