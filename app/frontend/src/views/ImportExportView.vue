@@ -10,8 +10,8 @@
         </RouterLink>
       </template>
     </PageHeader>
-    <ImportExportContainer />
-    <div class="grid gap-6 xl:grid-cols-2">
+    <LazyImportExportContainer @initialized="handleImportExportInitialized" />
+    <div v-if="arePanelsReady" class="grid gap-6 xl:grid-cols-2">
       <JobQueue :show-clear-completed="true" />
       <SystemStatusPanel />
     </div>
@@ -19,14 +19,24 @@
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent } from 'vue';
+import { defineAsyncComponent, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 
 import JobQueue from '@/components/JobQueue.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import SystemStatusPanel from '@/components/SystemStatusPanel.vue';
+import ImportExportSkeleton from '@/components/import-export/ImportExportSkeleton.vue';
 
-const ImportExportContainer = defineAsyncComponent(() =>
-  import('@/components/import-export/ImportExportContainer.vue')
-);
+const LazyImportExportContainer = defineAsyncComponent({
+  loader: () => import('@/components/import-export/ImportExportContainer.vue'),
+  loadingComponent: ImportExportSkeleton,
+  delay: 0,
+  suspensible: false
+});
+
+const arePanelsReady = ref(false);
+
+const handleImportExportInitialized = () => {
+  arePanelsReady.value = true;
+};
 </script>

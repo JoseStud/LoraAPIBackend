@@ -5,7 +5,7 @@
 
 import { test, expect } from '@playwright/test';
 
-import { waitForJobQueueBootstrap } from './utils/waits.js';
+import { waitForImportExportHydration, waitForJobQueueBootstrap } from './utils/waits.js';
 
 test.describe('LoRA Manager E2E Tests', () => {
     test.beforeEach(async ({ page }) => {
@@ -520,6 +520,7 @@ test.describe('LoRA Manager E2E Tests', () => {
     test.describe('Import/Export Functionality', () => {
         test('should access import/export interface', async ({ page }) => {
             await page.goto('/import-export');
+            await waitForImportExportHydration(page);
             await waitForJobQueueBootstrap(page);
 
             // Check interface loaded
@@ -534,6 +535,7 @@ test.describe('LoRA Manager E2E Tests', () => {
         
         test('should configure data export', async ({ page }) => {
             await page.goto('/import-export');
+            await waitForImportExportHydration(page);
             await waitForJobQueueBootstrap(page);
 
             // Export tab should be active
@@ -556,6 +558,7 @@ test.describe('LoRA Manager E2E Tests', () => {
         
         test('should handle file import', async ({ page }) => {
             await page.goto('/import-export');
+            await waitForImportExportHydration(page);
             await waitForJobQueueBootstrap(page);
 
             // Switch to import tab
@@ -581,6 +584,7 @@ test.describe('LoRA Manager E2E Tests', () => {
         
         test('should manage backups', async ({ page }) => {
             await page.goto('/import-export');
+            await waitForImportExportHydration(page);
             await waitForJobQueueBootstrap(page);
 
             // Switch to backup tab
