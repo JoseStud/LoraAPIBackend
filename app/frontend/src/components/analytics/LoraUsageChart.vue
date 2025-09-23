@@ -48,11 +48,16 @@ const applyDataToChart = () => {
 };
 
 const createChart = () => {
-  if (chartRef.value || !canvasRef.value) {
+  if (chartRef.value) {
     return;
   }
 
-  chartRef.value = new Chart(canvasRef.value, {
+  const canvas = canvasRef.value;
+  if (!canvas || !(canvas instanceof HTMLCanvasElement)) {
+    return;
+  }
+
+  chartRef.value = new Chart(canvas, {
     type: 'doughnut',
     data: buildChartData(),
     options: createDoughnutChartOptions(),

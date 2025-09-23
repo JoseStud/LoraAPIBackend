@@ -212,8 +212,8 @@ type ImportConfigKey = keyof ImportConfig;
 
 const props = defineProps<{
   config: ImportConfig;
-  files: File[];
-  preview: ImportPreviewItem[];
+  files: readonly File[];
+  preview: readonly ImportPreviewItem[];
   hasEncryptedFiles: boolean;
   isImporting: boolean;
   formatFileSize: (bytes: number) => string;
@@ -222,7 +222,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update-config', payload: { key: ImportConfigKey; value: ImportConfig[ImportConfigKey] }): void;
-  (e: 'add-files', payload: File[]): void;
+  (e: 'add-files', payload: readonly File[]): void;
   (e: 'remove-file', payload: File): void;
   (e: 'analyze'): void;
   (e: 'validate'): void;

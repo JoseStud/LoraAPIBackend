@@ -1,4 +1,4 @@
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, type ComputedRef } from 'vue';
 
 import { ensureData, requestJson } from '@/utils/api';
 import type { NotifyFn, ProgressCallbacks } from './useExportWorkflow';
@@ -29,10 +29,10 @@ interface UseImportWorkflowOptions {
 
 export interface UseImportWorkflow {
   importConfig: ImportConfig;
-  importFiles: Readonly<File[]>;
-  importPreview: Readonly<ImportPreviewItem[]>;
-  hasEncryptedFiles: Readonly<boolean>;
-  isImporting: Readonly<boolean>;
+  importFiles: ComputedRef<readonly File[]>;
+  importPreview: ComputedRef<readonly ImportPreviewItem[]>;
+  hasEncryptedFiles: ComputedRef<boolean>;
+  isImporting: ComputedRef<boolean>;
   updateConfig: <K extends keyof ImportConfig>(key: K, value: ImportConfig[K]) => void;
   addFiles: (files: File[]) => void;
   removeFile: (file: File) => void;

@@ -53,12 +53,17 @@ const applyDataToChart = () => {
 };
 
 const createChart = () => {
-  if (chartRef.value || !canvasRef.value) {
+  if (chartRef.value) {
+    return;
+  }
+
+  const canvas = canvasRef.value;
+  if (!canvas || !(canvas instanceof HTMLCanvasElement)) {
     return;
   }
 
   const options = createBaseTimeSeriesOptions();
-  chartRef.value = new Chart(canvasRef.value, {
+  chartRef.value = new Chart(canvas, {
     type: 'line',
     data: buildChartData(),
     options,

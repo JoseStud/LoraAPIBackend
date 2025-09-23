@@ -95,7 +95,7 @@
 import type { BackupEntry } from '@/composables/useBackupWorkflow';
 
 const props = defineProps<{
-  history: BackupEntry[];
+  history: readonly BackupEntry[];
   formatFileSize: (bytes: number) => string;
   formatDate: (input: string) => string;
 }>();
