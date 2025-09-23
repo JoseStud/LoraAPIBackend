@@ -324,7 +324,9 @@ __all__ = [
     "PersistedJobState",
     "ProgressCallback",
 ]
-def _normalize_generation_status(status: Optional[str]) -> str:
-    from backend.services.generation import normalize_generation_status as _normalize
 
-    return _normalize(status)
+
+def _normalize_generation_status(status: Optional[str]) -> str:
+    from backend.services.generation.statuses import normalize_status
+
+    return normalize_status(status).value

@@ -1,33 +1,20 @@
 import type { NormalizedJobStatus } from '@/types/app';
-
-const STATUS_MAP: Record<string, NormalizedJobStatus> = {
-  queued: 'queued',
-  pending: 'queued',
-  running: 'processing',
-  retrying: 'processing',
-  processing: 'processing',
-  starting: 'processing',
-  succeeded: 'completed',
-  completed: 'completed',
-  failed: 'failed',
-  cancelled: 'failed',
-};
-
-const DEFAULT_STATUS: NormalizedJobStatus = 'processing';
+import {
+  DEFAULT_NORMALIZED_JOB_STATUS,
+  JOB_STATUS_NORMALIZATION_MAP,
+  NORMALIZED_JOB_STATUSES,
+} from '@/constants/generated/jobStatuses';
 
 export const normalizeJobStatus = (status?: string | null): NormalizedJobStatus => {
   if (!status) {
-    return DEFAULT_STATUS;
+    return DEFAULT_NORMALIZED_JOB_STATUS;
   }
 
   const normalizedKey = status.toLowerCase();
-  return STATUS_MAP[normalizedKey] ?? DEFAULT_STATUS;
+  return (
+    JOB_STATUS_NORMALIZATION_MAP[normalizedKey] ?? DEFAULT_NORMALIZED_JOB_STATUS
+  );
 };
 
-export const NORMALIZED_JOB_STATUSES: readonly NormalizedJobStatus[] = [
-  'queued',
-  'processing',
-  'completed',
-  'failed',
-];
+export { NORMALIZED_JOB_STATUSES };
 
