@@ -132,10 +132,12 @@
             <p class="text-sm text-gray-600">Number of generations over time</p>
           </div>
           <div class="card-body">
-            <canvas ref="generationVolumeChart" width="400" height="200"></canvas>
+            <div class="h-64">
+              <GenerationVolumeChart :data="chartData.generationVolume" />
+            </div>
           </div>
         </div>
-        
+
         <!-- Generation Performance -->
         <div class="card">
           <div class="card-header">
@@ -143,10 +145,12 @@
             <p class="text-sm text-gray-600">Average generation time trends</p>
           </div>
           <div class="card-body">
-            <canvas ref="performanceChart" width="400" height="200"></canvas>
+            <div class="h-64">
+              <PerformanceTrendChart :data="chartData.performance" />
+            </div>
           </div>
         </div>
-        
+
         <!-- LoRA Usage Distribution -->
         <div class="card">
           <div class="card-header">
@@ -154,10 +158,12 @@
             <p class="text-sm text-gray-600">Most frequently used LoRAs</p>
           </div>
           <div class="card-body">
-            <canvas ref="loraUsageChart" width="400" height="200"></canvas>
+            <div class="h-64">
+              <LoraUsageChart :data="chartData.loraUsage" />
+            </div>
           </div>
         </div>
-        
+
         <!-- System Resource Usage -->
         <div class="card">
           <div class="card-header">
@@ -165,7 +171,9 @@
             <p class="text-sm text-gray-600">CPU, Memory, and GPU utilization</p>
           </div>
           <div class="card-body">
-            <canvas ref="resourceUsageChart" width="400" height="200"></canvas>
+            <div class="h-64">
+              <ResourceUsageChart :data="chartData.resourceUsage" />
+            </div>
           </div>
         </div>
       </div>
@@ -335,18 +343,27 @@
 </template>
 
 <script lang="ts">
-import { nextTick, onMounted, onUnmounted, ref } from 'vue';
-import Chart from 'chart.js/auto';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 import { useNotifications } from '@/composables/useNotifications';
 import { usePerformanceAnalytics } from '@/composables/usePerformanceAnalytics';
 import { downloadFile } from '@/utils/browser';
 
+import GenerationVolumeChart from '@/components/analytics/GenerationVolumeChart.vue';
+import LoraUsageChart from '@/components/analytics/LoraUsageChart.vue';
+import PerformanceTrendChart from '@/components/analytics/PerformanceTrendChart.vue';
+import ResourceUsageChart from '@/components/analytics/ResourceUsageChart.vue';
+
 import type { PerformanceInsightEntry } from '@/types';
-import type { Chart as ChartJS, ChartItem } from 'chart.js';
 
 export default {
   name: 'PerformanceAnalytics',
+  components: {
+    GenerationVolumeChart,
+    LoraUsageChart,
+    PerformanceTrendChart,
+    ResourceUsageChart,
+  },
   setup() {
     // Use the performance analytics composable
     const {
@@ -369,20 +386,10 @@ export default {
 
     // Component state
     const isInitialized = ref(false);
-    const charts = ref<Record<string, ChartJS | undefined>>({});
-
-    // Template refs for chart canvases
-    const generationVolumeChart = ref<HTMLCanvasElement | null>(null);
-    const performanceChart = ref<HTMLCanvasElement | null>(null);
-    const loraUsageChart = ref<HTMLCanvasElement | null>(null);
-    const resourceUsageChart = ref<HTMLCanvasElement | null>(null);
-
     // Initialize component
     async function init() {
       try {
         await loadAllData();
-        await nextTick(); // Wait for DOM to update
-        initializeCharts();
         isInitialized.value = true;
       } catch (error) {
         console.error('Failed to initialize performance analytics:', error);
@@ -390,241 +397,9 @@ export default {
       }
     }
 
-    // Chart initialization using Chart.js module
-    function initializeCharts() {
-      try {
-        // Generation Volume Chart
-        if (generationVolumeChart.value) {
-          charts.value.volume = new Chart(generationVolumeChart.value as ChartItem, {
-            type: 'line',
-            data: {
-              labels: [],
-              datasets: [{
-                label: 'Generations',
-                data: [],
-                borderColor: 'rgb(59, 130, 246)',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                tension: 0.1,
-                fill: true
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  display: false
-                }
-              },
-              scales: {
-                y: {
-                  beginAtZero: true
-                }
-              }
-            }
-          });
-        }
-
-        // Performance Chart
-        if (performanceChart.value) {
-          charts.value.performance = new Chart(performanceChart.value as ChartItem, {
-            type: 'line',
-            data: {
-              labels: [],
-              datasets: [
-                {
-                  label: 'Avg Time (s)',
-                  data: [],
-                  borderColor: 'rgb(16, 185, 129)',
-                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                  tension: 0.1,
-                  yAxisID: 'y'
-                },
-                {
-                  label: 'Success Rate (%)',
-                  data: [],
-                  borderColor: 'rgb(139, 92, 246)',
-                  backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                  tension: 0.1,
-                  yAxisID: 'y1'
-                }
-              ]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              scales: {
-                y: {
-                  type: 'linear',
-                  display: true,
-                  position: 'left'
-                },
-                y1: {
-                  type: 'linear',
-                  display: true,
-                  position: 'right',
-                  grid: {
-                    drawOnChartArea: false
-                  }
-                }
-              }
-            }
-          });
-        }
-
-        // LoRA Usage Chart
-        if (loraUsageChart.value) {
-          charts.value.loraUsage = new Chart(loraUsageChart.value as ChartItem, {
-            type: 'doughnut',
-            data: {
-              labels: [],
-              datasets: [{
-                data: [],
-                backgroundColor: [
-                  'rgb(59, 130, 246)',
-                  'rgb(16, 185, 129)',
-                  'rgb(139, 92, 246)',
-                  'rgb(245, 158, 11)',
-                  'rgb(239, 68, 68)',
-                  'rgb(156, 163, 175)',
-                  'rgb(34, 197, 94)',
-                  'rgb(168, 85, 247)',
-                  'rgb(251, 146, 60)',
-                  'rgb(14, 165, 233)'
-                ]
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  position: 'right'
-                }
-              }
-            }
-          });
-        }
-
-        // Resource Usage Chart
-        if (resourceUsageChart.value) {
-          charts.value.resourceUsage = new Chart(resourceUsageChart.value as ChartItem, {
-            type: 'line',
-            data: {
-              labels: [],
-              datasets: [
-                {
-                  label: 'CPU %',
-                  data: [],
-                  borderColor: 'rgb(59, 130, 246)',
-                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                  tension: 0.1
-                },
-                {
-                  label: 'Memory %',
-                  data: [],
-                  borderColor: 'rgb(16, 185, 129)',
-                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                  tension: 0.1
-                },
-                {
-                  label: 'GPU %',
-                  data: [],
-                  borderColor: 'rgb(239, 68, 68)',
-                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                  tension: 0.1
-                }
-              ]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  max: 100
-                }
-              }
-            }
-          });
-        }
-
-        // Update charts with current data
-        updateCharts();
-      } catch (error) {
-        console.error('Error initializing charts:', error);
-      }
-    }
-
-    // Update charts with data
-    function updateCharts() {
-      // Update generation volume chart
-      if (charts.value.volume && chartData.value.generationVolume) {
-        const labels = chartData.value.generationVolume.map(item => 
-          new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        );
-        const data = chartData.value.generationVolume.map(item => item.count);
-        
-        charts.value.volume.data.labels = labels;
-        charts.value.volume.data.datasets[0].data = data;
-        charts.value.volume.update();
-      }
-
-      // Update performance chart
-      if (charts.value.performance && chartData.value.performance) {
-        const labels = chartData.value.performance.map(item => 
-          new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        );
-        const timeData = chartData.value.performance.map(item => item.avg_time);
-        const successData = chartData.value.performance.map(item => item.success_rate);
-        
-        charts.value.performance.data.labels = labels;
-        if (charts.value.performance?.data?.datasets?.[0]) {
-          charts.value.performance.data.datasets[0].data = timeData;
-        }
-        if (charts.value.performance?.data?.datasets?.[1]) {
-          charts.value.performance.data.datasets[1].data = successData;
-        }
-        charts.value.performance.update();
-      }
-
-      // Update LoRA usage chart
-      if (charts.value.loraUsage && chartData.value.loraUsage) {
-        const labels = chartData.value.loraUsage.map(item => item.name);
-        const data = chartData.value.loraUsage.map(item => item.usage_count);
-        
-        charts.value.loraUsage.data.labels = labels;
-        charts.value.loraUsage.data.datasets[0].data = data;
-        charts.value.loraUsage.update();
-      }
-
-      // Update resource usage chart
-      if (charts.value.resourceUsage && chartData.value.resourceUsage) {
-        const labels = chartData.value.resourceUsage.map(item => 
-          new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        );
-        const cpuData = chartData.value.resourceUsage.map(item => item.cpu_percent);
-        const memoryData = chartData.value.resourceUsage.map(item => item.memory_percent);
-        const gpuData = chartData.value.resourceUsage.map(item => item.gpu_percent);
-        
-        charts.value.resourceUsage.data.labels = labels;
-        if (charts.value.resourceUsage?.data?.datasets?.[0]) {
-          charts.value.resourceUsage.data.datasets[0].data = cpuData;
-        }
-        if (charts.value.resourceUsage?.data?.datasets?.[1]) {
-          charts.value.resourceUsage.data.datasets[1].data = memoryData;
-        }
-        if (charts.value.resourceUsage?.data?.datasets?.[2]) {
-          charts.value.resourceUsage.data.datasets[2].data = gpuData;
-        }
-        charts.value.resourceUsage.update();
-      }
-    }
-
     // Event handlers
     async function handleTimeRangeChange() {
       await loadAllData();
-      updateCharts();
     }
 
     function handleAutoRefreshToggle() {
@@ -633,7 +408,6 @@ export default {
 
     async function refreshData() {
       await loadAllData();
-      updateCharts();
       notifications.showSuccess('Data refreshed successfully');
     }
 
@@ -703,12 +477,6 @@ export default {
 
     onUnmounted(() => {
       cleanup();
-      // Destroy charts
-      Object.values(charts.value).forEach((chart) => {
-        if (chart) {
-          chart.destroy();
-        }
-      });
     });
 
     return {
@@ -722,12 +490,7 @@ export default {
       performanceInsights,
       chartData,
       isLoading,
-      // Template refs
-      generationVolumeChart,
-      performanceChart,
-      loraUsageChart,
-      resourceUsageChart,
-      
+
       // Methods
       handleTimeRangeChange,
       handleAutoRefreshToggle,
