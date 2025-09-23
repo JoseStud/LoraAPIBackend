@@ -10,32 +10,41 @@ from backend.services.storage import get_storage_service
 from .adapters import AdapterService
 from .analytics import AnalyticsService, InsightGenerator, TimeSeriesBuilder
 from .analytics_repository import AnalyticsRepository
-from .archive import ArchiveExportPlanner, ArchiveImportExecutor, ArchiveService
+from .archive import ArchiveService
 from .composition import ComposeService
 from .deliveries import DeliveryService
 from .delivery_repository import DeliveryJobRepository
 from .generation import GenerationCoordinator, GenerationService
+from .providers import (
+    make_adapter_service,
+    make_analytics_service,
+    make_archive_service,
+    make_compose_service,
+    make_delivery_service,
+    make_generation_coordinator,
+    make_generation_service,
+    make_recommendation_service,
+    make_storage_service,
+    make_system_service,
+    make_websocket_service,
+)
 from .queue import QueueOrchestrator, create_queue_orchestrator
 from .storage import StorageService
-from .recommendations import (
-    EmbeddingCoordinator,
-    EmbeddingManager,
-    FeedbackManager,
-    LoRAEmbeddingRepository,
-    RecommendationConfig,
-    RecommendationMetricsTracker,
-    RecommendationModelBootstrap,
-    RecommendationPersistenceManager,
-    RecommendationPersistenceService,
-    RecommendationRepository,
-    RecommendationService,
-    RecommendationServiceBuilder,
-    SimilarLoraUseCase,
-    StatsReporter,
-    PromptRecommendationUseCase,
-)
+from .recommendations import RecommendationService
 from .system import SystemService
 from .websocket import WebSocketService, websocket_service
+
+
+_GPU_AVAILABLE: Optional[bool] = None
+
+
+def _get_recommendation_gpu_available() -> bool:
+    """Detect and cache GPU availability for recommendation services."""
+
+    global _GPU_AVAILABLE
+    if _GPU_AVAILABLE is None:
+        _GPU_AVAILABLE = RecommendationService.is_gpu_available()
+    return _GPU_AVAILABLE
 
 
 def file_exists(path: str) -> bool:
@@ -56,7 +65,19 @@ class ServiceContainer:
         *,
         queue_orchestrator: Optional[QueueOrchestrator] = None,
         delivery_repository: Optional[DeliveryJobRepository] = None,
+        analytics_repository: Optional[AnalyticsRepository] = None,
         recommendation_gpu_available: Optional[bool] = None,
+        storage_provider=make_storage_service,
+        adapter_provider=make_adapter_service,
+        archive_provider=make_archive_service,
+        delivery_provider=make_delivery_service,
+        compose_provider=make_compose_service,
+        generation_provider=make_generation_service,
+        generation_coordinator_provider=make_generation_coordinator,
+        websocket_provider=None,
+        system_provider=make_system_service,
+        analytics_provider=make_analytics_service,
+        recommendation_provider=make_recommendation_service,
     ):
         """Initialize service container.
 
@@ -78,24 +99,43 @@ class ServiceContainer:
         self._archive_service: Optional[ArchiveService] = None
         self._analytics_service: Optional[AnalyticsService] = None
         self._recommendation_service: Optional[RecommendationService] = None
+        self._analytics_repository = analytics_repository
         self._recommendation_gpu_available: Optional[bool] = recommendation_gpu_available
         self._queue_orchestrator = queue_orchestrator
         self._delivery_repository = delivery_repository
-    
+        self._storage_provider = storage_provider
+        self._adapter_provider = adapter_provider
+        self._archive_provider = archive_provider
+        self._delivery_provider = delivery_provider
+        self._compose_provider = compose_provider
+        self._generation_provider = generation_provider
+        self._generation_coordinator_provider = generation_coordinator_provider
+        self._websocket_provider = (
+            websocket_provider
+            if websocket_provider is not None
+            else (lambda: make_websocket_service(service=websocket_service))
+        )
+        self._system_provider = system_provider
+        self._analytics_provider = analytics_provider
+        self._recommendation_provider = recommendation_provider
+
     @property
     def storage(self) -> StorageService:
         """Get storage service instance."""
         if self._storage_service is None:
-            self._storage_service = get_storage_service()
+            self._storage_service = self._storage_provider()
         return self._storage_service
     
     @property
     def adapters(self) -> AdapterService:
         """Get adapter service instance."""
+        if self.db_session is None:
+            raise ValueError("AdapterService requires an active database session")
+
         if self._adapter_service is None:
-            self._adapter_service = AdapterService(
-                self.db_session,
-                self.storage.backend,
+            self._adapter_service = self._adapter_provider(
+                db_session=self.db_session,
+                storage_service=self.storage,
             )
         return self._adapter_service
 
@@ -104,15 +144,9 @@ class ServiceContainer:
         """Get archive service instance."""
 
         if self._archive_service is None:
-            adapter_service = self.adapters
-            storage_service = self.storage
-            planner = ArchiveExportPlanner(adapter_service, storage_service)
-            executor = ArchiveImportExecutor(adapter_service)
-            self._archive_service = ArchiveService(
-                adapter_service,
-                storage_service,
-                planner=planner,
-                executor=executor,
+            self._archive_service = self._archive_provider(
+                self.adapters,
+                self.storage,
             )
         return self._archive_service
     
@@ -122,14 +156,13 @@ class ServiceContainer:
         if self.db_session is None:
             raise ValueError("DeliveryService requires an active database session")
 
+        if self._delivery_repository is None:
+            raise ValueError("DeliveryService requires a delivery repository")
+        if self._queue_orchestrator is None:
+            raise ValueError("DeliveryService requires a queue orchestrator")
+
         if self._delivery_service is None:
-            if self._delivery_repository is None:
-                self._delivery_repository = DeliveryJobRepository(self.db_session)
-
-            if self._queue_orchestrator is None:
-                self._queue_orchestrator = create_queue_orchestrator()
-
-            self._delivery_service = DeliveryService(
+            self._delivery_service = self._delivery_provider(
                 self._delivery_repository,
                 queue_orchestrator=self._queue_orchestrator,
             )
@@ -139,14 +172,14 @@ class ServiceContainer:
     def compose(self) -> ComposeService:
         """Get compose service instance."""
         if self._compose_service is None:
-            self._compose_service = ComposeService()
+            self._compose_service = self._compose_provider()
         return self._compose_service
     
     @property
     def generation(self) -> GenerationService:
         """Get generation service instance."""
         if self._generation_service is None:
-            self._generation_service = GenerationService()
+            self._generation_service = self._generation_provider()
         return self._generation_service
 
     @property
@@ -154,7 +187,7 @@ class ServiceContainer:
         """Get generation coordinator helper."""
 
         if self._generation_coordinator is None:
-            self._generation_coordinator = GenerationCoordinator(
+            self._generation_coordinator = self._generation_coordinator_provider(
                 self.deliveries,
                 self.websocket,
                 self.generation,
@@ -165,7 +198,7 @@ class ServiceContainer:
     def websocket(self) -> WebSocketService:
         """Get WebSocket service instance."""
         if self._websocket_service is None:
-            self._websocket_service = websocket_service
+            self._websocket_service = self._websocket_provider()
         return self._websocket_service
 
     @property
@@ -173,7 +206,7 @@ class ServiceContainer:
         """Get system monitoring service instance."""
 
         if self._system_service is None:
-            self._system_service = SystemService(self.deliveries)
+            self._system_service = self._system_provider(self.deliveries)
         return self._system_service
 
     @property
@@ -183,13 +216,13 @@ class ServiceContainer:
         if self.db_session is None:
             raise ValueError("AnalyticsService requires an active database session")
 
+        if self._analytics_repository is None:
+            raise ValueError("AnalyticsService requires an analytics repository")
+
         if self._analytics_service is None:
-            repository = AnalyticsRepository(self.db_session)
-            self._analytics_service = AnalyticsService(
+            self._analytics_service = self._analytics_provider(
                 self.db_session,
-                repository=repository,
-                time_series_builder=TimeSeriesBuilder(),
-                insight_generator=InsightGenerator(),
+                repository=self._analytics_repository,
             )
         return self._analytics_service
 
@@ -201,64 +234,14 @@ class ServiceContainer:
             raise ValueError("RecommendationService requires an active database session")
 
         if self._recommendation_gpu_available is None:
-            self._recommendation_gpu_available = (
-                RecommendationModelBootstrap.is_gpu_available()
+            raise ValueError(
+                "RecommendationService requires an explicit recommendation_gpu_available flag"
             )
 
         if self._recommendation_service is None:
-            model_bootstrap = RecommendationModelBootstrap(
-                gpu_enabled=self._recommendation_gpu_available,
-            )
-            model_registry = model_bootstrap.get_model_registry()
-
-            embedding_repository = LoRAEmbeddingRepository(self.db_session)
-            embedding_manager = EmbeddingManager(
-                embedding_repository,
-                model_registry,
-            )
-            repository = RecommendationRepository(self.db_session)
-            persistence_manager = RecommendationPersistenceManager(
-                embedding_manager,
-                model_registry.get_recommendation_engine,
-            )
-            persistence_service = RecommendationPersistenceService(persistence_manager)
-            metrics_tracker = RecommendationMetricsTracker()
-            config = RecommendationConfig(persistence_service)
-            similar_use_case = SimilarLoraUseCase(
-                repository=repository,
-                embedding_workflow=embedding_manager,
-                engine_provider=model_registry.get_recommendation_engine,
-                metrics=metrics_tracker,
-            )
-            prompt_use_case = PromptRecommendationUseCase(
-                repository=repository,
-                embedder_provider=model_registry.get_semantic_embedder,
-                metrics=metrics_tracker,
-                device=model_bootstrap.device,
-            )
-
-            embedding_coordinator = EmbeddingCoordinator(
-                bootstrap=model_bootstrap,
-                embedding_workflow=embedding_manager,
-                persistence_service=persistence_service,
-            )
-            feedback_manager = FeedbackManager(repository)
-            stats_reporter = StatsReporter(
-                metrics_tracker=metrics_tracker,
-                repository=repository,
-            )
-
-            self._recommendation_service = (
-                RecommendationServiceBuilder()
-                .with_components(
-                    embedding_coordinator=embedding_coordinator,
-                    feedback_manager=feedback_manager,
-                    stats_reporter=stats_reporter,
-                    similar_lora_use_case=similar_use_case,
-                    prompt_recommendation_use_case=prompt_use_case,
-                    config=config,
-                )
-                .build()
+            self._recommendation_service = self._recommendation_provider(
+                self.db_session,
+                gpu_available=self._recommendation_gpu_available,
             )
 
         return self._recommendation_service
@@ -267,7 +250,7 @@ class ServiceContainer:
 # Factory function for creating service containers
 def create_service_container(db_session: Session) -> ServiceContainer:
     """Create a service container with the given database session.
-    
+
     Args:
         db_session: Database session
         
@@ -275,56 +258,70 @@ def create_service_container(db_session: Session) -> ServiceContainer:
         ServiceContainer instance
 
     """
-    return ServiceContainer(db_session)
+    delivery_repository = DeliveryJobRepository(db_session)
+    analytics_repository = AnalyticsRepository(db_session)
+    queue_orchestrator = create_queue_orchestrator()
+
+    return ServiceContainer(
+        db_session,
+        queue_orchestrator=queue_orchestrator,
+        delivery_repository=delivery_repository,
+        analytics_repository=analytics_repository,
+        recommendation_gpu_available=_get_recommendation_gpu_available(),
+    )
 
 
 # Legacy compatibility functions for existing code
 def get_adapter_service(db_session: Session) -> AdapterService:
     """Get an adapter service instance (legacy compatibility).
-    
+
     Args:
         db_session: Database session
-        
+
     Returns:
         AdapterService instance
 
     """
-    container = create_service_container(db_session)
-    return container.adapters
+    storage_service = make_storage_service()
+    return make_adapter_service(db_session=db_session, storage_service=storage_service)
 
 
 def get_delivery_service(db_session: Session) -> DeliveryService:
     """Get a delivery service instance (legacy compatibility).
-    
+
     Args:
         db_session: Database session
-        
+
     Returns:
         DeliveryService instance
 
     """
-    container = create_service_container(db_session)
-    return container.deliveries
+    repository = DeliveryJobRepository(db_session)
+    queue_orchestrator = create_queue_orchestrator()
+    return make_delivery_service(
+        repository,
+        queue_orchestrator=queue_orchestrator,
+    )
 
 
 def get_compose_service() -> ComposeService:
     """Get a compose service instance (legacy compatibility).
-    
+
     Returns:
         ComposeService instance
 
     """
-    return ComposeService()
+    return make_compose_service()
 
 
 def get_generation_service() -> GenerationService:
     """Get a generation service instance (legacy compatibility).
-    
+
     Returns:
         GenerationService instance
 
     """
-    return GenerationService()
+    return make_generation_service()
 
 
 # Legacy compatibility function for importer
@@ -350,7 +347,7 @@ def upsert_adapter_from_payload(payload):
     
     # Use the same pattern as the legacy function
     with get_session_context() as session:
-        container = ServiceContainer(session)
+        container = create_service_container(session)
         return container.adapters.upsert_adapter(payload)
 
 
