@@ -33,6 +33,12 @@ class DeliveryService:
     def queue_orchestrator(self) -> Optional["QueueOrchestrator"]:
         return self._queue_orchestrator
 
+    @property
+    def db_session(self):
+        """Expose the active database session used by the repository."""
+
+        return self._repository.session
+
     def set_queue_orchestrator(self, orchestrator: Optional["QueueOrchestrator"]) -> None:
         """Configure or replace the queue orchestrator."""
 

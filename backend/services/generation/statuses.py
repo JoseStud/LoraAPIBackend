@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Dict, Optional
 
 
-class GenerationStatus(Enum):
+class NormalizedGenerationStatus(str, Enum):
     """Canonical generation statuses exposed by the API."""
 
     QUEUED = "queued"
@@ -18,25 +18,25 @@ class GenerationStatus(Enum):
     FAILED = "failed"
 
 
-NormalizedGenerationStatus = GenerationStatus
-
-
-DEFAULT_NORMALIZED_STATUS: NormalizedGenerationStatus = GenerationStatus.PROCESSING
+# Backwards compatibility alias for legacy imports
+GenerationStatus = NormalizedGenerationStatus
 
 
 STATUS_NORMALIZATION_MAP: Dict[str, NormalizedGenerationStatus] = {
-    GenerationStatus.QUEUED.value: GenerationStatus.QUEUED,
-    GenerationStatus.PROCESSING.value: GenerationStatus.PROCESSING,
-    GenerationStatus.COMPLETED.value: GenerationStatus.COMPLETED,
-    GenerationStatus.FAILED.value: GenerationStatus.FAILED,
-    "pending": GenerationStatus.QUEUED,
-    "running": GenerationStatus.PROCESSING,
-    "retrying": GenerationStatus.PROCESSING,
-    "starting": GenerationStatus.PROCESSING,
-    "succeeded": GenerationStatus.COMPLETED,
-    "failed": GenerationStatus.FAILED,
-    "cancelled": GenerationStatus.FAILED,
+    status.value: status for status in NormalizedGenerationStatus
 }
+STATUS_NORMALIZATION_MAP.update(
+    {
+        "pending": NormalizedGenerationStatus.QUEUED,
+        "running": NormalizedGenerationStatus.PROCESSING,
+        "retrying": NormalizedGenerationStatus.PROCESSING,
+        "starting": NormalizedGenerationStatus.PROCESSING,
+        "succeeded": NormalizedGenerationStatus.COMPLETED,
+        "cancelled": NormalizedGenerationStatus.FAILED,
+    }
+)
+
+DEFAULT_NORMALIZED_STATUS = NormalizedGenerationStatus.PROCESSING
 
 
 def normalize_status(status: Optional[str]) -> NormalizedGenerationStatus:
@@ -46,17 +46,15 @@ def normalize_status(status: Optional[str]) -> NormalizedGenerationStatus:
         return DEFAULT_NORMALIZED_STATUS
 
     normalized = status.lower()
-    mapped = STATUS_NORMALIZATION_MAP.get(normalized)
-    if mapped is not None:
-        return mapped
 
-    return DEFAULT_NORMALIZED_STATUS
+    mapped = STATUS_NORMALIZATION_MAP.get(normalized)
+    return mapped if mapped is not None else DEFAULT_NORMALIZED_STATUS
 
 
 __all__ = [
-    "DEFAULT_NORMALIZED_STATUS",
     "GenerationStatus",
     "NormalizedGenerationStatus",
     "STATUS_NORMALIZATION_MAP",
     "normalize_status",
+    "DEFAULT_NORMALIZED_STATUS",
 ]

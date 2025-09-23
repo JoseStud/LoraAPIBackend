@@ -10,7 +10,12 @@ from backend.services.storage import get_storage_service
 from .adapters import AdapterService
 from .analytics import AnalyticsService, InsightGenerator, TimeSeriesBuilder
 from .analytics_repository import AnalyticsRepository
-from .archive import ArchiveService
+from .archive import (
+    ArchiveExportPlanner,
+    ArchiveImportExecutor,
+    ArchiveService,
+    BackupService,
+)
 from .composition import ComposeService
 from .deliveries import DeliveryService
 from .delivery_repository import DeliveryJobRepository
@@ -103,6 +108,7 @@ class ServiceContainer:
         self._recommendation_gpu_available: Optional[bool] = recommendation_gpu_available
         self._queue_orchestrator = queue_orchestrator
         self._delivery_repository = delivery_repository
+        self._backup_service: Optional[BackupService] = None
         self._storage_provider = storage_provider
         self._adapter_provider = adapter_provider
         self._archive_provider = archive_provider
@@ -118,7 +124,6 @@ class ServiceContainer:
         self._system_provider = system_provider
         self._analytics_provider = analytics_provider
         self._recommendation_provider = recommendation_provider
-
     @property
     def storage(self) -> StorageService:
         """Get storage service instance."""
@@ -149,6 +154,14 @@ class ServiceContainer:
                 self.storage,
             )
         return self._archive_service
+
+    @property
+    def backups(self) -> BackupService:
+        """Get backup service instance."""
+
+        if self._backup_service is None:
+            self._backup_service = BackupService(self.archive)
+        return self._backup_service
     
     @property
     def deliveries(self) -> DeliveryService:

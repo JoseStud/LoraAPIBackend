@@ -129,6 +129,12 @@ class DeliveryJobRepository:
     def mapper(self) -> DeliveryJobMapper:
         return self._mapper
 
+    @property
+    def session(self) -> Session:
+        """Expose the underlying database session for collaborators."""
+
+        return self._session
+
     def create_job(
         self,
         prompt: str,

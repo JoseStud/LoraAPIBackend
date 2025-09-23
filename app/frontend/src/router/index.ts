@@ -52,7 +52,7 @@ const router = createRouter({
     {
       path: '/analytics',
       name: 'analytics',
-      component: () => import('@/views/AnalyticsView.vue'),
+      component: () => import('@/views/analytics/PerformanceAnalyticsPage.vue'),
     },
     {
       path: '/offline',
