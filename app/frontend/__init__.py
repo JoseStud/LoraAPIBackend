@@ -1,1 +1,1 @@
-"""Frontend application module."""
+"""Initialize the frontend application package."""
