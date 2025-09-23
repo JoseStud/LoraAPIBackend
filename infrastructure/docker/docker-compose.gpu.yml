@@ -69,7 +69,7 @@ services:
       start_period: 180s  # GPU initialization takes longer
 
   api:
-    build: 
+    build:
       context: ../../
       dockerfile: infrastructure/docker/Dockerfile
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
@@ -80,17 +80,12 @@ services:
       - sdnext_outputs:/app/outputs   # Access to generated images
     ports:
       - '8782:8000'
+    env_file:
+      - ./backend.env
     environment:
-      REDIS_URL: "redis://redis:6379/0"
-      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
-      # SDNext integration
-      SDNEXT_BASE_URL: "http://sdnext:7860"
       SDNEXT_TIMEOUT: "180"
       SDNEXT_POLL_INTERVAL: "1"        # Faster polling for development
       SDNEXT_DEFAULT_STEPS: "15"       # Faster generation for testing
-      SDNEXT_DEFAULT_SAMPLER: "DPM++ 2M"
-      SDNEXT_DEFAULT_CFG_SCALE: "7.0"
-      SDNEXT_OUTPUT_DIR: "/app/outputs"
       # Development settings
       API_KEY: "dev-api-key-123"       # Fixed API key for development
     depends_on:
@@ -108,7 +103,7 @@ services:
       start_period: 30s
 
   worker:
-    build: 
+    build:
       context: ../../
       dockerfile: infrastructure/docker/Dockerfile
     command: sh -c "rq worker --url $$REDIS_URL default"
@@ -117,17 +112,12 @@ services:
       - ../../app:/app/app
       - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
       - sdnext_outputs:/app/outputs
+    env_file:
+      - ./backend.env
     environment:
-      REDIS_URL: "redis://redis:6379/0"
-      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
-      # SDNext integration
-      SDNEXT_BASE_URL: "http://sdnext:7860"
       SDNEXT_TIMEOUT: "180"
       SDNEXT_POLL_INTERVAL: "1"
       SDNEXT_DEFAULT_STEPS: "15"
-      SDNEXT_DEFAULT_SAMPLER: "DPM++ 2M"
-      SDNEXT_DEFAULT_CFG_SCALE: "7.0"
-      SDNEXT_OUTPUT_DIR: "/app/outputs"
     depends_on:
       sdnext:
         condition: service_healthy

@@ -109,20 +109,15 @@ services:
       - sdnext_outputs:/app/outputs   # Access to generated images
     ports:
       - '8782:8000'
+    env_file:
+      - ./backend.env
     environment:
       IMPORT_ON_STARTUP: 'True'
-      REDIS_URL: "redis://redis:6379/0"
-      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
       # Backend URL for frontend-to-backend communication
       BACKEND_URL: "http://localhost:8782/api/v1"
       # SDNext integration
-      SDNEXT_BASE_URL: "http://sdnext:7860"
       SDNEXT_TIMEOUT: "240"             # Longer timeout for ROCm
       SDNEXT_POLL_INTERVAL: "2"        # Slightly slower polling for ROCm
-      SDNEXT_DEFAULT_STEPS: "20"       # Standard steps for ROCm
-      SDNEXT_DEFAULT_SAMPLER: "DPM++ 2M"
-      SDNEXT_DEFAULT_CFG_SCALE: "7.0"
-      SDNEXT_OUTPUT_DIR: "/app/outputs"
       # Your specific setup
       LORA_DIRECTORY: "/app/loras"
       # Development settings
@@ -151,18 +146,11 @@ services:
       - ../../app:/app/app
       - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
       - sdnext_outputs:/app/outputs
+    env_file:
+      - ./backend.env
     environment:
-      REDIS_URL: "redis://redis:6379/0"
-      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
-      # SDNext integration
-      SDNEXT_BASE_URL: "http://sdnext:7860"
       SDNEXT_TIMEOUT: "240"
       SDNEXT_POLL_INTERVAL: "2"
-      SDNEXT_DEFAULT_STEPS: "20"
-      SDNEXT_DEFAULT_SAMPLER: "DPM++ 2M"
-      SDNEXT_DEFAULT_CFG_SCALE: "7.0"
-      SDNEXT_OUTPUT_DIR: "/app/outputs"
-      # Your specific setup
       LORA_DIRECTORY: "/app/loras"
     depends_on:
       sdnext:

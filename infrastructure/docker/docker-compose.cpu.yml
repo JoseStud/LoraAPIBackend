@@ -59,7 +59,7 @@ services:
       start_period: 240s  # CPU startup is slower
 
   api:
-    build: 
+    build:
       context: ../../
       dockerfile: infrastructure/docker/Dockerfile
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
@@ -70,17 +70,13 @@ services:
       - sdnext_outputs:/app/outputs
     ports:
       - '8782:8000'
+    env_file:
+      - ./backend.env
     environment:
-      REDIS_URL: "redis://redis:6379/0"
-      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
-      # SDNext integration with longer timeouts for CPU
-      SDNEXT_BASE_URL: "http://sdnext:7860"
       SDNEXT_TIMEOUT: "300"            # Longer timeout for CPU generation
       SDNEXT_POLL_INTERVAL: "5"       # Less frequent polling for CPU
       SDNEXT_DEFAULT_STEPS: "10"      # Fewer steps for faster CPU generation
       SDNEXT_DEFAULT_SAMPLER: "Euler"  # Faster sampler for CPU
-      SDNEXT_DEFAULT_CFG_SCALE: "7.0"
-      SDNEXT_OUTPUT_DIR: "/app/outputs"
       # Development settings
       API_KEY: "dev-api-key-123"
     depends_on:
@@ -98,7 +94,7 @@ services:
       start_period: 30s
 
   worker:
-    build: 
+    build:
       context: ../../
       dockerfile: infrastructure/docker/Dockerfile
     command: sh -c "rq worker --url $$REDIS_URL default"
@@ -107,17 +103,13 @@ services:
       - ../../app:/app/app
       - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
       - sdnext_outputs:/app/outputs
+    env_file:
+      - ./backend.env
     environment:
-      REDIS_URL: "redis://redis:6379/0"
-      DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/lora"
-      # SDNext integration with CPU settings
-      SDNEXT_BASE_URL: "http://sdnext:7860"
       SDNEXT_TIMEOUT: "300"
       SDNEXT_POLL_INTERVAL: "5"
       SDNEXT_DEFAULT_STEPS: "10"
       SDNEXT_DEFAULT_SAMPLER: "Euler"
-      SDNEXT_DEFAULT_CFG_SCALE: "7.0"
-      SDNEXT_OUTPUT_DIR: "/app/outputs"
     depends_on:
       sdnext:
         condition: service_healthy

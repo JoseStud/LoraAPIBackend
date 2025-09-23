@@ -2,6 +2,7 @@ import { computed, reactive, unref } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
 
 import { useApi } from '@/composables/useApi';
+import { DEFAULT_BACKEND_BASE } from '@/config/runtime';
 import { getFilenameFromContentDisposition, requestBlob } from '@/utils/api';
 
 import type {
@@ -18,13 +19,11 @@ import type {
   GenerationRatingUpdate,
 } from '@/types';
 
-const DEFAULT_BASE = '/api/v1';
-
 const sanitizeBaseUrl = (value?: string): string => {
   if (!value) {
-    return DEFAULT_BASE;
+    return DEFAULT_BACKEND_BASE;
   }
-  return value.replace(/\/+$/, '') || DEFAULT_BASE;
+  return value.replace(/\/+$/, '') || DEFAULT_BACKEND_BASE;
 };
 
 const resolveBaseUrl = (value: MaybeRefOrGetter<string>): string => {
