@@ -1,17 +1,17 @@
 import { type ComputedRef, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import type { GenerationNotificationAdapter } from '@/composables/useGenerationTransport';
+import type { GenerationNotificationAdapter } from '@/composables/generation';
 import {
   useGenerationConnectionStore,
   useGenerationQueueStore,
   useGenerationResultsStore,
 } from '@/stores/generation';
-import { createGenerationOrchestrator } from '@/services/generationOrchestrator';
+import { createGenerationOrchestrator } from '@/services';
 import type {
   GenerationQueueClient,
   GenerationWebSocketManager,
-} from '@/services/generationUpdates';
+} from '@/services';
 import type {
   GenerationJob,
   GenerationRequestPayload,

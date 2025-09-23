@@ -23,8 +23,8 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
 
-import PageHeader from '@/components/PageHeader.vue';
-import PromptComposer from '@/components/PromptComposer.vue';
-import SystemStatusCard from '@/components/SystemStatusCard.vue';
-import SystemStatusPanel from '@/components/SystemStatusPanel.vue';
+import PageHeader from '@/components/layout/PageHeader.vue';
+import PromptComposer from '@/components/compose/PromptComposer.vue';
+import SystemStatusCard from '@/components/system/SystemStatusCard.vue';
+import SystemStatusPanel from '@/components/system/SystemStatusPanel.vue';
 </script>

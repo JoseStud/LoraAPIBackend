@@ -93,8 +93,8 @@
 </template>
 
 <script setup lang="ts">
-import { useExportConfigFields } from '@/composables/useExportConfigFields';
-import type { ExportConfig } from '@/composables/useExportWorkflow';
+import { useExportConfigFields } from '@/composables/import-export';
+import type { ExportConfig } from '@/composables/import-export';
 
 type UpdateConfigEmitter<TConfig> = {
   <K extends keyof TConfig>(event: 'update-config', key: K, value: TConfig[K]): void;

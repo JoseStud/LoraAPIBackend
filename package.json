@@ -20,6 +20,7 @@
     "test:performance": "lighthouse-ci",
     "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov && cat coverage/lcov.info | coveralls",
     "type-check": "vue-tsc --noEmit",
+    "ci:check": "npm run lint && npm run type-check",
     "test:watch": "vitest --watch",
     "lint": "eslint app/frontend/src --ext .ts,.tsx,.js,.vue --cache --cache-location .cache/eslint",
     "lint:fix": "eslint app/frontend/src --ext .ts,.tsx,.js,.vue --fix --cache --cache-location .cache/eslint",

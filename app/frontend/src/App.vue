@@ -33,8 +33,8 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router';
 
-import AppFooter from '@/components/AppFooter.vue';
-import MainNavigation from '@/components/MainNavigation.vue';
-import MobileNav from '@/components/MobileNav.vue';
-import Notifications from '@/components/Notifications.vue';
+import AppFooter from '@/components/layout/AppFooter.vue';
+import MainNavigation from '@/components/layout/MainNavigation.vue';
+import MobileNav from '@/components/layout/MobileNav.vue';
+import Notifications from '@/components/shared/Notifications.vue';
 </script>

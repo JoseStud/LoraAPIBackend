@@ -77,8 +77,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { useJobQueue } from '@/composables/useJobQueue';
-import { useJobQueueActions } from '@/composables/useJobQueueActions';
+import { useJobQueue } from '@/composables/generation';
+import { useJobQueueActions } from '@/composables/generation';
 import { formatElapsedTime } from '@/utils/format';
 
 import type { GenerationJob } from '@/types';

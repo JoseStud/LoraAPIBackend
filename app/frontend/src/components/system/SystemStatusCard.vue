@@ -55,7 +55,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
-import useSystemStatus from '@/composables/useSystemStatus';
+import { useSystemStatus } from '@/composables/system';
 import SystemStatusCardDetailed from './SystemStatusCardDetailed.vue';
 import SystemStatusCardSimple from './SystemStatusCardSimple.vue';
 import SystemStatusCardSkeleton from './SystemStatusCardSkeleton.vue';

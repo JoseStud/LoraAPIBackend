@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 
-import JobQueue from '../../app/frontend/src/components/JobQueue.vue';
+import JobQueue from '../../app/frontend/src/components/shared/JobQueue.vue';
 import { useAppStore } from '../../app/frontend/src/stores/app';
 import { useGenerationQueueStore } from '../../app/frontend/src/stores/generation';
 import { useSettingsStore } from '../../app/frontend/src/stores/settings';

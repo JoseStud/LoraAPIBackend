@@ -5,10 +5,10 @@ import { useGenerationQueueStore, useGenerationResultsStore } from '@/stores/gen
 import { useBackendBase } from '@/utils/backend';
 import type { GenerationJob, GenerationResult } from '@/types';
 import { normalizeJobStatus } from '@/utils/status';
-import { useNotifications } from '@/composables/useNotifications';
+import { useNotifications } from '@/composables/shared';
 
-import { useJobQueueTransport, type JobQueueRecord } from '@/composables/useJobQueueTransport';
-import { useJobQueuePolling } from '@/composables/useJobQueuePolling';
+import { useJobQueueTransport, type JobQueueRecord } from '@/composables/generation';
+import { useJobQueuePolling } from '@/composables/generation';
 
 const DEFAULT_POLL_INTERVAL = 2000;
 

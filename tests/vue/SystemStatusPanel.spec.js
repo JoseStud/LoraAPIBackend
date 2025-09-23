@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
-import SystemStatusPanel from '../../app/frontend/src/components/SystemStatusPanel.vue';
+import SystemStatusPanel from '../../app/frontend/src/components/system/SystemStatusPanel.vue';
 import { useSettingsStore } from '../../app/frontend/src/stores/settings';
 
 // Mock the global fetch function

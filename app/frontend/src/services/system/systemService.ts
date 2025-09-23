@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue';
 
-import { useApi } from '@/composables/useApi';
+import { useApi } from '@/composables/shared';
 import { createBackendUrlGetter } from '@/utils/backend';
 
 import type {

@@ -1,7 +1,7 @@
 import { computed, reactive, unref } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
 
-import { useApi } from '@/composables/useApi';
+import { useApi } from '@/composables/shared';
 import { DEFAULT_BACKEND_BASE } from '@/config/runtime';
 import { getFilenameFromContentDisposition, requestBlob } from '@/utils/api';
 

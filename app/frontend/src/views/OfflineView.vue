@@ -89,8 +89,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { useApi } from '@/composables/useApi';
-import OfflineFeatureCard from '@/components/OfflineFeatureCard.vue';
+import { useApi } from '@/composables/shared';
+import OfflineFeatureCard from '@/components/shared/OfflineFeatureCard.vue';
 import { createBackendUrlGetter } from '@/utils/backend';
 
 interface OfflineStatusSnapshot {

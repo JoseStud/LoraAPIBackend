@@ -10,7 +10,7 @@ const serviceMocks = vi.hoisted(() => ({
   cancelLegacyJob: vi.fn(),
 }));
 
-vi.mock('@/services/generationService', () => ({
+vi.mock('@/services', () => ({
   fetchActiveGenerationJobs: vi.fn(),
   fetchLegacyJobStatuses: vi.fn(),
   cancelGenerationJob: serviceMocks.cancelGenerationJob,

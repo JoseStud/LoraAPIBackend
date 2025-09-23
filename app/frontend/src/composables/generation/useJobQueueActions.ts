@@ -1,9 +1,9 @@
 import { ref, unref, type MaybeRefOrGetter } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { cancelGenerationJob, cancelLegacyJob } from '@/services/generationService';
+import { cancelGenerationJob, cancelLegacyJob } from '@/services';
 import { useGenerationQueueStore } from '@/stores/generation';
-import { useNotifications } from '@/composables/useNotifications';
+import { useNotifications } from '@/composables/shared';
 import { useBackendBase } from '@/utils/backend';
 
 export interface UseJobQueueActionsOptions {

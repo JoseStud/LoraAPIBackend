@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
-import GenerationStudio from '../../app/frontend/src/components/GenerationStudio.vue'
+import GenerationStudio from '../../app/frontend/src/components/generation/GenerationStudio.vue'
 import { useAppStore } from '../../app/frontend/src/stores/app'
 import {
   useGenerationConnectionStore,

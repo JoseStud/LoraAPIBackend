@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 
-import RecommendationsPanel from '../../app/frontend/src/components/RecommendationsPanel.vue';
+import RecommendationsPanel from '../../app/frontend/src/components/recommendations/RecommendationsPanel.vue';
 import { useAppStore } from '../../app/frontend/src/stores/app';
 
 const flush = async () => {

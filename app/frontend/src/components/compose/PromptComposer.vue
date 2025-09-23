@@ -67,7 +67,7 @@ import PromptComposerActions from './PromptComposerActions.vue';
 import PromptComposerAvailableList from './PromptComposerAvailableList.vue';
 import PromptComposerComposition from './PromptComposerComposition.vue';
 
-import { usePromptComposition } from '@/composables/usePromptComposition';
+import { usePromptComposition } from '@/composables/compose';
 
 const {
   catalog,

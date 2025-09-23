@@ -133,8 +133,8 @@ import GenerationActiveJobsList from '@/components/generation/GenerationActiveJo
 import GenerationParameterForm from '@/components/generation/GenerationParameterForm.vue'
 import GenerationResultsGallery from '@/components/generation/GenerationResultsGallery.vue'
 import GenerationSystemStatusCard from '@/components/generation/GenerationSystemStatusCard.vue'
-import { useGenerationStudio } from '@/composables/useGenerationStudio'
-import type { UseGenerationStudioReturn } from '@/composables/useGenerationStudio'
+import { useGenerationStudio } from '@/composables/generation'
+import type { UseGenerationStudioReturn } from '@/composables/generation'
 
 const generationStudio = useGenerationStudio() as UseGenerationStudioReturn
 

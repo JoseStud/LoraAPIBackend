@@ -4,7 +4,7 @@ import {
   createGenerationQueueClient,
   DEFAULT_POLL_INTERVAL,
   type GenerationQueueClient,
-} from '@/services/generationUpdates';
+} from '@/services';
 import type {
   GenerationRequestPayload,
   GenerationResult,

@@ -1,5 +1,5 @@
-import { useApi } from '@/composables/useApi';
-import type { ApiResponseMeta } from '@/composables/useApi';
+import { useApi } from '@/composables/shared';
+import type { ApiResponseMeta } from '@/composables/shared';
 
 export interface ApiResult<T> {
   data: T | null;

@@ -63,10 +63,10 @@ import LoraGalleryFilters from './LoraGalleryFilters.vue';
 import LoraGalleryGrid from './LoraGalleryGrid.vue';
 import LoraGalleryHeader from './LoraGalleryHeader.vue';
 import LoraGalleryTagModal from './LoraGalleryTagModal.vue';
-import { performBulkLoraAction } from '@/services/loraService';
-import { useLoraGalleryData } from '@/composables/useLoraGalleryData';
-import { useLoraGalleryFilters } from '@/composables/useLoraGalleryFilters';
-import { useLoraGallerySelection } from '@/composables/useLoraGallerySelection';
+import { performBulkLoraAction } from '@/services';
+import { useLoraGalleryData } from '@/composables/lora-gallery';
+import { useLoraGalleryFilters } from '@/composables/lora-gallery';
+import { useLoraGallerySelection } from '@/composables/lora-gallery';
 import { useBackendBase } from '@/utils/backend';
 import type {
   LoraBulkAction,

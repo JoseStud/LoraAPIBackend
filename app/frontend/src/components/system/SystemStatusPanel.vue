@@ -142,7 +142,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { useAdminMetrics } from '@/composables/useAdminMetrics';
+import { useAdminMetrics } from '@/composables/system';
 
 const {
   metrics,

@@ -22,9 +22,9 @@
 import { defineAsyncComponent, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 
-import JobQueue from '@/components/JobQueue.vue';
-import PageHeader from '@/components/PageHeader.vue';
-import SystemStatusPanel from '@/components/SystemStatusPanel.vue';
+import JobQueue from '@/components/shared/JobQueue.vue';
+import PageHeader from '@/components/layout/PageHeader.vue';
+import SystemStatusPanel from '@/components/system/SystemStatusPanel.vue';
 import ImportExportSkeleton from '@/components/import-export/ImportExportSkeleton.vue';
 
 const LazyImportExportContainer = defineAsyncComponent({

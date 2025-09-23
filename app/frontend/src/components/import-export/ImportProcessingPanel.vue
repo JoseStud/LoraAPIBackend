@@ -206,11 +206,11 @@
 </template>
 
 <script setup lang="ts">
-import type { ImportConfig, ImportPreviewItem } from '@/composables/useImportWorkflow';
+import type { ImportConfig, ImportPreviewItem } from '@/composables/import-export';
 
 type ImportConfigKey = keyof ImportConfig;
 
-const props = defineProps<{
+defineProps<{
   config: ImportConfig;
   files: readonly File[];
   preview: readonly ImportPreviewItem[];

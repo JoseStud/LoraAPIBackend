@@ -42,7 +42,7 @@
 import { ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { useAppStore } from '@/stores/app';
+import { useAppStore } from '@/stores';
 
 import type { NotificationType } from '@/types';
 

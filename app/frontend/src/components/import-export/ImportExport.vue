@@ -8,14 +8,14 @@
         </div>
         <div class="header-actions">
           <div class="flex items-center space-x-3">
-            <button @click="$emit('quickExportAll')" class="btn btn-primary btn-sm">
+            <button @click="$emit('quick-export-all')" class="btn btn-primary btn-sm">
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-4-4m4 4l4-4m6-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
               Quick Export All
             </button>
 
-            <button @click="$emit('viewHistory')" class="btn btn-secondary btn-sm">
+            <button @click="$emit('view-history')" class="btn btn-secondary btn-sm">
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
@@ -82,9 +82,9 @@
           :estimated-time="estimatedTime"
           :is-exporting="isExporting"
           @update-config="onExportConfigUpdate"
-          @validate="$emit('validateExport')"
-          @preview="$emit('previewExport')"
-          @start="$emit('startExport')"
+          @validate="$emit('validate-export')"
+          @preview="$emit('preview-export')"
+          @start="$emit('start-export')"
         />
 
         <ImportProcessingPanel
@@ -97,11 +97,11 @@
           :format-file-size="formatFileSize"
           :get-status-classes="getStatusClasses"
           @update-config="onImportConfigUpdate"
-          @add-files="$emit('addImportFiles', $event)"
-          @remove-file="$emit('removeImportFile', $event)"
-          @analyze="$emit('analyzeFiles')"
-          @validate="$emit('validateImport')"
-          @start="$emit('startImport')"
+          @add-files="$emit('add-import-files', $event)"
+          @remove-file="$emit('remove-import-file', $event)"
+          @analyze="$emit('analyze-files')"
+          @validate="$emit('validate-import')"
+          @start="$emit('start-import')"
         />
 
         <BackupManagementPanel
@@ -109,20 +109,20 @@
           :history="backupHistory"
           :format-file-size="formatFileSize"
           :format-date="formatDate"
-          @create-full-backup="$emit('createFullBackup')"
-          @create-quick-backup="$emit('createQuickBackup')"
-          @schedule-backup="$emit('scheduleBackup')"
-          @download-backup="$emit('downloadBackup', $event)"
-          @restore-backup="$emit('restoreBackup', $event)"
-          @delete-backup="$emit('deleteBackup', $event)"
+          @create-full-backup="$emit('create-full-backup')"
+          @create-quick-backup="$emit('create-quick-backup')"
+          @schedule-backup="$emit('schedule-backup')"
+          @download-backup="$emit('download-backup', $event)"
+          @restore-backup="$emit('restore-backup', $event)"
+          @delete-backup="$emit('delete-backup', $event)"
         />
 
         <MigrationWorkflowPanel
           v-show="activeTab === 'migration'"
           :config="migrationConfig"
           @update-config="onMigrationConfigUpdate"
-          @start-version-migration="$emit('startVersionMigration')"
-          @start-platform-migration="$emit('startPlatformMigration')"
+          @start-version-migration="$emit('start-version-migration')"
+          @start-platform-migration="$emit('start-platform-migration')"
         />
       </div>
     </div>
@@ -133,7 +133,7 @@
       :value="progressValue"
       :current-step="currentStep"
       :messages="progressMessages"
-      @cancel="$emit('cancelOperation')"
+      @cancel="$emit('cancel-operation')"
     />
 
     <ImportExportToast :show="showToast" :message="toastMessage" :type="toastType" />
@@ -149,17 +149,17 @@
 </template>
 
 <script setup lang="ts">
-import BackupManagementPanel from './import-export/BackupManagementPanel.vue';
-import ExportConfigurationPanel from './import-export/ExportConfigurationPanel.vue';
-import ImportProcessingPanel from './import-export/ImportProcessingPanel.vue';
-import MigrationWorkflowPanel from './import-export/MigrationWorkflowPanel.vue';
-import ImportExportProgressModal from './import-export/ImportExportProgressModal.vue';
-import ImportExportToast from './import-export/ImportExportToast.vue';
+import BackupManagementPanel from './BackupManagementPanel.vue';
+import ExportConfigurationPanel from './ExportConfigurationPanel.vue';
+import ImportProcessingPanel from './ImportProcessingPanel.vue';
+import MigrationWorkflowPanel from './MigrationWorkflowPanel.vue';
+import ImportExportProgressModal from './ImportExportProgressModal.vue';
+import ImportExportToast from './ImportExportToast.vue';
 
-import type { NotifyType, ExportConfig } from '@/composables/useExportWorkflow';
-import type { ImportConfig, ImportPreviewItem } from '@/composables/useImportWorkflow';
-import type { MigrationConfig } from '@/composables/useMigrationWorkflow';
-import type { BackupEntry } from '@/composables/useBackupWorkflow';
+import type { NotifyType, ExportConfig } from '@/composables/import-export';
+import type { ImportConfig, ImportPreviewItem } from '@/composables/import-export';
+import type { MigrationConfig } from '@/composables/import-export';
+import type { BackupEntry } from '@/composables/import-export';
 
 export type ActiveTab = 'export' | 'import' | 'backup' | 'migration';
 
@@ -198,28 +198,28 @@ defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:activeTab', value: ActiveTab): void;
-  (e: 'quickExportAll'): void;
-  (e: 'viewHistory'): void;
-  <K extends keyof ExportConfig>(e: 'updateExportConfig', key: K, value: ExportConfig[K]): void;
-  (e: 'validateExport'): void;
-  (e: 'previewExport'): void;
-  (e: 'startExport'): void;
-  <K extends keyof ImportConfig>(e: 'updateImportConfig', key: K, value: ImportConfig[K]): void;
-  (e: 'addImportFiles', files: readonly File[]): void;
-  (e: 'removeImportFile', file: File): void;
-  (e: 'analyzeFiles'): void;
-  (e: 'validateImport'): void;
-  (e: 'startImport'): void;
-  (e: 'createFullBackup'): void;
-  (e: 'createQuickBackup'): void;
-  (e: 'scheduleBackup'): void;
-  (e: 'downloadBackup', backupId: string): void;
-  (e: 'restoreBackup', backupId: string): void;
-  (e: 'deleteBackup', backupId: string): void;
-  <K extends keyof MigrationConfig>(e: 'updateMigrationConfig', key: K, value: MigrationConfig[K]): void;
-  (e: 'startVersionMigration'): void;
-  (e: 'startPlatformMigration'): void;
-  (e: 'cancelOperation'): void;
+  (e: 'quick-export-all'): void;
+  (e: 'view-history'): void;
+  <K extends keyof ExportConfig>(e: 'update-export-config', key: K, value: ExportConfig[K]): void;
+  (e: 'validate-export'): void;
+  (e: 'preview-export'): void;
+  (e: 'start-export'): void;
+  <K extends keyof ImportConfig>(e: 'update-import-config', key: K, value: ImportConfig[K]): void;
+  (e: 'add-import-files', files: readonly File[]): void;
+  (e: 'remove-import-file', file: File): void;
+  (e: 'analyze-files'): void;
+  (e: 'validate-import'): void;
+  (e: 'start-import'): void;
+  (e: 'create-full-backup'): void;
+  (e: 'create-quick-backup'): void;
+  (e: 'schedule-backup'): void;
+  (e: 'download-backup', backupId: string): void;
+  (e: 'restore-backup', backupId: string): void;
+  (e: 'delete-backup', backupId: string): void;
+  <K extends keyof MigrationConfig>(e: 'update-migration-config', key: K, value: MigrationConfig[K]): void;
+  (e: 'start-version-migration'): void;
+  (e: 'start-platform-migration'): void;
+  (e: 'cancel-operation'): void;
 }>();
 
 const onTabChange = (tab: ActiveTab) => {
@@ -227,14 +227,14 @@ const onTabChange = (tab: ActiveTab) => {
 };
 
 const onExportConfigUpdate = <K extends keyof ExportConfig>(key: K, value: ExportConfig[K]) => {
-  emit('updateExportConfig', key, value);
+  emit('update-export-config', key, value);
 };
 
 const onImportConfigUpdate = <K extends keyof ImportConfig>(key: K, value: ImportConfig[K]) => {
-  emit('updateImportConfig', key, value);
+  emit('update-import-config', key, value);
 };
 
 const onMigrationConfigUpdate = <K extends keyof MigrationConfig>(key: K, value: MigrationConfig[K]) => {
-  emit('updateMigrationConfig', key, value);
+  emit('update-migration-config', key, value);
 };
 </script>

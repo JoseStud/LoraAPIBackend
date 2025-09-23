@@ -18,7 +18,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
 
-import GenerationHistory from '@/components/GenerationHistory.vue';
-import PageHeader from '@/components/PageHeader.vue';
-import PromptComposer from '@/components/PromptComposer.vue';
+import GenerationHistory from '@/components/history/GenerationHistory.vue';
+import PageHeader from '@/components/layout/PageHeader.vue';
+import PromptComposer from '@/components/compose/PromptComposer.vue';
 </script>

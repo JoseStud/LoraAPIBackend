@@ -27,7 +27,14 @@ The codebase demonstrates exceptional engineering standards with clean service b
 ├── app/              # FastAPI wrapper with Vue 3 frontend integration
 │   ├── frontend/
 │   │   ├── src/      # Vue SPA with advanced composables and components
-│   │   │   ├── components/    # Decomposed UI components (ongoing refactoring)
+│   │   │   ├── components/    # Decomposed UI components (grouped by feature)
+│   │   │   │   ├── history/           # Generation history components
+│   │   │   │   ├── import-export/     # Import/Export container + panels
+│   │   │   │   ├── lora-gallery/      # Gallery and card components
+│   │   │   │   ├── recommendations/   # Recommendations panel
+│   │   │   │   ├── system/            # System status cards/panel
+│   │   │   │   ├── layout/            # Navigation, headers, footer
+│   │   │   │   └── shared/            # Reusable widgets (JobQueue, Notifications, etc.)
 │   │   │   ├── composables/   # Specialized state management utilities
 │   │   │   ├── stores/        # Pinia stores for centralized state
 │   │   │   └── views/         # Route-level components

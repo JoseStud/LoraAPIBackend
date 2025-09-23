@@ -54,15 +54,15 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 
-import ImportExport, { type ActiveTab } from '../ImportExport.vue';
+import ImportExport, { type ActiveTab } from './ImportExport.vue';
 
-import { useBackupWorkflow } from '@/composables/useBackupWorkflow';
-import { useExportWorkflow } from '@/composables/useExportWorkflow';
-import { useImportWorkflow } from '@/composables/useImportWorkflow';
-import { useMigrationWorkflow } from '@/composables/useMigrationWorkflow';
-import { useOperationProgress } from '@/composables/useOperationProgress';
-import { useImportExportActions } from '@/composables/useImportExportActions';
-import { useWorkflowToast } from '@/composables/useWorkflowToast';
+import { useBackupWorkflow } from '@/composables/import-export';
+import { useExportWorkflow } from '@/composables/import-export';
+import { useImportWorkflow } from '@/composables/import-export';
+import { useMigrationWorkflow } from '@/composables/import-export';
+import { useOperationProgress } from '@/composables/import-export';
+import { useImportExportActions } from '@/composables/import-export';
+import { useWorkflowToast } from '@/composables/import-export';
 import { formatDateTime, formatFileSize as formatBytes } from '@/utils/format';
 
 const emit = defineEmits<{ (event: 'initialized'): void }>();

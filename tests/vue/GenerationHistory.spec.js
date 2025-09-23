@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils';
 import { nextTick, ref } from 'vue';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import GenerationHistory from '../../app/frontend/src/components/GenerationHistory.vue';
+import GenerationHistory from '../../app/frontend/src/components/history/GenerationHistory.vue';
 import HistoryModal from '../../app/frontend/src/components/HistoryModal.vue';
 import HistoryToast from '../../app/frontend/src/components/HistoryToast.vue';
 import { useGenerationHistory } from '../../app/frontend/src/composables/useGenerationHistory';

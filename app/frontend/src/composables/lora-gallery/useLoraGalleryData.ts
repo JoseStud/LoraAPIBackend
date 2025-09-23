@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import type { Ref } from 'vue';
 
-import { fetchAdapterTags, fetchAdapters } from '@/services/loraService';
+import { fetchAdapterTags, fetchAdapters } from '@/services';
 import type { GalleryLora } from '@/types';
 import type { WindowWithExtras } from '@/types/window';
 

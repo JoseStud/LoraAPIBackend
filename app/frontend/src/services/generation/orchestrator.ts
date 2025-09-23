@@ -4,8 +4,8 @@ import { storeToRefs } from 'pinia';
 import {
   useGenerationTransport,
   type GenerationNotificationAdapter,
-} from '@/composables/useGenerationTransport';
-import { DEFAULT_HISTORY_LIMIT } from '@/stores/generation/results';
+} from '@/composables/generation';
+import { DEFAULT_HISTORY_LIMIT } from '@/stores/generation';
 import type {
   GenerationConnectionStore,
   GenerationQueueStore,
@@ -14,7 +14,7 @@ import type {
 import type {
   GenerationQueueClient,
   GenerationWebSocketManager,
-} from '@/services/generationUpdates';
+} from '@/services';
 import type {
   GenerationJob,
   GenerationRequestPayload,

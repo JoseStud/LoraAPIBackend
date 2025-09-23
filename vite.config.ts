@@ -28,9 +28,25 @@ export default defineConfig(({ mode }) => {
       }
     },
     resolve: {
-      alias: {
-        '@': srcDirectory
-      }
+      alias: [
+        // CSS must come first to avoid path appending on the TS alias
+        {
+          find: /^vue-virtual-scroller\/dist\/vue-virtual-scroller\.css$/,
+          replacement: fileURLToPath(
+            new URL('./app/frontend/src/vendor/vue-virtual-scroller.css', import.meta.url),
+          ),
+        },
+        {
+          find: /^vue-virtual-scroller$/,
+          replacement: fileURLToPath(
+            new URL('./app/frontend/src/vendor/vue-virtual-scroller.ts', import.meta.url),
+          ),
+        },
+        {
+          find: '@',
+          replacement: srcDirectory,
+        },
+      ],
     },
     build: {
       outDir: '../dist',

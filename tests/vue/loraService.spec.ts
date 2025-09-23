@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 
-import { buildAdapterListQuery, fetchAdapters } from '@/services/loraService';
+import { buildAdapterListQuery, fetchAdapters } from '@/services';
 import type { AdapterListResponse } from '@/types';
 
 const originalFetch = global.fetch;

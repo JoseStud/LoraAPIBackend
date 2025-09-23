@@ -5,7 +5,7 @@ import {
   resolveGenerationBaseUrl,
   resolveGenerationRoute,
   startGeneration,
-} from '@/services/generationService';
+} from '@/services';
 import { requestJson } from '@/utils/api';
 import type {
   GenerationCompleteMessage,

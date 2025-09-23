@@ -11,7 +11,7 @@ const serviceMocks = vi.hoisted(() => ({
   fetchLegacyJobStatuses: vi.fn(),
 }));
 
-vi.mock('@/services/generationService', () => serviceMocks);
+vi.mock('@/services', () => serviceMocks);
 
 const notificationMocks = vi.hoisted(() => ({
   notifications: { value: [] as unknown[] },

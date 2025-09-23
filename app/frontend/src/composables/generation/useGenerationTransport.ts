@@ -1,4 +1,4 @@
-import { extractGenerationErrorMessage, type GenerationQueueClient, type GenerationWebSocketManager } from '@/services/generationUpdates';
+import { extractGenerationErrorMessage, type GenerationQueueClient, type GenerationWebSocketManager } from '@/services';
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,
@@ -11,8 +11,8 @@ import type {
 } from '@/types';
 import type { GenerationJobInput } from '@/stores/generation';
 
-import { useGenerationQueueClient } from '@/composables/useGenerationQueueClient';
-import { useGenerationSocketBridge } from '@/composables/useGenerationSocketBridge';
+import { useGenerationQueueClient } from '@/composables/generation';
+import { useGenerationSocketBridge } from '@/composables/generation';
 
 export interface GenerationNotificationAdapter {
   notify(message: string, type?: NotificationType): void;

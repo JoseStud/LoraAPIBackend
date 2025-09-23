@@ -2,7 +2,7 @@ import { computed, unref, type ComputedRef, type MaybeRefOrGetter } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { runtimeConfig, DEFAULT_BACKEND_BASE } from '@/config/runtime';
-import { useSettingsStore } from '@/stores/settings';
+import { useSettingsStore } from '@/stores';
 
 export { DEFAULT_BACKEND_BASE };
 

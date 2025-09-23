@@ -68,11 +68,11 @@
 </template>
 
 <script setup lang="ts">
-import type { MigrationConfig } from '@/composables/useMigrationWorkflow';
+import type { MigrationConfig } from '@/composables/import-export';
 
 type MigrationConfigKey = keyof MigrationConfig;
 
-const props = defineProps<{
+defineProps<{
   config: MigrationConfig;
 }>();
 

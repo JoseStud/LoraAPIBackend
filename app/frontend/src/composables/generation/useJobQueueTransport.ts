@@ -1,7 +1,7 @@
 import { computed, ref, unref, type ComputedRef, type MaybeRefOrGetter, type Ref } from 'vue';
 
-import { ApiError } from '@/composables/useApi';
-import { fetchActiveGenerationJobs, fetchLegacyJobStatuses } from '@/services/generationService';
+import { ApiError } from '@/composables/shared';
+import { fetchActiveGenerationJobs, fetchLegacyJobStatuses } from '@/services';
 import { DEFAULT_BACKEND_BASE } from '@/utils/backend';
 
 const PRIMARY_FAILURE_LOG_COOLDOWN = 5000;

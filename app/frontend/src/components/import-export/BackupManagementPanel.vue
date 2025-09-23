@@ -92,11 +92,20 @@
 </template>
 
 <script setup lang="ts">
-import type { BackupEntry } from '@/composables/useBackupWorkflow';
+import type { BackupEntry } from '@/composables/import-export';
 
-const props = defineProps<{
+defineProps<{
   history: readonly BackupEntry[];
   formatFileSize: (bytes: number) => string;
   formatDate: (input: string) => string;
+}>();
+
+defineEmits<{
+  (e: 'create-full-backup'): void;
+  (e: 'create-quick-backup'): void;
+  (e: 'schedule-backup'): void;
+  (e: 'download-backup', backupId: string): void;
+  (e: 'restore-backup', backupId: string): void;
+  (e: 'delete-backup', backupId: string): void;
 }>();
 </script>

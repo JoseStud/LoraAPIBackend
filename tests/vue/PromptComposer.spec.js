@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 
-import PromptComposer from '../../app/frontend/src/components/PromptComposer.vue';
+import PromptComposer from '../../app/frontend/src/components/compose/PromptComposer.vue';
 import { useAppStore } from '../../app/frontend/src/stores/app';
 
 const flush = async () => {

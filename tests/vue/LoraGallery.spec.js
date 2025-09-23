@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
-import LoraGallery from '../../app/frontend/src/components/LoraGallery.vue';
+import LoraGallery from '../../app/frontend/src/components/lora-gallery/LoraGallery.vue';
 import LoraCard from '../../app/frontend/src/components/LoraCard.vue';
 
 const mocks = vi.hoisted(() => ({

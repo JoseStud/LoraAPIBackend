@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 
-import SystemStatusCard from '../../app/frontend/src/components/SystemStatusCard.vue';
+import SystemStatusCard from '../../app/frontend/src/components/system/SystemStatusCard.vue';
 import { useGenerationConnectionStore } from '../../app/frontend/src/stores/generation';
 
 const flush = async () => {

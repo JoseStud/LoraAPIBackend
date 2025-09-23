@@ -69,7 +69,7 @@
 <script setup lang="ts">
 import type { ComputedRef, Ref } from 'vue'
 
-import type { UseGenerationStudioReturn } from '@/composables/useGenerationStudio'
+import type { UseGenerationStudioReturn } from '@/composables/generation'
 import type { GenerationJob } from '@/types'
 
 const props = defineProps<{

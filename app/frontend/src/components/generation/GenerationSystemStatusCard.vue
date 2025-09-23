@@ -34,7 +34,7 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
 
-import type { UseGenerationStudioReturn } from '@/composables/useGenerationStudio'
+import type { UseGenerationStudioReturn } from '@/composables/generation'
 import type { SystemStatusState } from '@/types'
 
 const props = defineProps<{

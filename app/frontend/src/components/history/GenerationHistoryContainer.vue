@@ -125,10 +125,10 @@ import HistoryModalLauncher from './HistoryModalLauncher.vue';
 import HistoryToast from './HistoryToast.vue';
 import HistoryStatsSummary from './HistoryStatsSummary.vue';
 
-import { useGenerationHistory } from '@/composables/useGenerationHistory';
-import { useHistoryShortcuts } from '@/composables/useHistoryShortcuts';
-import { useHistorySelection, type HistorySelectionChangePayload } from '@/composables/useHistorySelection';
-import { useHistoryToast } from '@/composables/useHistoryToast';
+import { useGenerationHistory } from '@/composables/history';
+import { useHistoryShortcuts } from '@/composables/history';
+import { useHistorySelection, type HistorySelectionChangePayload } from '@/composables/history';
+import { useHistoryToast } from '@/composables/history';
 import { downloadFile } from '@/utils/browser';
 import { useBackendBase } from '@/utils/backend';
 import {
@@ -139,7 +139,7 @@ import {
   favoriteResult as favoriteHistoryResult,
   favoriteResults as favoriteHistoryResults,
   rateResult as rateHistoryResult,
-} from '@/services/historyService';
+} from '@/services';
 import type { GenerationHistoryResult } from '@/types';
 
 import type { HistoryViewMode } from './HistoryActionToolbar.vue';

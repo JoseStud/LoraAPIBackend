@@ -29,10 +29,10 @@
 import { RouterLink } from 'vue-router';
 
 import ImportExportContainer from '@/components/import-export/ImportExportContainer.vue';
-import JobQueue from '@/components/JobQueue.vue';
-import PageHeader from '@/components/PageHeader.vue';
+import JobQueue from '@/components/shared/JobQueue.vue';
+import PageHeader from '@/components/layout/PageHeader.vue';
 import PerformanceAnalytics from '@/views/analytics/PerformanceAnalyticsPage.vue';
-import RecommendationsPanel from '@/components/RecommendationsPanel.vue';
-import SystemAdminStatusCard from '@/components/SystemAdminStatusCard.vue';
-import SystemStatusPanel from '@/components/SystemStatusPanel.vue';
+import RecommendationsPanel from '@/components/recommendations/RecommendationsPanel.vue';
+import SystemAdminStatusCard from '@/components/system/SystemAdminStatusCard.vue';
+import SystemStatusPanel from '@/components/system/SystemStatusPanel.vue';
 </script>

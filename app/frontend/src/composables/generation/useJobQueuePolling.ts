@@ -1,6 +1,6 @@
 import { onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue';
 
-import type { JobQueueRecord } from '@/composables/useJobQueueTransport';
+import type { JobQueueRecord } from '@/composables/generation';
 
 export interface UseJobQueuePollingOptions {
   disabled: ComputedRef<boolean>;

@@ -137,8 +137,8 @@
 import { computed, ref } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 
-import { useAppStore } from '@/stores/app';
-import { useTheme } from '@/composables/useTheme';
+import { useAppStore } from '@/stores';
+import { useTheme } from '@/composables/shared';
 
 interface NavItem {
   path: string;

@@ -3,9 +3,9 @@ import type { ComputedRef, Ref } from 'vue';
 import type { AdapterSummary, CompositionEntry } from '@/types';
 
 import { useAdapterCatalog, type AdapterCatalogApi } from './useAdapterCatalog';
-import { usePromptCompositionPersistence } from './prompt-composer/usePromptCompositionPersistence';
-import { usePromptCompositionState } from './prompt-composer/usePromptCompositionState';
-import { usePromptGenerationActions } from './prompt-composer/usePromptGenerationActions';
+import { usePromptCompositionPersistence } from '../prompt-composer/usePromptCompositionPersistence';
+import { usePromptCompositionState } from '../prompt-composer/usePromptCompositionState';
+import { usePromptGenerationActions } from '../prompt-composer/usePromptGenerationActions';
 
 export interface PromptCompositionState {
   catalog: AdapterCatalogApi;

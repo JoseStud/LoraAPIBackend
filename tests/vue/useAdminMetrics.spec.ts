@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-vi.mock('@/services/systemService', () => ({
+vi.mock('@/services', () => ({
   deriveMetricsFromDashboard: vi.fn(),
   emptyMetricsSnapshot: vi.fn(),
   fetchDashboardStats: vi.fn(),
@@ -15,7 +15,7 @@ import {
   deriveMetricsFromDashboard,
   emptyMetricsSnapshot,
   fetchDashboardStats,
-} from '@/services/systemService';
+} from '@/services';
 
 const fetchDashboardStatsMock = vi.mocked(fetchDashboardStats);
 const deriveMetricsFromDashboardMock = vi.mocked(deriveMetricsFromDashboard);

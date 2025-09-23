@@ -1,10 +1,10 @@
 import { onMounted } from 'vue'
 
-import { useGenerationPersistence } from '@/composables/useGenerationPersistence'
-import { useGenerationOrchestrator } from '@/composables/useGenerationOrchestrator'
-import { useGenerationUI } from '@/composables/useGenerationUI'
-import { useNotifications } from '@/composables/useNotifications'
-import { toGenerationRequestPayload } from '@/services/generationService'
+import { useGenerationPersistence } from '@/composables/generation'
+import { useGenerationOrchestrator } from '@/composables/generation'
+import { useGenerationUI } from '@/composables/generation'
+import { useNotifications } from '@/composables/shared'
+import { toGenerationRequestPayload } from '@/services'
 import { useGenerationFormStore } from '@/stores/generation'
 import type { NotificationType } from '@/types'
 
