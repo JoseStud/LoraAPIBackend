@@ -350,72 +350,34 @@
       </div>
       
       <!-- Full-size Image Modal -->
-      <div v-show="showModal" 
-           class="fixed inset-0 z-50 overflow-y-auto transition-opacity duration-300"
-           :class="showModal ? 'opacity-100' : 'opacity-0'">
-        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-          <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="showModal = false"></div>
-          
-          <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-            <div v-if="selectedResult">
-              <img :src="selectedResult.image_url" 
-                   :alt="selectedResult.prompt"
-                   class="w-full max-h-96 object-contain">
-              <div class="p-6">
-                <div class="flex items-start justify-between mb-4">
-                  <div class="flex-1">
-                    <h3 class="text-lg font-medium text-gray-900 mb-2">Generation Details</h3>
-                    <div class="grid grid-cols-2 gap-4 text-sm">
-                      <div><strong>Prompt:</strong> {{ selectedResult.prompt }}</div>
-                      <div><strong>Size:</strong> {{ selectedResult.width }}x{{ selectedResult.height }}</div>
-                      <div><strong>Steps:</strong> {{ selectedResult.steps }}</div>
-                      <div><strong>CFG Scale:</strong> {{ selectedResult.cfg_scale }}</div>
-                      <div><strong>Seed:</strong> {{ selectedResult.seed }}</div>
-                      <div><strong>Created:</strong> {{ formatDate(selectedResult.created_at) }}</div>
-                    </div>
-                  </div>
-                  <button @click="showModal = false" 
-                          class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                  </button>
-                </div>
-                
-                <div class="flex space-x-3">
-                  <button @click="reuseParameters(selectedResult); showModal = false" 
-                          class="btn btn-primary">
-                    Use Parameters
-                  </button>
-                  <button @click="downloadImage(selectedResult)" 
-                          class="btn btn-secondary">
-                    Download
-                  </button>
-                  <button @click="deleteResult(selectedResult.id); showModal = false" 
-                          class="btn btn-danger">
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
+      <HistoryModal
+        :visible="showModal"
+        :result="selectedResult"
+        :formatted-date="selectedResult ? formatDate(selectedResult.created_at) : ''"
+        @close="showModal = false"
+        @reuse="handleReuse"
+        @download="downloadImage"
+        @delete="handleDelete"
+      />
+
       <!-- Toast Notifications -->
-      <div v-show="showToast" 
-           class="fixed top-4 right-4 z-50 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg transition-all duration-300"
-           :class="showToast ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-2'">
-        <span>{{ toastMessage }}</span>
-      </div>
+      <HistoryToast
+        :visible="toastVisible"
+        :message="toastMessage"
+        :type="toastType"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch, type Ref } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 
-import { debounce } from '@/utils/async';
+import HistoryModal from './HistoryModal.vue';
+import HistoryToast from './HistoryToast.vue';
+
+import { useGenerationHistory } from '@/composables/useGenerationHistory';
 import { downloadFile } from '@/utils/browser';
 import { formatFileSize as formatBytes } from '@/utils/format';
 import {
@@ -425,203 +387,67 @@ import {
   exportResults as exportHistoryResults,
   favoriteResult as favoriteHistoryResult,
   favoriteResults as favoriteHistoryResults,
-  listResults as listHistoryResults,
   rateResult as rateHistoryResult,
 } from '@/services/historyService';
 import { useBackendBase } from '@/utils/backend';
-import type { ListResultsOutput } from '@/services/historyService';
-import type {
-  GenerationHistoryResult,
-  GenerationHistoryStats,
-} from '@/types';
+import type { GenerationHistoryResult } from '@/types';
 
-// State mirroring the Alpine.js implementation
 type ViewMode = 'grid' | 'list';
-type HistorySortOption = 'created_at' | 'created_at_asc' | 'prompt' | 'rating';
-type DateFilterOption = 'all' | 'today' | 'week' | 'month';
-type RatingFilterOption = 0 | 1 | 2 | 3 | 4 | 5;
-type DimensionFilterOption = 'all' | '512x512' | '768x768' | '1024x1024';
 type ToastType = 'success' | 'error' | 'info' | 'warning';
 
-const data: Ref<GenerationHistoryResult[]> = ref([]);
-const isLoading = ref(false);
-const error = ref<string | null>(null);
-const hasMore = ref(true);
-const currentPage = ref(1);
-const pageSize = ref(50);
-const isInitialized = ref(false);
-
-const filteredResults: Ref<GenerationHistoryResult[]> = ref([]);
+const viewMode = ref<ViewMode>('grid');
 const selectedItems = ref<Array<GenerationHistoryResult['id']>>([]);
 const selectedResult = ref<GenerationHistoryResult | null>(null);
-
-// View state
-const viewMode = ref<ViewMode>('grid');
 const showModal = ref(false);
-const showToast = ref(false);
-const toastMessage = ref('');
+const isInitialized = ref(false);
 
-// Filters
-const searchTerm = ref('');
-const sortBy = ref<HistorySortOption>('created_at');
-const dateFilter = ref<DateFilterOption>('all');
-const ratingFilter = ref<RatingFilterOption>(0);
-const dimensionFilter = ref<DimensionFilterOption>('all');
-
-// Statistics
-const stats = reactive<GenerationHistoryStats>({
-  total_results: 0,
-  avg_rating: 0,
-  total_favorites: 0,
-  total_size: 0,
-});
-
-// Runtime configuration
 const apiBaseUrl = useBackendBase();
+const router = useRouter();
 
-// Methods - mirrors Alpine.js implementation
-const loadResults = async (): Promise<void> => {
-  isLoading.value = true;
-  error.value = null;
+const {
+  data,
+  filteredResults,
+  stats,
+  isLoading,
+  error,
+  hasMore,
+  searchTerm,
+  sortBy,
+  dateFilter,
+  ratingFilter,
+  dimensionFilter,
+  loadInitialResults,
+  loadMore: loadMoreResults,
+  applyFilters,
+  debouncedApplyFilters,
+  clearFilters,
+} = useGenerationHistory({ apiBase: apiBaseUrl });
 
-  try {
-    const response: ListResultsOutput = await listHistoryResults(apiBaseUrl.value, {
-      page: currentPage.value,
-      page_size: pageSize.value,
-    });
+const toastVisible = ref(false);
+const toastMessage = ref('');
+const toastType = ref<ToastType>('success');
+let toastTimeout: ReturnType<typeof setTimeout> | undefined;
 
-    const results = response.results;
-    const pageInfo = response.response;
-
-    if (pageInfo) {
-      if (typeof pageInfo.has_more === 'boolean') {
-        hasMore.value = pageInfo.has_more;
-      } else if (typeof pageInfo.page === 'number' && typeof pageInfo.pages === 'number') {
-        hasMore.value = pageInfo.page < pageInfo.pages;
-      } else {
-        hasMore.value = results.length >= pageSize.value;
-      }
-    } else {
-      hasMore.value = results.length >= pageSize.value;
-    }
-
-    if (currentPage.value === 1) {
-      data.value = [...results];
-    } else {
-      data.value = [...data.value, ...results];
-    }
-
-    applyFilters();
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load results';
-    showToastMessage('Failed to load results', 'error');
-  } finally {
-    isLoading.value = false;
+const showToastMessage = (message: string, type: ToastType = 'success'): void => {
+  if (toastTimeout) {
+    clearTimeout(toastTimeout);
   }
+
+  toastMessage.value = message;
+  toastType.value = type;
+  toastVisible.value = true;
+
+  toastTimeout = setTimeout(() => {
+    toastVisible.value = false;
+    toastTimeout = undefined;
+  }, 3000);
 };
 
-const applyFilters = (): void => {
-  let filtered = [...data.value];
-
-  if (searchTerm.value.trim()) {
-    const searchLower = searchTerm.value.toLowerCase();
-    filtered = filtered.filter((result) => {
-      const promptText = result.prompt.toLowerCase();
-      const negativeText = typeof result.negative_prompt === 'string'
-        ? result.negative_prompt.toLowerCase()
-        : '';
-      return promptText.includes(searchLower) || negativeText.includes(searchLower);
-    });
+watch(error, (value) => {
+  if (value) {
+    showToastMessage(value, 'error');
   }
-
-  if (dateFilter.value !== 'all') {
-    const now = new Date();
-    const filterDate = new Date();
-
-    switch (dateFilter.value) {
-      case 'today':
-        filterDate.setHours(0, 0, 0, 0);
-        break;
-      case 'week':
-        filterDate.setDate(now.getDate() - 7);
-        break;
-      case 'month':
-        filterDate.setMonth(now.getMonth() - 1);
-        break;
-      default:
-        break;
-    }
-
-    filtered = filtered.filter((result) => {
-      const createdAt = new Date(result.created_at);
-      return Number.isFinite(createdAt.getTime()) && createdAt >= filterDate;
-    });
-  }
-
-  if (ratingFilter.value > 0) {
-    filtered = filtered.filter((result) => (result.rating ?? 0) >= ratingFilter.value);
-  }
-
-  if (dimensionFilter.value !== 'all') {
-    const [widthText, heightText] = dimensionFilter.value.split('x');
-    const width = Number(widthText);
-    const height = Number(heightText);
-
-    if (Number.isFinite(width) && Number.isFinite(height)) {
-      filtered = filtered.filter((result) => result.width === width && result.height === height);
-    }
-  }
-
-  sortResults(filtered);
-
-  filteredResults.value = filtered;
-  calculateStats();
-};
-
-const debouncedApplyFilters = debounce(() => applyFilters(), 300);
-
-const sortResults = (results: GenerationHistoryResult[]): void => {
-  switch (sortBy.value) {
-    case 'created_at':
-      results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      break;
-    case 'created_at_asc':
-      results.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-      break;
-    case 'prompt':
-      results.sort((a, b) => a.prompt.localeCompare(b.prompt));
-      break;
-    case 'rating':
-      results.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
-      break;
-  }
-};
-
-const calculateStats = (): void => {
-  stats.total_results = filteredResults.value.length;
-
-  if (filteredResults.value.length > 0) {
-    const totalRating = filteredResults.value.reduce((sum, result) => sum + (result.rating ?? 0), 0);
-    stats.avg_rating = totalRating / filteredResults.value.length;
-
-    stats.total_favorites = filteredResults.value.filter((result) => Boolean(result.is_favorite)).length;
-
-    stats.total_size = filteredResults.value.length * 2.5 * 1024 * 1024;
-  } else {
-    stats.avg_rating = 0;
-    stats.total_favorites = 0;
-    stats.total_size = 0;
-  }
-};
-
-const clearFilters = (): void => {
-  searchTerm.value = '';
-  sortBy.value = 'created_at';
-  dateFilter.value = 'all';
-  ratingFilter.value = 0;
-  dimensionFilter.value = 'all';
-  applyFilters();
-};
+});
 
 const showImageModal = (result: GenerationHistoryResult): void => {
   selectedResult.value = result;
@@ -633,61 +459,73 @@ const setRating = async (result: GenerationHistoryResult, rating: number): Promi
     await rateHistoryResult(apiBaseUrl.value, result.id, rating);
 
     result.rating = rating;
-    calculateStats();
+    applyFilters();
 
     showToastMessage('Rating updated successfully');
-
-  } catch (error) {
-    console.error('Error updating rating:', error);
+  } catch (err) {
+    console.error('Error updating rating:', err);
     showToastMessage('Failed to update rating', 'error');
   }
 };
 
 const toggleFavorite = async (result: GenerationHistoryResult): Promise<void> => {
   try {
-    const nextValue = !result.is_favorite;
-    await favoriteHistoryResult(apiBaseUrl.value, result.id, nextValue);
+    const updatedResult = await favoriteHistoryResult(apiBaseUrl.value, result.id, !result.is_favorite);
 
-    result.is_favorite = nextValue;
-    calculateStats();
+    if (updatedResult) {
+      result.is_favorite = updatedResult.is_favorite;
+    } else {
+      result.is_favorite = !result.is_favorite;
+    }
 
-    const message = nextValue ? 'Added to favorites' : 'Removed from favorites';
-    showToastMessage(message);
-
-  } catch (error) {
-    console.error('Error updating favorite:', error);
-    showToastMessage('Failed to update favorite status', 'error');
+    applyFilters();
+    showToastMessage(result.is_favorite ? 'Added to favorites' : 'Removed from favorites');
+  } catch (err) {
+    console.error('Error updating favorite status:', err);
+    showToastMessage('Failed to update favorites', 'error');
   }
 };
 
 const reuseParameters = (result: GenerationHistoryResult): void => {
-  // Store parameters in localStorage for the compose page
-  const parameters = {
-    prompt: result.prompt,
-    negative_prompt: result.negative_prompt || '',
-    width: result.width,
-    height: result.height,
-    steps: result.steps,
-    cfg_scale: result.cfg_scale,
-    seed: result.seed,
-    loras: result.loras || []
-  };
-  
-  localStorage.setItem('reuse-parameters', JSON.stringify(parameters));
-  
-  // Navigate to compose page
-  window.location.href = '/compose';
+  try {
+    const parameters = {
+      prompt: result.prompt,
+      negative_prompt: result.negative_prompt ?? '',
+      steps: result.steps,
+      cfg_scale: result.cfg_scale,
+      width: result.width,
+      height: result.height,
+      seed: result.seed ?? null,
+      sampler: result.sampler ?? result.sampler_name ?? null,
+      model: result.model ?? result.model_name ?? null,
+      clip_skip: result.clip_skip ?? null,
+      loras: result.loras ?? [],
+    };
+
+    localStorage.setItem('reuse-parameters', JSON.stringify(parameters));
+
+    showToastMessage('Parameters copied to generation form');
+    void router.push({ name: 'compose' });
+  } catch (err) {
+    console.error('Error saving parameters:', err);
+    showToastMessage('Failed to save parameters', 'error');
+  }
 };
+const handleReuse = (result: GenerationHistoryResult): void => {
+  reuseParameters(result);
+  showModal.value = false;
+};
+
+
 
 const downloadImage = async (result: GenerationHistoryResult): Promise<void> => {
   try {
-    const download = await downloadHistoryResult(apiBaseUrl.value, result.id, `generation-${result.id}.png`);
+    const download = await downloadHistoryResult(apiBaseUrl.value, result.id);
     downloadFile(download.blob, download.filename);
 
     showToastMessage('Download started');
-
-  } catch (error) {
-    console.error('Error downloading image:', error);
+  } catch (err) {
+    console.error('Error downloading image:', err);
     showToastMessage('Failed to download image', 'error');
   }
 };
@@ -700,19 +538,26 @@ const deleteResult = async (resultId: GenerationHistoryResult['id']): Promise<vo
   try {
     await deleteHistoryResult(apiBaseUrl.value, resultId);
 
-    data.value = data.value.filter(r => r.id !== resultId);
+    data.value = data.value.filter((item) => item.id !== resultId);
     applyFilters();
 
     showToastMessage('Image deleted successfully');
-
-  } catch (error) {
-    console.error('Error deleting result:', error);
+  } catch (err) {
+    console.error('Error deleting result:', err);
     showToastMessage('Failed to delete image', 'error');
   }
 };
+const handleDelete = async (resultId: GenerationHistoryResult['id']): Promise<void> => {
+  await deleteResult(resultId);
+  showModal.value = false;
+};
+
+
 
 const deleteSelected = async (): Promise<void> => {
-  if (selectedItems.value.length === 0) return;
+  if (selectedItems.value.length === 0) {
+    return;
+  }
 
   const count = selectedItems.value.length;
   if (!confirm(`Are you sure you want to delete ${count} selected images?`)) {
@@ -722,20 +567,21 @@ const deleteSelected = async (): Promise<void> => {
   try {
     await deleteHistoryResults(apiBaseUrl.value, { ids: selectedItems.value });
 
-    data.value = data.value.filter(r => !selectedItems.value.includes(r.id));
+    data.value = data.value.filter((item) => !selectedItems.value.includes(item.id));
     selectedItems.value = [];
     applyFilters();
 
     showToastMessage(`${count} images deleted successfully`);
-    
-  } catch (error) {
-    console.error('Error deleting results:', error);
+  } catch (err) {
+    console.error('Error deleting results:', err);
     showToastMessage('Failed to delete images', 'error');
   }
 };
 
 const favoriteSelected = async (): Promise<void> => {
-  if (selectedItems.value.length === 0) return;
+  if (selectedItems.value.length === 0) {
+    return;
+  }
 
   try {
     await favoriteHistoryResults(apiBaseUrl.value, {
@@ -743,32 +589,32 @@ const favoriteSelected = async (): Promise<void> => {
       is_favorite: true,
     });
 
-    data.value.forEach(result => {
+    data.value.forEach((result) => {
       if (selectedItems.value.includes(result.id)) {
         result.is_favorite = true;
       }
     });
-    
-    calculateStats();
+
+    applyFilters();
     showToastMessage(`${selectedItems.value.length} images added to favorites`);
-    
-  } catch (error) {
-    console.error('Error updating favorites:', error);
+  } catch (err) {
+    console.error('Error updating favorites:', err);
     showToastMessage('Failed to update favorites', 'error');
   }
 };
 
 const exportSelected = async (): Promise<void> => {
-  if (selectedItems.value.length === 0) return;
+  if (selectedItems.value.length === 0) {
+    return;
+  }
 
   try {
     const download = await exportHistoryResults(apiBaseUrl.value, { ids: selectedItems.value });
     downloadFile(download.blob, download.filename);
 
     showToastMessage('Export started');
-
-  } catch (error) {
-    console.error('Error exporting results:', error);
+  } catch (err) {
+    console.error('Error exporting results:', err);
     showToastMessage('Failed to export images', 'error');
   }
 };
@@ -778,10 +624,7 @@ const clearSelection = (): void => {
 };
 
 const loadMore = async (): Promise<void> => {
-  if (!hasMore.value || isLoading.value) return;
-
-  currentPage.value++;
-  await loadResults();
+  await loadMoreResults();
 };
 
 const formatDate = (dateString: string): string => {
@@ -789,33 +632,26 @@ const formatDate = (dateString: string): string => {
   if (!Number.isFinite(date.getTime())) {
     return '';
   }
+
   const now = new Date();
   const diffTime = Math.abs(now.getTime() - date.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
   if (diffDays === 1) {
     return 'Today';
-  } else if (diffDays === 2) {
-    return 'Yesterday';
-  } else if (diffDays <= 7) {
-    return `${diffDays - 1} days ago`;
-  } else {
-    return date.toLocaleDateString();
   }
+  if (diffDays === 2) {
+    return 'Yesterday';
+  }
+  if (diffDays <= 7) {
+    return `${diffDays - 1} days ago`;
+  }
+
+  return date.toLocaleDateString();
 };
 
 const formatFileSize = (bytes: number) => formatBytes(Number.isFinite(bytes) ? bytes : 0);
 
-const showToastMessage = (message: string, _type: ToastType = 'success'): void => {
-  toastMessage.value = message;
-  showToast.value = true;
-
-  setTimeout(() => {
-    showToast.value = false;
-  }, 3000);
-};
-
-// Handle keyboard shortcuts
 const handleKeydown = (event: KeyboardEvent): void => {
   if (event.key === 'Escape') {
     if (showModal.value) {
@@ -823,39 +659,41 @@ const handleKeydown = (event: KeyboardEvent): void => {
     } else if (selectedItems.value.length > 0) {
       clearSelection();
     }
-  } else if (event.key === 'Delete' && selectedItems.value.length > 0) {
+    return;
+  }
+
+  if (event.key === 'Delete' && selectedItems.value.length > 0) {
     deleteSelected();
-  } else if (event.key === 'a' && (event.ctrlKey || event.metaKey)) {
+    return;
+  }
+
+  if (event.key === 'a' && (event.ctrlKey || event.metaKey)) {
     event.preventDefault();
-    selectedItems.value = filteredResults.value.map(r => r.id);
+    selectedItems.value = filteredResults.value.map((result) => result.id);
   }
 };
 
-// Initialize component
 onMounted(async () => {
-  // Load view mode preference
   const savedViewMode = localStorage.getItem('history-view-mode');
   if (savedViewMode === 'grid' || savedViewMode === 'list') {
     viewMode.value = savedViewMode;
   }
-  
-  // Add keyboard event listener
+
   document.addEventListener('keydown', handleKeydown);
-  
-  // Start fetching data
-  await loadResults();
+
+  await loadInitialResults();
   isInitialized.value = true;
 });
 
 onUnmounted(() => {
-  // Clean up event listener
   document.removeEventListener('keydown', handleKeydown);
-
-  // Clear any pending debounce
   debouncedApplyFilters.cancel();
+  if (toastTimeout) {
+    clearTimeout(toastTimeout);
+    toastTimeout = undefined;
+  }
 });
 
-// Watch for view mode changes and save preference
 watch(viewMode, (newMode: ViewMode) => {
   localStorage.setItem('history-view-mode', newMode);
 });
