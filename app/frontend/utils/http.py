@@ -13,7 +13,13 @@ from urllib.parse import urlencode
 class HTTPClient:
     """A simple HTTP client facade with URL building support."""
 
-    def __init__(self, base_url: str, timeout: float = 30.0, max_retries: int = 0) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        timeout: float = 30.0,
+        max_retries: int = 0,
+    ) -> None:
+        """Initialize an HTTP client configuration."""
         if not isinstance(base_url, str) or not base_url:
             raise ValueError("base_url must be a non-empty string")
         if not (base_url.startswith("http://") or base_url.startswith("https://")):
