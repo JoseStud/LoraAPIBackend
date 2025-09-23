@@ -105,22 +105,45 @@ class DeliveryRunner:
     ) -> Dict[str, Any]:
         """Execute the delivery backend associated with the job mode."""
 
-        if mode == "sdnext":
-            backend = self._delivery_registry.get_generation_backend("sdnext")
-            if backend is None:
-                return {"status": "error", "detail": "generation backend 'sdnext' not found"}
+        params_dict = params if isinstance(params, dict) else {}
 
-            gen_params_dict = params.get("generation_params", {}).copy()
+        backend_name: Optional[str] = None
+        maybe_backend = params_dict.get("backend")
+        if isinstance(maybe_backend, str):
+            backend_name = maybe_backend
+
+        generation_backend = None
+        candidate_names = []
+        if backend_name:
+            candidate_names.append(backend_name)
+        if isinstance(mode, str) and mode not in candidate_names:
+            candidate_names.append(mode)
+
+        for candidate in candidate_names:
+            backend = self._delivery_registry.get_generation_backend(candidate)
+            if backend is not None:
+                generation_backend = backend
+                backend_name = candidate
+                break
+
+        if generation_backend is not None:
+            gen_params_dict: Dict[str, Any] = {}
+            raw_generation_params = params_dict.get("generation_params")
+            if isinstance(raw_generation_params, dict):
+                gen_params_dict.update(raw_generation_params)
             gen_params_dict["prompt"] = prompt
 
             gen_params = SDNextGenerationParams(**gen_params_dict)
             full_params = {
                 "generation_params": gen_params.model_dump(),
-                "mode": params.get("mode", "immediate"),
-                "save_images": params.get("save_images", True),
-                "return_format": params.get("return_format", "base64"),
+                "mode": params_dict.get("mode", "immediate"),
+                "save_images": params_dict.get("save_images", True),
+                "return_format": params_dict.get("return_format", "base64"),
             }
-            result_obj = await backend.generate_image(prompt, full_params)
+            if backend_name:
+                full_params["backend"] = backend_name
+
+            result_obj = await generation_backend.generate_image(prompt, full_params)
             return result_obj.model_dump()
 
         backend = self._delivery_registry.get_delivery_backend(mode)

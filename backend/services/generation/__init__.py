@@ -217,7 +217,7 @@ class GenerationCoordinator:
 
         return self._deliveries.schedule_job(
             prompt=generation_params.prompt,
-            mode="sdnext",
+            mode=backend,
             params=delivery_params,
             **schedule_kwargs,
         )
@@ -226,13 +226,24 @@ class GenerationCoordinator:
         """Return normalized parameters and result payload data for a job."""
 
         raw_params = self._deliveries.get_job_params(job)
+        backend_name: Optional[str] = None
         generation_params: Dict[str, Any] = {}
         if isinstance(raw_params, dict):
+            maybe_backend = raw_params.get("backend")
+            if isinstance(maybe_backend, str):
+                backend_name = maybe_backend
+
             maybe_generation_params = raw_params.get("generation_params")
             if isinstance(maybe_generation_params, dict):
-                generation_params = maybe_generation_params
+                generation_params = dict(maybe_generation_params)
             else:
-                generation_params = raw_params
+                generation_params = dict(raw_params)
+
+        if not backend_name and isinstance(job.mode, str):
+            backend_name = job.mode
+
+        if backend_name:
+            generation_params.setdefault("backend", backend_name)
 
         result_payload = self._deliveries.get_job_result(job) or {}
         if not isinstance(result_payload, dict):
