@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
-import { setActivePinia, createPinia } from 'pinia'
+import { setActivePinia, createPinia, storeToRefs } from 'pinia'
 
-import { useGenerationUpdates } from '../../app/frontend/src/composables/useGenerationUpdates'
+import { createGenerationOrchestrator } from '../../app/frontend/src/services/generationOrchestrator'
 import {
   useGenerationQueueStore,
   useGenerationResultsStore,
@@ -26,7 +26,7 @@ class MockWebSocket {
 
 describe('generation websocket manager integration', () => {
   let notifications
-  let updates
+  let orchestrator
   const originalWebSocket = globalThis.WebSocket
   let queueClient
 
@@ -60,16 +60,27 @@ describe('generation websocket manager integration', () => {
     const showHistory = ref(false)
     const configuredBackendUrl = ref('http://localhost:8000')
 
-    updates = useGenerationUpdates({
+    const queueStore = useGenerationQueueStore()
+    const resultsStore = useGenerationResultsStore()
+    const connectionStore = useGenerationConnectionStore()
+    const { historyLimit } = storeToRefs(resultsStore)
+    const { pollIntervalMs } = storeToRefs(connectionStore)
+
+    orchestrator = createGenerationOrchestrator({
       showHistory,
       configuredBackendUrl,
       notificationAdapter: notifications,
+      queueStore,
+      resultsStore,
+      connectionStore,
+      historyLimit,
+      pollIntervalMs,
       queueClient,
     })
   })
 
   afterEach(() => {
-    updates.cleanup()
+    orchestrator.cleanup()
     globalThis.WebSocket = originalWebSocket
   })
 
@@ -78,7 +89,7 @@ describe('generation websocket manager integration', () => {
     const resultStore = useGenerationResultsStore()
     const connectionStore = useGenerationConnectionStore()
 
-    await updates.initialize()
+    await orchestrator.initialize()
 
     expect(MockWebSocket.instances).toHaveLength(1)
     const socket = MockWebSocket.instances[0]

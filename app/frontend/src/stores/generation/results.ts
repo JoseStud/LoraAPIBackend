@@ -55,3 +55,5 @@ export const useGenerationResultsStore = defineStore('generation-results', () =>
     reset,
   };
 });
+
+export type GenerationResultsStore = ReturnType<typeof useGenerationResultsStore>;

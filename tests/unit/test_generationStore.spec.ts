@@ -1,11 +1,20 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { setActivePinia, createPinia } from 'pinia';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ref } from 'vue';
+import { setActivePinia, createPinia, storeToRefs } from 'pinia';
 
-import { useGenerationStore, type GenerationNotificationAdapter } from '../../app/frontend/src/stores/generation';
+import {
+  useGenerationConnectionStore,
+  useGenerationQueueStore,
+  useGenerationResultsStore,
+} from '../../app/frontend/src/stores/generation';
+import { createGenerationOrchestrator } from '../../app/frontend/src/services/generationOrchestrator';
 import type {
   GenerationQueueClient,
   GenerationWebSocketManager,
 } from '../../app/frontend/src/services/generationUpdates';
+import type {
+  GenerationNotificationAdapter,
+} from '../../app/frontend/src/composables/useGenerationTransport';
 import type { GenerationRequestPayload, GenerationResult } from '../../app/frontend/src/types';
 
 const createQueueClientMock = (): GenerationQueueClient => ({
@@ -23,15 +32,22 @@ const createWebSocketManagerMock = (): GenerationWebSocketManager => ({
   reconnect: vi.fn(),
 });
 
-describe('generation store actions', () => {
-  let store: ReturnType<typeof useGenerationStore>;
+describe('generation orchestrator actions', () => {
+  let queueStore: ReturnType<typeof useGenerationQueueStore>;
+  let resultsStore: ReturnType<typeof useGenerationResultsStore>;
+  let connectionStore: ReturnType<typeof useGenerationConnectionStore>;
+  let orchestrator: ReturnType<typeof createGenerationOrchestrator>;
   let queueClient: ReturnType<typeof createQueueClientMock>;
   let websocketManager: ReturnType<typeof createWebSocketManagerMock>;
   let notifications: GenerationNotificationAdapter;
+  let showHistory: ReturnType<typeof ref<boolean>>;
+  let configuredBackendUrl: ReturnType<typeof ref<string | null>>;
 
   beforeEach(() => {
     setActivePinia(createPinia());
-    store = useGenerationStore();
+    queueStore = useGenerationQueueStore();
+    resultsStore = useGenerationResultsStore();
+    connectionStore = useGenerationConnectionStore();
     queueClient = createQueueClientMock();
     websocketManager = createWebSocketManagerMock();
     notifications = {
@@ -39,12 +55,28 @@ describe('generation store actions', () => {
       debug: vi.fn(),
     };
 
-    store.configureGenerationServices({
-      getBackendUrl: () => null,
+    showHistory = ref(false);
+    configuredBackendUrl = ref(null);
+
+    const { historyLimit } = storeToRefs(resultsStore);
+    const { pollIntervalMs } = storeToRefs(connectionStore);
+
+    orchestrator = createGenerationOrchestrator({
+      showHistory,
+      configuredBackendUrl,
+      notificationAdapter: notifications,
+      queueStore,
+      resultsStore,
+      connectionStore,
+      historyLimit,
+      pollIntervalMs,
       queueClient,
       websocketManager,
-      notificationAdapter: notifications,
     });
+  });
+
+  afterEach(() => {
+    orchestrator.cleanup();
   });
 
   it('startGeneration enqueues job and emits success notification', async () => {
@@ -68,22 +100,22 @@ describe('generation store actions', () => {
       progress: 0,
     });
 
-    await store.startGeneration(payload);
+    await orchestrator.startGeneration(payload);
 
     expect(queueClient.startGeneration).toHaveBeenCalledWith(payload);
-    expect(store.activeJobs).toHaveLength(1);
-    expect(store.activeJobs[0]).toMatchObject({ id: 'job-1', status: 'queued' });
+    expect(queueStore.activeJobs).toHaveLength(1);
+    expect(queueStore.activeJobs[0]).toMatchObject({ id: 'job-1', status: 'queued' });
     expect(notifications.notify).toHaveBeenCalledWith('Generation started successfully', 'success');
   });
 
   it('cancelJob removes job and notifies', async () => {
-    store.enqueueJob({ id: 'job-2', status: 'queued' });
+    queueStore.enqueueJob({ id: 'job-2', status: 'queued' });
     queueClient.cancelJob.mockResolvedValue();
 
-    await store.cancelJob('job-2');
+    await orchestrator.cancelJob('job-2');
 
     expect(queueClient.cancelJob).toHaveBeenCalledWith('job-2');
-    expect(store.activeJobs).toHaveLength(0);
+    expect(queueStore.activeJobs).toHaveLength(0);
     expect(notifications.notify).toHaveBeenCalledWith('Generation cancelled', 'success');
   });
 
@@ -105,11 +137,12 @@ describe('generation store actions', () => {
 
     queueClient.fetchRecentResults.mockResolvedValue([result]);
 
-    await store.refreshRecentResults(true);
+    await orchestrator.loadRecentResultsData(true);
 
-    expect(queueClient.fetchRecentResults).toHaveBeenCalledWith(store.historyLimit);
-    expect(store.recentResults).toHaveLength(1);
-    expect(store.recentResults[0].id).toBe('result-1');
+    const { historyLimit } = storeToRefs(resultsStore);
+    expect(queueClient.fetchRecentResults).toHaveBeenCalledWith(historyLimit.value);
+    expect(resultsStore.recentResults).toHaveLength(1);
+    expect(resultsStore.recentResults[0].id).toBe('result-1');
     expect(notifications.notify).toHaveBeenCalledWith('Results refreshed', 'success');
   });
 
@@ -125,7 +158,7 @@ describe('generation store actions', () => {
     queueClient.fetchActiveJobs.mockResolvedValue([{ id: 'job-9', status: 'queued' }]);
     queueClient.fetchRecentResults.mockResolvedValue([]);
 
-    await store.initializeUpdates();
+    await orchestrator.initialize();
 
     expect(queueClient.fetchSystemStatus).toHaveBeenCalled();
     expect(queueClient.fetchActiveJobs).toHaveBeenCalled();

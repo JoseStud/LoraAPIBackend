@@ -8,6 +8,7 @@ import GenerationStudio from '../../app/frontend/src/components/GenerationStudio
 import { useAppStore } from '../../app/frontend/src/stores/app'
 import {
   useGenerationConnectionStore,
+  useGenerationFormStore,
   useGenerationQueueStore,
   useGenerationResultsStore,
 } from '../../app/frontend/src/stores/generation'
@@ -16,30 +17,23 @@ const mocks = vi.hoisted(() => ({
   startGenerationMock: vi.fn(),
   cancelGenerationJobMock: vi.fn(),
   deleteGenerationResultMock: vi.fn(),
-  fetchSystemStatusMock: vi.fn(),
-  fetchActiveJobsMock: vi.fn(),
-  fetchRecentResultsMock: vi.fn(),
-  startUpdatesMock: vi.fn(),
-  stopUpdatesMock: vi.fn(),
-  reconnectUpdatesMock: vi.fn(),
+  clearQueueMock: vi.fn(),
+  loadRecentResultsMock: vi.fn(),
+  initializeMock: vi.fn(),
 }))
 
-vi.mock('../../app/frontend/src/services/generationUpdates.ts', () => ({
-  createGenerationQueueClient: vi.fn(() => ({
+vi.mock('../../app/frontend/src/services/generationOrchestrator.ts', () => ({
+  createGenerationOrchestrator: vi.fn(() => ({
+    initialize: mocks.initializeMock,
+    cleanup: vi.fn(),
+    loadSystemStatusData: vi.fn(),
+    loadActiveJobsData: vi.fn(),
+    loadRecentResultsData: mocks.loadRecentResultsMock,
     startGeneration: mocks.startGenerationMock,
     cancelJob: mocks.cancelGenerationJobMock,
+    clearQueue: mocks.clearQueueMock,
     deleteResult: mocks.deleteGenerationResultMock,
-    fetchSystemStatus: mocks.fetchSystemStatusMock,
-    fetchActiveJobs: mocks.fetchActiveJobsMock,
-    fetchRecentResults: mocks.fetchRecentResultsMock,
   })),
-  createGenerationWebSocketManager: vi.fn(() => ({
-    start: mocks.startUpdatesMock,
-    stop: mocks.stopUpdatesMock,
-    reconnect: mocks.reconnectUpdatesMock,
-  })),
-  DEFAULT_POLL_INTERVAL: 2000,
-  extractGenerationErrorMessage: vi.fn((message) => message.error ?? 'Unknown error'),
 }))
 
 // Mock WebSocket
@@ -80,6 +74,7 @@ describe('GenerationStudio.vue', () => {
   let queueStore
   let resultsStore
   let connectionStore
+  let formStore
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -88,19 +83,18 @@ describe('GenerationStudio.vue', () => {
     queueStore = useGenerationQueueStore()
     resultsStore = useGenerationResultsStore()
     connectionStore = useGenerationConnectionStore()
+    formStore = useGenerationFormStore()
     queueStore.reset()
     resultsStore.reset()
     connectionStore.reset()
+    formStore.reset()
     localStorageMock.getItem.mockReturnValue(null)
     mocks.startGenerationMock.mockResolvedValue({ job_id: 'job-123', status: 'queued', progress: 0 })
     mocks.cancelGenerationJobMock.mockResolvedValue(undefined)
     mocks.deleteGenerationResultMock.mockResolvedValue(undefined)
-    mocks.startUpdatesMock.mockResolvedValue(undefined)
-    mocks.stopUpdatesMock.mockImplementation(() => {})
-    mocks.reconnectUpdatesMock.mockImplementation(() => {})
-    mocks.fetchSystemStatusMock.mockResolvedValue(null)
-    mocks.fetchActiveJobsMock.mockResolvedValue([])
-    mocks.fetchRecentResultsMock.mockResolvedValue([])
+    mocks.clearQueueMock.mockResolvedValue(undefined)
+    mocks.initializeMock.mockResolvedValue(undefined)
+    mocks.loadRecentResultsMock.mockResolvedValue(undefined)
   })
 
   afterEach(() => {

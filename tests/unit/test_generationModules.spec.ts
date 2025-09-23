@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
-import { createPinia, setActivePinia } from 'pinia';
+import { createPinia, setActivePinia, storeToRefs } from 'pinia';
 
 import { useGenerationQueueStore } from '../../app/frontend/src/stores/generation/queue';
 import { useGenerationResultsStore } from '../../app/frontend/src/stores/generation/results';
+import { useGenerationConnectionStore } from '../../app/frontend/src/stores/generation/connection';
 import { useGenerationTransport } from '../../app/frontend/src/composables/useGenerationTransport';
-import { useGenerationUpdates } from '../../app/frontend/src/composables/useGenerationUpdates';
+import { createGenerationOrchestrator } from '../../app/frontend/src/services/generationOrchestrator';
 import type {
   GenerationQueueClient,
   GenerationWebSocketManager,
@@ -142,7 +143,7 @@ describe('generation transport hooks', () => {
   });
 });
 
-describe('generation updates composable notifications', () => {
+describe('generation orchestrator notifications', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
   });
@@ -163,21 +164,35 @@ describe('generation updates composable notifications', () => {
     const showHistory = ref(false);
     const configuredBackendUrl = ref<string | null>(null);
 
-    const { startGeneration } = useGenerationUpdates({
+    const queueStore = useGenerationQueueStore();
+    const resultsStore = useGenerationResultsStore();
+    const connectionStore = useGenerationConnectionStore();
+
+    const { historyLimit } = storeToRefs(resultsStore);
+    const { pollIntervalMs } = storeToRefs(connectionStore);
+
+    const orchestrator = createGenerationOrchestrator({
       showHistory,
       configuredBackendUrl,
       notificationAdapter: {
         notify,
         debug: vi.fn(),
       },
+      queueStore,
+      resultsStore,
+      connectionStore,
+      historyLimit,
+      pollIntervalMs,
       queueClient,
       websocketManager,
     });
 
-    const payload = { prompt: 'hello', width: 512, height: 512, steps: 20 } as unknown as Parameters<typeof startGeneration>[0];
-    await startGeneration(payload);
+    const payload = { prompt: 'hello', width: 512, height: 512, steps: 20 } as unknown as Parameters<typeof orchestrator.startGeneration>[0];
+    await orchestrator.startGeneration(payload);
 
     expect(queueClient.startGeneration).toHaveBeenCalledWith(payload);
     expect(notify).toHaveBeenCalledWith('Generation started successfully', 'success');
+
+    orchestrator.cleanup();
   });
 });
