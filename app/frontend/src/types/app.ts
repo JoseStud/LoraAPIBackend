@@ -2,6 +2,8 @@
  * Shared application-level types used by Pinia stores and components.
  */
 
+import type { GeneratedNormalizedJobStatus } from '@/constants/generated/jobStatuses';
+
 export interface FrontendRuntimeSettings {
   backendUrl: string;
   backendApiKey?: string | null;
@@ -30,7 +32,7 @@ export interface SystemStatusState {
   [key: string]: unknown;
 }
 
-export type NormalizedJobStatus = 'queued' | 'processing' | 'completed' | 'failed';
+export type NormalizedJobStatus = GeneratedNormalizedJobStatus;
 
 export type JobStatus = NormalizedJobStatus;
 

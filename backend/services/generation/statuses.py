@@ -1,13 +1,17 @@
+
 """Normalization helpers for delivery and generation statuses."""
+
 
 from __future__ import annotations
 
 from enum import Enum
+
 from typing import Dict, Optional
 
 
 class GenerationStatus(Enum):
     """Canonical generation statuses exposed by the API."""
+
 
     QUEUED = "queued"
     PROCESSING = "processing"

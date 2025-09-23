@@ -16,7 +16,12 @@ from .generation import GenerationCoordinator, GenerationService
 from .queue import QueueBackend, get_queue_backends
 from .storage import StorageService
 from .recommendations import (
+    EmbeddingManager,
+    RecommendationMetricsTracker,
     RecommendationModelBootstrap,
+    RecommendationPersistenceManager,
+    RecommendationPersistenceService,
+    RecommendationRepository,
     RecommendationService,
 )
 from .system import SystemService
@@ -191,10 +196,26 @@ class ServiceContainer:
             model_bootstrap = RecommendationModelBootstrap(
                 gpu_enabled=self._recommendation_gpu_available,
             )
-            self._recommendation_service = RecommendationService(
+            model_registry = model_bootstrap.get_model_registry()
+
+            embedding_manager = EmbeddingManager(
                 self.db_session,
-                gpu_enabled=self._recommendation_gpu_available,
-                model_bootstrap=model_bootstrap,
+                model_registry,
+            )
+            repository = RecommendationRepository(self.db_session)
+            persistence_manager = RecommendationPersistenceManager(
+                embedding_manager,
+                model_registry.get_recommendation_engine,
+            )
+            persistence_service = RecommendationPersistenceService(persistence_manager)
+            metrics_tracker = RecommendationMetricsTracker()
+
+            self._recommendation_service = RecommendationService(
+                bootstrap=model_bootstrap,
+                repository=repository,
+                embedding_workflow=embedding_manager,
+                persistence_service=persistence_service,
+                metrics_tracker=metrics_tracker,
             )
 
         return self._recommendation_service

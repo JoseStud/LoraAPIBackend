@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 
 import SystemStatusCard from '../../app/frontend/src/components/SystemStatusCard.vue';
-import { useGenerationStore } from '../../app/frontend/src/stores/generation';
+import { useGenerationConnectionStore } from '../../app/frontend/src/stores/generation';
 
 const flush = async () => {
   await Promise.resolve();
@@ -13,7 +13,7 @@ const flush = async () => {
 
 describe('SystemStatusCard.vue', () => {
   beforeEach(() => {
-    useGenerationStore().$reset();
+    useGenerationConnectionStore().reset();
   });
 
   afterEach(() => {
