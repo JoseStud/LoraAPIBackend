@@ -71,6 +71,10 @@ type OperationType = 'export' | 'import' | 'migration';
 
 type ProgressMessage = { id: number | string; text: string };
 
+const emit = defineEmits<{
+  (event: 'initialized'): void;
+}>();
+
 const isInitialized = ref(false);
 const activeTab = ref<ActiveTab>('export');
 
@@ -298,6 +302,7 @@ const handleCancelOperation = () => {
 onMounted(async () => {
   await Promise.all([exportWorkflow.initialize(), backupWorkflow.initialize()]);
   isInitialized.value = true;
+  emit('initialized');
 });
 
 onBeforeUnmount(() => {

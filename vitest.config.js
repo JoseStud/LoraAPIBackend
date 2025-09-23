@@ -7,6 +7,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'app/frontend/src'),
+      'vue-virtual-scroller': resolve(
+        __dirname,
+        'tests/mocks/vueVirtualScrollerStub.ts'
+      ),
     },
   },
   test: {

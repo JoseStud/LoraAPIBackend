@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-import { waitForJobQueueBootstrap } from './utils/waits.js';
+import { waitForImportExportHydration, waitForJobQueueBootstrap } from './utils/waits.js';
 
 test.describe('Cross-view workflows', () => {
   test('generation studio exposes queue, status, and recommendations', async ({ page }) => {
@@ -15,6 +15,7 @@ test.describe('Cross-view workflows', () => {
 
   test('import/export console coordinates quick actions and tabs', async ({ page }) => {
     await page.goto('/import-export');
+    await waitForImportExportHydration(page);
     await waitForJobQueueBootstrap(page);
 
     await expect(page.getByRole('heading', { name: 'Import & Export' })).toBeVisible();

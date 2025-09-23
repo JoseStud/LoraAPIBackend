@@ -199,10 +199,10 @@ export default defineConfig({
   
   // Web server configuration for local development
   webServer: process.env.CI ? undefined : {
-    command: 'npm run dev',
+    command: 'npm run dev -- --port 8000',
     port: 8000,
     reuseExistingServer: !process.env.CI,
-    timeout: 30000,
+    timeout: 60000,
     env: {
       NODE_ENV: 'test'
     }

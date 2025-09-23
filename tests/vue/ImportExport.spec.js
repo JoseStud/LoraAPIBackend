@@ -133,6 +133,15 @@ describe('ImportExportContainer.vue', () => {
     expect(wrapper.text()).toContain('Import/Export');
   });
 
+  it('emits an initialized event after setup completes', async () => {
+    const wrapper = mount(ImportExportContainer);
+    await flushPromises();
+    await vi.runAllTimersAsync();
+    await flushPromises();
+
+    expect(wrapper.emitted().initialized).toHaveLength(1);
+  });
+
   it('invokes quick export workflow from header action', async () => {
     const wrapper = mount(ImportExportContainer);
     await flushPromises();

@@ -1,6 +1,8 @@
-import { test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 const isJobEndpoint = (url) => url.includes('/generation/jobs/active') || url.includes('/jobs/status');
+
+const importExportLoadingSelector = '[data-testid="import-export-loading"]';
 
 export const waitForJobQueueBootstrap = async (page) => {
     await test.step('Synchronize with job queue status endpoints', async () => {
@@ -37,5 +39,13 @@ export const waitForJobQueueBootstrap = async (page) => {
                 page.off('websocket', websocketListener);
             }
         }
+    });
+};
+
+export const waitForImportExportHydration = async (page) => {
+    await test.step('Wait for import/export console hydration', async () => {
+        await page.waitForSelector(importExportLoadingSelector, { state: 'attached' });
+        await expect(page.locator(importExportLoadingSelector)).toBeVisible();
+        await page.waitForSelector(importExportLoadingSelector, { state: 'detached' });
     });
 };
