@@ -82,6 +82,16 @@ const {
   emitDelete: (id) => emit('delete', id),
 });
 
+const toggleActive = handleToggleActive;
+const updateWeight = (value?: number) => handleWeightChange(value ?? weight.value);
+const generatePreview = handleGeneratePreview;
+
+defineExpose({
+  toggleActive,
+  updateWeight,
+  generatePreview,
+});
+
 const cardViewModel = computed<LoraCardViewModel>(() => ({
   id: loraRef.value.id,
   name: loraRef.value.name,
