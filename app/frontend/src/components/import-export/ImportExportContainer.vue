@@ -52,142 +52,67 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 
 import ImportExport, { type ActiveTab } from '../ImportExport.vue';
 
 import { useBackupWorkflow } from '@/composables/useBackupWorkflow';
-import {
-  useExportWorkflow,
-  type ExportConfig,
-  type NotifyType,
-  type ProgressUpdate
-} from '@/composables/useExportWorkflow';
-import { useImportWorkflow, type ImportConfig } from '@/composables/useImportWorkflow';
-import { useMigrationWorkflow, type MigrationConfig } from '@/composables/useMigrationWorkflow';
+import { useExportWorkflow } from '@/composables/useExportWorkflow';
+import { useImportWorkflow } from '@/composables/useImportWorkflow';
+import { useMigrationWorkflow } from '@/composables/useMigrationWorkflow';
+import { useOperationProgress } from '@/composables/useOperationProgress';
+import { useImportExportActions } from '@/composables/useImportExportActions';
+import { useWorkflowToast } from '@/composables/useWorkflowToast';
 import { formatDateTime, formatFileSize as formatBytes } from '@/utils/format';
 
-type OperationType = 'export' | 'import' | 'migration';
-
-type ProgressMessage = { id: number | string; text: string };
-
-const emit = defineEmits<{
-  (event: 'initialized'): void;
-}>();
+const emit = defineEmits<{ (event: 'initialized'): void }>();
 
 const isInitialized = ref(false);
 const activeTab = ref<ActiveTab>('export');
 
-const showProgress = ref(false);
-const progressValue = ref(0);
-const currentStep = ref('');
-const progressMessages = ref<ProgressMessage[]>([]);
-const currentOperation = ref<OperationType | null>(null);
-
-const showToast = ref(false);
-const toastMessage = ref('');
-const toastType = ref<NotifyType>('info');
-let toastTimeout: ReturnType<typeof setTimeout> | undefined;
-
-const progressTitle = computed(() => {
-  switch (currentOperation.value) {
-    case 'export':
-      return 'Export Progress';
-    case 'import':
-      return 'Import Progress';
-    case 'migration':
-      return 'Migration Progress';
-    default:
-      return 'Progress';
-  }
-});
-
-const notify: Parameters<typeof useExportWorkflow>[0]['notify'] = (message, type = 'info') => {
-  toastMessage.value = message;
-  toastType.value = type;
-  showToast.value = true;
-  if (toastTimeout) {
-    clearTimeout(toastTimeout);
-  }
-  toastTimeout = setTimeout(() => {
-    showToast.value = false;
-  }, 3000);
-};
-
-const resetProgress = () => {
-  progressValue.value = 0;
-  currentStep.value = '';
-  progressMessages.value = [];
-};
-
-const beginProgress = (operation: OperationType) => {
-  currentOperation.value = operation;
-  resetProgress();
-  showProgress.value = true;
-};
-
-const updateProgress = (update: ProgressUpdate) => {
-  if (typeof update.value === 'number') {
-    progressValue.value = update.value;
-  }
-  if (typeof update.step === 'string') {
-    currentStep.value = update.step;
-  }
-  if (update.message) {
-    progressMessages.value = [
-      ...progressMessages.value,
-      {
-        id: Date.now() + Math.random(),
-        text: `[${new Date().toLocaleTimeString()}] ${update.message}`
-      }
-    ];
-  }
-};
-
-const endProgress = () => {
-  showProgress.value = false;
-  currentOperation.value = null;
-};
-
-const handleActiveTabChange = (value: ActiveTab) => {
-  activeTab.value = value;
-};
+const { showToast, toastMessage, toastType, notify: notifyWithToast } = useWorkflowToast();
+const {
+  showProgress,
+  progressTitle,
+  progressValue,
+  currentStep,
+  progressMessages,
+  currentOperation,
+  begin,
+  update,
+  end
+} = useOperationProgress();
 
 const exportWorkflow = useExportWorkflow({
-  notify,
-  progress: {
-    begin: () => beginProgress('export'),
-    update: updateProgress,
-    end: endProgress
-  }
+  notify: notifyWithToast,
+  progress: { begin: () => begin('export'), update, end }
 });
+const {
+  exportConfig,
+  canExport,
+  estimatedSize,
+  estimatedTime,
+  isExporting,
+  initialize: initializeExport
+} = exportWorkflow;
 
 const importWorkflow = useImportWorkflow({
-  notify,
-  progress: {
-    begin: () => beginProgress('import'),
-    update: updateProgress,
-    end: endProgress
-  }
+  notify: notifyWithToast,
+  progress: { begin: () => begin('import'), update, end }
 });
+const {
+  importConfig,
+  importFiles,
+  importPreview,
+  hasEncryptedFiles,
+  isImporting
+} = importWorkflow;
 
-const backupWorkflow = useBackupWorkflow({ notify });
-const migrationWorkflow = useMigrationWorkflow({ notify });
+const backupWorkflow = useBackupWorkflow({ notify: notifyWithToast });
+const { backupHistory, initialize: initializeBackup } = backupWorkflow;
 
-const exportConfig = exportWorkflow.exportConfig;
-const canExport = exportWorkflow.canExport;
-const estimatedSize = exportWorkflow.estimatedSize;
-const estimatedTime = exportWorkflow.estimatedTime;
-const isExporting = exportWorkflow.isExporting;
-
-const importConfig = importWorkflow.importConfig;
-const importFiles = importWorkflow.importFiles;
-const importPreview = importWorkflow.importPreview;
-const hasEncryptedFiles = importWorkflow.hasEncryptedFiles;
-const isImporting = importWorkflow.isImporting;
-
-const backupHistory = backupWorkflow.backupHistory;
-const migrationConfig = migrationWorkflow.migrationConfig;
+const migrationWorkflow = useMigrationWorkflow({ notify: notifyWithToast });
+const { migrationConfig } = migrationWorkflow;
 
 const formatFileSize = (bytes: number) => formatBytes(typeof bytes === 'number' ? bytes : 0);
 const formatDate = (dateString: string) =>
@@ -199,119 +124,52 @@ const formatDate = (dateString: string) =>
     minute: '2-digit'
   });
 
-const getStatusClasses = (status: string) => {
-  const statusClasses: Record<string, string> = {
-    new: 'bg-green-100 text-green-800',
-    conflict: 'bg-yellow-100 text-yellow-800',
-    existing: 'bg-gray-100 text-gray-800',
-    error: 'bg-red-100 text-red-800'
-  };
-  return statusClasses[status] ?? 'bg-gray-100 text-gray-800';
+const statusClasses: Record<string, string> = {
+  new: 'bg-green-100 text-green-800',
+  conflict: 'bg-yellow-100 text-yellow-800',
+  existing: 'bg-gray-100 text-gray-800',
+  error: 'bg-red-100 text-red-800'
 };
+const getStatusClasses = (status: string) => statusClasses[status] ?? 'bg-gray-100 text-gray-800';
 
-const handleExportConfigUpdate = <K extends keyof ExportConfig>(key: K, value: ExportConfig[K]) => {
-  exportWorkflow.updateConfig(key, value);
-};
-
-const handleImportConfigUpdate = <K extends keyof ImportConfig>(key: K, value: ImportConfig[K]) => {
-  importWorkflow.updateConfig(key, value);
-};
-
-const handleMigrationConfigUpdate = <K extends keyof MigrationConfig>(key: K, value: MigrationConfig[K]) => {
-  migrationWorkflow.updateConfig(key, value);
-};
-
-const handleImportFilesAdded = (files: readonly File[]) => {
-  importWorkflow.addFiles([...files]);
-};
-
-const handleImportFileRemoved = (file: File) => {
-  importWorkflow.removeFile(file);
-};
-
-const handleStartExport = () => {
-  void exportWorkflow.startExport();
-};
-
-const handleStartImport = () => {
-  void importWorkflow.startImport();
-};
-
-const handleAnalyzeFiles = () => {
-  void importWorkflow.analyzeFiles();
-};
-
-const handleValidateExport = () => {
-  exportWorkflow.validateExport();
-};
-
-const handlePreviewExport = () => {
-  exportWorkflow.previewExport();
-};
-
-const handleValidateImport = () => {
-  importWorkflow.validateImport();
-};
-
-const handleCreateFullBackup = () => {
-  void backupWorkflow.createFullBackup();
-};
-
-const handleCreateQuickBackup = () => {
-  void backupWorkflow.createQuickBackup();
-};
-
-const handleScheduleBackup = () => {
-  backupWorkflow.scheduleBackup();
-};
-
-const handleDownloadBackup = (backupId: string) => {
-  backupWorkflow.downloadBackup(backupId);
-};
-
-const handleRestoreBackup = (backupId: string) => {
-  backupWorkflow.restoreBackup(backupId);
-};
-
-const handleDeleteBackup = (backupId: string) => {
-  backupWorkflow.deleteBackup(backupId);
-};
-
-const handleStartVersionMigration = () => {
-  migrationWorkflow.startVersionMigration();
-};
-
-const handleStartPlatformMigration = () => {
-  migrationWorkflow.startPlatformMigration();
-};
-
-const handleQuickExportAll = () => {
-  void exportWorkflow.quickExportAll();
-};
-
-const handleViewHistory = () => {
-  activeTab.value = 'backup';
-};
-
-const handleCancelOperation = () => {
-  if (currentOperation.value === 'export') {
-    exportWorkflow.cancelExport();
-  } else if (currentOperation.value === 'import') {
-    importWorkflow.cancelImport();
-  }
-  endProgress();
-  notify('Operation cancelled', 'warning');
-};
-
-onMounted(async () => {
-  await Promise.all([exportWorkflow.initialize(), backupWorkflow.initialize()]);
-  isInitialized.value = true;
-  emit('initialized');
+const {
+  handleActiveTabChange,
+  handleExportConfigUpdate,
+  handleValidateExport,
+  handlePreviewExport,
+  handleStartExport,
+  handleQuickExportAll,
+  handleImportConfigUpdate,
+  handleImportFilesAdded,
+  handleImportFileRemoved,
+  handleAnalyzeFiles,
+  handleValidateImport,
+  handleStartImport,
+  handleCreateFullBackup,
+  handleCreateQuickBackup,
+  handleScheduleBackup,
+  handleDownloadBackup,
+  handleRestoreBackup,
+  handleDeleteBackup,
+  handleMigrationConfigUpdate,
+  handleStartVersionMigration,
+  handleStartPlatformMigration,
+  handleViewHistory,
+  handleCancelOperation
+} = useImportExportActions({
+  exportWorkflow,
+  importWorkflow,
+  backupWorkflow,
+  migrationWorkflow,
+  activeTab,
+  currentOperation,
+  endProgress: end,
+  notify: notifyWithToast
 });
 
-onBeforeUnmount(() => {
-  if (toastTimeout) {
-    clearTimeout(toastTimeout);
-  }
+onMounted(async () => {
+  await Promise.all([initializeExport(), initializeBackup()]);
+  isInitialized.value = true;
+  emit('initialized');
 });
 </script>
