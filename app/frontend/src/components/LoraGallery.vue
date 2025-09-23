@@ -36,7 +36,7 @@
 
       <LoraGalleryBulkActions
         :bulk-mode="bulkMode"
-        :selected-count="selectedLoras.length"
+        :selected-count="selectedCount"
         :all-selected="allSelected"
         @perform="performBulkAction"
         @toggle-select-all="toggleSelectAll"
@@ -99,6 +99,7 @@ const {
 
 const {
   selectedLoras,
+  selectedCount,
   viewMode,
   bulkMode,
   allSelected,
@@ -107,6 +108,8 @@ const {
   handleSelectionChange,
   toggleSelectAll,
   initializeSelection,
+  clearSelection,
+  deselect,
 } = useLoraGallerySelection(filteredLoras);
 
 const isTagModalOpen = ref(false);
@@ -125,19 +128,19 @@ const closeTagModal = () => {
 };
 
 const performBulkAction = async (action: LoraBulkAction) => {
-  if (selectedLoras.value.length === 0) {
+  if (selectedCount.value === 0) {
     windowExtras.htmx?.trigger(document.body, 'show-notification', {
       detail: { message: 'No LoRAs selected.', type: 'warning' },
     });
     return;
   }
 
-  const confirmMsg = `Are you sure you want to ${action} ${selectedLoras.value.length} LoRA(s)?`;
+  const confirmMsg = `Are you sure you want to ${action} ${selectedCount.value} LoRA(s)?`;
   if (!confirm(confirmMsg)) {
     return;
   }
 
-  const count = selectedLoras.value.length;
+  const count = selectedCount.value;
 
   try {
     await performBulkLoraAction(apiBaseUrl.value, {
@@ -146,7 +149,7 @@ const performBulkAction = async (action: LoraBulkAction) => {
     });
 
     await loadLoras();
-    selectedLoras.value = [];
+    clearSelection();
 
     windowExtras.htmx?.trigger(document.body, 'show-notification', {
       detail: {
@@ -186,10 +189,7 @@ const handleLoraDelete = (id: string) => {
     loras.value.splice(index, 1);
   }
 
-  const selectionIndex = selectedLoras.value.indexOf(id);
-  if (selectionIndex !== -1) {
-    selectedLoras.value.splice(selectionIndex, 1);
-  }
+  deselect(id);
 };
 
 onMounted(async () => {
