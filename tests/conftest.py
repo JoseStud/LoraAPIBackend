@@ -84,14 +84,6 @@ def db_session_fixture():
     original_engine = core_database.ENGINE
     core_database.ENGINE = engine
     SQLModel.metadata.create_all(engine)
-    # Ensure tests enforce the same uniqueness we add via Alembic
-    # Create a unique index on (name, version) for the adapter table so
-    # test behavior matches production DB expectations.
-    with engine.begin() as conn:
-        conn.exec_driver_sql(
-            "CREATE UNIQUE INDEX IF NOT EXISTS ux_adapter_name_version "
-            "ON adapter (name, version)",
-        )
     try:
         with Session(engine) as session:
             yield session

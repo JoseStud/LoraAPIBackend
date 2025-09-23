@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import JSON, Column, LargeBinary, Text
+from sqlalchemy import JSON, Column, Index, LargeBinary, Text
 from sqlmodel import Field, SQLModel
 
 
@@ -23,7 +23,15 @@ class RecommendationSession(SQLModel, table=True):
 
 class UserPreference(SQLModel, table=True):
     """Track learned user preferences."""
-    
+
+    __table_args__ = (
+        Index(
+            "ix_userpreference_type_value",
+            "preference_type",
+            "preference_value",
+        ),
+    )
+
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     preference_type: str  # 'archetype', 'style', 'technical', 'author', 'tag'
     preference_value: str
