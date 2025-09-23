@@ -5,7 +5,7 @@ from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from backend.core.dependencies import get_recommendation_service
+from backend.core.dependencies import get_domain_services
 from backend.schemas.recommendations import (
     BatchEmbeddingRequest,
     BatchEmbeddingResponse,
@@ -19,7 +19,7 @@ from backend.schemas.recommendations import (
     UserPreferenceRequest,
     UserPreferenceRead,
 )
-from backend.services.recommendations import RecommendationService
+from backend.services import DomainServices
 
 router = APIRouter()
 
@@ -31,7 +31,7 @@ async def get_similar_loras(
     similarity_threshold: float = Query(default=0.1, ge=0.0, le=1.0),
     diversify_results: bool = Query(default=True),
     weights: Optional[Dict[str, float]] = None,
-    recommendation_service: RecommendationService = Depends(get_recommendation_service),
+    services: DomainServices = Depends(get_domain_services),
 ):
     """Get LoRAs similar to the specified LoRA.
     
@@ -50,6 +50,7 @@ async def get_similar_loras(
         start_time = datetime.now()
         
         # Generate recommendations
+        recommendation_service = services.recommendations
         recommendations = await recommendation_service.similar_loras(
             target_lora_id=lora_id,
             limit=limit,
@@ -82,7 +83,7 @@ async def get_similar_loras(
 @router.post("/recommendations/for-prompt", response_model=RecommendationResponse)
 async def get_recommendations_for_prompt(
     request: PromptRecommendationRequest,
-    recommendation_service: RecommendationService = Depends(get_recommendation_service),
+    services: DomainServices = Depends(get_domain_services),
 ):
     """Get LoRA recommendations that would enhance a given prompt.
     
@@ -97,6 +98,7 @@ async def get_recommendations_for_prompt(
         start_time = datetime.now()
         
         # Generate recommendations
+        recommendation_service = services.recommendations
         recommendations = await recommendation_service.recommend_for_prompt(
             prompt=request.prompt,
             active_loras=request.active_loras,
@@ -126,7 +128,7 @@ async def get_recommendations_for_prompt(
 
 @router.get("/recommendations/stats", response_model=RecommendationStats)
 async def get_recommendation_stats(
-    recommendation_service: RecommendationService = Depends(get_recommendation_service),
+    services: DomainServices = Depends(get_domain_services),
 ):
     """Get comprehensive statistics about the recommendation system.
     
@@ -135,6 +137,7 @@ async def get_recommendation_stats(
 
     """
     try:
+        recommendation_service = services.recommendations
         stats = recommendation_service.stats()
         return stats
         
@@ -145,7 +148,7 @@ async def get_recommendation_stats(
 @router.post("/recommendations/embeddings/compute", response_model=BatchEmbeddingResponse)
 async def compute_embeddings(
     request: BatchEmbeddingRequest,
-    recommendation_service: RecommendationService = Depends(get_recommendation_service),
+    services: DomainServices = Depends(get_domain_services),
 ):
     """Compute embeddings for LoRAs in batch.
     
@@ -157,6 +160,7 @@ async def compute_embeddings(
 
     """
     try:
+        recommendation_service = services.recommendations
         if request.compute_all:
             # Compute for all active LoRAs
             result = await recommendation_service.embeddings.compute_batch(
@@ -181,7 +185,7 @@ async def compute_embeddings(
 @router.get("/recommendations/embeddings/{lora_id}", response_model=EmbeddingStatus)
 async def get_embedding_status(
     lora_id: str,
-    recommendation_service: RecommendationService = Depends(get_recommendation_service),
+    services: DomainServices = Depends(get_domain_services),
 ):
     """Get embedding status for a specific LoRA.
     
@@ -193,6 +197,7 @@ async def get_embedding_status(
 
     """
     try:
+        recommendation_service = services.recommendations
         status = recommendation_service.embedding_status(lora_id)
         return status
         
@@ -204,7 +209,7 @@ async def get_embedding_status(
 async def compute_single_embedding(
     lora_id: str,
     force_recompute: bool = Query(default=False),
-    recommendation_service: RecommendationService = Depends(get_recommendation_service),
+    services: DomainServices = Depends(get_domain_services),
 ):
     """Compute embeddings for a single LoRA.
     
@@ -217,6 +222,7 @@ async def compute_single_embedding(
 
     """
     try:
+        recommendation_service = services.recommendations
         success = await recommendation_service.embeddings.compute_for_lora(
             lora_id,
             force_recompute=force_recompute,
@@ -236,7 +242,7 @@ async def compute_single_embedding(
 @router.post("/recommendations/feedback", response_model=RecommendationFeedbackRead)
 async def submit_recommendation_feedback(
     feedback: UserFeedbackRequest,
-    recommendation_service: RecommendationService = Depends(get_recommendation_service),
+    services: DomainServices = Depends(get_domain_services),
 ):
     """Submit user feedback on recommendations for learning.
 
@@ -248,6 +254,7 @@ async def submit_recommendation_feedback(
 
     """
     try:
+        recommendation_service = services.recommendations
         record = recommendation_service.feedback.record_feedback(feedback)
         return RecommendationFeedbackRead.from_orm(record)
 
@@ -260,7 +267,7 @@ async def submit_recommendation_feedback(
 @router.post("/recommendations/preferences", response_model=UserPreferenceRead)
 async def update_user_preferences(
     preference: UserPreferenceRequest,
-    recommendation_service: RecommendationService = Depends(get_recommendation_service),
+    services: DomainServices = Depends(get_domain_services),
 ):
     """Update user preferences for personalized recommendations.
 
@@ -272,6 +279,7 @@ async def update_user_preferences(
 
     """
     try:
+        recommendation_service = services.recommendations
         preference_record = recommendation_service.feedback.update_user_preference(preference)
         return UserPreferenceRead.from_orm(preference_record)
 
@@ -285,7 +293,7 @@ async def update_user_preferences(
 )
 async def rebuild_similarity_index(
     force: bool = Query(default=False),
-    recommendation_service: RecommendationService = Depends(get_recommendation_service),
+    services: DomainServices = Depends(get_domain_services),
 ):
     """Rebuild the similarity index for fast recommendations.
     
@@ -297,6 +305,7 @@ async def rebuild_similarity_index(
 
     """
     try:
+        recommendation_service = services.recommendations
         result = await recommendation_service.refresh_indexes(force=force)
         return result
 
@@ -306,7 +315,7 @@ async def rebuild_similarity_index(
 
 @router.get("/recommendations/health")
 async def get_recommendation_health(
-    recommendation_service: RecommendationService = Depends(get_recommendation_service),
+    services: DomainServices = Depends(get_domain_services),
 ):
     """Get health status of the recommendation system.
     
@@ -315,6 +324,7 @@ async def get_recommendation_health(
 
     """
     try:
+        recommendation_service = services.recommendations
         stats = recommendation_service.stats()
         
         # Basic health checks

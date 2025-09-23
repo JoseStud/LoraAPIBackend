@@ -6,15 +6,17 @@ from typing import Any, Dict
 
 from fastapi import APIRouter, Depends
 
-from backend.core.dependencies import get_service_container
-from backend.services import ServiceRegistry
+from backend.core.dependencies import get_application_services
+from backend.services import ApplicationServices
 
 
 router = APIRouter(prefix="/system", tags=["system"])
 
 
 @router.get("/status")
-async def get_system_status(services: ServiceRegistry = Depends(get_service_container)) -> Dict[str, Any]:
+async def get_system_status(
+    services: ApplicationServices = Depends(get_application_services),
+) -> Dict[str, Any]:
     """Return a snapshot of system status and telemetry data."""
 
     return services.system.get_system_status_payload()

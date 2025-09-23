@@ -24,7 +24,9 @@ from backend.core.database import get_session_context
 
 # Backwards compatibility for tests that monkeypatch importer.get_session
 get_session = get_session_context
-from backend.services import AdapterService
+from backend.services import ServiceContainer
+from backend.services.adapters import AdapterService
+from backend.services.analytics_repository import AnalyticsRepository
 
 logger = logging.getLogger("lora.importer")
 
@@ -299,7 +301,6 @@ def register_adapter_from_metadata(
 
     # persist using service-level upsert helper (idempotent)
     from backend.schemas.adapters import AdapterCreate
-    from backend.services import upsert_adapter_from_payload
 
     # validate file exists before attempting to persist
     with get_session_context() as validation_session:
@@ -315,10 +316,16 @@ def register_adapter_from_metadata(
 
     ac = AdapterCreate(**{k: v for k, v in payload.items() if v is not None})
     try:
-        a = upsert_adapter_from_payload(ac)
-        logger.info("Upserted adapter %s (id=%s)", a.name, a.id)
+        with get_session_context() as session:
+            container = ServiceContainer(
+                session,
+                analytics_repository=AnalyticsRepository(session),
+                recommendation_gpu_available=False,
+            )
+            adapter = container.domain.adapters.upsert_adapter(ac)
+        logger.info("Upserted adapter %s (id=%s)", adapter.name, adapter.id)
         result["status"] = "upserted"
-        result["id"] = a.id
+        result["id"] = adapter.id
         return result
     except Exception as exc:
         logger.exception("Failed to upsert adapter from %s: %s", json_path, exc)

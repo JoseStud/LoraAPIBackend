@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, Upl
 from fastapi.responses import StreamingResponse
 
 from backend.core.config import settings
-from backend.core.dependencies import get_archive_service, get_backup_service
+from backend.core.dependencies import get_application_services
 from backend.schemas.import_export import (
     BackupCreateRequest,
     BackupHistoryItem,
@@ -16,7 +16,7 @@ from backend.schemas.import_export import (
     ExportEstimate,
     ImportConfig,
 )
-from backend.services.archive import ArchiveService, BackupService
+from backend.services import ApplicationServices
 from backend.utils import format_bytes, format_duration
 
 router = APIRouter(tags=["import-export"])
@@ -24,13 +24,14 @@ router = APIRouter(tags=["import-export"])
 @router.post("/export/estimate")
 async def estimate_export(
     config: ExportConfig,
-    archive_service: ArchiveService = Depends(get_archive_service),  # noqa: B008
+    services: ApplicationServices = Depends(get_application_services),
 ) -> ExportEstimate:
     """Calculate export size and time estimates using archive metadata."""
 
     if not config.loras:
         return ExportEstimate(size="0 Bytes", time="0 seconds")
 
+    archive_service = services.archive
     estimation = archive_service.estimate_adapter_export()
     return ExportEstimate(
         size=format_bytes(estimation.total_bytes),
@@ -41,7 +42,7 @@ async def estimate_export(
 @router.post("/export")
 async def export_data(
     config: ExportConfig,
-    archive_service: ArchiveService = Depends(get_archive_service),  # noqa: B008
+    services: ApplicationServices = Depends(get_application_services),
 ):
     """Stream an archive export of adapters using the archive helper."""
 
@@ -50,7 +51,7 @@ async def export_data(
     if config.format.lower() != "zip":
         raise HTTPException(status_code=400, detail="Only ZIP exports are supported")
 
-    archive = archive_service.build_export_archive()
+    archive = services.archive.build_export_archive()
     filename = f"lora_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
 
     return StreamingResponse(
@@ -67,7 +68,7 @@ async def export_data(
 async def import_data(
     files: List[UploadFile] = File(...),
     config: str = Form(...),
-    archive_service: ArchiveService = Depends(get_archive_service),  # noqa: B008
+    services: ApplicationServices = Depends(get_application_services),
 ):
     """Import adapters from uploaded archives after validation."""
 
@@ -88,7 +89,7 @@ async def import_data(
     for upload in files:
         upload.file.seek(0)
         try:
-            summary = archive_service.import_archive(
+            summary = services.archive.import_archive(
                 upload.file,
                 target_directory=target_root,
                 persist=persist,
@@ -127,21 +128,21 @@ async def import_data(
 
 @router.get("/backups/history")
 async def get_backup_history(
-    backup_service: BackupService = Depends(get_backup_service),  # noqa: B008
+    services: ApplicationServices = Depends(get_application_services),
 ) -> List[BackupHistoryItem]:
     """Get persisted backup history entries."""
 
-    return backup_service.list_history()
+    return services.backups.list_history()
 
 
 @router.post("/backup/create")
 async def create_backup(
     payload: BackupCreateRequest,
-    backup_service: BackupService = Depends(get_backup_service),  # noqa: B008
+    services: ApplicationServices = Depends(get_application_services),
 ):
     """Create a new backup and return the created metadata."""
 
-    entry = backup_service.create_backup(payload.backup_type)
+    entry = services.backups.create_backup(payload.backup_type)
     return {
         "success": True,
         "backup_id": entry.id,
@@ -155,11 +156,11 @@ async def create_backup(
 @router.delete("/backups/{backup_id}", status_code=204)
 async def delete_backup(
     backup_id: str,
-    backup_service: BackupService = Depends(get_backup_service),  # noqa: B008
+    services: ApplicationServices = Depends(get_application_services),
 ) -> Response:
     """Delete a backup entry and its archive."""
 
-    removed = backup_service.delete_backup(backup_id)
+    removed = services.backups.delete_backup(backup_id)
     if not removed:
         raise HTTPException(status_code=404, detail="Backup not found")
     return Response(status_code=204)

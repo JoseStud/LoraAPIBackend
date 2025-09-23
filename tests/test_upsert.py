@@ -3,14 +3,22 @@
 from sqlalchemy.exc import IntegrityError
 
 from backend.schemas.adapters import AdapterCreate
-from backend.services import upsert_adapter_from_payload
+from backend.services import ServiceContainer
 from backend.services.adapters import AdapterService
+from backend.services.analytics_repository import AnalyticsRepository
 
 
 def test_upsert_creates_and_updates(db_session, mock_storage):
     """Test that upsert creates and updates adapters correctly."""
     # initial create
     mock_storage.exists.return_value = True
+    container = ServiceContainer(
+        db_session,
+        analytics_repository=AnalyticsRepository(db_session),
+        recommendation_gpu_available=False,
+        storage_provider=lambda: mock_storage.storage_service,
+    )
+    adapter_service = container.domain.adapters
     payload = AdapterCreate(
         name="u1",
         version="v1",
@@ -19,7 +27,7 @@ def test_upsert_creates_and_updates(db_session, mock_storage):
         weight=1.0,
     )
 
-    a = upsert_adapter_from_payload(payload)
+    a = adapter_service.upsert_adapter(payload)
     assert a.id is not None
     assert a.name == "u1"
     assert a.tags == ["a"]
@@ -32,7 +40,7 @@ def test_upsert_creates_and_updates(db_session, mock_storage):
         file_path="/tmp/u1.safetensors",
         weight=2.0,
     )
-    b = upsert_adapter_from_payload(payload2)
+    b = adapter_service.upsert_adapter(payload2)
     assert b.id == a.id
     assert b.tags == ["b", "c"]
     assert b.weight == 2.0

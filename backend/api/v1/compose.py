@@ -8,10 +8,10 @@ import structlog
 
 from fastapi import APIRouter, BackgroundTasks, Depends
 
-from backend.core.dependencies import get_service_container
+from backend.core.dependencies import get_application_services, get_domain_services
 from backend.schemas import ComposeRequest, ComposeResponse
 from backend.schemas.generation import SDNextGenerationParams
-from backend.services import ServiceRegistry
+from backend.services import ApplicationServices, DomainServices
 
 logger = structlog.get_logger(__name__)
 
@@ -22,12 +22,13 @@ router = APIRouter()
 async def compose(
     req: ComposeRequest,
     background_tasks: BackgroundTasks,
-    services: ServiceRegistry = Depends(get_service_container),
+    domain: DomainServices = Depends(get_domain_services),
+    application: ApplicationServices = Depends(get_application_services),
 ):
     """Compose a prompt from active adapters and optionally schedule delivery."""
     # Compose prompt and collect warnings via the shared helper
-    composition = services.compose.compose_from_adapter_service(
-        services.adapters,
+    composition = domain.compose.compose_from_adapter_service(
+        domain.adapters,
         prefix=req.prefix or "",
         suffix=req.suffix or "",
     )
@@ -42,7 +43,7 @@ async def compose(
         if sdnext_config is not None:
             generation_params: SDNextGenerationParams = sdnext_config.generation_params.model_copy()
             generation_params.prompt = composition.prompt
-            job = services.generation_coordinator.schedule_generation_job(
+            job = application.generation_coordinator.schedule_generation_job(
                 generation_params,
                 backend=req.delivery.mode,
                 mode=sdnext_config.mode,
@@ -51,7 +52,7 @@ async def compose(
                 background_tasks=background_tasks,
             )
         else:
-            job = services.deliveries.schedule_job(
+            job = application.deliveries.schedule_job(
                 composition.prompt,
                 req.delivery.mode,
                 req.delivery.model_dump(),

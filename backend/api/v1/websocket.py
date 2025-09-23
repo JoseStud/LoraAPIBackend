@@ -10,8 +10,8 @@ versioning is also provided by ``backend.main`` so older clients that still use
 
 from fastapi import APIRouter, Depends, WebSocket
 
-from backend.core.dependencies import get_service_container
-from backend.services import ServiceRegistry
+from backend.core.dependencies import get_application_services
+from backend.services import ApplicationServices
 
 router = APIRouter()
 
@@ -22,7 +22,7 @@ PROGRESS_WEBSOCKET_ROUTE = "/ws/progress"
 @router.websocket(PROGRESS_WEBSOCKET_ROUTE)
 async def websocket_progress_endpoint(
     websocket: WebSocket,
-    container: ServiceRegistry = Depends(get_service_container),
+    container: ApplicationServices = Depends(get_application_services),
 ):
     """WebSocket endpoint for real-time generation progress monitoring.
     

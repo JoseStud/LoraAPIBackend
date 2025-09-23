@@ -56,11 +56,6 @@ def mock_storage_fixture(monkeypatch) -> MagicMock:
     builder = get_service_container_builder()
 
     monkeypatch.setattr(builder, "_storage_provider", lambda: mock_storage_service)
-
-    def mock_storage_property(self):
-        return mock_storage_service
-
-    monkeypatch.setattr(ServiceContainer, "storage", property(mock_storage_property))
     
     mock.storage_service = mock_storage_service
     return mock
@@ -109,7 +104,7 @@ def adapter_service(db_session: Session, mock_storage) -> AdapterService:
         recommendation_gpu_available=False,
         storage_provider=lambda: mock_storage.storage_service,
     )
-    return container.adapters
+    return container.domain.adapters
 
 
 @pytest.fixture
@@ -123,7 +118,7 @@ def delivery_service(db_session: Session, mock_storage) -> DeliveryService:
         recommendation_gpu_available=False,
         storage_provider=lambda: mock_storage.storage_service,
     )
-    return container.deliveries
+    return container.application.deliveries
 
 
 @pytest.fixture

@@ -2,20 +2,23 @@
 
 from fastapi import APIRouter, Depends
 
-from backend.core.dependencies import get_service_container
-from backend.services import ServiceRegistry
+from backend.core.dependencies import get_application_services, get_domain_services
+from backend.services import ApplicationServices, DomainServices
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
 @router.get("/stats")
-async def get_dashboard_stats(services: ServiceRegistry = Depends(get_service_container)):
+async def get_dashboard_stats(
+    domain: DomainServices = Depends(get_domain_services),
+    application: ApplicationServices = Depends(get_application_services),
+):
     """Get dashboard statistics and system health information."""
 
-    stats = services.adapters.get_dashboard_statistics()
-    stats["active_jobs"] = services.deliveries.count_active_jobs()
+    stats = domain.adapters.get_dashboard_statistics()
+    stats["active_jobs"] = application.deliveries.count_active_jobs()
 
-    system_health = services.system.get_health_summary().as_dict()
+    system_health = application.system.get_health_summary().as_dict()
 
     return {
         "stats": stats,
@@ -24,7 +27,7 @@ async def get_dashboard_stats(services: ServiceRegistry = Depends(get_service_co
 
 
 @router.get("/featured-loras")
-async def get_featured_loras(services: ServiceRegistry = Depends(get_service_container)):
+async def get_featured_loras(services: DomainServices = Depends(get_domain_services)):
     """Get featured LoRAs for the dashboard."""
 
     featured_loras = services.adapters.get_featured_adapters(limit=5)
@@ -44,7 +47,9 @@ async def get_featured_loras(services: ServiceRegistry = Depends(get_service_con
 
 
 @router.get("/activity-feed")
-async def get_activity_feed(services: ServiceRegistry = Depends(get_service_container)):
+async def get_activity_feed(
+    services: ApplicationServices = Depends(get_application_services),
+):
     """Get recent activity feed for the dashboard."""
 
     return services.deliveries.get_recent_activity(limit=10)

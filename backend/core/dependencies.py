@@ -4,12 +4,13 @@ from fastapi import Depends
 from sqlmodel import Session
 
 from backend.core.database import get_session
-from backend.services import ServiceRegistry, get_service_container_builder
-from backend.services.adapters import AdapterService
-from backend.services.composition import ComposeService
-from backend.services.deliveries import DeliveryService
-from backend.services.archive import ArchiveService, BackupService
-from backend.services.recommendations import RecommendationService
+from backend.services import (
+    ApplicationServices,
+    CoreServices,
+    DomainServices,
+    ServiceRegistry,
+    get_service_container_builder,
+)
 
 _BUILDER = get_service_container_builder()
 
@@ -22,43 +23,25 @@ def get_service_container(
     return _BUILDER.build(db_session)
 
 
-def get_adapter_service(
+def get_core_services(
     container: ServiceRegistry = Depends(get_service_container),  # noqa: B008 - FastAPI DI
-) -> AdapterService:
-    """Return an AdapterService instance."""
-    return container.adapters
+) -> CoreServices:
+    """Return the core service facade."""
+
+    return container.core
 
 
-def get_delivery_service(
+def get_domain_services(
     container: ServiceRegistry = Depends(get_service_container),  # noqa: B008 - FastAPI DI
-) -> DeliveryService:
-    """Return a DeliveryService instance."""
-    return container.deliveries
+) -> DomainServices:
+    """Return the domain service facade."""
+
+    return container.domain
 
 
-def get_compose_service() -> ComposeService:
-    """Get an instance of the ComposeService."""
-    return _BUILDER.build(None).compose
-
-
-def get_recommendation_service(
+def get_application_services(
     container: ServiceRegistry = Depends(get_service_container),  # noqa: B008 - FastAPI DI
-) -> RecommendationService:
-    """Return a RecommendationService instance."""
-    return container.recommendations
+) -> ApplicationServices:
+    """Return the application service facade."""
 
-
-def get_archive_service(
-    container: ServiceRegistry = Depends(get_service_container),  # noqa: B008 - FastAPI DI
-) -> ArchiveService:
-    """Return the archive helper service."""
-
-    return container.archive
-
-
-def get_backup_service(
-    container: ServiceRegistry = Depends(get_service_container),  # noqa: B008 - FastAPI DI
-) -> BackupService:
-    """Return the backup service instance."""
-
-    return container.backups
+    return container.application
