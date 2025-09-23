@@ -11,9 +11,13 @@ export const normalizeJobStatus = (status?: string | null): NormalizedJobStatus 
   }
 
   const normalizedKey = status.toLowerCase();
-  return (
-    JOB_STATUS_NORMALIZATION_MAP[normalizedKey] ?? DEFAULT_NORMALIZED_JOB_STATUS
-  );
+  if (Object.prototype.hasOwnProperty.call(JOB_STATUS_NORMALIZATION_MAP, normalizedKey)) {
+    return JOB_STATUS_NORMALIZATION_MAP[
+      normalizedKey as keyof typeof JOB_STATUS_NORMALIZATION_MAP
+    ];
+  }
+
+  return DEFAULT_NORMALIZED_JOB_STATUS;
 };
 
 export { NORMALIZED_JOB_STATUSES };

@@ -1,0 +1,120 @@
+import { storeToRefs } from 'pinia'
+
+import { useGenerationFormStore, useGenerationResultsStore } from '@/stores/generation'
+import type { GenerationResult, NotificationType } from '@/types'
+
+const STATUS_CLASS_MAP = {
+  processing: 'bg-blue-100 text-blue-800',
+  queued: 'bg-yellow-100 text-yellow-800',
+  completed: 'bg-green-100 text-green-800',
+  failed: 'bg-red-100 text-red-800',
+} as const
+
+const STATUS_TEXT_MAP = {
+  processing: 'Processing',
+  queued: 'Queued',
+  completed: 'Completed',
+  failed: 'Failed',
+} as const
+
+export interface UseGenerationUIOptions {
+  notify: (message: string, type?: NotificationType) => void
+}
+
+export const useGenerationUI = ({ notify }: UseGenerationUIOptions) => {
+  const formStore = useGenerationFormStore()
+  const resultsStore = useGenerationResultsStore()
+
+  const { params, isGenerating, showHistory, showModal, selectedResult } = storeToRefs(formStore)
+  const { recentResults } = storeToRefs(resultsStore)
+
+  const showImageModal = (result: GenerationResult | null): void => {
+    if (!result) {
+      return
+    }
+
+    formStore.selectResult(result)
+  }
+
+  const hideImageModal = (): void => {
+    formStore.setShowModal(false)
+  }
+
+  const reuseParameters = (result: GenerationResult): void => {
+    if (typeof result.prompt === 'string') {
+      params.value.prompt = result.prompt
+    }
+    params.value.negative_prompt = typeof result.negative_prompt === 'string' ? result.negative_prompt : ''
+    if (typeof result.width === 'number') {
+      params.value.width = result.width
+    }
+    if (typeof result.height === 'number') {
+      params.value.height = result.height
+    }
+    if (typeof result.steps === 'number') {
+      params.value.steps = result.steps
+    }
+    if (typeof result.cfg_scale === 'number') {
+      params.value.cfg_scale = result.cfg_scale
+    }
+    if (typeof result.seed === 'number') {
+      params.value.seed = result.seed
+    }
+
+    notify('Parameters loaded from result', 'success')
+  }
+
+  const formatTime = (dateString?: string): string => {
+    if (!dateString) {
+      return 'Unknown'
+    }
+
+    try {
+      const date = new Date(dateString)
+      const now = new Date()
+      const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+      if (diff < 60) return `${diff}s ago`
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+      return `${Math.floor(diff / 86400)}d ago`
+    } catch {
+      return 'Unknown'
+    }
+  }
+
+  const getJobStatusClasses = (status: keyof typeof STATUS_CLASS_MAP): string => STATUS_CLASS_MAP[status]
+
+  const getJobStatusText = (status: keyof typeof STATUS_TEXT_MAP): string => STATUS_TEXT_MAP[status]
+
+  const getSystemStatusClasses = (status?: string): string => {
+    switch (status) {
+      case 'healthy':
+        return 'text-green-600'
+      case 'degraded':
+        return 'text-yellow-600'
+      case 'unhealthy':
+        return 'text-red-600'
+      default:
+        return 'text-gray-600'
+    }
+  }
+
+  return {
+    params,
+    isGenerating,
+    showHistory,
+    showModal,
+    selectedResult,
+    recentResults,
+    showImageModal,
+    hideImageModal,
+    reuseParameters,
+    formatTime,
+    getJobStatusClasses,
+    getJobStatusText,
+    getSystemStatusClasses,
+  }
+}
+
+export type UseGenerationUIReturn = ReturnType<typeof useGenerationUI>
