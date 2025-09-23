@@ -1,25 +1,20 @@
-import { computed, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch, type ComputedRef, type Ref } from 'vue';
 
-import { useAdapterListApi } from '@/services/loraService';
-import { createGenerationParams, requestGeneration } from '@/services/generationService';
-import { copyToClipboard } from '@/utils/browser';
+import { PROMPT_COMPOSITION_DEFAULT_WEIGHT } from '@/constants/promptComposer';
+import { copyPromptToClipboard } from '@/utils/promptClipboard';
+import {
+  createPromptCompositionPersistence,
+  parseSavedComposition,
+} from '@/utils/promptCompositionPersistence';
+import { triggerPromptGeneration } from '@/utils/promptGeneration';
 
-import type {
-  AdapterSummary,
-  CompositionEntry,
-  SavedComposition,
-  LoraListItem,
-} from '@/types';
+import type { AdapterSummary, CompositionEntry, SavedComposition } from '@/types';
 
-type PersistTimeout = ReturnType<typeof setTimeout> | null;
-
-const STORAGE_KEY = 'prompt-composer-composition';
-const DEFAULT_WEIGHT = 1;
-const PERSIST_DEBOUNCE_MS = 250;
+import { useAdapterCatalog, type AdapterCatalogApi } from './useAdapterCatalog';
 
 const formatWeightToken = (value: number | string | null | undefined): string => {
   const parsed = typeof value === 'number' ? value : Number(value);
-  const numeric = Number.isFinite(parsed) ? parsed : DEFAULT_WEIGHT;
+  const numeric = Number.isFinite(parsed) ? parsed : PROMPT_COMPOSITION_DEFAULT_WEIGHT;
   const fixed = numeric.toFixed(2);
   const trimmed = fixed
     .replace(/(\.\d*?[1-9])0+$/u, '$1')
@@ -38,46 +33,9 @@ const buildFinalPrompt = (base: string, items: CompositionEntry[]): string => {
   return [trimmedBase, ...tokens].join(' ');
 };
 
-const toSavedComposition = (value: unknown): SavedComposition | null => {
-  if (!value || typeof value !== 'object') {
-    return null;
-  }
-
-  const record = value as Partial<SavedComposition> & { items?: unknown };
-  const items = Array.isArray(record.items)
-    ? record.items
-        .map((item) => {
-          if (!item || typeof item !== 'object') {
-            return null;
-          }
-
-          const entry = item as Partial<CompositionEntry>;
-
-          if (typeof entry.id !== 'string' || typeof entry.name !== 'string') {
-            return null;
-          }
-
-          const weight = typeof entry.weight === 'number' ? entry.weight : Number(entry.weight);
-          const normalisedWeight = Number.isFinite(weight) ? weight : DEFAULT_WEIGHT;
-
-          return {
-            id: entry.id,
-            name: entry.name,
-            weight: normalisedWeight,
-          } satisfies CompositionEntry;
-        })
-        .filter((entry): entry is CompositionEntry => entry !== null)
-    : [];
-
-  const base = typeof record.base === 'string' ? record.base : '';
-  const neg = typeof record.neg === 'string' ? record.neg : '';
-
-  return { items, base, neg };
-};
-
 const normaliseWeight = (value: number): number => {
   if (!Number.isFinite(value)) {
-    return DEFAULT_WEIGHT;
+    return PROMPT_COMPOSITION_DEFAULT_WEIGHT;
   }
 
   if (value < 0) {
@@ -92,11 +50,7 @@ const normaliseWeight = (value: number): number => {
 };
 
 export interface PromptCompositionState {
-  searchTerm: Ref<string>;
-  activeOnly: Ref<boolean>;
-  filteredLoras: ComputedRef<AdapterSummary[]>;
-  isLoading: Ref<boolean>;
-  error: Ref<unknown>;
+  catalog: AdapterCatalogApi;
   activeLoras: Ref<CompositionEntry[]>;
   basePrompt: Ref<string>;
   negativePrompt: Ref<string>;
@@ -108,8 +62,6 @@ export interface PromptCompositionState {
 }
 
 export interface PromptCompositionActions {
-  setSearchTerm: (value: string) => void;
-  setActiveOnly: (value: boolean) => void;
   addToComposition: (lora: AdapterSummary) => void;
   removeFromComposition: (index: number) => void;
   moveUp: (index: number) => void;
@@ -128,69 +80,18 @@ export interface PromptCompositionActions {
 }
 
 export const usePromptComposition = (): PromptCompositionState & PromptCompositionActions => {
+  const catalog = useAdapterCatalog();
+  const persistence = createPromptCompositionPersistence();
   const lastSaved = ref<SavedComposition | null>(null);
-  const loras = ref<AdapterSummary[]>([]);
-  const searchTerm = ref<string>('');
-  const activeOnly = ref<boolean>(false);
-  const { adapters, error, isLoading, fetchData: loadLoras } = useAdapterListApi({ page: 1, perPage: 200 });
   const activeLoras = ref<CompositionEntry[]>([]);
-  const basePrompt = ref<string>('');
-  const negativePrompt = ref<string>('');
-  const basePromptError = ref<string>('');
-  const isGenerating = ref<boolean>(false);
-  let persistTimeout: PersistTimeout = null;
-
-  const filteredLoras = computed<AdapterSummary[]>(() => {
-    const term = searchTerm.value.trim().toLowerCase();
-    let items = loras.value;
-
-    if (activeOnly.value) {
-      items = items.filter((item) => item.active);
-    }
-
-    if (term) {
-      items = items.filter((item) => item.name.toLowerCase().includes(term));
-    }
-
-    return items;
-  });
+  const basePrompt = ref('');
+  const negativePrompt = ref('');
+  const basePromptError = ref('');
+  const isGenerating = ref(false);
 
   const finalPrompt = computed<string>(() => buildFinalPrompt(basePrompt.value, activeLoras.value));
   const canGenerate = computed<boolean>(() => !isGenerating.value);
   const canSave = computed<boolean>(() => activeLoras.value.length > 0);
-
-  const cancelScheduledPersist = () => {
-    if (persistTimeout !== null) {
-      clearTimeout(persistTimeout);
-      persistTimeout = null;
-    }
-  };
-
-  const persistComposition = (payload: SavedComposition): void => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    } catch (err) {
-      if (import.meta.env.DEV) {
-        console.warn('Failed to persist composition', err);
-      }
-    }
-  };
-
-  const schedulePersist = (payload: SavedComposition): void => {
-    cancelScheduledPersist();
-    persistTimeout = setTimeout(() => {
-      persistTimeout = null;
-      persistComposition(payload);
-    }, PERSIST_DEBOUNCE_MS);
-  };
-
-  const setSearchTerm = (value: string) => {
-    searchTerm.value = value;
-  };
-
-  const setActiveOnly = (value: boolean) => {
-    activeOnly.value = value;
-  };
 
   const setBasePrompt = (value: string) => {
     basePrompt.value = value;
@@ -209,7 +110,7 @@ export const usePromptComposition = (): PromptCompositionState & PromptCompositi
       return;
     }
 
-    activeLoras.value.push({ id: lora.id, name: lora.name, weight: DEFAULT_WEIGHT });
+    activeLoras.value.push({ id: lora.id, name: lora.name, weight: PROMPT_COMPOSITION_DEFAULT_WEIGHT });
   };
 
   const removeFromComposition = (index: number): void => {
@@ -262,7 +163,7 @@ export const usePromptComposition = (): PromptCompositionState & PromptCompositi
     }
 
     activeLoras.value.forEach((entry) => {
-      entry.weight = DEFAULT_WEIGHT;
+      entry.weight = PROMPT_COMPOSITION_DEFAULT_WEIGHT;
     });
   };
 
@@ -291,20 +192,12 @@ export const usePromptComposition = (): PromptCompositionState & PromptCompositi
   };
 
   const copyPrompt = async (): Promise<boolean> => {
-    try {
-      const success = await copyToClipboard(finalPrompt.value || '');
+    return copyPromptToClipboard(finalPrompt.value || '');
+  };
 
-      if (!success && import.meta.env.DEV) {
-        console.warn('Failed to copy prompt to clipboard');
-      }
-
-      return success;
-    } catch (err) {
-      if (import.meta.env.DEV) {
-        console.warn('Copy prompt failed', err);
-      }
-      return false;
-    }
+  const persistPayload = (payload: SavedComposition) => {
+    lastSaved.value = payload;
+    persistence.save(payload);
   };
 
   const saveComposition = (): void => {
@@ -314,37 +207,27 @@ export const usePromptComposition = (): PromptCompositionState & PromptCompositi
       neg: negativePrompt.value,
     };
 
-    lastSaved.value = payload;
-
-    cancelScheduledPersist();
-    persistComposition(payload);
+    persistPayload(payload);
   };
 
   const loadComposition = (): void => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      let payload: SavedComposition | null = null;
+    const payload = persistence.load() ?? lastSaved.value;
 
-      if (raw) {
-        payload = toSavedComposition(JSON.parse(raw) as unknown);
-      } else if (lastSaved.value) {
-        payload = lastSaved.value;
-      }
-
-      if (!payload) {
-        return;
-      }
-
-      activeLoras.value = payload.items.map((entry) => ({ ...entry }));
-      basePrompt.value = payload.base;
-      negativePrompt.value = payload.neg;
-      basePromptError.value = '';
-      lastSaved.value = payload;
-    } catch (err) {
-      if (import.meta.env.DEV) {
-        console.warn('Failed to load composition', err);
-      }
+    if (!payload) {
+      return;
     }
+
+    const parsed = parseSavedComposition(payload);
+
+    if (!parsed) {
+      return;
+    }
+
+    activeLoras.value = parsed.items.map((entry) => ({ ...entry }));
+    basePrompt.value = parsed.base;
+    negativePrompt.value = parsed.neg;
+    basePromptError.value = '';
+    lastSaved.value = parsed;
   };
 
   const generateImage = async (): Promise<boolean> => {
@@ -355,45 +238,17 @@ export const usePromptComposition = (): PromptCompositionState & PromptCompositi
     isGenerating.value = true;
 
     try {
-      const trimmedNegative = negativePrompt.value.trim();
-      const params = createGenerationParams({
+      const success = await triggerPromptGeneration({
         prompt: finalPrompt.value,
-        negative_prompt: trimmedNegative ? trimmedNegative : null,
+        negativePrompt: negativePrompt.value,
+        loras: activeLoras.value,
       });
 
-      await requestGeneration({
-        ...params,
-        loras: activeLoras.value.map((entry) => ({ ...entry })),
-      });
-      return true;
-    } catch (err) {
-      if (import.meta.env.DEV) {
-        console.warn('Failed to trigger generation', err);
-      }
-      return false;
+      return success;
     } finally {
       isGenerating.value = false;
     }
   };
-
-  onMounted(async () => {
-    await loadLoras();
-  });
-
-  watch(
-    adapters,
-    (next: LoraListItem[] | undefined) => {
-      const items = Array.isArray(next) ? next : [];
-
-      loras.value = items.map((item) => ({
-        id: item.id,
-        name: item.name,
-        description: item.description,
-        active: item.active ?? true,
-      }));
-    },
-    { immediate: true },
-  );
 
   watch(
     [activeLoras, basePrompt, negativePrompt],
@@ -405,21 +260,17 @@ export const usePromptComposition = (): PromptCompositionState & PromptCompositi
       };
 
       lastSaved.value = payload;
-      schedulePersist(payload);
+      persistence.scheduleSave(payload);
     },
     { deep: true },
   );
 
   onBeforeUnmount(() => {
-    cancelScheduledPersist();
+    persistence.cancel();
   });
 
   return {
-    searchTerm,
-    activeOnly,
-    filteredLoras,
-    isLoading,
-    error,
+    catalog,
     activeLoras,
     basePrompt,
     negativePrompt,
@@ -428,8 +279,6 @@ export const usePromptComposition = (): PromptCompositionState & PromptCompositi
     isGenerating,
     canGenerate,
     canSave,
-    setSearchTerm,
-    setActiveOnly,
     addToComposition,
     removeFromComposition,
     moveUp,
@@ -447,4 +296,3 @@ export const usePromptComposition = (): PromptCompositionState & PromptCompositi
     isInComposition,
   };
 };
-

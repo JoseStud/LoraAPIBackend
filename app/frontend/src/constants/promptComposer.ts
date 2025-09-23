@@ -1,0 +1,3 @@
+export const PROMPT_COMPOSITION_STORAGE_KEY = 'prompt-composer-composition';
+export const PROMPT_COMPOSITION_DEFAULT_WEIGHT = 1;
+export const PROMPT_COMPOSITION_PERSIST_DEBOUNCE_MS = 250;

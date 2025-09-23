@@ -70,11 +70,7 @@ import PromptComposerComposition from './PromptComposerComposition.vue';
 import { usePromptComposition } from '@/composables/usePromptComposition';
 
 const {
-  searchTerm,
-  activeOnly,
-  filteredLoras,
-  isLoading,
-  error,
+  catalog,
   activeLoras,
   basePrompt,
   negativePrompt,
@@ -83,8 +79,6 @@ const {
   isGenerating,
   canGenerate,
   canSave,
-  setSearchTerm,
-  setActiveOnly,
   addToComposition,
   removeFromComposition,
   moveUp,
@@ -101,6 +95,16 @@ const {
   generateImage,
   isInComposition,
 } = usePromptComposition();
+
+const {
+  filteredAdapters: filteredLoras,
+  searchTerm,
+  activeOnly,
+  isLoading,
+  error,
+  setSearchTerm,
+  setActiveOnly,
+} = catalog;
 
 const onUpdateWeight = (payload: { index: number; weight: number }) => {
   updateWeight(payload.index, payload.weight);
