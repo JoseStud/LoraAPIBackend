@@ -51,7 +51,7 @@
               <button
                 @click="deleteSelected()"
                 class="btn btn-danger btn-sm"
-                :disabled="selectedItems.length === 0"
+                :disabled="selectedCount === 0"
               >
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -61,7 +61,7 @@
                     d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                   />
                 </svg>
-                Delete ({{ selectedItems.length }})
+                Delete ({{ selectedCount }})
               </button>
             </div>
           </div>
@@ -106,7 +106,7 @@
 
       <div class="results-container">
         <HistoryBulkActions
-          :selected-count="selectedItems.length"
+          :selected-count="selectedCount"
           @favorite="favoriteSelected"
           @export="exportSelected"
           @clear="clearSelection"
@@ -115,7 +115,7 @@
         <HistoryGrid
           v-if="viewMode === 'grid'"
           :results="filteredResults"
-          :selected-items="selectedItems"
+          :selected-set="selectedSet"
           :format-date="formatDate"
           @selection-change="onSelectionChange"
           @view="showImageModal"
@@ -128,7 +128,7 @@
         <HistoryList
           v-else
           :results="filteredResults"
-          :selected-items="selectedItems"
+          :selected-set="selectedSet"
           :format-date="formatDate"
           @selection-change="onSelectionChange"
           @view="showImageModal"
@@ -221,7 +221,7 @@ type SelectionChangePayload = { id: GenerationHistoryResult['id']; selected: boo
 type RatePayload = { result: GenerationHistoryResult; rating: number };
 
 const viewMode = ref<ViewMode>('grid');
-const selectedItems = ref<Array<GenerationHistoryResult['id']>>([]);
+const selectedItems = ref<Set<GenerationHistoryResult['id']>>(new Set());
 const selectedResult = ref<GenerationHistoryResult | null>(null);
 const showModal = ref(false);
 const isInitialized = ref(false);
@@ -254,6 +254,17 @@ const toastType = ref<ToastType>('success');
 let toastTimeout: ReturnType<typeof setTimeout> | undefined;
 
 const selectableIds = computed(() => filteredResults.value.map((result) => result.id));
+const selectedIds = computed(() => Array.from(selectedItems.value));
+const selectedCount = computed(() => selectedItems.value.size);
+const selectedSet = computed(() => selectedItems.value);
+
+const withUpdatedSelection = (
+  updater: (current: Set<GenerationHistoryResult['id']>) => void,
+): void => {
+  const next = new Set(selectedItems.value);
+  updater(next);
+  selectedItems.value = next;
+};
 
 const showToastMessage = (message: string, type: ToastType = 'success'): void => {
   if (toastTimeout) {
@@ -369,6 +380,9 @@ const deleteResult = async (resultId: GenerationHistoryResult['id']): Promise<vo
     await deleteHistoryResult(apiBaseUrl.value, resultId);
 
     data.value = data.value.filter((item) => item.id !== resultId);
+    withUpdatedSelection((next) => {
+      next.delete(resultId);
+    });
     applyFilters();
 
     showToastMessage('Image deleted successfully');
@@ -384,20 +398,22 @@ const handleDelete = async (resultId: GenerationHistoryResult['id']): Promise<vo
 };
 
 const deleteSelected = async (): Promise<void> => {
-  if (selectedItems.value.length === 0) {
+  if (selectedCount.value === 0) {
     return;
   }
 
-  const count = selectedItems.value.length;
+  const ids = selectedIds.value;
+  const count = ids.length;
   if (!confirm(`Are you sure you want to delete ${count} selected images?`)) {
     return;
   }
 
   try {
-    await deleteHistoryResults(apiBaseUrl.value, { ids: selectedItems.value });
+    await deleteHistoryResults(apiBaseUrl.value, { ids });
 
-    data.value = data.value.filter((item) => !selectedItems.value.includes(item.id));
-    selectedItems.value = [];
+    const idsToRemove = new Set(ids);
+    data.value = data.value.filter((item) => !idsToRemove.has(item.id));
+    selectedItems.value = new Set();
     applyFilters();
 
     showToastMessage(`${count} images deleted successfully`);
@@ -408,24 +424,26 @@ const deleteSelected = async (): Promise<void> => {
 };
 
 const favoriteSelected = async (): Promise<void> => {
-  if (selectedItems.value.length === 0) {
+  if (selectedCount.value === 0) {
     return;
   }
 
+  const ids = selectedIds.value;
   try {
     await favoriteHistoryResults(apiBaseUrl.value, {
-      ids: selectedItems.value,
+      ids,
       is_favorite: true,
     });
 
+    const selectedSnapshot = new Set(ids);
     data.value.forEach((result) => {
-      if (selectedItems.value.includes(result.id)) {
+      if (selectedSnapshot.has(result.id)) {
         result.is_favorite = true;
       }
     });
 
     applyFilters();
-    showToastMessage(`${selectedItems.value.length} images added to favorites`);
+    showToastMessage(`${ids.length} images added to favorites`);
   } catch (err) {
     console.error('Error updating favorites:', err);
     showToastMessage('Failed to update favorites', 'error');
@@ -433,12 +451,12 @@ const favoriteSelected = async (): Promise<void> => {
 };
 
 const exportSelected = async (): Promise<void> => {
-  if (selectedItems.value.length === 0) {
+  if (selectedCount.value === 0) {
     return;
   }
 
   try {
-    const download = await exportHistoryResults(apiBaseUrl.value, { ids: selectedItems.value });
+    const download = await exportHistoryResults(apiBaseUrl.value, { ids: selectedIds.value });
     downloadFile(download.blob, download.filename);
 
     showToastMessage('Export started');
@@ -449,7 +467,7 @@ const exportSelected = async (): Promise<void> => {
 };
 
 const clearSelection = (): void => {
-  selectedItems.value = [];
+  selectedItems.value = new Set();
 };
 
 const loadMore = async (): Promise<void> => {
@@ -483,13 +501,15 @@ const formatFileSize = (bytes: number) => formatBytes(Number.isFinite(bytes) ? b
 
 const onSelectionChange = ({ id, selected }: SelectionChangePayload): void => {
   if (selected) {
-    if (!selectedItems.value.includes(id)) {
-      selectedItems.value = [...selectedItems.value, id];
-    }
+    withUpdatedSelection((next) => {
+      next.add(id);
+    });
     return;
   }
 
-  selectedItems.value = selectedItems.value.filter((item) => item !== id);
+  withUpdatedSelection((next) => {
+    next.delete(id);
+  });
 };
 
 const onRate = ({ result, rating }: RatePayload): void => {
