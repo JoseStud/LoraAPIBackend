@@ -1,7 +1,7 @@
-"""Vite Asset Helper for LoRA Manager.
+"""Provide Vite asset helpers for the LoRA Manager frontend.
 
-This module provides utilities for serving assets built by Vite,
-handling both development and production environments.
+Offer utilities for serving assets built by Vite while handling both
+development and production environments.
 """
 
 import json
@@ -15,6 +15,7 @@ VITE_MANIFEST_PATH = "dist/.vite/manifest.json"
 
 def is_development() -> bool:
     """Determine if we're in development mode.
+
     You can customize this based on your environment setup.
     """
     # Check multiple environment indicators
@@ -22,12 +23,17 @@ def is_development() -> bool:
     debug = os.getenv("DEBUG", "true").lower() in ("true", "1", "yes")
     
     # Also check if Vite dev server is running
-    vite_dev_running = os.getenv("VITE_DEV_SERVER", "true").lower() in ("true", "1", "yes")
+    vite_dev_running = os.getenv("VITE_DEV_SERVER", "true").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
     
     return env == "development" or debug or vite_dev_running
 
 def load_vite_manifest() -> Optional[Dict]:
     """Load the Vite manifest file if it exists.
+
     Returns None if the file doesn't exist or can't be parsed.
     """
     try:

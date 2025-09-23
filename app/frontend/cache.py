@@ -1,6 +1,6 @@
-"""In-Process TTL Cache Module.
+"""Provide in-process TTL caching utilities.
 
-Provides simple time-to-live caching for expensive operations
+Use simple time-to-live caching for expensive operations
 to avoid repeated backend requests and improve performance.
 """
 
@@ -16,14 +16,14 @@ settings = get_settings()
 
 @dataclass
 class CacheEntry:
-    """Cache entry with value and expiration."""
+    """Represent a cache entry with value and expiration."""
 
     value: Any
     expires_at: float
 
 
 class TTLCache:
-    """Thread-safe TTL cache implementation."""
+    """Implement a thread-safe TTL cache."""
     
     def __init__(self, default_ttl: int = 300):
         """Initialize TTL cache.
@@ -318,7 +318,7 @@ def get_all_cache_stats() -> Dict[str, Dict[str, Any]]:
 
 # Background cleanup task (can be called periodically)
 def periodic_cache_cleanup() -> None:
-    """Periodic cleanup task for all caches."""
+    """Run periodic cleanup tasks for all caches."""
     cleanup_stats = cleanup_all_caches()
     
     # Log cleanup if any entries were removed

@@ -1,4 +1,4 @@
-"""Minimal HTTP client helper for unit tests and utilities.
+"""Provide minimal HTTP client helpers for unit tests and utilities.
 
 This client implements construction and URL building logic required by
 tests/unit/test_backend_validation.py.
@@ -11,7 +11,7 @@ from urllib.parse import urlencode
 
 
 class HTTPClient:
-    """A simple HTTP client facade with URL building support."""
+    """Provide a simple HTTP client facade with URL building support."""
 
     def __init__(
         self,

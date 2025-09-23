@@ -1,4 +1,4 @@
-"""Frontend utilities for LoRA Manager."""
+"""Provide frontend utilities for the LoRA Manager."""
 
 from .vite_assets import is_development, vite_asset, vite_asset_css
 

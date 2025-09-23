@@ -1,7 +1,11 @@
+"""Define Pydantic schemas used by frontend utilities."""
+
 from pydantic import BaseModel, Field, field_validator
 
 
 class SimilarityForm(BaseModel):
+    """Validate similarity search parameters."""
+
     lora_id: str = Field(..., min_length=1)
     semantic_weight: float = Field(0.4, ge=0.0, le=1.0)
     artistic_weight: float = Field(0.3, ge=0.0, le=1.0)
@@ -11,6 +15,8 @@ class SimilarityForm(BaseModel):
 
 
 class PromptForm(BaseModel):
+    """Validate prompt tuning parameters."""
+
     prompt: str = Field(..., min_length=1)
     semantic_weight: float = Field(0.4, ge=0.0, le=1.0)
     style_weight: float = Field(0.3, ge=0.0, le=1.0)
