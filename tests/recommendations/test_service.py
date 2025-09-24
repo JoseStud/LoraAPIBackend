@@ -72,6 +72,8 @@ class TestRecommendationService:
         similar_use_case.execute = AsyncMock(return_value=[MagicMock()])
         prompt_use_case = MagicMock()
         prompt_use_case.execute = AsyncMock(return_value=[MagicMock()])
+        trigger_use_case = MagicMock()
+        trigger_use_case.execute = AsyncMock(return_value=[MagicMock()])
 
         config = RecommendationConfig(persistence_service)
 
@@ -83,6 +85,7 @@ class TestRecommendationService:
                 stats_reporter=stats_reporter,
                 similar_lora_use_case=similar_use_case,
                 prompt_recommendation_use_case=prompt_use_case,
+                trigger_recommendation_use_case=trigger_use_case,
                 config=config,
             )
             .build()
@@ -106,6 +109,9 @@ class TestRecommendationService:
 
         await service.recommend_for_prompt(prompt="hello", active_loras=["a"], limit=1)
         assert prompt_use_case.execute.await_count == 1
+
+        await service.recommend_for_trigger(trigger_query="angel", limit=2)
+        assert trigger_use_case.execute.await_count == 1
 
         await service.embeddings.compute_for_lora("adapter-1", force_recompute=True)
         embedding_workflow.compute_embeddings_for_lora.assert_awaited_with(
@@ -186,9 +192,11 @@ class TestRecommendationService:
 
         similar_use_case = MagicMock()
         prompt_use_case = MagicMock()
+        trigger_use_case = MagicMock()
         use_case_bundle = UseCaseBundle(
             similar_lora=similar_use_case,
             prompt_recommendation=prompt_use_case,
+            trigger_recommendation=trigger_use_case,
         )
 
         embedding_coordinator = MagicMock()
@@ -225,6 +233,7 @@ class TestRecommendationService:
             stats_reporter=stats_reporter,
             similar_lora_use_case=similar_use_case,
             prompt_recommendation_use_case=prompt_use_case,
+            trigger_recommendation_use_case=trigger_use_case,
             config=persistence_components.config,
         )
         builder.build.assert_called_once_with()

@@ -18,7 +18,11 @@ from .interfaces import (
 from .model_registry import RecommendationModelRegistry
 from .persistence_manager import RecommendationPersistenceManager
 from .persistence_service import RecommendationPersistenceService
-from .use_cases import PromptRecommendationUseCase, SimilarLoraUseCase
+from .use_cases import (
+    PromptRecommendationUseCase,
+    SimilarLoraUseCase,
+    TriggerRecommendationUseCase,
+)
 
 
 @dataclass(frozen=True)
@@ -44,6 +48,7 @@ class UseCaseBundle:
 
     similar_lora: SimilarLoraUseCase
     prompt_recommendation: PromptRecommendationUseCase
+    trigger_recommendation: TriggerRecommendationUseCase
 
 
 def build_embedding_stack(
@@ -116,6 +121,7 @@ def build_use_cases(
     device: str,
     similar_use_case: Optional[SimilarLoraUseCase] = None,
     prompt_use_case: Optional[PromptRecommendationUseCase] = None,
+    trigger_use_case: Optional[TriggerRecommendationUseCase] = None,
 ) -> UseCaseBundle:
     """Return high level use cases, defaulting to standard implementations."""
     similar = similar_use_case or SimilarLoraUseCase(
@@ -131,7 +137,14 @@ def build_use_cases(
         device=device,
     )
 
+    trigger = trigger_use_case or TriggerRecommendationUseCase(
+        repository=repository,
+        trigger_engine_provider=model_registry.get_trigger_engine,
+        metrics=metrics_tracker,
+    )
+
     return UseCaseBundle(
         similar_lora=similar,
         prompt_recommendation=prompt,
+        trigger_recommendation=trigger,
     )

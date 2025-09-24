@@ -10,12 +10,15 @@ from .components import (
     GPULoRAFeatureExtractor,
     LoRARecommendationEngine,
     LoRASemanticEmbedder,
+    TriggerEmbedder,
+    TriggerResolver,
 )
 from .components.interfaces import (
     FeatureExtractorProtocol,
     RecommendationEngineProtocol,
     SemanticEmbedderProtocol,
 )
+from .trigger_engine import TriggerRecommendationEngine, TriggerSearchIndex
 
 
 class RecommendationModelRegistry:
@@ -26,6 +29,10 @@ class RecommendationModelRegistry:
     _shared_semantic_embedder: Optional[SemanticEmbedderProtocol] = None
     _shared_feature_extractor: Optional[FeatureExtractorProtocol] = None
     _shared_recommendation_engine: Optional[RecommendationEngineProtocol] = None
+    _shared_trigger_embedder: Optional[TriggerEmbedder] = None
+    _shared_trigger_resolver: Optional[TriggerResolver] = None
+    _shared_trigger_index: Optional[TriggerSearchIndex] = None
+    _shared_trigger_engine: Optional[TriggerRecommendationEngine] = None
     _shared_logger: logging.Logger = logging.getLogger(__name__)
 
     def __init__(
@@ -56,6 +63,17 @@ class RecommendationModelRegistry:
 
             cls._shared_logger = logger
 
+            if cls._shared_trigger_resolver is None:
+                cls._shared_trigger_resolver = TriggerResolver()
+
+            if cls._shared_trigger_embedder is None:
+                cls._shared_trigger_embedder = TriggerEmbedder(
+                    device="cpu", logger=logger
+                )
+
+            if cls._shared_trigger_index is None:
+                cls._shared_trigger_index = TriggerSearchIndex(logger=logger)
+
             if cls._shared_semantic_embedder is None:
                 batch_size = 32 if gpu_enabled else 16
                 cls._shared_semantic_embedder = LoRASemanticEmbedder(
@@ -69,12 +87,22 @@ class RecommendationModelRegistry:
                     device=device,
                     semantic_embedder=cls._shared_semantic_embedder,
                     logger=logger,
+                    trigger_resolver=cls._shared_trigger_resolver,
+                    trigger_embedder=cls._shared_trigger_embedder,
                 )
 
             if cls._shared_recommendation_engine is None:
                 cls._shared_recommendation_engine = LoRARecommendationEngine(
                     cls._shared_feature_extractor,
                     device=device,
+                    logger=logger,
+                )
+
+            if cls._shared_trigger_engine is None:
+                cls._shared_trigger_engine = TriggerRecommendationEngine(
+                    resolver=cls._shared_trigger_resolver,
+                    embedder=cls._shared_trigger_embedder,
+                    index=cls._shared_trigger_index,
                     logger=logger,
                 )
 
@@ -103,6 +131,12 @@ class RecommendationModelRegistry:
         assert type(self)._shared_recommendation_engine is not None
         return type(self)._shared_recommendation_engine
 
+    def get_trigger_engine(self) -> TriggerRecommendationEngine:
+        """Return the shared trigger recommendation engine."""
+        self._ensure_ready()
+        assert type(self)._shared_trigger_engine is not None
+        return type(self)._shared_trigger_engine
+
     @classmethod
     def preload_models(
         cls,
@@ -122,4 +156,5 @@ class RecommendationModelRegistry:
             cls._shared_semantic_embedder is not None
             and cls._shared_feature_extractor is not None
             and cls._shared_recommendation_engine is not None
+            and cls._shared_trigger_engine is not None
         )

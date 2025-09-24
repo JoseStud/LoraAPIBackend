@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import pickle
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -12,6 +12,7 @@ from backend.schemas.recommendations import RecommendationItem
 
 from .embedding_manager import EmbeddingManager
 from .repository import RecommendationRepository
+from .trigger_engine import TriggerRecommendationEngine
 
 
 async def get_similar_loras(
@@ -174,6 +175,163 @@ async def get_recommendations_for_prompt(
         )
 
     recommendations.sort(key=lambda item: item.final_score, reverse=True)
+
+    return recommendations[:limit]
+
+
+async def get_recommendations_for_trigger(
+    *,
+    trigger_query: str,
+    limit: int,
+    repository: RecommendationRepository,
+    trigger_engine: TriggerRecommendationEngine,
+    logger,
+) -> List[RecommendationItem]:
+    """Return LoRAs that match a trigger-centric query."""
+    candidates = trigger_engine.search(repository, trigger_query, limit * 2)
+    metadata_cache = trigger_engine.metadata
+    recommendations: List[RecommendationItem] = []
+    seen: set[str] = set()
+
+    def build_metadata(adapter) -> Dict[str, Any]:
+        return {
+            "id": adapter.id,
+            "name": adapter.name,
+            "description": adapter.description,
+            "author_username": adapter.author_username,
+            "tags": list(adapter.tags or [])[:5],
+            "sd_version": adapter.sd_version,
+            "nsfw_level": adapter.nsfw_level,
+            "stats": adapter.stats or {},
+            "predicted_style": None,
+            "trigger_aliases": {},
+            "trigger_sources": {},
+            "trigger_confidence": {},
+            "normalized_triggers": list(getattr(adapter, "triggers", []) or []),
+        }
+
+    for candidate in candidates:
+        adapter_meta = metadata_cache.get(candidate.adapter_id)
+        if adapter_meta is None:
+            adapter = repository.get_adapter(candidate.adapter_id)
+            if adapter is None:
+                continue
+            adapter_meta = build_metadata(adapter)
+        seen.add(candidate.adapter_id)
+
+        explanation_parts = [candidate.explanation]
+        trigger_sources = (
+            adapter_meta.get("trigger_sources", {}).get(
+                candidate.canonical_trigger or "", []
+            )
+        )
+        if trigger_sources:
+            explanation_parts.append(
+                f"Sources: {', '.join(sorted(set(trigger_sources))[:3])}"
+            )
+        confidence_map = adapter_meta.get("trigger_confidence", {}) or {}
+        confidence_value = None
+        if candidate.canonical_trigger:
+            confidence_value = confidence_map.get(candidate.canonical_trigger)
+            if confidence_value is not None:
+                explanation_parts.append(f"Confidence: {confidence_value:.2f}")
+
+        style_boost = 0.0
+        predicted_style = adapter_meta.get("predicted_style")
+        if predicted_style and trigger_query.lower() in str(predicted_style).lower():
+            style_boost = 0.05
+            explanation_parts.append(f"Style hint: {predicted_style}")
+
+        popularity_boost = 0.0
+        stats = adapter_meta.get("stats") or {}
+        downloads = stats.get("downloadCount") or stats.get("downloads")
+        if downloads:
+            if downloads > 10000:
+                popularity_boost = 0.1
+            elif downloads > 1000:
+                popularity_boost = 0.05
+        if popularity_boost:
+            explanation_parts.append("Popularity boost applied")
+
+        final_score = candidate.final_score + style_boost + popularity_boost
+
+        recommendations.append(
+            RecommendationItem(
+                lora_id=adapter_meta["id"],
+                lora_name=str(adapter_meta.get("name", "")),
+                lora_description=adapter_meta.get("description"),
+                similarity_score=candidate.similarity_score,
+                final_score=final_score,
+                explanation=" | ".join(explanation_parts),
+                semantic_similarity=candidate.signals.get("semantic"),
+                artistic_similarity=None,
+                technical_similarity=None,
+                quality_boost=None,
+                popularity_boost=popularity_boost or None,
+                recency_boost=None,
+                metadata={
+                    "tags": adapter_meta.get("tags", []),
+                    "author": adapter_meta.get("author_username"),
+                    "sd_version": adapter_meta.get("sd_version"),
+                    "nsfw_level": adapter_meta.get("nsfw_level"),
+                    "trigger": candidate.canonical_trigger,
+                    "trigger_sources": trigger_sources,
+                    "trigger_confidence": confidence_value,
+                    "predicted_style": predicted_style,
+                },
+            )
+        )
+
+        if len(recommendations) >= limit:
+            break
+
+    if len(recommendations) < limit:
+        fallback_needed = limit - len(recommendations)
+        try:
+            fallbacks = repository.get_recent_active_adapters(fallback_needed * 2)
+        except AttributeError:
+            fallbacks = []
+        fallback_count = 0
+        for adapter in fallbacks:
+            if adapter.id in seen:
+                continue
+            explanation = "Fallback suggestion: trending LoRA"
+            metadata = {
+                "tags": list(adapter.tags or [])[:5],
+                "author": adapter.author_username,
+                "sd_version": adapter.sd_version,
+                "nsfw_level": adapter.nsfw_level,
+                "trigger": None,
+                "trigger_sources": [],
+                "trigger_confidence": None,
+                "predicted_style": getattr(adapter, "predicted_style", None),
+            }
+            recommendations.append(
+                RecommendationItem(
+                    lora_id=adapter.id,
+                    lora_name=adapter.name,
+                    lora_description=adapter.description,
+                    similarity_score=0.0,
+                    final_score=0.0,
+                    explanation=explanation,
+                    semantic_similarity=None,
+                    artistic_similarity=None,
+                    technical_similarity=None,
+                    quality_boost=None,
+                    popularity_boost=None,
+                    recency_boost=None,
+                    metadata=metadata,
+                )
+            )
+            fallback_count += 1
+            if len(recommendations) >= limit:
+                break
+        if fallback_count and logger:
+            logger.info(
+                "Trigger fallback supplied %s items for query '%s'",
+                fallback_count,
+                trigger_query,
+            )
 
     return recommendations[:limit]
 

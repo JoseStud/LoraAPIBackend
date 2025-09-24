@@ -13,6 +13,8 @@ from .sentiment_style import (
     SentimentStyleAnalyzerProtocol,
 )
 from .text_features import KeywordExtractor, KeywordExtractorProtocol
+from .trigger_embedder import TriggerEmbedder
+from .trigger_processing import TriggerResolver
 
 
 class GPULoRAFeatureExtractor(FeatureExtractorProtocol):
@@ -26,6 +28,8 @@ class GPULoRAFeatureExtractor(FeatureExtractorProtocol):
         keyword_extractor: KeywordExtractorProtocol | None = None,
         sentiment_style_analyzer: SentimentStyleAnalyzerProtocol | None = None,
         score_calculator: ScoreCalculatorProtocol | None = None,
+        trigger_resolver: TriggerResolver | None = None,
+        trigger_embedder: TriggerEmbedder | None = None,
         logger: Optional[logging.Logger] = None,
     ) -> None:
         """Initialize feature extractor."""
@@ -45,6 +49,10 @@ class GPULoRAFeatureExtractor(FeatureExtractorProtocol):
         )
         self.score_calculator = score_calculator or ScoreCalculator(
             logger=self._logger,
+        )
+        self.trigger_resolver = trigger_resolver or TriggerResolver()
+        self.trigger_embedder = trigger_embedder or TriggerEmbedder(
+            device="cpu", logger=self._logger
         )
 
     def extract_advanced_features(self, lora: Any) -> Dict[str, Any]:
@@ -69,5 +77,27 @@ class GPULoRAFeatureExtractor(FeatureExtractorProtocol):
             features.update(self.sentiment_style_analyzer.classify_style(description))
 
         features.update(self.score_calculator.compute(lora))
+
+        trigger_candidates = self.trigger_resolver.build_candidates_from_adapter(
+            getattr(lora, "triggers", []) or [],
+            getattr(lora, "trained_words", []) or [],
+            getattr(lora, "activation_text", None),
+        )
+        trigger_resolution = self.trigger_resolver.resolve(trigger_candidates)
+        if trigger_resolution.canonical:
+            trigger_vectors = self.trigger_embedder.encode(trigger_resolution.canonical)
+            features.update(
+                {
+                    "normalized_triggers": trigger_resolution.canonical,
+                    "trigger_aliases": trigger_resolution.alias_map,
+                    "trigger_metadata": {
+                        "confidence": trigger_resolution.confidence,
+                        "sources": trigger_resolution.sources,
+                    },
+                    "trigger_embeddings": [
+                        vector.astype(float).tolist() for vector in trigger_vectors
+                    ],
+                }
+            )
 
         return features

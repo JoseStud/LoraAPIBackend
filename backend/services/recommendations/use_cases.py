@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
@@ -15,6 +16,9 @@ from .interfaces import (
 )
 from .strategies import (
     get_recommendations_for_prompt as prompt_strategy,
+)
+from .strategies import (
+    get_recommendations_for_trigger as trigger_strategy,
 )
 from .strategies import (
     get_similar_loras as similar_loras_strategy,
@@ -105,6 +109,44 @@ class PromptRecommendationUseCase:
                 repository=self._repository,
                 embedder=embedder,
                 device=self._device,
+            )
+        finally:
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            self._metrics.record_query(elapsed_ms)
+
+
+class TriggerRecommendationUseCase:
+    """Generate trigger-driven LoRA recommendations."""
+
+    def __init__(
+        self,
+        *,
+        repository: RecommendationRepository,
+        trigger_engine_provider: Callable[[], Any],
+        metrics: RecommendationMetricsTracker,
+        logger: Optional[logging.Logger] = None,
+    ) -> None:
+        self._repository = repository
+        self._trigger_engine_provider = trigger_engine_provider
+        self._metrics = metrics
+        self._logger = logger or logging.getLogger(__name__)
+
+    async def execute(
+        self,
+        *,
+        trigger_query: str,
+        limit: int,
+    ) -> List[RecommendationItem]:
+        """Return LoRAs matching ``trigger_query`` while recording metrics."""
+        start = time.perf_counter()
+        try:
+            engine = self._trigger_engine_provider()
+            return await trigger_strategy(
+                trigger_query=trigger_query,
+                limit=limit,
+                repository=self._repository,
+                trigger_engine=engine,
+                logger=self._logger,
             )
         finally:
             elapsed_ms = (time.perf_counter() - start) * 1000

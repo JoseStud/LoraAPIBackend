@@ -10,7 +10,11 @@ from .embedding_coordinator import EmbeddingCoordinator
 from .feedback_manager import FeedbackManager
 from .service import RecommendationService
 from .stats_reporter import StatsReporter
-from .use_cases import PromptRecommendationUseCase, SimilarLoraUseCase
+from .use_cases import (
+    PromptRecommendationUseCase,
+    SimilarLoraUseCase,
+    TriggerRecommendationUseCase,
+)
 
 
 class RecommendationServiceBuilder:
@@ -23,6 +27,7 @@ class RecommendationServiceBuilder:
         self._stats_reporter: Optional[StatsReporter] = None
         self._similar_use_case: Optional[SimilarLoraUseCase] = None
         self._prompt_use_case: Optional[PromptRecommendationUseCase] = None
+        self._trigger_use_case: Optional[TriggerRecommendationUseCase] = None
         self._config: Optional[RecommendationConfig] = None
         self._logger: Optional[logging.Logger] = None
 
@@ -37,6 +42,7 @@ class RecommendationServiceBuilder:
         stats_reporter: StatsReporter,
         similar_lora_use_case: SimilarLoraUseCase,
         prompt_recommendation_use_case: PromptRecommendationUseCase,
+        trigger_recommendation_use_case: TriggerRecommendationUseCase,
         config: RecommendationConfig,
     ) -> "RecommendationServiceBuilder":
         """Set all collaborators explicitly."""
@@ -45,6 +51,7 @@ class RecommendationServiceBuilder:
         self._stats_reporter = stats_reporter
         self._similar_use_case = similar_lora_use_case
         self._prompt_use_case = prompt_recommendation_use_case
+        self._trigger_use_case = trigger_recommendation_use_case
         self._config = config
         return self
 
@@ -70,6 +77,10 @@ class RecommendationServiceBuilder:
             raise ValueError(
                 "prompt_recommendation_use_case must be provided before build()"
             )
+        if self._trigger_use_case is None:
+            raise ValueError(
+                "trigger_recommendation_use_case must be provided before build()"
+            )
         if self._config is None:
             raise ValueError("config must be provided before build()")
 
@@ -79,6 +90,7 @@ class RecommendationServiceBuilder:
             stats_reporter=self._stats_reporter,
             similar_lora_use_case=self._similar_use_case,
             prompt_recommendation_use_case=self._prompt_use_case,
+            trigger_recommendation_use_case=self._trigger_use_case,
             config=self._config,
             logger=self._logger,
         )
