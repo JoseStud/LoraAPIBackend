@@ -4,6 +4,7 @@ import type { MaybeRefOrGetter } from 'vue';
 import { useApi } from '@/composables/shared';
 import { DEFAULT_BACKEND_BASE } from '@/config/runtime';
 import { getFilenameFromContentDisposition, requestBlob } from '@/utils/api';
+import { resolveGenerationRoute } from '@/services/generation';
 
 import type {
   GenerationBulkDeleteRequest,
@@ -31,10 +32,8 @@ const resolveBaseUrl = (value: MaybeRefOrGetter<string>): string => {
   return sanitizeBaseUrl(raw);
 };
 
-const buildEndpoint = (base: string, path: string): string => {
-  const suffix = path.startsWith('/') ? path : `/${path}`;
-  return `${base}${suffix}`;
-};
+const resolveHistoryEndpoint = (base: string, path: string): string =>
+  resolveGenerationRoute(path, base);
 
 const toStats = (stats?: GenerationHistoryStats | null): GenerationHistoryStats => ({
   total_results: stats?.total_results ?? 0,
@@ -144,7 +143,7 @@ export const useGenerationHistoryApi = (
     () => {
       const base = resolveBaseUrl(baseUrl);
       const suffix = buildHistoryQuery(query);
-      return `${base}/results${suffix}`;
+      return resolveHistoryEndpoint(base, `/results${suffix}`);
     },
     { credentials: 'same-origin' },
   );
@@ -180,7 +179,8 @@ export const listResults = async (
   options: ListResultsOptions = {},
 ): Promise<ListResultsOutput> => {
   const base = sanitizeBaseUrl(baseUrl);
-  const targetUrl = `${base}/results${buildHistoryQuery(query)}`;
+  const queryString = buildHistoryQuery(query);
+  const targetUrl = resolveHistoryEndpoint(base, `/results${queryString}`);
   const api = useApi<GenerationHistoryListPayload>(() => targetUrl, {
     credentials: 'same-origin',
   });
@@ -194,12 +194,15 @@ export const rateResult = async (
   rating: number,
 ): Promise<GenerationHistoryResult | null> => {
   const base = sanitizeBaseUrl(baseUrl);
-  const api = useApi<GenerationHistoryResult | null>(() => buildEndpoint(base, `/results/${encodeURIComponent(String(resultId))}/rating`), {
-    credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/json',
+  const api = useApi<GenerationHistoryResult | null>(
+    () => resolveHistoryEndpoint(base, `/results/${encodeURIComponent(String(resultId))}/rating`),
+    {
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     },
-  });
+  );
   const payload = await api.fetchData({
     method: 'PUT',
     body: JSON.stringify({ rating } satisfies GenerationRatingUpdate),
@@ -213,12 +216,15 @@ export const favoriteResult = async (
   isFavorite: boolean,
 ): Promise<GenerationHistoryResult | null> => {
   const base = sanitizeBaseUrl(baseUrl);
-  const api = useApi<GenerationHistoryResult | null>(() => buildEndpoint(base, `/results/${encodeURIComponent(String(resultId))}/favorite`), {
-    credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/json',
+  const api = useApi<GenerationHistoryResult | null>(
+    () => resolveHistoryEndpoint(base, `/results/${encodeURIComponent(String(resultId))}/favorite`),
+    {
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     },
-  });
+  );
   const payload = await api.fetchData({
     method: 'PUT',
     body: JSON.stringify({ is_favorite: isFavorite }),
@@ -231,12 +237,15 @@ export const favoriteResults = async (
   payload: GenerationBulkFavoriteRequest,
 ): Promise<void> => {
   const base = sanitizeBaseUrl(baseUrl);
-  const api = useApi<void>(() => buildEndpoint(base, '/results/bulk-favorite'), {
-    credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/json',
+  const api = useApi<void>(
+    () => resolveHistoryEndpoint(base, '/results/bulk-favorite'),
+    {
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     },
-  });
+  );
   await api.fetchData({
     method: 'PUT',
     body: JSON.stringify(payload),
@@ -248,9 +257,12 @@ export const deleteResult = async (
   resultId: GenerationHistoryResult['id'],
 ): Promise<void> => {
   const base = sanitizeBaseUrl(baseUrl);
-  const api = useApi<void>(() => buildEndpoint(base, `/results/${encodeURIComponent(String(resultId))}`), {
-    credentials: 'same-origin',
-  });
+  const api = useApi<void>(
+    () => resolveHistoryEndpoint(base, `/results/${encodeURIComponent(String(resultId))}`),
+    {
+      credentials: 'same-origin',
+    },
+  );
   await api.fetchData({ method: 'DELETE' });
 };
 
@@ -259,12 +271,15 @@ export const deleteResults = async (
   payload: GenerationBulkDeleteRequest,
 ): Promise<void> => {
   const base = sanitizeBaseUrl(baseUrl);
-  const api = useApi<void>(() => buildEndpoint(base, '/results/bulk-delete'), {
-    credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/json',
+  const api = useApi<void>(
+    () => resolveHistoryEndpoint(base, '/results/bulk-delete'),
+    {
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     },
-  });
+  );
   await api.fetchData({
     method: 'DELETE',
     body: JSON.stringify(payload),
@@ -288,12 +303,15 @@ export const exportResults = async (
   payload: GenerationExportRequest,
 ): Promise<GenerationDownloadMetadata> => {
   const base = sanitizeBaseUrl(baseUrl);
-  const { blob, response } = await requestBlob(buildEndpoint(base, '/results/export'), {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  const { blob, response } = await requestBlob(
+    resolveHistoryEndpoint(base, '/results/export'),
+    {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  );
   return toDownloadMetadata(blob, response, `generation-export-${Date.now()}.zip`);
 };
 
@@ -304,7 +322,7 @@ export const downloadResult = async (
 ): Promise<GenerationDownloadMetadata> => {
   const base = sanitizeBaseUrl(baseUrl);
   const { blob, response } = await requestBlob(
-    buildEndpoint(base, `/results/${encodeURIComponent(String(resultId))}/download`),
+    resolveHistoryEndpoint(base, `/results/${encodeURIComponent(String(resultId))}/download`),
     {
       method: 'GET',
       credentials: 'same-origin',
