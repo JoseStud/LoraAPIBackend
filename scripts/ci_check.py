@@ -9,7 +9,7 @@ from typing import Sequence
 COMMANDS: Sequence[Sequence[str]] = (
     ("ruff", "format", "--check", "."),
     ("ruff", "check", "."),
-    ("pytest", "tests/unit/backend/test_settings.py"),
+    ("pytest",),
     ("npm", "run", "lint"),
     ("npm", "run", "type-check"),
     ("npm", "run", "build"),
