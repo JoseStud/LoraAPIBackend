@@ -98,9 +98,11 @@ def test_import_endpoint_creates_adapter(
         ("files", ("export.zip", io.BytesIO(archive_bytes), "application/zip")),
     ]
     data = {
-        "config": json.dumps(
-            {"mode": "merge", "validate": True, "backup_before": False}
-        )
+        "config": json.dumps({
+            "mode": "merge",
+            "validate": True,
+            "backup_before": False,
+        })
     }
 
     response = client.post(
@@ -139,9 +141,11 @@ def test_import_endpoint_rejects_invalid_archive(
         ("files", ("invalid.zip", invalid_stream, "application/zip")),
     ]
     data = {
-        "config": json.dumps(
-            {"mode": "merge", "validate": True, "backup_before": False}
-        )
+        "config": json.dumps({
+            "mode": "merge",
+            "validate": True,
+            "backup_before": False,
+        })
     }
 
     response = client.post(
