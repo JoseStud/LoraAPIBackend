@@ -1,7 +1,7 @@
 import { ref, type Ref } from 'vue';
 
 import { ensureData, getJson, postJson } from '@/utils/api';
-import type { BackupHistoryItem } from '@/types';
+import type { BackupCreateRequest, BackupHistoryItem } from '@/types';
 import type { NotifyFn } from './useExportWorkflow';
 
 interface UseBackupWorkflowOptions {
@@ -50,7 +50,12 @@ export function useBackupWorkflow(options: UseBackupWorkflowOptions): UseBackupW
   const createBackup = async (backupType: 'full' | 'quick', successMessage: string) => {
     try {
       const result =
-        ensureData(await postJson<{ backup_id?: string }>('/api/v1/backup/create', { backup_type: backupType }))
+        ensureData(
+          await postJson<{ backup_id?: string }, BackupCreateRequest>(
+            '/api/v1/backup/create',
+            { backup_type: backupType },
+          ),
+        )
         ?? null;
       const backupId = typeof result?.backup_id === 'string' ? result.backup_id : null;
       notify(backupId ? `${successMessage}: ${backupId}` : successMessage, 'success');

@@ -88,6 +88,15 @@ const extractErrorMessage = (record: GenerationJobStatus, fallback = 'Unknown er
   return fallback;
 };
 
+const isGenerationResult = (value: unknown): value is GenerationResult => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const { id } = value as { id?: unknown };
+  return typeof id === 'string' || typeof id === 'number';
+};
+
 const applyJobRecord = (
   record: GenerationJobStatus,
   getActiveJobs: () => ReadonlyArray<GenerationJob>,
@@ -107,8 +116,8 @@ const applyJobRecord = (
   const status = normalizeJobStatus(rawStatus ?? (existing?.status ?? undefined));
 
   if (status === 'completed') {
-    if (record.result && typeof record.result === 'object') {
-      resultsStore.addResult(record.result as GenerationResult);
+    if (isGenerationResult(record.result)) {
+      resultsStore.addResult(record.result);
     }
     if (wasTracked && existing) {
       queueStore.removeJob(existing.id);

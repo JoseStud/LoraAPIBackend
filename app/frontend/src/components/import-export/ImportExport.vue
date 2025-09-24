@@ -156,10 +156,9 @@ import MigrationWorkflowPanel from './MigrationWorkflowPanel.vue';
 import ImportExportProgressModal from './ImportExportProgressModal.vue';
 import ImportExportToast from './ImportExportToast.vue';
 
-import type { NotifyType, ExportConfig } from '@/composables/import-export';
-import type { ImportConfig, ImportPreviewItem } from '@/composables/import-export';
-import type { MigrationConfig } from '@/composables/import-export';
-import type { BackupEntry } from '@/composables/import-export';
+import type { NotifyType } from '@/composables/import-export';
+import type { ImportPreviewItem, MigrationConfig } from '@/composables/import-export';
+import type { BackupHistoryItem, ExportConfig, ImportConfig } from '@/types';
 
 export type ActiveTab = 'export' | 'import' | 'backup' | 'migration';
 
@@ -181,7 +180,7 @@ defineProps<{
   importPreview: readonly ImportPreviewItem[];
   hasEncryptedFiles: boolean;
   isImporting: boolean;
-  backupHistory: readonly BackupEntry[];
+    backupHistory: readonly BackupHistoryItem[];
   migrationConfig: MigrationConfig;
   showProgress: boolean;
   progressTitle: string;

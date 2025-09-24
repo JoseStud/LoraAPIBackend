@@ -11,8 +11,8 @@
 
     <div class="relative">
       <img
-        :src="result.thumbnail_url || result.image_url"
-        :alt="result.prompt"
+        :src="result.thumbnail_url ?? result.image_url ?? ''"
+        :alt="result.prompt ?? 'Generated image'"
         class="w-full h-48 object-cover rounded-t-lg cursor-pointer"
         @click="$emit('view')"
       />
@@ -66,7 +66,7 @@
     </div>
 
     <div class="card-body">
-      <div class="text-sm text-gray-900 mb-2 line-clamp-2">{{ result.prompt }}</div>
+      <div class="text-sm text-gray-900 mb-2 line-clamp-2">{{ result.prompt ?? 'Untitled generation' }}</div>
       <div class="flex items-center justify-between text-xs text-gray-500">
         <span>{{ formattedDate }}</span>
         <span>{{ result.width }}x{{ result.height }}</span>

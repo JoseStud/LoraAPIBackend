@@ -77,6 +77,7 @@ export interface GenerationJobStatus {
   id: string;
   jobId?: string | null;
   prompt?: string | null;
+  name?: string | null;
   status: NormalizedJobStatus | string;
   progress: number;
   message?: string | null;
@@ -105,7 +106,10 @@ export interface GenerationHistoryResult {
   cfg_scale?: number | null;
   seed?: number | null;
   sampler_name?: string | null;
+  sampler?: string | null;
+  model?: string | null;
   model_name?: string | null;
+  clip_skip?: number | null;
   rating?: number | null;
   is_favorite?: boolean;
   rating_updated_at?: string | null;

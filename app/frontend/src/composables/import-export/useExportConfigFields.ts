@@ -1,4 +1,4 @@
-import type { ExportConfig } from './useExportWorkflow';
+import type { ExportConfig } from '@/types';
 
 type ExportConfigKey = keyof ExportConfig;
 

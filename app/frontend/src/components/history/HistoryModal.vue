@@ -5,15 +5,15 @@
 
       <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full" @click.stop>
         <div v-if="result">
-          <img :src="result.image_url"
-               :alt="result.prompt"
+          <img :src="result.image_url ?? ''"
+               :alt="result.prompt ?? 'Generated image'"
                class="w-full max-h-96 object-contain">
           <div class="p-6">
             <div class="flex items-start justify-between mb-4">
               <div class="flex-1">
                 <h3 class="text-lg font-medium text-gray-900 mb-2">Generation Details</h3>
                 <div class="grid grid-cols-2 gap-4 text-sm">
-                  <div><strong>Prompt:</strong> {{ result.prompt }}</div>
+                  <div><strong>Prompt:</strong> {{ result.prompt ?? 'Untitled generation' }}</div>
                   <div><strong>Size:</strong> {{ result.width }}x{{ result.height }}</div>
                   <div><strong>Steps:</strong> {{ result.steps }}</div>
                   <div><strong>CFG Scale:</strong> {{ result.cfg_scale }}</div>
