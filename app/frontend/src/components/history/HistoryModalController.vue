@@ -3,73 +3,55 @@
     :visible="modalVisible"
     :result="activeResult"
     :format-date="formatDate"
-    @close="closeModal"
-    @reuse="handleReuse"
-    @download="handleDownload"
-    @delete="handleDelete"
+    @close="$emit('close')"
+    @reuse="$emit('reuse', $event)"
+    @download="$emit('download', $event)"
+    @delete="$emit('delete', $event)"
   />
 
   <HistoryToast :visible="toastVisible" :message="toastMessage" :type="toastType" />
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import type { PropType } from 'vue';
 
-import { useHistoryToast, type HistoryToastType } from '@/composables/history';
 import type { GenerationHistoryResult } from '@/types';
+import type { HistoryToastType } from '@/composables/history';
 
 import HistoryModalLauncher from './HistoryModalLauncher.vue';
 import HistoryToast from './HistoryToast.vue';
 
-const props = defineProps<{
-  formatDate: (date: string) => string;
-  onReuse: (result: GenerationHistoryResult) => Promise<boolean> | boolean;
-  onDownload: (result: GenerationHistoryResult) => Promise<boolean> | boolean;
-  onDelete: (resultId: GenerationHistoryResult['id']) => Promise<boolean>;
-}>();
-
-const { toastVisible, toastMessage, toastType, showToastMessage } = useHistoryToast();
-
-const modalVisible = ref(false);
-const activeResult = ref<GenerationHistoryResult | null>(null);
-const isModalOpen = computed(() => modalVisible.value);
-
-const openModal = (result: GenerationHistoryResult): void => {
-  activeResult.value = result;
-  modalVisible.value = true;
-};
-
-const closeModal = (): void => {
-  modalVisible.value = false;
-  activeResult.value = null;
-};
-
-const handleReuse = async (result: GenerationHistoryResult): Promise<void> => {
-  await props.onReuse(result);
-  closeModal();
-};
-
-const handleDownload = async (result: GenerationHistoryResult): Promise<void> => {
-  await props.onDownload(result);
-};
-
-const handleDelete = async (
-  resultId: GenerationHistoryResult['id'],
-): Promise<void> => {
-  const deleted = await props.onDelete(resultId);
-  if (deleted) {
-    closeModal();
-  }
-};
-
-const showToast = (message: string, type: HistoryToastType = 'success'): void => {
-  showToastMessage(message, type);
-};
-
-defineExpose({
-  openModal,
-  closeModal,
-  showToast,
-  isModalOpen,
+defineProps({
+  modalVisible: {
+    type: Boolean,
+    required: true,
+  },
+  activeResult: {
+    type: Object as PropType<GenerationHistoryResult | null>,
+    default: null,
+  },
+  toastVisible: {
+    type: Boolean,
+    required: true,
+  },
+  toastMessage: {
+    type: String,
+    required: true,
+  },
+  toastType: {
+    type: String as PropType<HistoryToastType>,
+    required: true,
+  },
+  formatDate: {
+    type: Function as PropType<(date: string) => string>,
+    required: true,
+  },
 });
+
+defineEmits<{
+  (event: 'close'): void;
+  (event: 'reuse', result: GenerationHistoryResult): void;
+  (event: 'download', result: GenerationHistoryResult): void;
+  (event: 'delete', resultId: GenerationHistoryResult['id']): void;
+}>();
 </script>

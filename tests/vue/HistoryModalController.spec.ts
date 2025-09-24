@@ -1,5 +1,4 @@
 import { mount } from '@vue/test-utils';
-import { nextTick } from 'vue';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { GenerationHistoryResult } from '../../app/frontend/src/types';
@@ -48,88 +47,53 @@ describe('HistoryModalController', () => {
     is_favorite: false,
   });
 
-  it('exposes modal control methods and forwards actions', async () => {
-    const reuseMock = vi.fn();
-    const downloadMock = vi.fn();
-    const deleteMock = vi.fn().mockResolvedValue(true);
-
-    const wrapper = mount(HistoryModalController, {
+  const createWrapper = (props: Partial<InstanceType<typeof HistoryModalController>['$props']> = {}) =>
+    mount(HistoryModalController, {
       props: {
+        modalVisible: true,
+        activeResult: createResult(1),
+        toastVisible: false,
+        toastMessage: '',
+        toastType: 'success',
         formatDate: (value: string) => value,
-        onReuse: reuseMock,
-        onDownload: downloadMock,
-        onDelete: deleteMock,
+        ...props,
       },
     });
 
-    const result = createResult(1);
-    const controller = wrapper.vm.$.exposed as {
-      openModal: (value: GenerationHistoryResult) => void;
-      showToast: (message: string, type?: string) => void;
-      isModalOpen: { value: boolean };
-    };
-
-    expect(controller.isModalOpen.value).toBe(false);
-
-    controller.openModal(result);
-    await nextTick();
+  it('passes modal state to the launcher and toast components', () => {
+    const wrapper = createWrapper({
+      toastVisible: true,
+      toastMessage: 'Saved!',
+      toastType: 'info',
+    });
 
     const launcher = wrapper.findComponent({ name: 'HistoryModalLauncher' });
     expect(launcher.exists()).toBe(true);
     expect(launcher.props('visible')).toBe(true);
-    expect(controller.isModalOpen.value).toBe(true);
-
-    launcher.vm.$emit('reuse', result);
-    await nextTick();
-
-    expect(reuseMock).toHaveBeenCalledWith(result);
-    expect(controller.isModalOpen.value).toBe(false);
-
-    controller.showToast('Hello world', 'info');
-    await nextTick();
+    expect(launcher.props('result')).toEqual(createResult(1));
 
     const toast = wrapper.findComponent({ name: 'HistoryToast' });
-    expect(toast.props('message')).toBe('Hello world');
-    expect(toast.props('type')).toBe('info');
+    expect(toast.exists()).toBe(true);
+    expect(toast.props()).toMatchObject({
+      visible: true,
+      message: 'Saved!',
+      type: 'info',
+    });
   });
 
-  it('only closes the modal after a successful delete action', async () => {
-    const deleteMock = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
-
-    const wrapper = mount(HistoryModalController, {
-      props: {
-        formatDate: (value: string) => value,
-        onReuse: vi.fn(),
-        onDownload: vi.fn(),
-        onDelete: deleteMock,
-      },
-    });
-
-    const result = createResult(2);
-    const controller = wrapper.vm.$.exposed as {
-      openModal: (value: GenerationHistoryResult) => void;
-      isModalOpen: { value: boolean };
-    };
-
-    controller.openModal(result);
-    await nextTick();
+  it('re-emits launcher interactions for container coordination', () => {
+    const wrapper = createWrapper();
+    const result = createResult(5);
 
     const launcher = wrapper.findComponent({ name: 'HistoryModalLauncher' });
-
+    launcher.vm.$emit('close');
+    launcher.vm.$emit('reuse', result);
+    launcher.vm.$emit('download', result);
     launcher.vm.$emit('delete', result.id);
-    await Promise.resolve();
-    await nextTick();
 
-    expect(deleteMock).toHaveBeenNthCalledWith(1, result.id);
-    expect(controller.isModalOpen.value).toBe(true);
-
-    launcher.vm.$emit('delete', result.id);
-    await Promise.resolve();
-    await nextTick();
-
-    expect(deleteMock).toHaveBeenNthCalledWith(2, result.id);
-    await vi.waitFor(() => {
-      expect(controller.isModalOpen.value).toBe(false);
-    });
+    expect(wrapper.emitted('close')).toHaveLength(1);
+    expect(wrapper.emitted('reuse')?.[0]).toEqual([result]);
+    expect(wrapper.emitted('download')?.[0]).toEqual([result]);
+    expect(wrapper.emitted('delete')?.[0]).toEqual([result.id]);
   });
 });
