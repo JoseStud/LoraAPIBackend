@@ -5,13 +5,20 @@ from __future__ import annotations
 import os
 import shutil
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+from sqlalchemy import func, select
 
 from backend.core.config import settings
 from backend.core.gpu import detect_gpu, get_gpu_memory_info
+from backend.delivery.sdnext_client import SDNextSession
+from backend.models import Adapter
+from backend.services.recommendations import RecommendationService
 
 if TYPE_CHECKING:  # pragma: no cover
+    from sqlmodel import Session
+
     from .deliveries import DeliveryService
 
 
@@ -130,9 +137,26 @@ class SystemHealthSummary:
 class SystemService:
     """Service that aggregates system health metrics."""
 
-    def __init__(self, delivery_service: "DeliveryService") -> None:
+    def __init__(
+        self,
+        delivery_service: "DeliveryService",
+        *,
+        queue_warning_active: Optional[int] = None,
+        queue_warning_failed: Optional[int] = None,
+        importer_stale_hours: Optional[int] = None,
+    ) -> None:
         """Store the delivery service used to query queue statistics."""
         self._delivery_service = delivery_service
+        self._queue_warning_active = queue_warning_active
+        self._queue_warning_failed = queue_warning_failed
+        self._importer_stale_hours = importer_stale_hours
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _get_db_session(self) -> Optional["Session"]:
+        return getattr(self._delivery_service, "db_session", None)
 
     def _get_storage_usage_fallback(self) -> str:
         storage_path = settings.IMPORT_PATH or os.getcwd()
@@ -144,7 +168,105 @@ class SystemService:
         except (FileNotFoundError, PermissionError, OSError):
             return "unknown"
 
-    def get_system_status_payload(self) -> Dict[str, Any]:
+    async def _gather_sdnext_status(self) -> Dict[str, Any]:
+        """Collect SDNext connectivity details using configured settings."""
+        session = SDNextSession()
+        configured = session.is_configured()
+        status: Dict[str, Any] = {
+            "configured": configured,
+            "base_url": settings.SDNEXT_BASE_URL,
+            "available": False,
+            "error": None,
+        }
+
+        if not configured:
+            await session.close()
+            status["error"] = "SDNext base URL not configured"
+            status["available"] = False
+            return status
+
+        try:
+            available = await session.health_check()
+        except Exception as exc:  # pragma: no cover - defensive guard
+            status["available"] = False
+            status["error"] = str(exc)
+        else:
+            status["available"] = bool(available)
+            if not available:
+                status["error"] = "Health check failed"
+        finally:
+            await session.close()
+
+        status["checked_at"] = datetime.now(timezone.utc).isoformat()
+        return status
+
+    def _gather_importer_status(self) -> Dict[str, Any]:
+        """Summarise importer activity based on adapter ingestion metadata."""
+        session = self._get_db_session()
+        status: Dict[str, Any] = {
+            "import_path": settings.IMPORT_PATH,
+            "last_ingested_at": None,
+            "recent_imports": None,
+            "total_adapters": None,
+            "stale": None,
+        }
+
+        if session is None:
+            return status
+
+        timestamp_column = func.coalesce(
+            Adapter.last_ingested_at, Adapter.updated_at, Adapter.created_at
+        )
+
+        last_ingested = session.exec(
+            select(func.max(timestamp_column))
+        ).scalar_one_or_none()
+        total_adapters = session.exec(select(func.count(Adapter.id))).scalar_one()
+        status["total_adapters"] = int(total_adapters or 0)
+
+        if last_ingested:
+            if isinstance(last_ingested, datetime):
+                status["last_ingested_at"] = last_ingested.astimezone(timezone.utc).isoformat()
+            else:  # pragma: no cover - defensive guard for non-datetime
+                status["last_ingested_at"] = str(last_ingested)
+
+        stale_threshold = self._importer_stale_hours or 0
+        status["stale_threshold_hours"] = stale_threshold
+
+        if stale_threshold:
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=stale_threshold)
+            recent_count = session.exec(
+                select(func.count(Adapter.id)).where(timestamp_column >= cutoff)
+            ).scalar_one()
+            status["recent_imports"] = int(recent_count or 0)
+
+            if status["last_ingested_at"] is None:
+                status["stale"] = status["total_adapters"] > 0
+            else:
+                try:
+                    parsed = datetime.fromisoformat(status["last_ingested_at"])
+                except ValueError:  # pragma: no cover - defensive guard
+                    status["stale"] = None
+                else:
+                    status["stale"] = parsed < cutoff
+        return status
+
+    def _gather_recommendation_status(self) -> Dict[str, Any]:
+        """Return recommendation subsystem runtime details."""
+        models_loaded = RecommendationService.models_loaded()
+        gpu_available = RecommendationService.is_gpu_available()
+        return {
+            "models_loaded": models_loaded,
+            "gpu_available": gpu_available,
+        }
+
+    def _queue_thresholds(self) -> Dict[str, Any]:
+        return {
+            "active_warning": self._queue_warning_active,
+            "failed_warning": self._queue_warning_failed,
+        }
+
+    async def get_system_status_payload(self) -> Dict[str, Any]:
         """Return the full system status payload consumed by API clients."""
         observed_at = datetime.now(timezone.utc).isoformat()
 
@@ -164,22 +286,54 @@ class SystemService:
 
         queue_stats = self._delivery_service.get_queue_statistics()
 
+        sdnext_status = await self._gather_sdnext_status()
+        importer_status = self._gather_importer_status()
+        recommendation_status = self._gather_recommendation_status()
+        thresholds = self._queue_thresholds()
+
         warnings: List[str] = []
         status = "healthy"
 
         if not gpu_available:
             warnings.append("GPU unavailable; falling back to CPU execution")
+
+        active_threshold = thresholds.get("active_warning")
+        if isinstance(active_threshold, int) and queue_stats["active"] > active_threshold:
+            warnings.append(
+                "Queue backlog above threshold: "
+                f"{queue_stats['active']} active > {active_threshold}"
+            )
+
+        failed_threshold = thresholds.get("failed_warning")
+        if isinstance(failed_threshold, int) and queue_stats["failed"] > failed_threshold:
+            warnings.append(
+                "Delivery failures exceed threshold: "
+                f"{queue_stats['failed']} failed > {failed_threshold}"
+            )
+
+        if sdnext_status.get("configured") and not sdnext_status.get("available"):
+            error_message = sdnext_status.get("error") or "SDNext health check failed"
+            warnings.append(f"SDNext backend unavailable: {error_message}")
+
+        importer_stale = importer_status.get("stale")
+        if importer_stale is True:
+            hours = importer_status.get("stale_threshold_hours")
+            if hours:
+                warnings.append(
+                    f"Importer inactive for more than {int(hours)} hours"
+                )
+            else:
+                warnings.append("Importer inactivity detected")
+
+        if not recommendation_status.get("models_loaded", True):
+            warnings.append(
+                "Recommendation models not preloaded; first requests may be slow"
+            )
+
+        if warnings:
             status = "warning"
 
-        if queue_stats["active"] > 5:
-            warnings.append("Queue backlog is growing")
-            status = "warning"
-
-        if queue_stats["failed"] > 0:
-            warnings.append("There are failed delivery jobs pending review")
-            status = "warning"
-
-        backend_name = "redis" if os.getenv("REDIS_URL") else "in-memory"
+        backend_name = "redis" if settings.REDIS_URL else "in-memory"
 
         gpu_metrics = _collect_gpu_metrics(memory_used_mb, memory_total_mb, gpu_info)
         metrics = _system_metrics(gpu_metrics)
@@ -207,13 +361,23 @@ class SystemService:
             "metrics": metrics,
             "message": "System status collected successfully",
             "updated_at": observed_at,
+            "sdnext": sdnext_status,
+            "importer": importer_status,
+            "recommendations": recommendation_status,
+            "queue": queue_stats,
+            "thresholds": {
+                "queue": thresholds,
+                "importer": {
+                    "stale_hours": self._importer_stale_hours,
+                },
+            },
         }
 
         return payload
 
-    def get_health_summary(self) -> SystemHealthSummary:
+    async def get_health_summary(self) -> SystemHealthSummary:
         """Compute a lightweight system health summary for dashboard views."""
-        payload = self.get_system_status_payload()
+        payload = await self.get_system_status_payload()
 
         used_bytes = _megabytes_to_bytes(payload.get("memory_used"))
         total_bytes = _megabytes_to_bytes(payload.get("memory_total"))

@@ -3,6 +3,13 @@
  */
 
 import type { GeneratedNormalizedJobStatus } from '@/constants/generated/jobStatuses';
+import type {
+  RecommendationRuntimeStatus,
+  SystemImporterStatus,
+  SystemQueueStatistics,
+  SystemThresholds,
+  SystemSdNextStatus,
+} from './system';
 
 export interface FrontendRuntimeSettings {
   backendUrl: string;
@@ -29,6 +36,11 @@ export interface SystemStatusState {
   queue_eta_seconds?: number | null;
   last_updated?: string | null;
   warnings?: string[];
+  sdnext?: SystemSdNextStatus | null;
+  importer?: SystemImporterStatus | null;
+  recommendations?: RecommendationRuntimeStatus | null;
+  queue?: SystemQueueStatistics | null;
+  thresholds?: SystemThresholds | null;
   [key: string]: unknown;
 }
 

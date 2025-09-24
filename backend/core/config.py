@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     IMPORT_ON_STARTUP_FORCE_RESYNC: bool = False
     IMPORT_ON_STARTUP_DRY_RUN: bool = False
 
+    # System health thresholds and runtime diagnostics
+    SYSTEM_QUEUE_WARNING_ACTIVE: Optional[int] = 5
+    SYSTEM_QUEUE_WARNING_FAILED: Optional[int] = 0
+    SYSTEM_IMPORTER_STALE_HOURS: Optional[int] = 24
+
     # SDNext Integration Settings
     SDNEXT_BASE_URL: Optional[str] = None  # e.g., "http://localhost:7860"
     SDNEXT_USERNAME: Optional[str] = None  # for --auth mode
