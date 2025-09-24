@@ -94,6 +94,8 @@ export interface GenerationHistoryResult {
   status?: string | null;
   rating?: number | null;
   is_favorite?: boolean;
+  rating_updated_at?: string | null;
+  favorite_updated_at?: string | null;
   loras?: GenerationLoraReference[] | null;
   metadata?: Record<string, unknown> | null;
   /**

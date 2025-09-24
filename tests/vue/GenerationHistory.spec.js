@@ -63,6 +63,8 @@ const sampleResults = [
     seed: 12345,
     rating: 4,
     is_favorite: true,
+    rating_updated_at: '2024-01-01T10:30:00Z',
+    favorite_updated_at: '2024-01-01T10:45:00Z',
   },
   {
     id: 2,
@@ -78,6 +80,8 @@ const sampleResults = [
     seed: 67890,
     rating: 5,
     is_favorite: false,
+    rating_updated_at: '2024-01-02T13:00:00Z',
+    favorite_updated_at: null,
   },
 ];
 

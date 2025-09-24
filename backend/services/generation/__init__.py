@@ -273,6 +273,10 @@ class GenerationCoordinator:
             "progress": progress,
             "message": message,
             "error": error_text,
+            "rating": job.rating,
+            "is_favorite": bool(job.is_favorite),
+            "rating_updated_at": job.rating_updated_at,
+            "favorite_updated_at": job.favorite_updated_at,
         }
 
     async def broadcast_job_started(

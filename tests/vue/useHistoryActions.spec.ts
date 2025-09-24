@@ -36,6 +36,8 @@ const createResult = (id: number): GenerationHistoryResult => ({
   cfg_scale: 7,
   rating: 0,
   is_favorite: false,
+  rating_updated_at: null,
+  favorite_updated_at: null,
 });
 
 describe('useHistoryActions', () => {
