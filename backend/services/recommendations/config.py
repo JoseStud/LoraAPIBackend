@@ -11,11 +11,11 @@ class RecommendationConfig:
     def __init__(self, persistence: RecommendationPersistenceService) -> None:
         """Store the persistence service used to resolve paths."""
         self._persistence = persistence
+        # Default weights tuned against the post-description embedding mix.
         self.default_weights = {
-            "tags": 1.0,
-            "trained_words": 1.0,
-            "description": 1.0,
-            "name": 1.0,
+            "semantic": 0.5,
+            "artistic": 0.35,
+            "technical": 0.15,
         }
 
     @property
