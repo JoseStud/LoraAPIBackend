@@ -8,32 +8,17 @@ import { useBackendBase } from '@/utils/backend';
 
 import type { SystemStatusState } from '@/types';
 
-const DEFAULT_STATUS: SystemStatusState = {
-  gpu_status: 'Loading…',
-  queue_length: 0,
-  status: 'unknown',
-  gpu_available: true,
-  memory_used: 0,
-  memory_total: 8192,
-};
-
-const FALLBACK_STATUS: Partial<SystemStatusState> = {
-  gpu_status: 'Available',
-  memory_used: 2048,
-  memory_total: 8192,
-  status: 'Ready',
-};
-
 const DEFAULT_POLL_INTERVAL = 10_000;
 
 const formatMemory = (used: number, total: number) => {
-  if (!used || !total) {
+  if (!total) {
     return 'N/A';
   }
 
-  const usedGb = (used / 1024).toFixed(1);
+  const safeUsed = Number.isFinite(used) && used > 0 ? used : 0;
+  const usedGb = (safeUsed / 1024).toFixed(1);
   const totalGb = (total / 1024).toFixed(1);
-  const percentage = ((used / total) * 100).toFixed(0);
+  const percentage = total > 0 ? ((safeUsed / total) * 100).toFixed(0) : '0';
 
   return `${usedGb}GB / ${totalGb}GB (${percentage}%)`;
 };
@@ -125,12 +110,12 @@ export const useSystemStatus = (options: UseSystemStatusOptions = {}) => {
 
   const pollHandle = ref<ReturnType<typeof setInterval> | null>(null);
 
-  const applyStatus = (next: Partial<SystemStatusState> = {}): void => {
-    connectionStore.updateSystemStatus(next);
+  const resetStatus = (): void => {
+    connectionStore.resetSystemStatus();
   };
 
-  const applyFallback = (): void => {
-    applyStatus(FALLBACK_STATUS);
+  const applyStatus = (next: Partial<SystemStatusState> = {}): void => {
+    connectionStore.updateSystemStatus(next);
   };
 
   const stopPolling = (): void => {
@@ -144,7 +129,8 @@ export const useSystemStatus = (options: UseSystemStatusOptions = {}) => {
     try {
       const payload = await fetchSystemStatus(backendBase.value);
       if (payload) {
-        applyStatus({ ...DEFAULT_STATUS, ...payload });
+        resetStatus();
+        connectionStore.applySystemStatusPayload(payload);
 
         const updatedAt = payload.updated_at ?? payload.last_updated ?? null;
         lastUpdate.value = updatedAt ? new Date(updatedAt) : new Date();
@@ -153,18 +139,19 @@ export const useSystemStatus = (options: UseSystemStatusOptions = {}) => {
       }
 
       apiAvailable.value = true;
-      applyStatus({ ...DEFAULT_STATUS });
+      resetStatus();
       lastUpdate.value = new Date();
     } catch (error: unknown) {
       if (error instanceof ApiError && error.status === 404) {
         apiAvailable.value = false;
-        applyFallback();
+        resetStatus();
         lastUpdate.value = new Date();
         stopPolling();
         return;
       }
 
       apiAvailable.value = true;
+      resetStatus();
       applyStatus({ status: 'error', gpu_status: 'Unknown' });
 
       if (import.meta.env.DEV) {

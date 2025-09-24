@@ -9,10 +9,10 @@ const BYTE_UNITS = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
 const DEFAULT_STATUS: SystemStatusLevel = 'unknown';
 const DEFAULT_STATS: SystemResourceStatsSummary = {
   uptime: 'N/A',
-  active_workers: 0,
-  total_workers: 0,
-  database_size: 0,
-  total_records: 0,
+  active_workers: null,
+  total_workers: null,
+  database_size: null,
+  total_records: null,
   gpu_memory_used: 'N/A',
   gpu_memory_total: 'N/A',
 };
@@ -98,6 +98,14 @@ export const mergeStatusLevels = (
   return DEFAULT_STATUS;
 };
 
+const toOptionalNumber = (value: unknown): number | null => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return value;
+};
+
 export const buildResourceStats = (
   summary: DashboardStatsSummary | null,
   metrics: SystemMetricsSnapshot,
@@ -105,10 +113,10 @@ export const buildResourceStats = (
   const next: SystemResourceStatsSummary = { ...DEFAULT_STATS };
   const stats = summary?.stats ?? null;
 
-  next.total_records = stats?.total_loras ?? 0;
-  next.active_workers = (stats as Record<string, number | undefined>)?.active_workers ?? 0;
-  next.total_workers = (stats as Record<string, number | undefined>)?.total_workers ?? 0;
-  next.database_size = (stats as Record<string, number | undefined>)?.database_size ?? 0;
+  next.total_records = toOptionalNumber((stats as Record<string, unknown>)?.total_loras);
+  next.active_workers = toOptionalNumber((stats as Record<string, unknown>)?.active_workers);
+  next.total_workers = toOptionalNumber((stats as Record<string, unknown>)?.total_workers);
+  next.database_size = toOptionalNumber((stats as Record<string, unknown>)?.database_size);
   next.gpu_memory_used = formatBytes(metrics.memory_used);
   next.gpu_memory_total = formatBytes(metrics.memory_total);
 

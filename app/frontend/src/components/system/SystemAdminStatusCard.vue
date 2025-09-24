@@ -145,15 +145,23 @@
             </div>
             <div class="text-sm text-gray-500">Overall Status</div>
           </div>
-          <div class="text-center">
-            <div class="text-2xl font-bold text-blue-600">{{ systemStats.active_workers }}</div>
+          <div v-if="hasWorkerStats" class="text-center">
+            <div class="text-2xl font-bold text-blue-600">{{ activeWorkersLabel }}</div>
             <div class="text-sm text-gray-600">Active Workers</div>
-            <div class="text-xs text-gray-500">{{ systemStats.total_workers }} total</div>
+            <div class="text-xs text-gray-500">{{ totalWorkersLabel }}</div>
           </div>
-          <div class="text-center">
-            <div class="text-2xl font-bold text-purple-600">{{ formatSize(systemStats.database_size) }}</div>
+          <div v-else class="text-center text-gray-500">
+            <div class="text-lg font-semibold">N/A</div>
+            <div class="text-sm">Worker metrics unavailable</div>
+          </div>
+          <div v-if="hasDatabaseStats" class="text-center">
+            <div class="text-2xl font-bold text-purple-600">{{ databaseSizeLabel }}</div>
             <div class="text-sm text-gray-600">Database Size</div>
-            <div class="text-xs text-gray-500">{{ systemStats.total_records }} records</div>
+            <div class="text-xs text-gray-500">{{ totalRecordsLabel }}</div>
+          </div>
+          <div v-else class="text-center text-gray-500">
+            <div class="text-lg font-semibold">N/A</div>
+            <div class="text-sm">Database metrics unavailable</div>
           </div>
         </div>
       </div>
@@ -259,8 +267,8 @@ const hasPerformanceTrends = computed(() => {
 });
 
 const formatSize = (bytes: number | null | undefined): string => {
-  if (!bytes || bytes <= 0) {
-    return '0 Bytes';
+  if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes <= 0) {
+    return 'N/A';
   }
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
@@ -268,6 +276,36 @@ const formatSize = (bytes: number | null | undefined): string => {
   const value = bytes / k ** i;
   return `${value.toFixed(2)} ${sizes[i]}`;
 };
+
+const hasWorkerStats = computed(() => {
+  const value = systemStats.value;
+  return value.active_workers != null || value.total_workers != null;
+});
+
+const hasDatabaseStats = computed(() => {
+  const value = systemStats.value;
+  return value.database_size != null || value.total_records != null;
+});
+
+const activeWorkersLabel = computed(() =>
+  systemStats.value.active_workers != null ? systemStats.value.active_workers : 'N/A',
+);
+
+const totalWorkersLabel = computed(() => {
+  if (systemStats.value.total_workers == null) {
+    return 'N/A';
+  }
+  return `${systemStats.value.total_workers} total`;
+});
+
+const databaseSizeLabel = computed(() => formatSize(systemStats.value.database_size));
+
+const totalRecordsLabel = computed(() => {
+  if (systemStats.value.total_records == null) {
+    return 'N/A';
+  }
+  return `${systemStats.value.total_records} records`;
+});
 
 const getStatusIcon = (status: SystemStatusLevel): string => {
   switch (status) {

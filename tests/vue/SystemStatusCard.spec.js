@@ -58,7 +58,7 @@ describe('SystemStatusCard.vue', () => {
     expect(wrapper.text()).toContain('Real-time status is unavailable; showing default values.');
     expect(wrapper.text()).toContain('Last update:');
     expect(wrapper.text()).toContain('0 jobs');
-    expect(wrapper.text()).toContain('2.0GB / 8.0GB (25%)');
+    expect(wrapper.text()).toContain('Unknown');
 
     wrapper.unmount();
   });

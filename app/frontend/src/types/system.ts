@@ -80,10 +80,10 @@ export interface SystemStatusOverview {
 
 export interface SystemResourceStatsSummary {
   uptime: string;
-  active_workers: number;
-  total_workers: number;
-  database_size: number;
-  total_records: number;
+  active_workers: number | null;
+  total_workers: number | null;
+  database_size: number | null;
+  total_records: number | null;
   gpu_memory_used: string;
   gpu_memory_total: string;
 }
