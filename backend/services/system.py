@@ -234,7 +234,8 @@ class SystemService:
         status["stale_threshold_hours"] = stale_threshold
 
         if stale_threshold and stale_threshold > 0:
-            cutoff = datetime.now(timezone.utc) - timedelta(hours=stale_threshold)
+            now = datetime.now(timezone.utc)
+            cutoff = now - timedelta(hours=stale_threshold)
             recent_count = session.exec(
                 select(func.count(Adapter.id)).where(timestamp_column >= cutoff)
             ).scalar_one()
@@ -248,7 +249,15 @@ class SystemService:
                 except ValueError:  # pragma: no cover - defensive guard
                     status["stale"] = None
                 else:
-                    status["stale"] = parsed < cutoff
+                    if status["recent_imports"]:
+                        status["stale"] = False
+                    else:
+                        idle_duration = now - parsed
+                        inactivity_window = timedelta(hours=stale_threshold * 2)
+                        buffer = timedelta(minutes=5)
+                        if stale_threshold >= 6:
+                            buffer = max(buffer, timedelta(hours=1))
+                        status["stale"] = idle_duration >= inactivity_window + buffer
         return status
 
     async def _gather_recommendation_status(self) -> Dict[str, Any]:
