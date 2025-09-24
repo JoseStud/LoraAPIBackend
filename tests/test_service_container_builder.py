@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from backend.services.queue import BackgroundTaskQueueBackend, QueueOrchestrator
 from backend.services.service_container_builder import ServiceContainerBuilder
 
@@ -46,3 +48,10 @@ def test_service_container_builder_resets_cached_orchestrator() -> None:
     second = builder._get_queue_orchestrator()
     assert second is not first
     assert isinstance(second, RecordingQueueOrchestrator)
+
+
+def test_service_container_builder_rejects_missing_session() -> None:
+    builder = ServiceContainerBuilder()
+
+    with pytest.raises(ValueError, match="requires an active database session"):
+        builder.build(None)  # type: ignore[arg-type]

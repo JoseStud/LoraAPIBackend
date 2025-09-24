@@ -170,14 +170,34 @@ class ServiceContainerBuilder:
 
     def build(
         self,
-        db_session: Optional[Session],
+        db_session: Session,
         *,
         queue_orchestrator: Optional[QueueOrchestrator] = None,
         delivery_repository: Optional[DeliveryJobRepository] = None,
         analytics_repository: Optional[AnalyticsRepository] = None,
         recommendation_gpu_available: Optional[bool] = None,
     ) -> ServiceRegistry:
-        """Create a :class:`ServiceRegistry` wired with the configured dependencies."""
+        """Create a :class:`ServiceRegistry` wired with the configured dependencies.
+
+        Args:
+            db_session: Active SQLModel session used to construct repositories and
+                services.
+
+        Raises:
+            ValueError: If ``db_session`` is ``None``.
+            TypeError: If ``db_session`` is not a :class:`sqlmodel.Session` instance.
+        """
+        if db_session is None:
+            raise ValueError(
+                "ServiceContainerBuilder.build() requires an active database session. "
+                "Pass a sqlmodel.Session instance when building the service container.",
+            )
+        if not isinstance(db_session, Session):
+            raise TypeError(
+                "ServiceContainerBuilder.build() expected a sqlmodel.Session instance, "
+                f"got {type(db_session)!r}.",
+            )
+
         queue = queue_orchestrator or self._get_queue_orchestrator()
         gpu_available = (
             recommendation_gpu_available
@@ -185,16 +205,26 @@ class ServiceContainerBuilder:
             else self.get_recommendation_gpu_available()
         )
 
-        if db_session is not None:
-            delivery_repository = (
-                delivery_repository
-                if delivery_repository is not None
-                else self._delivery_repository_factory(db_session)
+        delivery_repository = (
+            delivery_repository
+            if delivery_repository is not None
+            else self._delivery_repository_factory(db_session)
+        )
+        analytics_repository = (
+            analytics_repository
+            if analytics_repository is not None
+            else self._analytics_repository_factory(db_session)
+        )
+
+        if delivery_repository is None:
+            raise ValueError(
+                "ServiceContainerBuilder.build() could not resolve a delivery repository. "
+                "Ensure the delivery repository factory returns an instance.",
             )
-            analytics_repository = (
-                analytics_repository
-                if analytics_repository is not None
-                else self._analytics_repository_factory(db_session)
+        if analytics_repository is None:
+            raise ValueError(
+                "ServiceContainerBuilder.build() could not resolve an analytics repository. "
+                "Ensure the analytics repository factory returns an instance.",
             )
 
         core = CoreServiceRegistry(
