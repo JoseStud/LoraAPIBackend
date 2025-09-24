@@ -23,6 +23,8 @@ from backend.schemas import (
     GenerationExportRequest,
     GenerationJobStatus,
     GenerationResultSummary,
+    GenerationMode,
+    GenerationResultFormat,
     SDNextGenerationParams,
     SDNextGenerationResult,
 )
@@ -38,6 +40,49 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/generation", tags=["generation"])
 
 
+async def _execute_generation_request(
+    *,
+    generation_params: SDNextGenerationParams,
+    backend: str,
+    mode: GenerationMode,
+    save_images: bool,
+    return_format: GenerationResultFormat,
+    domain: DomainServices,
+    application: ApplicationServices,
+) -> SDNextGenerationResult:
+    """Validate and orchestrate a generation request."""
+
+    warnings = await domain.generation.validate_generation_params(generation_params)
+    if warnings:
+        logger.warning(
+            "generation parameter validation warnings",
+            warnings=warnings,
+            backend=backend,
+            mode=mode.value,
+        )
+
+    params = {
+        "mode": mode.value,
+        "save_images": save_images,
+        "return_format": return_format.value,
+    }
+
+    result = await domain.generation.generate_image(
+        generation_params.prompt,
+        backend,
+        generation_params,
+        **params,
+    )
+
+    if result.job_id and mode == GenerationMode.DEFERRED:
+        await application.generation_coordinator.broadcast_job_started(
+            result.job_id,
+            generation_params,
+        )
+
+    return result
+
+
 @router.get("/backends", response_model=Dict[str, bool])
 async def list_generation_backends():
     """List available generation backends and their status."""
@@ -50,14 +95,14 @@ async def list_generation_backends():
 async def generate_image(
     generation_params: SDNextGenerationParams,
     backend: str = "sdnext",
-    mode: str = "immediate",
+    mode: GenerationMode = GenerationMode.IMMEDIATE,
     save_images: bool = True,
-    return_format: str = "base64",
+    return_format: GenerationResultFormat = GenerationResultFormat.BASE64,
     domain: DomainServices = Depends(get_domain_services),
     application: ApplicationServices = Depends(get_application_services),
 ):
     """Generate an image using the specified backend.
-    
+
     Args:
         generation_params: Generation parameters
         backend: Generation backend name
@@ -66,39 +111,15 @@ async def generate_image(
         return_format: Return format ("base64", "file_path", "url")
 
     """
-    # Validate parameters
-    warnings = await domain.generation.validate_generation_params(generation_params)
-    if warnings:
-        # For now, just log warnings but continue
-        logger.warning(
-            "generation parameter validation warnings",
-            warnings=warnings,
-            backend=backend,
-            mode=mode,
-        )
-    
-    # Prepare parameters
-    params = {
-        "mode": mode,
-        "save_images": save_images,
-        "return_format": return_format,
-    }
-    
-    result = await domain.generation.generate_image(
-        generation_params.prompt,
-        backend,
-        generation_params,
-        **params,
+    return await _execute_generation_request(
+        generation_params=generation_params,
+        backend=backend,
+        mode=mode,
+        save_images=save_images,
+        return_format=return_format,
+        domain=domain,
+        application=application,
     )
-    
-    # Start WebSocket monitoring if job was created
-    if result.job_id and mode == "deferred":
-        await application.generation_coordinator.broadcast_job_started(
-            result.job_id,
-            generation_params,
-        )
-    
-    return result
 
 
 @router.get("/progress/{job_id}", response_model=SDNextGenerationResult)
@@ -124,9 +145,9 @@ async def compose_and_generate(
     compose_request: ComposeRequest,
     generation_params: SDNextGenerationParams,
     backend: str = "sdnext",
-    mode: str = "immediate",
+    mode: GenerationMode = GenerationMode.IMMEDIATE,
     save_images: bool = True,
-    return_format: str = "base64",
+    return_format: GenerationResultFormat = GenerationResultFormat.BASE64,
     domain: DomainServices = Depends(get_domain_services),
     application: ApplicationServices = Depends(get_application_services),
 ):
@@ -149,45 +170,20 @@ async def compose_and_generate(
             "composition warnings during compose-and-generate",
             warnings=composition.warnings,
             backend=backend,
-            mode=mode,
+            mode=mode.value,
         )
 
-    # Step 2: Generate with composed prompt
-    # Update generation params with composed prompt
-    generation_params.prompt = composition.prompt
-    
-    # Validate generation parameters
-    gen_warnings = await domain.generation.validate_generation_params(generation_params)
-    if gen_warnings:
-        logger.warning(
-            "generation parameter validation warnings",
-            warnings=gen_warnings,
-            backend=backend,
-            mode=mode,
-        )
-    
-    # Prepare parameters
-    params = {
-        "mode": mode,
-        "save_images": save_images,
-        "return_format": return_format,
-    }
-    
-    result = await domain.generation.generate_image(
-        composition.prompt,
-        backend,
-        generation_params,
-        **params,
+    composed_params = generation_params.model_copy(update={"prompt": composition.prompt})
+
+    return await _execute_generation_request(
+        generation_params=composed_params,
+        backend=backend,
+        mode=mode,
+        save_images=save_images,
+        return_format=return_format,
+        domain=domain,
+        application=application,
     )
-    
-    # Start WebSocket monitoring if job was created
-    if result.job_id and mode == "deferred":
-        await application.generation_coordinator.broadcast_job_started(
-            result.job_id,
-            generation_params,
-        )
-    
-    return result
 
 
 @router.post("/queue-generation", response_model=DeliveryCreateResponse)
