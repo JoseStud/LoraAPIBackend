@@ -9,6 +9,8 @@ import type {
   AdapterListQuery,
   AdapterListResponse,
   AdapterRead,
+  AdapterStats,
+  AdapterStatsMetric,
   GalleryLora,
   LoraBulkActionRequest,
   LoraGalleryFilters,
@@ -20,6 +22,54 @@ import type {
 } from '@/types';
 
 const DEFAULT_ADAPTER_LIST_QUERY: AdapterListQuery = { page: 1, perPage: 100 };
+
+const ADAPTER_STATS_KEYS: readonly AdapterStatsMetric[] = [
+  'downloadCount',
+  'favoriteCount',
+  'commentCount',
+  'thumbsUpCount',
+  'rating',
+  'ratingCount',
+  'usage_count',
+  'generations',
+  'activations',
+  'success_rate',
+  'avg_time',
+  'avg_generation_time',
+];
+
+const coerceFiniteNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+};
+
+const normalizeAdapterStats = (stats: AdapterRead['stats']): AdapterStats => {
+  if (!stats || typeof stats !== 'object') {
+    return {};
+  }
+
+  const normalized: AdapterStats = {};
+  const rawStats = stats as Record<string, unknown>;
+
+  for (const metric of ADAPTER_STATS_KEYS) {
+    const coerced = coerceFiniteNumber(rawStats[metric]);
+    if (typeof coerced === 'number') {
+      normalized[metric] = coerced;
+    }
+  }
+
+  return normalized;
+};
 
 const isBaseUrlInput = (value: unknown): value is MaybeRefOrGetter<string> => {
   if (typeof value === 'string' || typeof value === 'function') {
@@ -155,24 +205,17 @@ export const fetchTopAdapters = async (
   }
 
   const list = Array.isArray(payload) ? payload : payload.items ?? [];
-  const toNumber = (value: unknown): number => {
-    if (typeof value === 'number') {
-      return Number.isFinite(value) ? value : 0;
-    }
-    const parsed = Number(value ?? 0);
-    return Number.isFinite(parsed) ? parsed : 0;
-  };
 
   return list.slice(0, limit).map((item) => {
-    const stats = (item.stats ?? {}) as Record<string, unknown>;
+    const stats = normalizeAdapterStats(item.stats);
 
     return {
       id: item.id,
       name: item.name,
       version: item.version ?? null,
-      usage_count: toNumber(stats.usage_count),
-      success_rate: toNumber(stats.success_rate),
-      avg_time: toNumber(stats.avg_time ?? stats.avg_generation_time),
+      usage_count: stats.usage_count ?? stats.generations ?? stats.activations ?? 0,
+      success_rate: stats.success_rate ?? 0,
+      avg_time: stats.avg_time ?? stats.avg_generation_time ?? 0,
     } satisfies TopLoraPerformance;
   });
 };
