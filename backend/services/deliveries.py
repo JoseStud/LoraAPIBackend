@@ -137,6 +137,18 @@ class DeliveryService:
         """Parse and return job result as dict."""
         return self._repository.get_job_result(job)
 
+    def set_job_rating(self, job_id: str, rating: Optional[int]) -> Optional[DeliveryJob]:
+        """Update the stored rating for ``job_id``."""
+        return self._repository.set_job_rating(job_id, rating)
+
+    def set_job_favorite(self, job_id: str, is_favorite: bool) -> Optional[DeliveryJob]:
+        """Update the favourite flag for ``job_id``."""
+        return self._repository.set_job_favorite(job_id, is_favorite)
+
+    def bulk_set_job_favorite(self, job_ids: Sequence[str], is_favorite: bool) -> int:
+        """Apply favourite state updates to multiple jobs."""
+        return self._repository.bulk_set_job_favorite(job_ids, is_favorite)
+
     # ------------------------------------------------------------------
     # Result management helpers
     # ------------------------------------------------------------------

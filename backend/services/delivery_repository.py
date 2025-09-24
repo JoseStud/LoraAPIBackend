@@ -80,6 +80,31 @@ class DeliveryJobMapper:
         elif status in {"succeeded", "failed", "cancelled"} and job.finished_at is None:
             job.finished_at = now
 
+    def normalize_rating(self, rating: Optional[int]) -> Optional[int]:
+        """Validate and normalize user-provided rating values."""
+        if rating is None:
+            return None
+
+        try:
+            normalized = int(rating)
+        except (TypeError, ValueError) as exc:  # pragma: no cover - defensive guard
+            raise ValueError("Rating must be an integer between 0 and 5") from exc
+
+        if not 0 <= normalized <= 5:
+            raise ValueError("Rating must be between 0 and 5")
+
+        return normalized
+
+    def apply_rating(self, job: DeliveryJob, rating: Optional[int]) -> None:
+        """Persist ``rating`` alongside its updated timestamp."""
+        job.rating = rating
+        job.rating_updated_at = self._now() if rating is not None else None
+
+    def apply_favorite(self, job: DeliveryJob, is_favorite: bool) -> None:
+        """Persist favourite state alongside the updated timestamp."""
+        job.is_favorite = bool(is_favorite)
+        job.favorite_updated_at = self._now() if job.is_favorite else None
+
     def build_activity(self, job: DeliveryJob) -> Dict[str, Any]:
         """Create the activity feed payload for ``job``."""
         status = job.status or "pending"
@@ -198,6 +223,44 @@ class DeliveryJobRepository:
         )
         jobs = list(self._session.exec(query).all())
         return [self._mapper.build_activity(job) for job in jobs]
+
+    def set_job_rating(self, job_id: str, rating: Optional[int]) -> Optional[DeliveryJob]:
+        """Update the rating value for ``job_id``."""
+        job = self.get_job(job_id)
+        if job is None:
+            return None
+
+        normalized = self._mapper.normalize_rating(rating)
+        self._mapper.apply_rating(job, normalized)
+        self._session.add(job)
+        self._session.commit()
+        self._session.refresh(job)
+        return job
+
+    def set_job_favorite(self, job_id: str, is_favorite: bool) -> Optional[DeliveryJob]:
+        """Toggle favourite state for ``job_id``."""
+        job = self.get_job(job_id)
+        if job is None:
+            return None
+
+        self._mapper.apply_favorite(job, is_favorite)
+        self._session.add(job)
+        self._session.commit()
+        self._session.refresh(job)
+        return job
+
+    def bulk_set_job_favorite(self, job_ids: Sequence[str], is_favorite: bool) -> int:
+        """Set favourite state for multiple delivery jobs."""
+        jobs = self.list_jobs_by_ids(job_ids)
+        if not jobs:
+            return 0
+
+        for job in jobs:
+            self._mapper.apply_favorite(job, is_favorite)
+            self._session.add(job)
+
+        self._session.commit()
+        return len(jobs)
 
     def list_jobs_by_ids(self, job_ids: Sequence[str]) -> List[DeliveryJob]:
         """Return delivery jobs matching ``job_ids`` preserving database order."""

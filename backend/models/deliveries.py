@@ -19,3 +19,7 @@ class DeliveryJob(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
+    rating: Optional[int] = Field(default=None, ge=0, le=5)
+    is_favorite: bool = Field(default=False)
+    rating_updated_at: Optional[datetime] = None
+    favorite_updated_at: Optional[datetime] = None

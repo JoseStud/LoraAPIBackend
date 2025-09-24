@@ -126,6 +126,10 @@ class GenerationResultSummary(BaseModel):
     created_at: datetime
     finished_at: Optional[datetime] = None
     generation_info: Optional[Dict[str, Any]] = None
+    rating: Optional[int] = None
+    is_favorite: bool = False
+    rating_updated_at: Optional[datetime] = None
+    favorite_updated_at: Optional[datetime] = None
 
 
 class GenerationBulkDeleteRequest(BaseModel):

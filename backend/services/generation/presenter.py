@@ -87,4 +87,8 @@ def build_result(
         created_at=job.created_at,
         finished_at=job.finished_at,
         generation_info=_coerce_generation_info(result_payload),
+        rating=job.rating,
+        is_favorite=bool(job.is_favorite),
+        rating_updated_at=job.rating_updated_at,
+        favorite_updated_at=job.favorite_updated_at,
     )

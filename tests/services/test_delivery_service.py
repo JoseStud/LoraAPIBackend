@@ -1,12 +1,13 @@
 """Tests for the DeliveryService."""
 
 from contextlib import contextmanager
+from datetime import datetime, timezone
 
 import pytest
 
 from backend.delivery.base import DeliveryRegistry
 from backend.services.deliveries import DeliveryService
-from backend.services.delivery_repository import DeliveryJobRepository
+from backend.services.delivery_repository import DeliveryJobMapper, DeliveryJobRepository
 from backend.services.queue import QueueBackend, QueueOrchestrator
 from backend.workers.delivery_runner import DeliveryRunner
 
@@ -166,3 +167,73 @@ class TestDeliveryService:
         result = service.get_job_result(refreshed)
         assert result is not None
         assert result["error"] == "explode"
+
+    def test_set_job_rating_tracks_timestamp(self, db_session):
+        """Setting and clearing ratings updates timestamp metadata."""
+        rating_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        mapper = DeliveryJobMapper(now=lambda: rating_time)
+        repository = DeliveryJobRepository(db_session, mapper=mapper)
+        service = DeliveryService(repository)
+
+        job = service.create_job("prompt", "cli", {})
+
+        updated = service.set_job_rating(job.id, 4)
+        assert updated is not None
+        assert updated.rating == 4
+        assert updated.rating_updated_at == rating_time.replace(tzinfo=None)
+
+        mapper._now = lambda: rating_time.replace(hour=2)
+        cleared = service.set_job_rating(job.id, None)
+        assert cleared is not None
+        assert cleared.rating is None
+        assert cleared.rating_updated_at is None
+
+    def test_set_job_rating_validates_bounds(self, db_session):
+        """Ratings outside 0-5 raise a ValueError."""
+        service = DeliveryService(DeliveryJobRepository(db_session))
+        job = service.create_job("prompt", "cli", {})
+
+        with pytest.raises(ValueError):
+            service.set_job_rating(job.id, 6)
+
+    def test_set_job_favorite_tracks_timestamp(self, db_session):
+        """Toggling favourites stores timestamps and clears them when removed."""
+        favorite_time = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        mapper = DeliveryJobMapper(now=lambda: favorite_time)
+        repository = DeliveryJobRepository(db_session, mapper=mapper)
+        service = DeliveryService(repository)
+
+        job = service.create_job("prompt", "cli", {})
+
+        updated = service.set_job_favorite(job.id, True)
+        assert updated is not None
+        assert updated.is_favorite is True
+        assert updated.favorite_updated_at == favorite_time.replace(tzinfo=None)
+
+        mapper._now = lambda: favorite_time.replace(hour=5)
+        cleared = service.set_job_favorite(job.id, False)
+        assert cleared is not None
+        assert cleared.is_favorite is False
+        assert cleared.favorite_updated_at is None
+
+    def test_bulk_set_job_favorite_updates_all(self, db_session):
+        """Bulk favourite updates apply to all provided jobs."""
+        bulk_time = datetime(2024, 1, 3, tzinfo=timezone.utc)
+        mapper = DeliveryJobMapper(now=lambda: bulk_time)
+        repository = DeliveryJobRepository(db_session, mapper=mapper)
+        service = DeliveryService(repository)
+
+        first = service.create_job("first", "cli", {})
+        second = service.create_job("second", "cli", {})
+
+        updated_count = service.bulk_set_job_favorite([first.id, second.id], True)
+        assert updated_count == 2
+
+        refreshed_first = service.get_job(first.id)
+        refreshed_second = service.get_job(second.id)
+
+        assert refreshed_first is not None and refreshed_first.is_favorite is True
+        assert refreshed_second is not None and refreshed_second.is_favorite is True
+        expected_time = bulk_time.replace(tzinfo=None)
+        assert refreshed_first.favorite_updated_at == expected_time
+        assert refreshed_second.favorite_updated_at == expected_time
