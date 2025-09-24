@@ -108,7 +108,7 @@ services:
       - /home/anxilinux/DeepVault/models/Lora/collections:/app/loras  # Your actual LoRA directory (mount parent dir for full access)
       - sdnext_outputs:/app/outputs   # Access to generated images
     ports:
-      - '8782:8000'
+      - '8000:8000'
     env_file:
       - ./backend.env
     environment:
