@@ -1,6 +1,6 @@
 from dataclasses import replace
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 
 from backend.services import get_service_container_builder
 from backend.services.adapters.service import AdapterService
@@ -202,6 +202,7 @@ def test_make_recommendation_service_uses_custom_components():
         stats_reporter=stats_reporter,
         similar_lora_use_case=similar_use_case,
         prompt_recommendation_use_case=prompt_use_case,
+        trigger_recommendation_use_case=ANY,
         config=config,
     )
     builder.build.assert_called_once_with()
@@ -229,6 +230,7 @@ def test_make_recommendation_service_accepts_prebuilt_bundles():
     use_case_bundle = UseCaseBundle(
         similar_lora=MagicMock(),
         prompt_recommendation=MagicMock(),
+        trigger_recommendation=MagicMock(),
     )
 
     embedding_coordinator = MagicMock()
@@ -262,6 +264,7 @@ def test_make_recommendation_service_accepts_prebuilt_bundles():
         stats_reporter=stats_reporter,
         similar_lora_use_case=use_case_bundle.similar_lora,
         prompt_recommendation_use_case=use_case_bundle.prompt_recommendation,
+        trigger_recommendation_use_case=use_case_bundle.trigger_recommendation,
         config=persistence_components.config,
     )
     builder.build.assert_called_once_with()

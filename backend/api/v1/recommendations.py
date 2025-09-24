@@ -151,6 +151,42 @@ async def get_recommendations_for_prompt(
         ) from exc
 
 
+@router.get("/recommendations/by-trigger", response_model=RecommendationResponse)
+async def get_recommendations_for_trigger(
+    trigger_query: str = Query(..., min_length=1),
+    limit: int = Query(default=10, ge=1, le=50),
+    services: DomainServices = Depends(get_domain_services),
+):
+    """Get LoRA recommendations that align with trigger phrases."""
+
+    try:
+        start_time = datetime.now()
+        recommendation_service = services.recommendations
+        recommendations = await recommendation_service.recommend_for_trigger(
+            trigger_query=trigger_query,
+            limit=limit,
+        )
+        processing_time = (datetime.now() - start_time).total_seconds() * 1000
+        return RecommendationResponse(
+            trigger_query=trigger_query,
+            recommendations=recommendations,
+            total_candidates=len(recommendations),
+            processing_time_ms=processing_time,
+            recommendation_config={
+                "device": recommendation_service.device,
+                "gpu_enabled": recommendation_service.gpu_enabled,
+                "trigger_query": trigger_query,
+            },
+            generated_at=datetime.now(timezone.utc),
+        )
+    except Exception as exc:
+        logger.exception("trigger_recommendations failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Trigger recommendation failed: {exc}",
+        ) from exc
+
+
 @router.get("/recommendations/stats", response_model=RecommendationStats)
 async def get_recommendation_stats(
     services: DomainServices = Depends(get_domain_services),

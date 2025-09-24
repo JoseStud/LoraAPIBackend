@@ -127,4 +127,11 @@ class LoRAEmbeddingRepository:
             "popularity_score": features.get("popularity_score"),
             "recency_score": features.get("recency_score"),
             "compatibility_score": features.get("sd_compatibility_score"),
+            "normalized_triggers": list(features.get("normalized_triggers", [])),
+            "trigger_aliases": dict(features.get("trigger_aliases", {})),
+            "trigger_embeddings": [
+                list(map(float, embedding))
+                for embedding in features.get("trigger_embeddings", [])
+            ],
+            "trigger_metadata": dict(features.get("trigger_metadata", {})),
         }

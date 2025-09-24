@@ -138,6 +138,19 @@ class RecommendationRepository:
         """Return the embedding entry for ``adapter_id`` if present."""
         return self._session.get(LoRAEmbedding, adapter_id)
 
+    def get_recent_active_adapters(self, limit: int) -> List[Adapter]:
+        """Return a deterministic list of recently active adapters."""
+        stmt = (
+            select(Adapter)
+            .where(Adapter.active)
+            .order_by(
+                Adapter.published_at.desc().nullslast(),
+                Adapter.created_at.desc(),
+            )
+            .limit(limit)
+        )
+        return list(self._session.exec(stmt))
+
     def count_active_adapters(self) -> int:
         """Return the number of active adapters."""
         result = self._session.exec(

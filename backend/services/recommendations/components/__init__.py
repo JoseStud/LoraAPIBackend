@@ -9,6 +9,8 @@ from .interfaces import (
     SemanticEmbedderProtocol,
 )
 from .sentence_transformer_provider import SentenceTransformerProvider
+from .trigger_embedder import TriggerEmbedder
+from .trigger_processing import TriggerResolver
 from .text_payload_builder import MultiModalTextPayloadBuilder
 
 __all__ = [
@@ -20,4 +22,6 @@ __all__ = [
     "LoRASemanticEmbedder",
     "MultiModalTextPayloadBuilder",
     "SentenceTransformerProvider",
+    "TriggerEmbedder",
+    "TriggerResolver",
 ]

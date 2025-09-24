@@ -19,6 +19,7 @@ from .stats_reporter import StatsReporter
 from .use_cases import (
     PromptRecommendationUseCase,
     SimilarLoraUseCase,
+    TriggerRecommendationUseCase,
 )
 
 
@@ -33,6 +34,7 @@ class RecommendationService:
         stats_reporter: StatsReporter,
         similar_lora_use_case: SimilarLoraUseCase,
         prompt_recommendation_use_case: PromptRecommendationUseCase,
+        trigger_recommendation_use_case: TriggerRecommendationUseCase,
         config: RecommendationConfig,
         logger: Optional[logging.Logger] = None,
     ) -> None:
@@ -44,6 +46,7 @@ class RecommendationService:
         self._stats_reporter = stats_reporter
         self._similar_lora_use_case = similar_lora_use_case
         self._prompt_recommendation_use_case = prompt_recommendation_use_case
+        self._trigger_recommendation_use_case = trigger_recommendation_use_case
         self._config = config
 
     # ------------------------------------------------------------------
@@ -102,6 +105,18 @@ class RecommendationService:
             limit=limit,
             style_preference=style_preference,
             weights=final_weights,
+        )
+
+    async def recommend_for_trigger(
+        self,
+        *,
+        trigger_query: str,
+        limit: int = 10,
+    ) -> List[RecommendationItem]:
+        """Return LoRA recommendations that match the provided trigger query."""
+        return await self._trigger_recommendation_use_case.execute(
+            trigger_query=trigger_query,
+            limit=limit,
         )
 
     # ------------------------------------------------------------------

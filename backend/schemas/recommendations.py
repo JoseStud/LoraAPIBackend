@@ -43,6 +43,7 @@ class RecommendationResponse(BaseModel):
 
     target_lora_id: Optional[str] = None
     prompt: Optional[str] = None
+    trigger_query: Optional[str] = None
     recommendations: List[RecommendationItem]
     total_candidates: int
     processing_time_ms: float

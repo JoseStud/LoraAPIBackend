@@ -128,6 +128,7 @@ def make_recommendation_service(
         )
     similar_use_case = use_case_bundle.similar_lora
     prompt_use_case = use_case_bundle.prompt_recommendation
+    trigger_use_case = use_case_bundle.trigger_recommendation
 
     embedding_coordinator = embedding_coordinator or EmbeddingCoordinator(
         bootstrap=bootstrap,
@@ -147,6 +148,7 @@ def make_recommendation_service(
         stats_reporter=stats_reporter,
         similar_lora_use_case=similar_use_case,
         prompt_recommendation_use_case=prompt_use_case,
+        trigger_recommendation_use_case=trigger_use_case,
         config=config,
     ).build()
 

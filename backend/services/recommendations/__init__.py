@@ -24,7 +24,16 @@ from .repository import RecommendationRepository
 from .service import RecommendationService
 from .similarity_index_builder import SimilarityIndexBuilder
 from .stats_reporter import StatsReporter
-from .use_cases import PromptRecommendationUseCase, SimilarLoraUseCase
+from .trigger_engine import (
+    TriggerCandidateResult,
+    TriggerRecommendationEngine,
+    TriggerSearchIndex,
+)
+from .use_cases import (
+    PromptRecommendationUseCase,
+    SimilarLoraUseCase,
+    TriggerRecommendationUseCase,
+)
 
 __all__ = [
     "RecommendationConfig",
@@ -48,6 +57,10 @@ __all__ = [
     "StatsReporter",
     "SimilarLoraUseCase",
     "PromptRecommendationUseCase",
+    "TriggerRecommendationUseCase",
+    "TriggerRecommendationEngine",
+    "TriggerSearchIndex",
+    "TriggerCandidateResult",
     "UseCaseBundle",
     "build_embedding_stack",
     "build_persistence_components",
