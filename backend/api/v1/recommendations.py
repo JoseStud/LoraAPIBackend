@@ -30,7 +30,9 @@ async def get_similar_loras(
     limit: int = Query(default=10, ge=1, le=50),
     similarity_threshold: float = Query(default=0.1, ge=0.0, le=1.0),
     diversify_results: bool = Query(default=True),
-    weights: Optional[Dict[str, float]] = None,
+    weight_semantic: float = Query(default=0.6, ge=0.0, le=1.0),
+    weight_artistic: float = Query(default=0.3, ge=0.0, le=1.0),
+    weight_technical: float = Query(default=0.1, ge=0.0, le=1.0),
     services: DomainServices = Depends(get_domain_services),
 ):
     """Get LoRAs similar to the specified LoRA.
@@ -40,8 +42,9 @@ async def get_similar_loras(
         limit: Maximum number of recommendations to return
         similarity_threshold: Minimum similarity score (0.0 to 1.0)
         diversify_results: Whether to diversify results by different criteria
-        weights: Custom weights for similarity components
-            (semantic, artistic, technical)
+        weight_semantic: Weight for semantic similarity
+        weight_artistic: Weight for artistic similarity
+        weight_technical: Weight for technical similarity
         services: Domain service container that provides recommendation logic
 
     Returns:
@@ -50,6 +53,13 @@ async def get_similar_loras(
     """
     try:
         start_time = datetime.now()
+
+        # Combine weights into a dictionary
+        weights = {
+            "semantic": weight_semantic,
+            "artistic": weight_artistic,
+            "technical": weight_technical,
+        }
 
         # Generate recommendations
         recommendation_service = services.recommendations
