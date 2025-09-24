@@ -233,7 +233,7 @@ class SystemService:
         stale_threshold = self._importer_stale_hours or 0
         status["stale_threshold_hours"] = stale_threshold
 
-        if stale_threshold:
+        if stale_threshold and stale_threshold > 0:
             cutoff = datetime.now(timezone.utc) - timedelta(hours=stale_threshold)
             recent_count = session.exec(
                 select(func.count(Adapter.id)).where(timestamp_column >= cutoff)
@@ -251,10 +251,10 @@ class SystemService:
                     status["stale"] = parsed < cutoff
         return status
 
-    def _gather_recommendation_status(self) -> Dict[str, Any]:
+    async def _gather_recommendation_status(self) -> Dict[str, Any]:
         """Return recommendation subsystem runtime details."""
-        models_loaded = RecommendationService.models_loaded()
-        gpu_available = RecommendationService.is_gpu_available()
+        models_loaded = await RecommendationService.models_loaded()
+        gpu_available = await RecommendationService.is_gpu_available()
         return {
             "models_loaded": models_loaded,
             "gpu_available": gpu_available,
@@ -288,7 +288,7 @@ class SystemService:
 
         sdnext_status = await self._gather_sdnext_status()
         importer_status = self._gather_importer_status()
-        recommendation_status = self._gather_recommendation_status()
+        recommendation_status = await self._gather_recommendation_status()
         thresholds = self._queue_thresholds()
 
         warnings: List[str] = []

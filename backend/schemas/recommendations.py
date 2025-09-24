@@ -14,7 +14,9 @@ class RecommendationRequest(BaseModel):
     active_loras: List[str] = Field(default_factory=list)
     limit: int = Field(default=10, ge=1, le=50)
     include_explanations: bool = True
-    weights: Optional[Dict[str, float]] = None
+    weights: Optional[Dict[str, float]] = Field(
+        default_factory=lambda: {"semantic": 0.9, "artistic": 0.7, "technical": 0.8}
+    )
     filters: Optional[Dict[str, Any]] = None
 
 

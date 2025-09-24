@@ -17,7 +17,7 @@ async def get_dashboard_stats(
     stats = domain.adapters.get_dashboard_statistics()
     stats["active_jobs"] = application.deliveries.count_active_jobs()
 
-    system_health = (await application.system.get_health_summary()).as_dict()
+    system_health = application.system.get_health_summary().as_dict()
 
     return {
         "stats": stats,

@@ -147,7 +147,6 @@ class AdapterPatch(BaseModel):
     @classmethod
     def _validate_string_list(cls, value):
         """Ensure list-based fields receive iterable collections."""
-
         if value is None:
             return value
         if isinstance(value, list):

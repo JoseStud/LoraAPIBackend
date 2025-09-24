@@ -101,7 +101,7 @@ services:
     build:
       context: ../../
       dockerfile: infrastructure/docker/Dockerfile
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir backend --log-level debug
     volumes:
       - ../../backend:/app/backend
       - ../../app:/app/app
@@ -109,6 +109,16 @@ services:
       - sdnext_outputs:/app/outputs   # Access to generated images
     ports:
       - '8000:8000'
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      - video
+    device_cgroup_rules:
+      - 'c 226:* rmw'
+      - 'c 238:* rmw'
+    security_opt:
+      - seccomp:unconfined
     env_file:
       - ./backend.env
     environment:
@@ -147,6 +157,16 @@ services:
       - ../../app:/app/app
       - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
       - sdnext_outputs:/app/outputs
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      - video
+    device_cgroup_rules:
+      - 'c 226:* rmw'
+      - 'c 238:* rmw'
+    security_opt:
+      - seccomp:unconfined
     env_file:
       - ./backend.env
     environment:

@@ -79,6 +79,7 @@ class TestRecommendationUseCases:
                 active_loras=["a"],
                 limit=3,
                 style_preference=None,
+                weights={},
             )
 
         assert result == payload

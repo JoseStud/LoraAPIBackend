@@ -11,6 +11,12 @@ class RecommendationConfig:
     def __init__(self, persistence: RecommendationPersistenceService) -> None:
         """Store the persistence service used to resolve paths."""
         self._persistence = persistence
+        self.default_weights = {
+            "tags": 1.0,
+            "trained_words": 1.0,
+            "description": 1.0,
+            "name": 1.0,
+        }
 
     @property
     def index_cache_path(self) -> str:

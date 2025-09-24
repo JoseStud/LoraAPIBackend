@@ -21,6 +21,13 @@ class EmbeddingComputer:
         self._repository = repository
         self._feature_extractor_getter = feature_extractor_getter
 
+    async def compute_prompt_embeddings(self, prompt: str, device: str) -> dict:
+        """Compute and return a dictionary of embeddings for a given prompt."""
+        extractor = self._feature_extractor_getter()
+        return await asyncio.to_thread(
+            extractor.extract_prompt_features, prompt, device=device
+        )
+
     async def compute(self, adapter_id: str, *, force_recompute: bool = False) -> bool:
         """Compute embeddings for ``adapter_id`` and persist them."""
         adapter = self._repository.get_adapter(adapter_id)

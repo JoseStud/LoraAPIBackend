@@ -70,3 +70,9 @@ build/
 # Temporary test files
 test-refactor.html
 
+# Test reports
+test-results/
+playwright-report/
+
+tests/reports
+tests/results

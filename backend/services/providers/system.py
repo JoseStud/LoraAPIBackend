@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from ..deliveries import DeliveryService
 from backend.core.config import settings
 
+from ..deliveries import DeliveryService
 from ..system import SystemService
 
 

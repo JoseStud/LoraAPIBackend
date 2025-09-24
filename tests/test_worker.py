@@ -42,6 +42,9 @@ def test_worker_process_cycle(tmp_path, monkeypatch):
         # Ensure DB initialized in a temp directory to avoid collisions. The DB
         # is created in the module path, so ensure init_db runs (it will create
         # db.sqlite next to files).
+        monkeypatch.setattr(
+            "backend.workers.tasks.migrate_db_to_latest", lambda: None, raising=False
+        )
         init_db()
 
         # enqueue a simple CLI delivery

@@ -92,13 +92,16 @@ class RecommendationService:
         active_loras: Optional[Sequence[str]] = None,
         limit: int = 10,
         style_preference: Optional[str] = None,
+        weights: Optional[Dict[str, float]] = None,
     ) -> List[RecommendationItem]:
         """Return LoRA recommendations that enhance the provided prompt."""
+        final_weights = weights or self._config.default_weights
         return await self._prompt_recommendation_use_case.execute(
             prompt=prompt,
             active_loras=list(active_loras) if active_loras is not None else None,
             limit=limit,
             style_preference=style_preference,
+            weights=final_weights,
         )
 
     # ------------------------------------------------------------------

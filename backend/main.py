@@ -38,8 +38,9 @@ async def lifespan(app: FastAPI):
     recommendation_logger = logging.getLogger("lora.recommendations.startup")
 
     async def _preload_recommendations() -> None:
+        loop = asyncio.get_running_loop()
         try:
-            await asyncio.to_thread(RecommendationService.preload_models)
+            await loop.run_in_executor(None, RecommendationService.preload_models)
         except Exception:  # pragma: no cover - defensive guard against startup failures
             recommendation_logger.exception(
                 "Recommendation model preload failed; falling back to "
@@ -102,8 +103,20 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        if startup_tasks:
-            await asyncio.gather(*startup_tasks, return_exceptions=True)
+        # On shutdown, ensure all background tasks are completed or cancelled
+        for task in startup_tasks:
+            if not task.done():
+                task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                # Task cancellation is expected on shutdown
+                pass
+            except Exception:  # pragma: no cover - defensive guard
+                # Log any other exceptions during shutdown
+                logging.getLogger("lora.lifespan").exception(
+                    "Background task failed during shutdown"
+                )
 
 
 def create_app() -> FastAPI:
