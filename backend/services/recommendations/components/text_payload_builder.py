@@ -8,29 +8,6 @@ from typing import Any, Dict, Iterable, List
 class MultiModalTextPayloadBuilder:
     """Create semantic, artistic, and technical text payloads for LoRAs."""
 
-    _ART_KEYWORDS: tuple[str, ...] = (
-        "anime",
-        "realistic",
-        "cartoon",
-        "abstract",
-        "photographic",
-        "digital art",
-        "painting",
-        "sketch",
-        "3d render",
-        "pixel art",
-        "watercolor",
-        "oil painting",
-        "concept art",
-        "illustration",
-        "manga",
-        "comic",
-        "fantasy",
-        "sci-fi",
-        "portrait",
-        "landscape",
-    )
-
     _ART_TAG_KEYWORDS: tuple[str, ...] = (
         "style",
         "art",
@@ -64,9 +41,6 @@ class MultiModalTextPayloadBuilder:
     # ------------------------------------------------------------------
     def _build_semantic_payload(self, lora: Any) -> str:
         components: List[str] = []
-        description = getattr(lora, "description", None)
-        if description:
-            components.append(f"Description: {description}")
 
         trained_words: Iterable[str] | None = getattr(lora, "trained_words", None)
         if trained_words:
@@ -88,12 +62,6 @@ class MultiModalTextPayloadBuilder:
     def _build_artistic_payload(self, lora: Any) -> str:
         components: List[str] = []
 
-        description = getattr(lora, "description", None)
-        if description:
-            artistic_terms = self._extract_artistic_terms(description)
-            if artistic_terms:
-                components.append(artistic_terms)
-
         tags: Iterable[str] | None = getattr(lora, "tags", None)
         if tags:
             artistic_tags = [tag for tag in tags if self._is_artistic_tag(tag)]
@@ -105,17 +73,6 @@ class MultiModalTextPayloadBuilder:
             components.append(f"Character type: {archetype}")
 
         return " | ".join(components)
-
-    def _extract_artistic_terms(self, description: str) -> str:
-        """Extract artistic and style-related terms from description."""
-        if not description:
-            return ""
-
-        desc_lower = description.lower()
-        found_terms = [
-            keyword for keyword in self._ART_KEYWORDS if keyword in desc_lower
-        ]
-        return ", ".join(found_terms[:5])
 
     def _is_artistic_tag(self, tag: str) -> bool:
         """Check if a tag is art/style related."""

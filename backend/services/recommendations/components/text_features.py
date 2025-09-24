@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+import warnings
 from typing import Any, Dict, List, Protocol, Sequence
 
 
@@ -21,6 +22,11 @@ class KeywordExtractor(KeywordExtractorProtocol):
 
     def __init__(self, *, logger: logging.Logger | None = None) -> None:
         """Initialise the extractor with an optional logger."""
+        warnings.warn(
+            "KeywordExtractor is deprecated and will be removed in a future release.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._logger = logger or logging.getLogger(__name__)
         self._model: Any | None = None
 
