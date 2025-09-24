@@ -305,6 +305,7 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
             return 0.0
 
     def update_index_incremental(self, new_loras: Sequence[Any]) -> None:
+        """Append ``new_loras`` to the in-memory similarity index."""
         if not new_loras:
             return
 

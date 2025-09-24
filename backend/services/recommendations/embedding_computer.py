@@ -17,6 +17,7 @@ class EmbeddingComputer:
         repository: LoRAEmbeddingRepository,
         feature_extractor_getter: Callable[[], FeatureExtractorProtocol],
     ) -> None:
+        """Initialise the computer with persistence and feature extractors."""
         self._repository = repository
         self._feature_extractor_getter = feature_extractor_getter
 

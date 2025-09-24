@@ -1,3 +1,5 @@
+"""Core service registry wiring for backend dependencies."""
+
 from __future__ import annotations
 
 from typing import Optional
@@ -21,6 +23,7 @@ class CoreServiceRegistry:
         delivery_repository: Optional[DeliveryJobRepository] = None,
         analytics_repository: Optional[AnalyticsRepository] = None,
     ) -> None:
+        """Store shared service factories and repositories."""
         self.db_session = db_session
         self._storage_provider = storage_provider
         self._storage_service: Optional[StorageService] = None

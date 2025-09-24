@@ -19,6 +19,7 @@ class ResultDownloadBuilder:
     """Prepare download metadata for a result's primary asset."""
 
     def __init__(self, asset_resolver: ResultAssetResolver) -> None:
+        """Initialise the builder with an asset resolver."""
         self._assets = asset_resolver
 
     def build(

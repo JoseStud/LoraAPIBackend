@@ -28,6 +28,7 @@ class DeliveryResultManager:
         archive_builder: Optional[ResultArchiveBuilder] = None,
         download_builder: Optional[ResultDownloadBuilder] = None,
     ) -> None:
+        """Compose helper utilities used to manage delivery results."""
         self._repository = repository
         self._assets = asset_resolver or ResultAssetResolver(repository)
         self._archive_builder = archive_builder or ResultArchiveBuilder(

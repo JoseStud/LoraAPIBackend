@@ -27,20 +27,24 @@ class DeliveryService:
         *,
         result_manager: Optional[DeliveryResultManager] = None,
     ) -> None:
+        """Initialise delivery dependencies and optional orchestrator."""
         self._repository = repository
         self._queue_orchestrator = queue_orchestrator
         self._result_manager = result_manager or DeliveryResultManager(repository)
 
     @property
     def repository(self) -> DeliveryJobRepository:
+        """Return the repository handling delivery persistence."""
         return self._repository
 
     @property
     def queue_orchestrator(self) -> Optional["QueueOrchestrator"]:
+        """Return the configured queue orchestrator, if any."""
         return self._queue_orchestrator
 
     @property
     def result_manager(self) -> DeliveryResultManager:
+        """Return the delivery result manager."""
         return self._result_manager
 
     @property

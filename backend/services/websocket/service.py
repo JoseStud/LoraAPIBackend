@@ -32,6 +32,7 @@ class WebSocketService:
         connection_manager: Optional[ConnectionManager] = None,
         job_monitor: Optional[JobProgressMonitor] = None,
     ) -> None:
+        """Initialise WebSocket collaborators with sensible defaults."""
         self.manager = connection_manager or ConnectionManager()
         self.job_monitor = job_monitor or JobProgressMonitor(
             repository=DeliveryJobStateRepository(),

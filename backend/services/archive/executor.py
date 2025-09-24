@@ -45,6 +45,7 @@ class ArchiveImportExecutor:
         *,
         chunk_size: int = 64 * 1024,
     ) -> None:
+        """Initialise executor with adapter service and chunk size."""
         self._adapter_service = adapter_service
         self._chunk_size = chunk_size
 

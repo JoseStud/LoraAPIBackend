@@ -177,5 +177,9 @@ def create_app() -> FastAPI:
     return app
 
 
-# Create the app instance for backward compatibility
-app = create_app()
+def app() -> FastAPI:
+    """Return a FastAPI application for ASGI factory loaders."""
+    return create_app()
+
+
+__all__ = ["create_app", "lifespan", "app"]

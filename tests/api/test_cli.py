@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 
+from app.main import backend_app
 from backend.core.dependencies import get_service_container
-from backend.main import app as backend_app
 from backend.services import get_service_container_builder
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.delivery_repository import DeliveryJobRepository

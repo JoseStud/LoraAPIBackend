@@ -22,6 +22,7 @@ class AnalyticsRepository:
     """Encapsulate SQLModel interactions for analytics computations."""
 
     def __init__(self, session: Session) -> None:
+        """Store the session used for analytics queries."""
         self._session = session
 
     # ------------------------------------------------------------------

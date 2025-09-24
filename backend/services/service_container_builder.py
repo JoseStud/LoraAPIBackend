@@ -1,3 +1,5 @@
+"""Builder for composing core, domain, and infrastructure service registries."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
@@ -94,6 +96,7 @@ class ServiceContainerBuilder:
             [], bool
         ] = RecommendationService.is_gpu_available,
     ) -> None:
+        """Capture override factories and lazily constructed dependencies."""
         if websocket_factory is not None:
             infrastructure_factories = replace(
                 infrastructure_factories or InfrastructureFactories(),

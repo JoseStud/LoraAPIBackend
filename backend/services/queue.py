@@ -139,6 +139,7 @@ class RedisQueueBackend(QueueBackend):
         background_tasks: Optional[BackgroundTasks] = None,
         **enqueue_kwargs: Any,
     ) -> Any:
+        """Enqueue ``job_id`` on the configured Redis queue."""
         queue = self._get_queue()
         try:
             return queue.enqueue(self.task_name, job_id, **enqueue_kwargs)
@@ -194,6 +195,7 @@ class BackgroundTaskQueueBackend(QueueBackend):
         background_tasks: Optional[BackgroundTasks] = None,
         **enqueue_kwargs: Any,
     ) -> None:
+        """Schedule ``job_id`` for in-process execution."""
         if background_tasks is not None:
             background_tasks.add_task(self._execute, job_id)
         else:
@@ -211,6 +213,7 @@ class QueueOrchestrator:
         redis_url_factory: Callable[[], Optional[str]] = lambda: settings.REDIS_URL,
         delivery_runner_factory: Optional[Callable[[], DeliveryRunner]] = None,
     ) -> None:
+        """Initialise the orchestrator with optional backends and factories."""
         self._initial_primary = primary_backend
         self._initial_fallback = fallback_backend
         self._primary_backend = primary_backend
@@ -320,7 +323,7 @@ def create_queue_orchestrator(
     redis_url_factory: Callable[[], Optional[str]] = lambda: settings.REDIS_URL,
     delivery_runner_factory: Optional[Callable[[], DeliveryRunner]] = None,
 ) -> QueueOrchestrator:
-    """Factory helper that builds the default :class:`QueueOrchestrator`."""
+    """Build the default :class:`QueueOrchestrator`."""
     return QueueOrchestrator(
         redis_url_factory=redis_url_factory,
         delivery_runner_factory=delivery_runner_factory,

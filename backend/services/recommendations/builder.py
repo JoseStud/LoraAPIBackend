@@ -17,6 +17,7 @@ class RecommendationServiceBuilder:
     """Fluent builder for :class:`RecommendationService`."""
 
     def __init__(self) -> None:
+        """Initialise builder defaults for optional collaborators."""
         self._embedding_coordinator: Optional[EmbeddingCoordinator] = None
         self._feedback_manager: Optional[FeedbackManager] = None
         self._stats_reporter: Optional[StatsReporter] = None

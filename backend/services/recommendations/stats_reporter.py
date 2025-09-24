@@ -16,6 +16,7 @@ class StatsReporter:
         metrics_tracker: RecommendationMetricsTracker,
         repository: RecommendationRepository,
     ) -> None:
+        """Persist metrics and repository collaborators."""
         self._metrics_tracker = metrics_tracker
         self._repository = repository
 

@@ -17,6 +17,7 @@ class SimilarityIndexBuilder:
         repository: LoRAEmbeddingRepository,
         engine_getter: Callable[[], RecommendationEngineProtocol],
     ) -> None:
+        """Store repository and callback used to obtain the engine."""
         self._repository = repository
         self._engine_getter = engine_getter
 

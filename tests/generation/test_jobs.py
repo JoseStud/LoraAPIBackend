@@ -10,9 +10,9 @@ import pytest
 from fastapi import BackgroundTasks
 from fastapi.testclient import TestClient
 
+from app.main import backend_app
 from backend.core.dependencies import get_service_container
 from backend.delivery.base import DeliveryRegistry, GenerationBackend
-from backend.main import app as backend_app
 from backend.schemas import SDNextGenerationParams, SDNextGenerationResult
 from backend.services import get_service_container_builder
 from backend.services.analytics_repository import AnalyticsRepository

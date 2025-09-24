@@ -10,10 +10,8 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.main import app as fastapi_app
-
-# Use new app import paths
+from app.main import backend_app
 from backend.core.database import get_session
-from backend.main import app as backend_app
 from backend.services import get_service_container_builder
 from backend.services.adapters import AdapterService
 from backend.services.analytics_repository import AnalyticsRepository

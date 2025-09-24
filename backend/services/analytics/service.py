@@ -43,6 +43,7 @@ class AnalyticsService:
         time_series_builder: TimeSeriesBuilder | None = None,
         insight_generator: InsightGenerator | None = None,
     ) -> None:
+        """Initialise analytics helpers with optional overrides."""
         self.db_session = db_session
         self.repository = repository or AnalyticsRepository(db_session)
         self.time_series_builder = time_series_builder or TimeSeriesBuilder()

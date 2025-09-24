@@ -29,6 +29,7 @@ class TimeSeriesBuilder:
         time_range: PerformanceTimeRange,
         default_timestamp: datetime,
     ) -> PerformanceAnalyticsCharts:
+        """Transform database rows into time-series metrics for charts."""
         bucket_stats: MutableMapping[datetime, Dict[str, float]] = defaultdict(
             lambda: {"count": 0, "succeeded": 0, "failed": 0},
         )

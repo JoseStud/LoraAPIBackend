@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 
+from app.main import backend_app
 from backend.core.dependencies import get_application_services, get_domain_services
-from backend.main import app as backend_app
 from backend.schemas import SDNextGenerationResult
 
 

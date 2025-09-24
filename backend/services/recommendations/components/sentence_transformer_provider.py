@@ -67,6 +67,7 @@ class SentenceTransformerProvider:
         force_fallback: bool = False,
         model_configs: Optional[Mapping[str, Mapping[str, Any]]] = None,
     ) -> None:
+        """Initialise model configuration and optional fallbacks."""
         self._logger = logger or logging.getLogger(__name__)
         self._preferred_device = device
 
@@ -99,6 +100,7 @@ class SentenceTransformerProvider:
     # ------------------------------------------------------------------
     @property
     def transformers_available(self) -> bool:
+        """Return whether optional transformer dependencies are present."""
         return self._transformers_available
 
     def get_model(self, model_key: str) -> Any:

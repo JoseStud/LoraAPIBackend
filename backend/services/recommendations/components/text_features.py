@@ -20,6 +20,7 @@ class KeywordExtractor(KeywordExtractorProtocol):
     """Keyword extractor that prefers KeyBERT but falls back to heuristics."""
 
     def __init__(self, *, logger: logging.Logger | None = None) -> None:
+        """Initialise the extractor with an optional logger."""
         self._logger = logger or logging.getLogger(__name__)
         self._model: Any | None = None
 

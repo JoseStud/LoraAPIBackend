@@ -117,6 +117,7 @@ class SystemHealthSummary:
     storage_usage: str
 
     def as_dict(self) -> Dict[str, str]:
+        """Return the summary as a serializable dictionary."""
         return {
             "status": self.status,
             "gpu_status": self.gpu_status,
@@ -130,6 +131,7 @@ class SystemService:
     """Service that aggregates system health metrics."""
 
     def __init__(self, delivery_service: "DeliveryService") -> None:
+        """Store the delivery service used to query queue statistics."""
         self._delivery_service = delivery_service
 
     def _get_storage_usage_fallback(self) -> str:

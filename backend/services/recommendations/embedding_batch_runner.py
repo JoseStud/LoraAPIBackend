@@ -18,6 +18,7 @@ class EmbeddingBatchRunner:
         repository: LoRAEmbeddingRepository,
         computer: EmbeddingComputer,
     ) -> None:
+        """Initialise the batch runner with persistence and compute helpers."""
         self._repository = repository
         self._computer = computer
 

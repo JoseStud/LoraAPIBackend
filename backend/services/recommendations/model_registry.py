@@ -35,6 +35,7 @@ class RecommendationModelRegistry:
         gpu_enabled: bool = False,
         logger: Optional[logging.Logger] = None,
     ) -> None:
+        """Initialise registry state for the requested device."""
         self.device = device
         self.gpu_enabled = gpu_enabled
         self._logger = logger or logging.getLogger(__name__)

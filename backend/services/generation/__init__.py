@@ -185,6 +185,7 @@ class GenerationCoordinator:
         websocket: WebSocketService,
         generation_service: GenerationService,
     ) -> None:
+        """Store dependencies used to orchestrate generation jobs."""
         self._deliveries = deliveries
         self._websocket = websocket
         self._generation_service = generation_service

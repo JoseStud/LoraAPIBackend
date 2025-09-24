@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.core.config import settings as backend_settings
-from backend.main import app as backend_app
+from backend.main import create_app as create_backend_app
 
 app = FastAPI(
     title="LoRA Manager",
@@ -22,7 +22,6 @@ app = FastAPI(
 
 def _build_cors_config() -> Dict[str, Any]:
     """Construct the CORS options from the backend settings."""
-
     allow_origins = list(backend_settings.CORS_ORIGINS)
     allow_credentials = backend_settings.CORS_ALLOW_CREDENTIALS
     if "*" in allow_origins:
@@ -38,7 +37,6 @@ def _build_cors_config() -> Dict[str, Any]:
 
 def _normalise_public_api_url(raw_url: str | None) -> str:
     """Normalise the backend URL exposed to the SPA settings endpoint."""
-
     if raw_url is None:
         return "/api/v1"
 
@@ -65,6 +63,7 @@ app.add_middleware(
 )
 
 # Include backend API routes
+backend_app = create_backend_app()
 app.mount("/api", backend_app)
 
 
