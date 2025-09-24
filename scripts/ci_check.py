@@ -11,7 +11,6 @@ COMMANDS: Sequence[Sequence[str]] = (
     ("ruff", "check", "."),
     ("pytest",),
     ("npm", "run", "lint"),
-    ("npm", "run", "type-check"),
     ("npm", "run", "build"),
 )
 

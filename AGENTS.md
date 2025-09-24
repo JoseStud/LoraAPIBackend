@@ -102,7 +102,8 @@ npm run dev:backend     # FastAPI with hot reload
 # Comprehensive CI checks
 npm run ci:check        # Runs all quality checks
 npm run lint           # ESLint validation
-npm run test           # Full test suite
+npm run test           # Fast frontend unit loop
+npm run test:all       # Full frontend suite (unit + E2E)
 ```
 
 **Testing Infrastructure**:
