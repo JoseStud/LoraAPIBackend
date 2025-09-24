@@ -78,7 +78,8 @@ experience comes from enabling the optional dependencies:
 
    By default the SPA proxies requests to the backend on the same origin. Set
    the `BACKEND_URL` environment variable when the API runs on a different
-   host.
+   host. The backend surfaces this value through `/frontend/settings`, so no
+   additional Python-side frontend configuration is required.
 
 Useful combined workflows live in `package.json`, including `npm run dev:full`
 to launch both servers and `npm run dev:backend` to serve the compiled frontend

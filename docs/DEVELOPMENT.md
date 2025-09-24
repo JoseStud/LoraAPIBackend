@@ -96,8 +96,14 @@ components to deliver the dashboard and admin experience.【F:app/frontend/src/c
    npm run dev
    ```
 
-`npm run dev:full` runs both servers concurrently, and `npm run dev:backend`
-serves the built frontend from FastAPI.【F:package.json†L5-L31】
+   `npm run dev:full` runs both servers concurrently, and `npm run dev:backend`
+   serves the built frontend from FastAPI.【F:package.json†L5-L31】
+
+   The backend owns the SPA runtime configuration. `/frontend/settings` returns
+   a payload assembled from `backend.core.config.settings`, exposing a
+   normalised `backendUrl` (relative paths default to `/api/v1`) and the
+   optional `backendApiKey`. There is no longer a Python frontend package to
+   configure separately.
 
 Use `npm run prod:build` when you need an optimized bundle. The script now relies
 on `cross-env` so the production `ENVIRONMENT` flag is applied on macOS/Linux and
