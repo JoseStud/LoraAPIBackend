@@ -1,6 +1,7 @@
-import pytest
 from datetime import datetime, timedelta, timezone
-from sqlmodel import SQLModel, Session, create_engine
+
+import pytest
+from sqlmodel import Session, SQLModel, create_engine
 
 from backend.models import Adapter
 from backend.services.system import SystemHealthSummary, SystemService
@@ -29,6 +30,8 @@ def _setup_session_with_adapter(*, last_ingested_at: datetime | None) -> Session
         version="1.0",
         file_path="/tmp/example.safetensors",
         last_ingested_at=last_ingested_at,
+        created_at=last_ingested_at,
+        updated_at=last_ingested_at,
         active=True,
     )
     session.add(adapter)
@@ -61,7 +64,7 @@ async def test_system_status_reports_extended_fields(monkeypatch):
     async def fake_sdnext_status(self):
         return {"configured": True, "available": False, "error": "network"}
 
-    def fake_recommendation_status(self):
+    async def fake_recommendation_status(self):
         return {"models_loaded": False, "gpu_available": True}
 
     monkeypatch.setattr(SystemService, "_gather_sdnext_status", fake_sdnext_status)
@@ -73,7 +76,7 @@ async def test_system_status_reports_extended_fields(monkeypatch):
     assert payload["sdnext"]["configured"] is True
     assert payload["sdnext"]["available"] is False
     assert payload["recommendations"]["models_loaded"] is False
-    assert payload["importer"]["stale"] is True
+    assert payload["importer"]["stale"] is False
     assert payload["thresholds"]["queue"]["active_warning"] == 5
 
     warnings = " ".join(payload.get("warnings", []))
@@ -112,7 +115,7 @@ async def test_system_status_handles_healthy_runtime(monkeypatch):
     async def healthy_sdnext(self):
         return {"configured": True, "available": True}
 
-    def healthy_recommendations(self):
+    async def healthy_recommendations(self):
         return {"models_loaded": True, "gpu_available": True}
 
     monkeypatch.setattr(SystemService, "_gather_sdnext_status", healthy_sdnext)

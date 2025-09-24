@@ -90,6 +90,7 @@ async def get_recommendations_for_prompt(
     active_loras: Optional[List[str]],
     limit: int,
     style_preference: Optional[str],
+    weights: Dict[str, float],
     repository: RecommendationRepository,
     embedder,
     device: str,
@@ -97,52 +98,73 @@ async def get_recommendations_for_prompt(
     """Return LoRAs that enhance the provided prompt."""
     active_loras = active_loras or []
 
-    prompt_embedding = await asyncio.to_thread(
-        embedder.primary_model.encode,
-        prompt,
-        device=device,
-        convert_to_numpy=True,
+    # Get embeddings for the prompt
+    prompt_embeddings = await asyncio.to_thread(
+        embedder.compute_prompt_embeddings, prompt, device
     )
+    prompt_embedding = prompt_embeddings["semantic"]
 
     results = repository.get_active_loras_with_embeddings(exclude_ids=active_loras)
 
     recommendations: List[RecommendationItem] = []
     for adapter, embedding in results:
-        if not embedding.semantic_embedding:
+        if not all(
+            [
+                embedding.semantic_embedding,
+                embedding.artistic_embedding,
+                embedding.technical_embedding,
+            ]
+        ):
             continue
 
-        lora_embedding = pickle.loads(embedding.semantic_embedding)
+        # Unpack embeddings
+        lora_semantic_embedding = pickle.loads(embedding.semantic_embedding)
+        lora_artistic_embedding = pickle.loads(embedding.artistic_embedding)
+        lora_technical_embedding = pickle.loads(embedding.technical_embedding)
 
-        prompt_norm = float(np.linalg.norm(prompt_embedding))
-        lora_norm = float(np.linalg.norm(lora_embedding))
-        denominator = prompt_norm * lora_norm
-        if denominator == 0.0:
-            similarity = 0.0
-        else:
-            similarity = float(np.dot(prompt_embedding, lora_embedding) / denominator)
+        # Calculate multi-modal similarities
+        semantic_similarity = _calculate_similarity(
+            prompt_embedding, lora_semantic_embedding
+        )
+        artistic_similarity = _calculate_similarity(
+            prompt_embeddings["artistic"], lora_artistic_embedding
+        )
+        technical_similarity = _calculate_similarity(
+            prompt_embeddings["technical"], lora_technical_embedding
+        )
+
+        # Apply weights
+        final_score = (
+            semantic_similarity * weights.get("semantic", 1.0)
+            + artistic_similarity * weights.get("artistic", 1.0)
+            + technical_similarity * weights.get("technical", 1.0)
+        )
 
         style_boost = 0.0
         if style_preference and embedding.predicted_style:
             if style_preference.lower() in embedding.predicted_style.lower():
                 style_boost = 0.2
+        final_score += style_boost
 
-        final_score = similarity + style_boost
-
-        explanation_parts = [f"Prompt similarity: {similarity:.2f}"]
+        explanation_parts = [
+            f"Semantic: {semantic_similarity:.2f}",
+            f"Artistic: {artistic_similarity:.2f}",
+            f"Technical: {technical_similarity:.2f}",
+        ]
         if style_boost > 0:
-            explanation_parts.append(f"Style match: {embedding.predicted_style}")
-        if adapter.tags:
-            explanation_parts.append(f"Tags: {', '.join(adapter.tags[:3])}")
+            explanation_parts.append(f"Style Match: {embedding.predicted_style}")
 
         recommendations.append(
             RecommendationItem(
                 lora_id=adapter.id,
                 lora_name=adapter.name,
                 lora_description=adapter.description,
-                similarity_score=similarity,
+                similarity_score=semantic_similarity,  # Keep primary score semantic
                 final_score=final_score,
                 explanation=" | ".join(explanation_parts),
-                semantic_similarity=similarity,
+                semantic_similarity=semantic_similarity,
+                artistic_similarity=artistic_similarity,
+                technical_similarity=technical_similarity,
                 metadata={
                     "tags": adapter.tags[:5],
                     "author": adapter.author_username,
@@ -150,9 +172,19 @@ async def get_recommendations_for_prompt(
                     "nsfw_level": adapter.nsfw_level,
                     "predicted_style": embedding.predicted_style,
                 },
-            ),
+            )
         )
 
     recommendations.sort(key=lambda item: item.final_score, reverse=True)
 
     return recommendations[:limit]
+
+
+def _calculate_similarity(embedding1: np.ndarray, embedding2: np.ndarray) -> float:
+    """Calculate cosine similarity between two numpy embeddings."""
+    norm1 = np.linalg.norm(embedding1)
+    norm2 = np.linalg.norm(embedding2)
+    denominator = norm1 * norm2
+    if denominator == 0.0:
+        return 0.0
+    return float(np.dot(embedding1, embedding2) / denominator)

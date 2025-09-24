@@ -1,7 +1,7 @@
 """HTTP routes for LoRA recommendations."""
 
+import logging
 from datetime import datetime, timezone
-from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -21,6 +21,7 @@ from backend.schemas.recommendations import (
 )
 from backend.services import DomainServices
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -91,6 +92,7 @@ async def get_similar_loras(
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
+        logger.exception("similar_loras failed")
         raise HTTPException(
             status_code=500,
             detail=f"Recommendation generation failed: {exc}",
@@ -122,6 +124,7 @@ async def get_recommendations_for_prompt(
             active_loras=request.active_loras,
             limit=request.limit,
             style_preference=request.style_preference,
+            weights=request.weights,
         )
 
         processing_time = (datetime.now() - start_time).total_seconds() * 1000
@@ -136,6 +139,7 @@ async def get_recommendations_for_prompt(
                 "gpu_enabled": recommendation_service.gpu_enabled,
                 "style_preference": request.style_preference,
                 "technical_requirements": request.technical_requirements,
+                "weights": request.weights,
             },
             generated_at=datetime.now(timezone.utc),
         )

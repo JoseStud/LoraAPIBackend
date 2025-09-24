@@ -90,6 +90,7 @@ class PromptRecommendationUseCase:
         active_loras: Optional[Sequence[str]],
         limit: int,
         style_preference: Optional[str],
+        weights: Dict[str, float],
     ) -> List[RecommendationItem]:
         """Return LoRAs that enhance ``prompt`` while recording metrics."""
         start = time.perf_counter()
@@ -100,6 +101,7 @@ class PromptRecommendationUseCase:
                 active_loras=list(active_loras) if active_loras else None,
                 limit=limit,
                 style_preference=style_preference,
+                weights=weights,
                 repository=self._repository,
                 embedder=embedder,
                 device=self._device,
