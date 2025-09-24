@@ -1,8 +1,8 @@
-"""Simple importer that polls a directory for Civitai-style JSON metadata
-and registers LoRA adapters using the application's service layer.
+"""Poll a directory for Civitai-style metadata and register LoRA adapters.
 
-This is intentionally minimal for local testing. It supports a `--dry-run`
-mode to print the actions it would take without touching the DB.
+This script is intentionally minimal for local testing. It supports a
+``--dry-run`` mode to print the actions it would take without touching the
+database.
 """
 
 import argparse
@@ -72,7 +72,7 @@ def parse_civitai_json(json_path: str) -> ParsedMetadata:
     nsfw_level = data.get("nsfwLevel", 0)
     activation_text = data.get("activation text")
     stats = data.get("stats")
-    
+
     # Extract version, trained words, and file info from modelVersions
     model_versions = data.get("modelVersions", [])
     if model_versions:
@@ -80,7 +80,7 @@ def parse_civitai_json(json_path: str) -> ParsedMetadata:
         version = first_version.get("name") or data.get("version")
         published_at = first_version.get("publishedAt")
         trained_words = first_version.get("trainedWords", [])
-        
+
         # Extract primary file info
         files = first_version.get("files", [])
         primary_file = None
@@ -91,7 +91,7 @@ def parse_civitai_json(json_path: str) -> ParsedMetadata:
         if not primary_file and files:
             # Fallback to largest file
             primary_file = max(files, key=lambda x: x.get("sizeKB", 0))
-        
+
         if primary_file:
             primary_file_name = primary_file.get("name")
             primary_file_size_kb = primary_file.get("sizeKB")
@@ -111,18 +111,19 @@ def parse_civitai_json(json_path: str) -> ParsedMetadata:
     tags = data.get("tags", [])
     weight = data.get("weight") or data.get("default_weight")
 
-    # Determine model file path by looking for files with same basename 
+    # Determine model file path by looking for files with same basename
     # and known extensions
     base = os.path.splitext(json_path)[0]
     candidate = None
     if primary_file_name:
         # Try to find the file with the exact name from JSON
         candidate_with_name = os.path.join(
-            os.path.dirname(json_path), primary_file_name,
+            os.path.dirname(json_path),
+            primary_file_name,
         )
         if os.path.exists(candidate_with_name):
             candidate = candidate_with_name
-    
+
     if not candidate:
         # Fallback: look for files with same basename
         for ext in (".safetensors", ".pt", ".bin", ".ckpt"):
@@ -137,9 +138,19 @@ def parse_civitai_json(json_path: str) -> ParsedMetadata:
 
     # Store everything we didn't explicitly map
     mapped_keys = {
-        "name", "version", "description", "creator", "tags", "weight", "default_weight",
-        "modelVersions", "supportsGeneration", "sd version", "nsfwLevel", 
-        "activation text", "stats",
+        "name",
+        "version",
+        "description",
+        "creator",
+        "tags",
+        "weight",
+        "default_weight",
+        "modelVersions",
+        "supportsGeneration",
+        "sd version",
+        "nsfwLevel",
+        "activation text",
+        "stats",
     }
     extra = {k: v for k, v in data.items() if k not in mapped_keys}
 
@@ -204,7 +215,8 @@ def discover_metadata(import_path: str, ignore_patterns: Optional[List[str]] = N
 
 
 def discover_orphan_safetensors(
-    import_path: str, ignore_patterns: Optional[List[str]] = None,
+    import_path: str,
+    ignore_patterns: Optional[List[str]] = None,
 ) -> List[str]:
     """Return safetensor files that do not have a matching JSON metadata file."""
     orphans: List[str] = []
@@ -215,7 +227,9 @@ def discover_orphan_safetensors(
             if not _should_ignore(os.path.join(root, d), import_path, ignore_patterns)
         ]
         json_basenames = {
-            os.path.splitext(fn)[0].lower() for fn in files if fn.lower().endswith(".json")
+            os.path.splitext(fn)[0].lower()
+            for fn in files
+            if fn.lower().endswith(".json")
         }
         for fn in files:
             if not fn.lower().endswith(".safetensors"):
@@ -230,8 +244,8 @@ def discover_orphan_safetensors(
 
 
 def register_adapter_from_metadata(
-    parsed: ParsedMetadata, 
-    json_path: Optional[str] = None, 
+    parsed: ParsedMetadata,
+    json_path: Optional[str] = None,
     dry_run: bool = True,
 ):
     """Register parsed metadata; returns a result dict describing the action.
@@ -252,7 +266,7 @@ def register_adapter_from_metadata(
         except Exception:
             # If conversion fails, leave the value and let validation catch it
             pass
-    
+
     # Get file metadata for tracking
     json_file_mtime = None
     json_file_size = None
@@ -260,7 +274,7 @@ def register_adapter_from_metadata(
         stat = os.stat(json_path)
         json_file_mtime = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc)
         json_file_size = stat.st_size
-    
+
     payload = {
         "name": parsed.name,
         "version": parsed.version,
@@ -335,29 +349,29 @@ def needs_resync(json_path: str, force_resync: bool = False) -> bool:
     """Check if a JSON file needs to be reprocessed based on modification time."""
     if force_resync:
         return True
-    
+
     if not os.path.exists(json_path):
         return False
-        
+
     # Check if we have existing record for this file
     session = get_session_context()
-    
+
     try:
         # Import Adapter model to query directly
         from sqlmodel import select
 
         from backend.models import Adapter
-        
+
         # Look for existing adapter with this json_file_path
         statement = select(Adapter).where(Adapter.json_file_path == json_path)
         existing = session.exec(statement).first()
-        
+
         if not existing:
             return True  # New file, needs processing
-            
+
         if not existing.json_file_mtime:
             return True  # No tracking data, needs processing
-            
+
         # Compare file modification time
         stat = os.stat(json_path)
         file_mtime = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc)
@@ -369,7 +383,7 @@ def needs_resync(json_path: str, force_resync: bool = False) -> bool:
             file_mtime = file_mtime.replace(tzinfo=timezone.utc)
 
         return file_mtime > existing_mtime
-        
+
     except Exception as e:
         logger.warning("Error checking resync status for %s: %s", json_path, e)
         return True  # If in doubt, process it
@@ -437,9 +451,9 @@ def run_one_shot_import(
 
 
 def run_poller(
-    import_path: str, 
-    poll_seconds: int, 
-    dry_run: bool, 
+    import_path: str,
+    poll_seconds: int,
+    dry_run: bool,
     force_resync: bool = False,
     ignore_patterns: Optional[List[str]] = None,
 ):
@@ -460,7 +474,7 @@ def run_poller(
     # Normal mode: poll indefinitely for new files.
     processed_count = 0
     skipped_count = 0
-    
+
     if ignore_patterns:
         logger.info(
             "Ignoring %d pattern(s) during import: %s",
@@ -479,11 +493,13 @@ def run_poller(
                     skipped_count += 1
                 seen.add(jpath)
                 continue
-                
+
             try:
                 parsed = parse_civitai_json(jpath)
                 result = register_adapter_from_metadata(
-                    parsed, json_path=jpath, dry_run=False,
+                    parsed,
+                    json_path=jpath,
+                    dry_run=False,
                 )
                 logger.info("Processed %s: %s", jpath, result["status"])
                 processed_count += 1
@@ -502,44 +518,45 @@ def run_poller(
             else:
                 logger.info("No safetensors missing metadata detected")
             previous_orphans = orphans
-        
+
         # In force_resync mode, run once and exit (don't poll indefinitely)
         if force_resync:
             logger.info(
-                "Force resync completed. Processed %d files, skipped %d files.", 
-                processed_count, skipped_count,
+                "Force resync completed. Processed %d files, skipped %d files.",
+                processed_count,
+                skipped_count,
             )
             break
-            
+
         time.sleep(poll_seconds)
 
 
 def main():
-    """Main function to run the importer."""
+    """Run the importer CLI."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--dry-run", 
-        action="store_true", 
+        "--dry-run",
+        action="store_true",
         help="Don't persist changes, only log them",
     )
     parser.add_argument(
-        "--force-resync", 
-        action="store_true", 
+        "--force-resync",
+        action="store_true",
         help="Re-process all files even if seen before",
     )
     parser.add_argument(
-        "--path", 
-        default=settings.IMPORT_PATH, 
+        "--path",
+        default=settings.IMPORT_PATH,
         help="Directory to scan for metadata",
     )
     parser.add_argument(
-        "--poll", 
-        type=int, 
-        default=settings.IMPORT_POLL_SECONDS, 
+        "--poll",
+        type=int,
+        default=settings.IMPORT_POLL_SECONDS,
         help="Poll interval in seconds",
     )
     parser.add_argument(
-        "--ignore", 
+        "--ignore",
         action="append",
         default=None,
         help="Glob pattern to ignore (can be specified multiple times)",

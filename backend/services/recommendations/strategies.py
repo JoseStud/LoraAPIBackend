@@ -32,10 +32,10 @@ async def get_similar_loras(
 
     await embedding_manager.ensure_embeddings_exist([target_lora])
 
-    if not getattr(engine, 'lora_ids', None):
+    if not getattr(engine, "lora_ids", None):
         await embedding_manager.build_similarity_index()
 
-    if not getattr(engine, 'lora_ids', None):
+    if not getattr(engine, "lora_ids", None):
         return []
 
     recommendations = await asyncio.to_thread(
@@ -48,32 +48,32 @@ async def get_similar_loras(
 
     filtered_recommendations: List[RecommendationItem] = []
     for rec in recommendations:
-        if rec['similarity_score'] < similarity_threshold:
+        if rec["similarity_score"] < similarity_threshold:
             continue
 
-        candidate_lora = repository.get_adapter(rec['lora_id'])
+        candidate_lora = repository.get_adapter(rec["lora_id"])
         if candidate_lora is None:
             continue
 
         filtered_recommendations.append(
             RecommendationItem(
-                lora_id=rec['lora_id'],
+                lora_id=rec["lora_id"],
                 lora_name=candidate_lora.name,
                 lora_description=candidate_lora.description,
-                similarity_score=rec['similarity_score'],
-                final_score=rec['final_score'],
-                explanation=rec['explanation'],
-                semantic_similarity=rec.get('semantic_similarity'),
-                artistic_similarity=rec.get('artistic_similarity'),
-                technical_similarity=rec.get('technical_similarity'),
-                quality_boost=rec.get('quality_boost'),
-                popularity_boost=rec.get('popularity_boost'),
-                recency_boost=rec.get('recency_boost'),
+                similarity_score=rec["similarity_score"],
+                final_score=rec["final_score"],
+                explanation=rec["explanation"],
+                semantic_similarity=rec.get("semantic_similarity"),
+                artistic_similarity=rec.get("artistic_similarity"),
+                technical_similarity=rec.get("technical_similarity"),
+                quality_boost=rec.get("quality_boost"),
+                popularity_boost=rec.get("popularity_boost"),
+                recency_boost=rec.get("recency_boost"),
                 metadata={
-                    'tags': candidate_lora.tags[:5],
-                    'author': candidate_lora.author_username,
-                    'sd_version': candidate_lora.sd_version,
-                    'nsfw_level': candidate_lora.nsfw_level,
+                    "tags": candidate_lora.tags[:5],
+                    "author": candidate_lora.author_username,
+                    "sd_version": candidate_lora.sd_version,
+                    "nsfw_level": candidate_lora.nsfw_level,
                 },
             ),
         )
@@ -144,11 +144,11 @@ async def get_recommendations_for_prompt(
                 explanation=" | ".join(explanation_parts),
                 semantic_similarity=similarity,
                 metadata={
-                    'tags': adapter.tags[:5],
-                    'author': adapter.author_username,
-                    'sd_version': adapter.sd_version,
-                    'nsfw_level': adapter.nsfw_level,
-                    'predicted_style': embedding.predicted_style,
+                    "tags": adapter.tags[:5],
+                    "author": adapter.author_username,
+                    "sd_version": adapter.sd_version,
+                    "nsfw_level": adapter.nsfw_level,
+                    "predicted_style": embedding.predicted_style,
                 },
             ),
         )

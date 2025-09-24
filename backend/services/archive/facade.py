@@ -41,19 +41,26 @@ class ArchiveService:
         self._adapter_service = adapter_service
         self._chunk_size = chunk_size
         self._spooled_file_max_size = spooled_file_max_size
-        self._planner = planner or ArchiveExportPlanner(adapter_service, storage_service)
+        self._planner = planner or ArchiveExportPlanner(
+            adapter_service, storage_service
+        )
         self._executor = executor or ArchiveImportExecutor(
-            adapter_service, chunk_size=chunk_size,
+            adapter_service,
+            chunk_size=chunk_size,
         )
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
-    def estimate_adapter_export(self, adapter_ids: Optional[Sequence[str]] = None) -> ExportEstimation:
+    def estimate_adapter_export(
+        self, adapter_ids: Optional[Sequence[str]] = None
+    ) -> ExportEstimation:
         """Estimate archive size for adapters and approximate transfer time."""
         return self._planner.estimate(adapter_ids)
 
-    def build_export_archive(self, adapter_ids: Optional[Sequence[str]] = None) -> ExportArchive:
+    def build_export_archive(
+        self, adapter_ids: Optional[Sequence[str]] = None
+    ) -> ExportArchive:
         """Create a streaming archive for the selected adapters."""
         plan = self._planner.build_plan(adapter_ids)
         spool = tempfile.SpooledTemporaryFile(max_size=self._spooled_file_max_size)

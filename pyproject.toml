@@ -5,6 +5,9 @@ target-version = "py310"
 fix = true
 exclude = [".git", "__pycache__", "build", "dist", "venv", ".venv"]
 
+[tool.ruff.format]
+preview = true
+
 [tool.ruff.lint]
 # enable ruff rules that mirror common flake8/best practices
 select = ["E", "F", "I", "B", "COM", "D"]
@@ -13,10 +16,31 @@ extend-select = ["E", "F"]
 # D203 vs D211 and D212 vs D213 are mutually incompatible; prefer
 # no-blank-line-before-class and multi-line-summary-first-line behavior
 # so we ignore D203 and D213.
-ignore = ["D203", "D213"]
+ignore = ["D203", "D213", "COM812"]
 
-# Allow __init__.py to have unused imports used for re-exporting
-per-file-ignores = {"__init__.py" = ["F401"]}
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/**/*.py" = ["D"]
+"infrastructure/alembic/versions/*.py" = ["D"]
+"backend/migrations/versions/*.py" = ["D"]
+# TODO: remove these docstring exemptions once legacy services/workers gain documentation.
+"backend/services/**/*.py" = ["D100", "D101", "D102", "D103", "D105", "D107", "D401"]
+"backend/utils/cache.py" = ["D100", "D101", "D102", "D103", "D105", "D107", "D401"]
+"backend/workers/**/*.py" = ["D100", "D101", "D102", "D103", "D105", "D107", "D401"]
+"examples/**/*.py" = ["D"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Body",
+    "fastapi.Path",
+    "fastapi.Header",
+    "fastapi.Cookie",
+    "fastapi.Form",
+    "fastapi.Security",
+    "fastapi.File",
+]
 
 [tool.pytest.ini_options]
 pythonpath = "."

@@ -55,7 +55,8 @@ class WebSocketService:
             message = json.loads(data)
         except json.JSONDecodeError:
             logger.warning(
-                "Failed to decode WebSocket message", connection_id=connection_id,
+                "Failed to decode WebSocket message",
+                connection_id=connection_id,
             )
             return
 
@@ -66,7 +67,9 @@ class WebSocketService:
             subscription = WebSocketSubscription(**message)
         except Exception as exc:  # pragma: no cover - defensive logging
             logger.warning(
-                "Invalid subscription payload", connection_id=connection_id, error=str(exc),
+                "Invalid subscription payload",
+                connection_id=connection_id,
+                error=str(exc),
             )
             return
 

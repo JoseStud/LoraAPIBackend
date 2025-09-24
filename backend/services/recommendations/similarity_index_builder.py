@@ -28,4 +28,3 @@ class SimilarityIndexBuilder:
 
         engine = self._engine_getter()
         await asyncio.to_thread(engine.build_similarity_index, adapters)
-

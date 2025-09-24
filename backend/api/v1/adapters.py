@@ -56,7 +56,9 @@ def list_adapters(
     services: DomainServices = Depends(get_domain_services),  # noqa: B008
 ):
     """Return a paginated list of adapters via the service layer."""
-    tag_filters = [tag.strip() for tag in tags.split(",") if tag.strip()] if tags else []
+    tag_filters = (
+        [tag.strip() for tag in tags.split(",") if tag.strip()] if tags else []
+    )
 
     adapter_service = services.adapters
 
@@ -81,6 +83,7 @@ def list_adapters(
 
 # --------------------------- Auxiliary Endpoints ---------------------------
 
+
 class BulkActionRequest(BaseModel):
     """Request body for bulk adapter actions."""
 
@@ -102,7 +105,9 @@ def get_adapter_tags(services: DomainServices = Depends(get_domain_services)):
     try:
         tags = services.adapters.get_all_tags()
     except Exception as exc:  # pragma: no cover - defensive guard
-        raise HTTPException(status_code=500, detail=f"Failed to load adapter tags: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Failed to load adapter tags: {exc}"
+        ) from exc
 
     return {"tags": tags}
 
@@ -121,11 +126,15 @@ def bulk_adapter_action(
         return {"success": True, "processed": 0, "action": request.action, "ids": []}
 
     try:
-        processed_ids = services.adapters.bulk_adapter_action(request.action, request.lora_ids)
+        processed_ids = services.adapters.bulk_adapter_action(
+            request.action, request.lora_ids
+        )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Bulk action failed: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Bulk action failed: {exc}"
+        ) from exc
 
     return {
         "success": True,
@@ -148,12 +157,14 @@ def patch_adapter(
     """
     try:
         updated = services.adapters.patch_adapter(adapter_id, payload)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="adapter not found")
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="adapter not found") from exc
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive guard
-        raise HTTPException(status_code=500, detail=f"Failed to patch adapter: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Failed to patch adapter: {exc}"
+        ) from exc
 
     return {"adapter": updated.model_dump()}
 

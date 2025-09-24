@@ -111,7 +111,9 @@ class _SemanticEmbedderStub:
     def __init__(self, embeddings_by_id: dict[str, dict[str, np.ndarray]]):
         self._embeddings_by_id = embeddings_by_id
 
-    def create_multi_modal_embedding(self, lora: SimpleNamespace) -> dict[str, np.ndarray]:
+    def create_multi_modal_embedding(
+        self, lora: SimpleNamespace
+    ) -> dict[str, np.ndarray]:
         return self._embeddings_by_id[lora.id]
 
     def batch_encode_collection(self, loras):
@@ -141,7 +143,9 @@ def test_keyword_extractor_uses_fallback_when_model_missing() -> None:
     """KeyBERT is optional, and the heuristic fallback should still work."""
     extractor = KeywordExtractor(logger=logging.getLogger("test_keyword_extractor"))
     extractor._model = "fallback"
-    result = extractor.extract("Beautiful anime hero with vibrant colors and glowing eyes")
+    result = extractor.extract(
+        "Beautiful anime hero with vibrant colors and glowing eyes"
+    )
 
     assert result["extracted_keywords"]
     assert all(score <= 1.0 for score in result["keyword_scores"])
@@ -155,10 +159,14 @@ def test_keyword_extractor_handles_empty_text() -> None:
 
 def test_sentiment_style_analyzer_fallback_positive_signal() -> None:
     """Positive adjectives should trigger the fallback positive sentiment."""
-    analyzer = SentimentStyleAnalyzer(device="cpu", logger=logging.getLogger("test_sentiment"))
+    analyzer = SentimentStyleAnalyzer(
+        device="cpu", logger=logging.getLogger("test_sentiment")
+    )
     analyzer._sentiment_pipeline = "fallback"
     analyzer._style_pipeline = "fallback"
-    sentiment = analyzer.analyze_sentiment("This model is amazing and beautiful with perfect lighting")
+    sentiment = analyzer.analyze_sentiment(
+        "This model is amazing and beautiful with perfect lighting"
+    )
     style = analyzer.classify_style("Beautiful anime hero with vibrant colors")
 
     assert sentiment["sentiment_label"] == "POSITIVE"
@@ -168,10 +176,14 @@ def test_sentiment_style_analyzer_fallback_positive_signal() -> None:
 
 def test_sentiment_style_analyzer_handles_neutral_text() -> None:
     """Text without keywords should default to neutral and unknown style."""
-    analyzer = SentimentStyleAnalyzer(device="cpu", logger=logging.getLogger("test_sentiment_neutral"))
+    analyzer = SentimentStyleAnalyzer(
+        device="cpu", logger=logging.getLogger("test_sentiment_neutral")
+    )
     analyzer._sentiment_pipeline = "fallback"
     analyzer._style_pipeline = "fallback"
-    sentiment = analyzer.analyze_sentiment("The quick brown fox jumps over the lazy dog")
+    sentiment = analyzer.analyze_sentiment(
+        "The quick brown fox jumps over the lazy dog"
+    )
     style = analyzer.classify_style("The quick brown fox jumps over the lazy dog")
 
     assert sentiment["sentiment_label"] == "NEUTRAL"
@@ -323,7 +335,10 @@ def test_feature_extractor_orchestrates_helpers() -> None:
     assert features["quality_score"] == 0.75
 
     assert keyword_fake.calls == [lora.description]
-    assert sentiment_fake.calls == [f"sentiment:{lora.description}", f"style:{lora.description}"]
+    assert sentiment_fake.calls == [
+        f"sentiment:{lora.description}",
+        f"style:{lora.description}",
+    ]
     assert score_fake.calls == ["adapter"]
 
 
@@ -452,7 +467,9 @@ def test_recommendation_engine_can_disable_diversification() -> None:
 
     engine.build_similarity_index([target, candidate])
     recommendations = engine.get_recommendations(
-        target, n_recommendations=1, diversify_results=False,
+        target,
+        n_recommendations=1,
+        diversify_results=False,
     )
 
     assert recommendations

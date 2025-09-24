@@ -40,7 +40,9 @@ async def compose(
     if req.delivery:
         sdnext_config = req.delivery.sdnext
         if sdnext_config is not None:
-            generation_params: SDNextGenerationParams = sdnext_config.generation_params.model_copy()
+            generation_params: SDNextGenerationParams = (
+                sdnext_config.generation_params.model_copy()
+            )
             generation_params.prompt = composition.prompt
             job = application.generation_coordinator.schedule_generation_job(
                 generation_params,

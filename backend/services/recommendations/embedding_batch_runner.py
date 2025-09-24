@@ -41,7 +41,9 @@ class EmbeddingBatchRunner:
                 adapter_ids_to_check,
             )
             pre_filter_count = len(adapters)
-            adapters = [adapter for adapter in adapters if adapter.id not in existing_ids]
+            adapters = [
+                adapter for adapter in adapters if adapter.id not in existing_ids
+            ]
             skipped_due_to_existing = pre_filter_count - len(adapters)
 
         processed_count = 0
@@ -61,19 +63,18 @@ class EmbeddingBatchRunner:
                     error_count += 1
                     errors.append(
                         {
-                            'adapter_id': adapter.id,
-                            'error': str(exc),
+                            "adapter_id": adapter.id,
+                            "error": str(exc),
                         },
                     )
 
         processing_time = time.time() - start_time
 
         return {
-            'processed_count': processed_count,
-            'skipped_count': skipped_due_to_existing,
-            'error_count': error_count,
-            'processing_time_seconds': processing_time,
-            'errors': errors,
-            'completed_at': datetime.now(timezone.utc),
+            "processed_count": processed_count,
+            "skipped_count": skipped_due_to_existing,
+            "error_count": error_count,
+            "processing_time_seconds": processing_time,
+            "errors": errors,
+            "completed_at": datetime.now(timezone.utc),
         }
-

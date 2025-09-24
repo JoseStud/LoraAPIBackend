@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 class SDNextGenerationParams(BaseModel):
     """Parameters for SDNext text-to-image generation."""
-    
+
     prompt: str
     negative_prompt: Optional[str] = None
     steps: int = 20
@@ -58,7 +58,7 @@ class SDNextDeliveryParams(BaseModel):
 
 class SDNextGenerationResult(BaseModel):
     """Result of SDNext generation operation."""
-    
+
     job_id: str
     status: str  # "pending", "running", "completed", "failed"
     images: Optional[List[str]] = None  # base64 or file paths
@@ -69,7 +69,7 @@ class SDNextGenerationResult(BaseModel):
 
 class ProgressUpdate(BaseModel):
     """WebSocket progress update message."""
-    
+
     job_id: str
     progress: float  # 0.0 to 1.0
     status: str  # "pending", "running", "completed", "failed"
@@ -82,7 +82,7 @@ class ProgressUpdate(BaseModel):
 
 class GenerationStarted(BaseModel):
     """WebSocket notification that generation has started."""
-    
+
     job_id: str
     params: SDNextGenerationParams
     estimated_duration: Optional[float] = None

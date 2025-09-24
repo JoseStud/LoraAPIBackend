@@ -370,9 +370,7 @@ def test_service_container_uses_custom_providers(db_session):
     assert registry.application.system is system_service
     system_provider.assert_called_once_with(delivery_service)
 
-    assert (
-        registry.application.generation_coordinator is generation_coordinator
-    )
+    assert registry.application.generation_coordinator is generation_coordinator
     generation_coordinator_provider.assert_called_once_with(
         delivery_service,
         websocket_service,

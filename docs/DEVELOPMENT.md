@@ -119,6 +119,21 @@ serves the built frontend from FastAPI.【F:package.json†L5-L31】
 Some suites depend on Redis, SDNext, or browser binaries. Refer to
 `tests/README.md` for instructions on enabling or skipping those integrations.【F:package.json†L18-L30】【F:tests/README.md†L70-L140】
 
+## Code quality automation
+
+- **Ruff formatting and linting** – Run `ruff format` and `ruff check` (or
+  `pre-commit run --all-files`) before pushing changes. CI executes the same
+  commands and will block merges on violations.【F:.pre-commit-config.yaml†L1-L11】【F:.github/workflows/ci.yml†L1-L41】
+- **Docstring staged rollout** – Docstring enforcement is active for public API
+  modules. Service-layer packages, workers, and migrations currently carry a
+  temporary exception while historical debt is documented. TODO comments in
+  `pyproject.toml` outline the follow-up work to remove those per-file ignores
+  once the legacy modules gain documentation.【F:pyproject.toml†L1-L36】【F:pyproject.toml†L37-L48】
+
+Install the project `pre-commit` hooks with `pre-commit install` to receive the
+same checks locally. Hooks auto-format code and surface lint issues prior to
+commit, matching the CI environment.【F:.pre-commit-config.yaml†L1-L11】
+
 ## Work in progress
 
 - Authentication currently relies on a single API key header; multi-user support

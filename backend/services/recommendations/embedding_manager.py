@@ -32,6 +32,18 @@ class EmbeddingManager:
         batch_runner: EmbeddingBatchRunner | None = None,
         index_builder: SimilarityIndexBuilder | None = None,
     ) -> None:
+        """Create an embedding manager with the supplied collaborators.
+
+        Args:
+            repository: Persistence layer for embedding records.
+            model_registry: Registry that constructs feature extraction components.
+            feature_extractor_getter: Override factory for the feature extractor.
+            recommendation_engine_getter: Override factory for the similarity engine.
+            embedding_computer: Custom computer used for single adapter embedding runs.
+            batch_runner: Custom runner orchestrating batch embedding jobs.
+            index_builder: Custom builder for the similarity index.
+
+        """
         self._repository = repository
         self._model_registry = model_registry
         self._feature_extractor_getter = (
@@ -89,7 +101,9 @@ class EmbeddingManager:
         """Ensure embeddings exist for the provided adapters."""
         adapter_ids = [adapter.id for adapter in adapters]
         existing_ids = self._repository.list_existing_embedding_ids(adapter_ids)
-        missing_ids = [adapter_id for adapter_id in adapter_ids if adapter_id not in existing_ids]
+        missing_ids = [
+            adapter_id for adapter_id in adapter_ids if adapter_id not in existing_ids
+        ]
 
         if missing_ids:
             await self.batch_compute_embeddings(missing_ids)

@@ -88,6 +88,8 @@ class PerformanceAnalyticsSummary(BaseModel):
     time_range: PerformanceTimeRange
     generated_at: datetime
     kpis: PerformanceKpiSummary = Field(default_factory=PerformanceKpiSummary)
-    chart_data: PerformanceAnalyticsCharts = Field(default_factory=PerformanceAnalyticsCharts)
+    chart_data: PerformanceAnalyticsCharts = Field(
+        default_factory=PerformanceAnalyticsCharts
+    )
     error_breakdown: List[ErrorAnalysisEntry] = Field(default_factory=list)
     performance_insights: List[PerformanceInsightEntry] = Field(default_factory=list)

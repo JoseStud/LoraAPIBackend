@@ -73,7 +73,9 @@ class SentenceTransformerProvider:
         self._model_configs: Dict[str, Mapping[str, Any]] = (
             dict(model_configs) if model_configs is not None else {}
         )
-        self._models: MutableMapping[str, Any] = {key: None for key in self._model_configs}
+        self._models: MutableMapping[str, Any] = {
+            key: None for key in self._model_configs
+        }
         self._dimensions: Dict[str, int] = {}
 
         self._transformers_available = not force_fallback
@@ -156,7 +158,8 @@ class SentenceTransformerProvider:
         except ImportError:
             self._transformers_available = False
             self._logger.warning(
-                "sentence-transformers not available; using fallback hashed embeddings.",
+                "sentence-transformers not available; using fallback hashed "
+                "embeddings.",
             )
 
     def _configure_torch_device(self) -> None:
@@ -174,7 +177,8 @@ class SentenceTransformerProvider:
         if self.device in {"cuda", "gpu"}:
             if torch.cuda.is_available():
                 self._logger.info(
-                    "Using CUDA GPU acceleration with %s", torch.cuda.get_device_name(),
+                    "Using CUDA GPU acceleration with %s",
+                    torch.cuda.get_device_name(),
                 )
                 self.device = "cuda"
             elif getattr(torch.version, "hip", None) is not None:

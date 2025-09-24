@@ -59,7 +59,9 @@ class FakeSDNextSession:
 
 
 class FakeImageStorage:
-    def __init__(self, processed: Optional[list[str]] = None, *, fail: bool = False) -> None:
+    def __init__(
+        self, processed: Optional[list[str]] = None, *, fail: bool = False
+    ) -> None:
         self.processed = processed or []
         self.fail = fail
         self.calls: list[tuple[list[str], str, bool, str]] = []
@@ -174,4 +176,3 @@ async def test_progress_session_error_produces_unknown_status() -> None:
 
     assert result.status == "unknown"
     assert result.error_message == "oops"
-

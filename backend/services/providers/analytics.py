@@ -22,6 +22,7 @@ class AnalyticsServiceFactory(Protocol):
         time_series_builder: Optional[TimeSeriesBuilder] = None,
         insight_generator: Optional[InsightGenerator] = None,
     ) -> AnalyticsService:
+        """Create an :class:`AnalyticsService` instance."""
         ...
 
 
@@ -53,4 +54,3 @@ __all__ = [
     "AnalyticsServiceFactory",
     "make_analytics_service",
 ]
-

@@ -27,8 +27,8 @@ def test_adapter_tags_and_bulk_actions(client: TestClient, mock_storage: MagicMo
     mock_storage.exists.return_value = True
 
     # Create a few adapters with overlapping tags
-    id1 = _create_adapter(client, "a", ["alpha", "beta"]) 
-    id2 = _create_adapter(client, "b", ["beta", "gamma"]) 
+    id1 = _create_adapter(client, "a", ["alpha", "beta"])
+    id2 = _create_adapter(client, "b", ["beta", "gamma"])
 
     # GET /v1/adapters/tags => should contain unique union of tags
     r = client.get("/api/v1/adapters/tags")
@@ -37,10 +37,13 @@ def test_adapter_tags_and_bulk_actions(client: TestClient, mock_storage: MagicMo
     assert {"alpha", "beta", "gamma"}.issubset(tags)
 
     # Bulk activate both
-    r = client.post("/api/v1/adapters/bulk", json={
-        "action": "activate",
-        "lora_ids": [id1, id2],
-    })
+    r = client.post(
+        "/api/v1/adapters/bulk",
+        json={
+            "action": "activate",
+            "lora_ids": [id1, id2],
+        },
+    )
     assert r.status_code == 200
     body = r.json()
     assert body.get("success") is True
@@ -54,10 +57,13 @@ def test_adapter_tags_and_bulk_actions(client: TestClient, mock_storage: MagicMo
     assert r2.json()["adapter"]["active"] is True
 
     # Bulk delete first
-    r = client.post("/api/v1/adapters/bulk", json={
-        "action": "delete",
-        "lora_ids": [id1],
-    })
+    r = client.post(
+        "/api/v1/adapters/bulk",
+        json={
+            "action": "delete",
+            "lora_ids": [id1],
+        },
+    )
     assert r.status_code == 200
     assert r.json().get("processed") == 1
 
@@ -66,4 +72,3 @@ def test_adapter_tags_and_bulk_actions(client: TestClient, mock_storage: MagicMo
     assert r.status_code == 404
     r = client.get(f"/api/v1/adapters/{id2}")
     assert r.status_code == 200
-

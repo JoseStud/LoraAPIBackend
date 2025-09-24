@@ -13,6 +13,7 @@ class SystemServiceFactory(Protocol):
     """Callable protocol for creating :class:`SystemService` instances."""
 
     def __call__(self, delivery_service: DeliveryService) -> SystemService:
+        """Create a :class:`SystemService` instance."""
         ...
 
 
@@ -33,4 +34,3 @@ __all__ = [
     "SystemServiceFactory",
     "make_system_service",
 ]
-

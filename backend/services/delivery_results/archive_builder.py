@@ -41,7 +41,6 @@ class ResultArchiveBuilder:
         spooled_file_max_size: int = 32 * 1024 * 1024,
     ) -> Optional[ResultArchive]:
         """Create a streaming archive for the specified results."""
-
         jobs = self._repository.list_jobs_by_ids(job_ids)
         if not jobs:
             return None
@@ -105,7 +104,9 @@ class ResultArchiveBuilder:
             metadata_payload["result"] = result_payload
 
         self._write_metadata_entry(archive, base_path, metadata_payload)
-        asset_entries = self._write_asset_entries(archive, base_path, assets, chunk_size)
+        asset_entries = self._write_asset_entries(
+            archive, base_path, assets, chunk_size
+        )
 
         return {
             "id": job.id,

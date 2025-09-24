@@ -49,4 +49,3 @@ class EmbeddingComputer:
             ) from exc
 
         return True
-

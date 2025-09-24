@@ -90,7 +90,7 @@ def enqueue_delivery(
     with get_session_context() as sess:
         services = ctx.create_service_container(sess)
         dj = services.deliveries.create_job(prompt, mode, params)
-    
+
     intervals = [2**i for i in range(max_retries)] if max_retries > 0 else []
     retry = Retry(max=max_retries, interval=intervals) if max_retries > 0 else None
     job = ctx.queue_backend.enqueue_delivery(dj.id, retry=retry)
@@ -165,12 +165,13 @@ async def process_embeddings_batch_async(
     context: Optional[WorkerContext] = None,
 ) -> dict:
     """Background task to compute embeddings for LoRAs.
-    
+
     Args:
         adapter_ids: Specific adapter IDs to process (None for all active)
         force_recompute: Whether to recompute existing embeddings
         batch_size: Number of adapters to process in each batch
-        
+        context: Optional worker context providing dependency factories
+
     Returns:
         Processing results
 
@@ -239,11 +240,12 @@ async def compute_single_embedding_async(
     context: Optional[WorkerContext] = None,
 ) -> bool:
     """Background task to compute embeddings for a single LoRA.
-    
+
     Args:
         adapter_id: ID of the adapter to process
         force_recompute: Whether to recompute existing embeddings
-        
+        context: Optional worker context providing dependency factories
+
     Returns:
         Success status
 
@@ -298,16 +300,17 @@ def rebuild_similarity_index(
     context: Optional[WorkerContext] = None,
 ) -> dict:
     """Background task to rebuild the similarity index.
-    
+
     Args:
         force: Force rebuild even if index exists
-        
+        context: Optional worker context providing dependency factories
+
     Returns:
         Rebuild results
 
     """
     logger = logging.getLogger(__name__)
-    
+
     try:
         ctx = context or get_worker_context()
 
@@ -323,9 +326,9 @@ def rebuild_similarity_index(
             # Get all active adapters
             stmt = select(Adapter).where(Adapter.active)
             adapters = list(sess.exec(stmt))
-            
+
             logger.info(f"Rebuilding similarity index for {len(adapters)} adapters")
-            
+
             # This would rebuild the similarity index
             # For now, just return success
             result = {
@@ -334,11 +337,13 @@ def rebuild_similarity_index(
                 "index_type": "similarity",
                 "gpu_enabled": gpu_enabled,
             }
-            
-            logger.info(f"Similarity index rebuilt successfully for {len(adapters)} adapters")
-            
+
+            logger.info(
+                f"Similarity index rebuilt successfully for {len(adapters)} adapters"
+            )
+
             return result
-            
+
     except Exception as exc:
         logger.error(f"Similarity index rebuild failed: {exc}")
         raise

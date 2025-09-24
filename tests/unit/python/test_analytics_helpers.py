@@ -40,7 +40,9 @@ def test_insight_generator_produces_expected_flags() -> None:
     generator = InsightGenerator()
     stats = PerformanceKpiSummary(success_rate=80, time_improvement=-5)
     errors = [
-        ErrorAnalysisEntry(type="Timeout", count=5, percentage=30.0, description="Timeout"),
+        ErrorAnalysisEntry(
+            type="Timeout", count=5, percentage=30.0, description="Timeout"
+        ),
     ]
     charts = PerformanceAnalyticsCharts()
 

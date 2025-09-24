@@ -6,6 +6,23 @@ on:
   pull_request:
 
 jobs:
+  python-lint:
+    name: Python lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Ruff
+        run: pip install ruff
+      - name: Check Ruff formatting
+        run: ruff format --check .
+      - name: Run Ruff lint
+        run: ruff check .
+
   node-modules-sanity:
     name: Ensure node_modules directory is absent
     runs-on: ubuntu-latest

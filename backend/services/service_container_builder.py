@@ -77,23 +77,34 @@ class ServiceContainerBuilder:
     def __init__(
         self,
         *,
-        storage: StorageProviders = StorageProviders(),
-        domain_factories: DomainFactories = DomainFactories(),
-        infrastructure_factories: InfrastructureFactories = InfrastructureFactories(),
+        storage: Optional[StorageProviders] = None,
+        domain_factories: Optional[DomainFactories] = None,
+        infrastructure_factories: Optional[InfrastructureFactories] = None,
         websocket_factory: Optional[WebSocketServiceFactory] = None,
-        queue_orchestrator_factory: Callable[[], QueueOrchestrator] = create_queue_orchestrator,
-        analytics_repository_factory: Callable[[Session], AnalyticsRepository] = AnalyticsRepository,
-        delivery_repository_factory: Callable[[Session], DeliveryJobRepository] = DeliveryJobRepository,
-        recommendation_gpu_detector: Callable[[], bool] = RecommendationService.is_gpu_available,
+        queue_orchestrator_factory: Callable[
+            [], QueueOrchestrator
+        ] = create_queue_orchestrator,
+        analytics_repository_factory: Callable[
+            [Session], AnalyticsRepository
+        ] = AnalyticsRepository,
+        delivery_repository_factory: Callable[
+            [Session], DeliveryJobRepository
+        ] = DeliveryJobRepository,
+        recommendation_gpu_detector: Callable[
+            [], bool
+        ] = RecommendationService.is_gpu_available,
     ) -> None:
         if websocket_factory is not None:
             infrastructure_factories = replace(
-                infrastructure_factories, websocket=websocket_factory,
+                infrastructure_factories or InfrastructureFactories(),
+                websocket=websocket_factory,
             )
 
-        self._storage = storage
-        self._domain_factories = domain_factories
-        self._infrastructure_factories = infrastructure_factories
+        self._storage = storage or StorageProviders()
+        self._domain_factories = domain_factories or DomainFactories()
+        self._infrastructure_factories = (
+            infrastructure_factories or InfrastructureFactories()
+        )
         self._queue_orchestrator_factory = queue_orchestrator_factory
         self._analytics_repository_factory = analytics_repository_factory
         self._delivery_repository_factory = delivery_repository_factory
@@ -146,7 +157,8 @@ class ServiceContainerBuilder:
         storage_config = _resolve_override(self._storage, storage)
         domain_config = _resolve_override(self._domain_factories, domain)
         infrastructure_config = _resolve_override(
-            self._infrastructure_factories, infrastructure,
+            self._infrastructure_factories,
+            infrastructure,
         )
 
         return ServiceContainerBuilder(
@@ -182,10 +194,16 @@ class ServiceContainerBuilder:
         Args:
             db_session: Active SQLModel session used to construct repositories and
                 services.
+            queue_orchestrator: Optional orchestrator instance to reuse instead of
+                creating one lazily.
+            delivery_repository: Preconstructed delivery repository to reuse.
+            analytics_repository: Preconstructed analytics repository to reuse.
+            recommendation_gpu_available: Explicit GPU availability flag override.
 
         Raises:
             ValueError: If ``db_session`` is ``None``.
             TypeError: If ``db_session`` is not a :class:`sqlmodel.Session` instance.
+
         """
         if db_session is None:
             raise ValueError(
@@ -218,13 +236,15 @@ class ServiceContainerBuilder:
 
         if delivery_repository is None:
             raise ValueError(
-                "ServiceContainerBuilder.build() could not resolve a delivery repository. "
-                "Ensure the delivery repository factory returns an instance.",
+                "ServiceContainerBuilder.build() could not resolve a delivery "
+                "repository. Ensure the delivery repository factory returns an "
+                "instance.",
             )
         if analytics_repository is None:
             raise ValueError(
-                "ServiceContainerBuilder.build() could not resolve an analytics repository. "
-                "Ensure the analytics repository factory returns an instance.",
+                "ServiceContainerBuilder.build() could not resolve an analytics "
+                "repository. Ensure the analytics repository factory returns an "
+                "instance.",
             )
 
         core = CoreServiceRegistry(

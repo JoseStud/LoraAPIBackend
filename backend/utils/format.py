@@ -32,4 +32,3 @@ def format_duration(seconds: float) -> str:
         return f"{max(1, math.ceil(seconds))} seconds"
     minutes = math.ceil(seconds / 60)
     return f"{minutes} minutes"
-

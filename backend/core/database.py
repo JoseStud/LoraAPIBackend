@@ -34,7 +34,7 @@ if DATABASE_URL:
 else:
     # Default to a local sqlite file beside the root directory
     import os
-    
+
     # Go up to the root directory from app/core/
     root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     DB_FILE = os.path.join(root_dir, "db.sqlite")
@@ -50,7 +50,7 @@ def init_db():
 
 def get_session():
     """Return a new Session bound to the module ENGINE with proper lifecycle management.
-    
+
     This is a generator function intended for use as a FastAPI dependency.
     For direct usage, use get_session_context() instead.
     """

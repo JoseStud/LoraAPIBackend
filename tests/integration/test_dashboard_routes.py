@@ -77,7 +77,10 @@ def test_dashboard_stats_reflects_live_data(client, db_session):
     assert system_health["status"] in {"healthy", "warning"}
     assert isinstance(system_health["gpu_status"], str) and system_health["gpu_status"]
     assert isinstance(system_health["gpu_memory"], str)
-    assert isinstance(system_health["storage_usage"], str) and system_health["storage_usage"]
+    assert (
+        isinstance(system_health["storage_usage"], str)
+        and system_health["storage_usage"]
+    )
 
 
 def test_dashboard_endpoints_handle_empty_dataset(client):
@@ -107,9 +110,21 @@ def test_featured_loras_returns_recent_active_adapters(client, db_session):
     """Featured endpoint should return active adapters ordered by recency."""
     now = datetime.now(timezone.utc)
     adapters = [
-        _make_adapter("alpha", created_at=now - timedelta(hours=4), updated_at=now - timedelta(hours=2)),
-        _make_adapter("beta", created_at=now - timedelta(hours=3), updated_at=now - timedelta(minutes=30)),
-        _make_adapter("gamma", created_at=now - timedelta(hours=5), updated_at=now - timedelta(hours=1)),
+        _make_adapter(
+            "alpha",
+            created_at=now - timedelta(hours=4),
+            updated_at=now - timedelta(hours=2),
+        ),
+        _make_adapter(
+            "beta",
+            created_at=now - timedelta(hours=3),
+            updated_at=now - timedelta(minutes=30),
+        ),
+        _make_adapter(
+            "gamma",
+            created_at=now - timedelta(hours=5),
+            updated_at=now - timedelta(hours=1),
+        ),
         _make_adapter("delta", active=False, created_at=now, updated_at=now),
     ]
     db_session.add_all(adapters)
@@ -128,8 +143,18 @@ def test_activity_feed_reflects_recent_jobs(client, db_session):
     """Activity feed should include delivery jobs sorted by recency."""
     now = datetime.now(timezone.utc)
     jobs = [
-        DeliveryJob(prompt="first", mode="api", status="succeeded", created_at=now - timedelta(hours=2)),
-        DeliveryJob(prompt="second", mode="api", status="running", created_at=now - timedelta(hours=1)),
+        DeliveryJob(
+            prompt="first",
+            mode="api",
+            status="succeeded",
+            created_at=now - timedelta(hours=2),
+        ),
+        DeliveryJob(
+            prompt="second",
+            mode="api",
+            status="running",
+            created_at=now - timedelta(hours=1),
+        ),
         DeliveryJob(prompt="third", mode="cli", status="pending", created_at=now),
     ]
     db_session.add_all(jobs)

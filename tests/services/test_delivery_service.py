@@ -7,7 +7,10 @@ import pytest
 
 from backend.delivery.base import DeliveryRegistry
 from backend.services.deliveries import DeliveryService
-from backend.services.delivery_repository import DeliveryJobMapper, DeliveryJobRepository
+from backend.services.delivery_repository import (
+    DeliveryJobMapper,
+    DeliveryJobRepository,
+)
 from backend.services.queue import QueueBackend, QueueOrchestrator
 from backend.workers.delivery_runner import DeliveryRunner
 

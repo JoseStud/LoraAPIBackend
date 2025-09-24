@@ -15,6 +15,12 @@ class LoRAEmbeddingRepository:
     """Encapsulate database access for LoRA embedding records."""
 
     def __init__(self, session: Session) -> None:
+        """Create a repository bound to the provided database session.
+
+        Args:
+            session: Active SQLModel session used for queries and persistence.
+
+        """
         self._session = session
 
     # ------------------------------------------------------------------
@@ -33,7 +39,7 @@ class LoRAEmbeddingRepository:
         return self.get_embedding(adapter_id) is not None
 
     def list_adapters(self, adapter_ids: Sequence[str] | None = None) -> list[Adapter]:
-        """Return adapters by id or all active adapters when ``adapter_ids`` is ``None``."""
+        """Return adapters by id or all active adapters when none are specified."""
         if adapter_ids:
             stmt = select(Adapter).where(Adapter.id.in_(adapter_ids))
         else:
@@ -102,18 +108,23 @@ class LoRAEmbeddingRepository:
             return pickle.dumps(value)
 
         return {
-            'semantic_embedding': serialize_embedding(features.get('semantic_embedding')),
-            'artistic_embedding': serialize_embedding(features.get('artistic_embedding')),
-            'technical_embedding': serialize_embedding(features.get('technical_embedding')),
-            'extracted_keywords': list(features.get('extracted_keywords', [])),
-            'keyword_scores': list(features.get('keyword_scores', [])),
-            'predicted_style': features.get('predicted_style'),
-            'style_confidence': features.get('style_confidence'),
-            'sentiment_label': features.get('sentiment_label'),
-            'sentiment_score': features.get('sentiment_score'),
-            'quality_score': features.get('quality_score'),
-            'popularity_score': features.get('popularity_score'),
-            'recency_score': features.get('recency_score'),
-            'compatibility_score': features.get('sd_compatibility_score'),
+            "semantic_embedding": serialize_embedding(
+                features.get("semantic_embedding")
+            ),
+            "artistic_embedding": serialize_embedding(
+                features.get("artistic_embedding")
+            ),
+            "technical_embedding": serialize_embedding(
+                features.get("technical_embedding")
+            ),
+            "extracted_keywords": list(features.get("extracted_keywords", [])),
+            "keyword_scores": list(features.get("keyword_scores", [])),
+            "predicted_style": features.get("predicted_style"),
+            "style_confidence": features.get("style_confidence"),
+            "sentiment_label": features.get("sentiment_label"),
+            "sentiment_score": features.get("sentiment_score"),
+            "quality_score": features.get("quality_score"),
+            "popularity_score": features.get("popularity_score"),
+            "recency_score": features.get("recency_score"),
+            "compatibility_score": features.get("sd_compatibility_score"),
         }
-

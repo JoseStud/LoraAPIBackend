@@ -60,7 +60,9 @@ class ArchiveImportExecutor:
         validate: bool = True,
     ) -> ImportResult:
         """Load adapters from an archive into the database/storage backend."""
-        target_root = Path(target_directory) if target_directory else Path.cwd() / "loras"
+        target_root = (
+            Path(target_directory) if target_directory else Path.cwd() / "loras"
+        )
         if persist:
             target_root.mkdir(parents=True, exist_ok=True)
 
@@ -80,7 +82,9 @@ class ArchiveImportExecutor:
                 adapter_id = adapter_entry.get("id")
                 metadata_path = adapter_entry.get("metadata_path")
                 if not metadata_path:
-                    raise ValueError(f"Adapter entry {adapter_id!r} missing metadata_path")
+                    raise ValueError(
+                        f"Adapter entry {adapter_id!r} missing metadata_path"
+                    )
                 try:
                     metadata_bytes = archive.read(metadata_path)
                 except KeyError as exc:
@@ -88,7 +92,9 @@ class ArchiveImportExecutor:
                 try:
                     metadata_data = json.loads(metadata_bytes.decode("utf-8"))
                 except json.JSONDecodeError as exc:
-                    raise ValueError(f"Invalid metadata JSON for adapter {adapter_id}") from exc
+                    raise ValueError(
+                        f"Invalid metadata JSON for adapter {adapter_id}"
+                    ) from exc
                 payload = AdapterCreate.model_validate(metadata_data)
 
                 extracted: List[Tuple[Path, Dict[str, Any]]] = []
@@ -104,7 +110,9 @@ class ArchiveImportExecutor:
                     if not archive_path:
                         raise ValueError("Manifest file entry missing archive_path")
                     if validate and archive_path not in members:
-                        raise ValueError(f"Archive missing declared file: {archive_path}")
+                        raise ValueError(
+                            f"Archive missing declared file: {archive_path}"
+                        )
                     if not persist:
                         continue
                     dest = self._extract_member(
@@ -124,7 +132,9 @@ class ArchiveImportExecutor:
                     elif status == "updated":
                         updated += 1
                 adapter_results.append(
-                    ImportAdapterResult(id=adapter_id, name=payload.name, status=status),
+                    ImportAdapterResult(
+                        id=adapter_id, name=payload.name, status=status
+                    ),
                 )
 
         file_obj.seek(0)

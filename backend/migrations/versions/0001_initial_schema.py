@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlmodel.sql.sqltypes import AutoString
 
 # revision identifiers, used by Alembic.
@@ -146,8 +146,12 @@ def upgrade() -> None:
         sa.Column("feedback_reason", sa.Text(), nullable=True),
         sa.Column("implicit_signal", sa.Boolean(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(["recommended_lora_id"], ["adapter.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["session_id"], ["recommendationsession.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["recommended_lora_id"], ["adapter.id"], ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(
+            ["session_id"], ["recommendationsession.id"], ondelete="CASCADE"
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
 

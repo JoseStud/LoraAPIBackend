@@ -20,7 +20,7 @@ settings = get_settings()
 
 class FrontendError(Exception):
     """Represent the base exception for frontend errors."""
-    
+
     def __init__(
         self,
         message: str,
@@ -36,7 +36,7 @@ class FrontendError(Exception):
 
 class BackendConnectionError(FrontendError):
     """Represent an error when the backend is unreachable."""
-    
+
     def __init__(
         self,
         message: str = "Backend service unavailable",
@@ -48,7 +48,7 @@ class BackendConnectionError(FrontendError):
 
 class ValidationFailedError(FrontendError):
     """Represent an error for validation failures."""
-    
+
     def __init__(
         self,
         message: str = "Validation failed",
@@ -61,38 +61,38 @@ class ValidationFailedError(FrontendError):
 
 def format_validation_errors(validation_error: ValidationError) -> Dict[str, str]:
     """Format Pydantic validation errors for display.
-    
+
     Args:
         validation_error: Pydantic ValidationError instance
-        
+
     Returns:
         Dictionary mapping field names to error messages
 
     """
     formatted_errors = {}
-    
+
     for error in validation_error.errors():
-        field_path = '.'.join(str(loc) for loc in error['loc'])
-        error_msg = error['msg']
-        
+        field_path = ".".join(str(loc) for loc in error["loc"])
+        error_msg = error["msg"]
+
         # Make error messages more user-friendly
-        if error['type'] == 'value_error.missing':
+        if error["type"] == "value_error.missing":
             error_msg = "This field is required"
-        elif error['type'] == 'type_error.float':
+        elif error["type"] == "type_error.float":
             error_msg = "Must be a valid number"
-        elif error['type'] == 'type_error.integer':
+        elif error["type"] == "type_error.integer":
             error_msg = "Must be a valid integer"
-        elif error['type'] == 'value_error.number.not_gt':
-            limit = error.get('ctx', {}).get('limit_value', 0)
+        elif error["type"] == "value_error.number.not_gt":
+            limit = error.get("ctx", {}).get("limit_value", 0)
             error_msg = f"Must be greater than {limit}"
-        elif error['type'] == 'value_error.number.not_le':
-            limit = error.get('ctx', {}).get('limit_value', 1)
+        elif error["type"] == "value_error.number.not_le":
+            limit = error.get("ctx", {}).get("limit_value", 1)
             error_msg = f"Must be less than or equal to {limit}"
-        elif error['type'] == 'value_error.str.regex':
+        elif error["type"] == "value_error.str.regex":
             error_msg = "Invalid format"
-        
+
         formatted_errors[field_path] = error_msg
-    
+
     return formatted_errors
 
 
@@ -105,7 +105,7 @@ def render_error_fallback(
     status_code: int = 500,
 ) -> HTMLResponse:
     """Render error fallback template with consistent context.
-    
+
     Args:
         request: FastAPI Request object
         templates: Jinja2Templates instance
@@ -113,14 +113,14 @@ def render_error_fallback(
         error: Error message or exception
         fallback_data: Fallback data to include in template
         status_code: HTTP status code
-        
+
     Returns:
         HTMLResponse with error template
 
     """
     # Prepare error context
     error_message = str(error) if error else "An unexpected error occurred"
-    
+
     context = {
         "request": request,
         "error": error_message,
@@ -129,7 +129,7 @@ def render_error_fallback(
         "debug_mode": settings.debug_mode,
         **(fallback_data or {}),
     }
-    
+
     # Add additional context for specific error types
     if isinstance(error, FrontendError):
         context.update({
@@ -137,7 +137,7 @@ def render_error_fallback(
             "error_type": error.__class__.__name__,
         })
         status_code = error.status_code
-    
+
     # Log the error for observability
     logger.warning(
         f"Rendering error fallback for {template_name}",
@@ -148,7 +148,7 @@ def render_error_fallback(
             "path": str(request.url.path),
         },
     )
-    
+
     try:
         return templates.TemplateResponse(
             template_name,
@@ -178,46 +178,46 @@ def create_htmx_error_response(
     retarget: Optional[str] = None,
 ) -> HTMLResponse:
     """Create HTMX-compatible error response.
-    
+
     Args:
         request: FastAPI Request object
         templates: Jinja2Templates instance
         error: Error message or exception
         partial_template: Template for error partial
         retarget: HTMX retarget selector
-        
+
     Returns:
         HTMLResponse with HTMX headers and error partial
 
     """
     error_message = str(error) if error else "An error occurred"
-    
+
     context = {
         "request": request,
         "error": error_message,
         "is_htmx": True,
     }
-    
+
     # Add validation errors if available
     if isinstance(error, ValidationFailedError):
         context["validation_errors"] = error.details.get("validation_errors", {})
-    
+
     headers = {}
-    
+
     # Add HTMX response headers
     if retarget:
         headers["HX-Retarget"] = retarget
-    
+
     # Add error class to trigger styling
     headers["HX-Trigger-After-Swap"] = "errorOccurred"
-    
+
     try:
         # Determine status code based on error type
         if isinstance(error, FrontendError):
-            status_code = getattr(error, 'status_code', 500)
+            status_code = getattr(error, "status_code", 500)
         else:
             status_code = 500
-            
+
         return templates.TemplateResponse(
             partial_template,
             context,
@@ -238,37 +238,37 @@ def create_json_error_response(
     status_code: Optional[int] = None,
 ) -> JSONResponse:
     """Create JSON error response for API endpoints.
-    
+
     Args:
         error: Error message or exception
         status_code: HTTP status code (auto-detected for FrontendError)
-        
+
     Returns:
         JSONResponse with error details
 
     """
     error_message = str(error) if error else "An error occurred"
-    
+
     # Determine status code
     if status_code is None:
         if isinstance(error, FrontendError):
             status_code = error.status_code
         else:
             status_code = 500
-    
+
     response_data = {
         "error": True,
         "message": error_message,
         "status_code": status_code,
     }
-    
+
     # Add additional details for frontend errors
     if isinstance(error, FrontendError):
         response_data.update({
             "error_type": error.__class__.__name__,
             "details": error.details,
         })
-    
+
     return JSONResponse(
         content=response_data,
         status_code=status_code,
@@ -284,7 +284,7 @@ def handle_backend_error(
     fallback_data: Optional[Dict] = None,
 ) -> HTMLResponse:
     """Handle backend service errors with appropriate fallbacks.
-    
+
     Args:
         request: FastAPI Request object
         templates: Jinja2Templates instance
@@ -292,7 +292,7 @@ def handle_backend_error(
         backend_error: Backend error message
         template_name: Template to render with fallback
         fallback_data: Fallback data for template
-        
+
     Returns:
         HTMLResponse with fallback content
 
@@ -310,7 +310,7 @@ def handle_backend_error(
     else:
         error_message = f"Backend error: {backend_error}"
         status_code = 502
-    
+
     return render_error_fallback(
         request=request,
         templates=templates,
@@ -327,7 +327,7 @@ def log_error_with_context(
     level: str = "error",
 ) -> None:
     """Log error with additional context for debugging.
-    
+
     Args:
         error: Exception to log
         context: Additional context information
@@ -339,7 +339,7 @@ def log_error_with_context(
         "error_message": str(error),
         **context,
     }
-    
+
     log_method = getattr(logger, level, logger.error)
     log_method(
         f"{error.__class__.__name__}: {str(error)}",
@@ -356,17 +356,19 @@ def handle_route_errors(fallback_template: str, fallback_data: Optional[Dict] = 
         fallback_data: Default fallback data
 
     """
+
     def decorator(func):
         async def wrapper(request: Request, *args, **kwargs):
             try:
                 return await func(request, *args, **kwargs)
             except Exception as e:
                 # Get templates from function's module or create minimal one
-                templates = kwargs.get('templates')
+                templates = kwargs.get("templates")
                 if not templates:
                     from fastapi.templating import Jinja2Templates
+
                     templates = Jinja2Templates(directory="app/frontend/templates")
-                
+
                 log_error_with_context(
                     error=e,
                     context={
@@ -375,7 +377,7 @@ def handle_route_errors(fallback_template: str, fallback_data: Optional[Dict] = 
                         "method": request.method,
                     },
                 )
-                
+
                 return render_error_fallback(
                     request=request,
                     templates=templates,
@@ -383,6 +385,7 @@ def handle_route_errors(fallback_template: str, fallback_data: Optional[Dict] = 
                     error=e,
                     fallback_data=fallback_data,
                 )
-        
+
         return wrapper
+
     return decorator

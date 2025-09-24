@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 class WebSocketMessage(BaseModel):
     """Base WebSocket message structure."""
-    
+
     type: str
     timestamp: datetime
     data: Dict[str, Any]
@@ -16,7 +16,7 @@ class WebSocketMessage(BaseModel):
 
 class WebSocketSubscription(BaseModel):
     """WebSocket subscription request."""
-    
+
     type: str = "subscribe"
     job_ids: list[str] | None = None  # If None, subscribe to all
     include_previews: bool = False

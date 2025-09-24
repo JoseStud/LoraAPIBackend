@@ -26,6 +26,15 @@ class EmbeddingCoordinator:
         persistence_service: RecommendationPersistenceService,
         logger: Optional[logging.Logger] = None,
     ) -> None:
+        """Initialise the coordinator with embedding collaborators.
+
+        Args:
+            bootstrap: Bootstrap helper providing device and model loading.
+            embedding_workflow: Workflow implementation that performs embedding work.
+            persistence_service: Service responsible for persisting embedding artefacts.
+            logger: Optional logger for operational telemetry.
+
+        """
         self._logger = logger or logging.getLogger(__name__)
         self._bootstrap = bootstrap
         self._embedding_workflow = embedding_workflow

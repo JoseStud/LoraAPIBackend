@@ -18,12 +18,18 @@ def upgrade():
     """Apply index additions for adapters and user preferences."""
     op.create_index("idx_adapter_active", "adapter", ["active"], unique=False)
     op.create_index(
-        "idx_adapter_json_file_path", "adapter", ["json_file_path"], unique=False,
+        "idx_adapter_json_file_path",
+        "adapter",
+        ["json_file_path"],
+        unique=False,
     )
     op.create_index("idx_adapter_created_at", "adapter", ["created_at"], unique=False)
     op.create_index("idx_adapter_updated_at", "adapter", ["updated_at"], unique=False)
     op.create_index(
-        "idx_adapter_last_ingested_at", "adapter", ["last_ingested_at"], unique=False,
+        "idx_adapter_last_ingested_at",
+        "adapter",
+        ["last_ingested_at"],
+        unique=False,
     )
     op.create_index(
         "ix_userpreference_type_value",

@@ -86,8 +86,10 @@ class DeliveryHTTPClient:
             self._session = None
 
     async def __aenter__(self) -> "DeliveryHTTPClient":
+        """Open the HTTP session when entering the async context."""
         await self._get_session()
         return self
 
     async def __aexit__(self, *exc_info: Any) -> None:
+        """Close the HTTP session when leaving the async context."""
         await self.close()

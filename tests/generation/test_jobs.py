@@ -179,7 +179,9 @@ def test_delivery_runner_uses_requested_generation_backend(
             self.name = name
             self.calls = []
 
-        async def generate_image(self, prompt: str, params: Dict[str, Any]) -> SDNextGenerationResult:
+        async def generate_image(
+            self, prompt: str, params: Dict[str, Any]
+        ) -> SDNextGenerationResult:
             self.calls.append((prompt, params))
             return SDNextGenerationResult(job_id="generated", status="completed")
 
@@ -255,7 +257,9 @@ def test_compose_sdnext_uses_generation_coordinator(
     builder = get_service_container_builder().with_overrides(
         infrastructure=lambda factories: replace(
             factories,
-            generation_coordinator=lambda deliveries, websocket, generation: coordinator,
+            generation_coordinator=lambda deliveries,
+            websocket,
+            generation: coordinator,
         ),
     )
     services = builder.build(

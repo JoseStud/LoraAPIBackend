@@ -25,10 +25,14 @@ def upgrade():
                 sa.Boolean(),
                 nullable=False,
                 server_default=sa.false(),
-            )
+            ),
         )
-        batch_op.add_column(sa.Column("rating_updated_at", sa.DateTime(), nullable=True))
-        batch_op.add_column(sa.Column("favorite_updated_at", sa.DateTime(), nullable=True))
+        batch_op.add_column(
+            sa.Column("rating_updated_at", sa.DateTime(), nullable=True)
+        )
+        batch_op.add_column(
+            sa.Column("favorite_updated_at", sa.DateTime(), nullable=True)
+        )
 
     # Ensure the new boolean column defaults to False for existing rows.
     op.execute("UPDATE deliveryjob SET is_favorite = 0 WHERE is_favorite IS NULL")

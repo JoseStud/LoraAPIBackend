@@ -36,7 +36,9 @@ def test_execute_persists_adapter(tmp_path, db_session):
                         "original_name": weights.name,
                         "exists": True,
                         "size": weights.stat().st_size,
-                        "archive_path": "adapters/executor/files/0_executor.safetensors",
+                        "archive_path": (
+                            "adapters/executor/files/0_executor.safetensors"
+                        ),
                     },
                 ],
             },
@@ -50,7 +52,9 @@ def test_execute_persists_adapter(tmp_path, db_session):
     with zipfile.ZipFile(buffer, "w") as archive:
         archive.writestr("manifest.json", json.dumps(manifest))
         archive.writestr("adapters/executor/metadata.json", json.dumps(metadata))
-        archive.writestr("adapters/executor/files/0_executor.safetensors", weights.read_bytes())
+        archive.writestr(
+            "adapters/executor/files/0_executor.safetensors", weights.read_bytes()
+        )
     buffer.seek(0)
 
     executor, adapter_service, _ = _build_executor(db_session)

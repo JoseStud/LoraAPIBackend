@@ -11,7 +11,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Manages application settings loaded from the environment."""
 
-    model_config = SettingsConfigDict(env_prefix="", case_sensitive=False, extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="", case_sensitive=False, extra="ignore"
+    )
 
     REQUIRED_PRODUCTION_SETTINGS: ClassVar[Sequence[str]] = (
         "DATABASE_URL",
@@ -81,7 +83,9 @@ class Settings(BaseSettings):
 
         normalised = value.strip().lower()
         if normalised not in {"development", "production", "test"}:
-            raise ValueError("ENVIRONMENT must be one of: development, test, production")
+            raise ValueError(
+                "ENVIRONMENT must be one of: development, test, production"
+            )
         return normalised
 
     @model_validator(mode="after")

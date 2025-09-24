@@ -15,6 +15,7 @@ class StorageServiceFactory(Protocol):
     """Callable protocol for creating :class:`StorageService` instances."""
 
     def __call__(self, *, backend: Optional[StorageBackend] = None) -> StorageService:
+        """Create a :class:`StorageService` instance."""
         ...
 
 
@@ -28,6 +29,7 @@ class AdapterServiceFactory(Protocol):
         storage_service: StorageService,
         storage_backend: Optional[StorageBackend] = None,
     ) -> AdapterService:
+        """Create an :class:`AdapterService` instance."""
         ...
 
 
@@ -63,4 +65,3 @@ __all__ = [
     "make_adapter_service",
     "make_storage_service",
 ]
-

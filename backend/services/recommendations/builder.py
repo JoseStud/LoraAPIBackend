@@ -66,7 +66,9 @@ class RecommendationServiceBuilder:
         if self._similar_use_case is None:
             raise ValueError("similar_lora_use_case must be provided before build()")
         if self._prompt_use_case is None:
-            raise ValueError("prompt_recommendation_use_case must be provided before build()")
+            raise ValueError(
+                "prompt_recommendation_use_case must be provided before build()"
+            )
         if self._config is None:
             raise ValueError("config must be provided before build()")
 

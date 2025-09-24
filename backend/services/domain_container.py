@@ -38,7 +38,9 @@ class DomainServiceRegistry:
         compose_provider: ComposeServiceFactory = make_compose_service,
         generation_provider: GenerationServiceFactory = make_generation_service,
         analytics_provider: AnalyticsServiceFactory = make_analytics_service,
-        recommendation_provider: RecommendationServiceFactory = make_recommendation_service,
+        recommendation_provider: RecommendationServiceFactory = (
+            make_recommendation_service
+        ),
         recommendation_gpu_available: Optional[bool] = None,
     ) -> None:
         self._core = core
@@ -101,10 +103,13 @@ class DomainServiceRegistry:
     def recommendations(self) -> RecommendationService:
         """Return the recommendation service bound to the configured session."""
         if self.db_session is None:
-            raise ValueError("RecommendationService requires an active database session")
+            raise ValueError(
+                "RecommendationService requires an active database session"
+            )
         if self._recommendation_gpu_available is None:
             raise ValueError(
-                "RecommendationService requires an explicit recommendation_gpu_available flag",
+                "RecommendationService requires an explicit "
+                "recommendation_gpu_available flag",
             )
         if self._recommendation_service is None:
             self._recommendation_service = self._recommendation_provider(

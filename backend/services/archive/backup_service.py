@@ -124,4 +124,3 @@ class BackupService:
     def _format_backup_type(backup_type: str) -> str:
         normalized = backup_type.replace("_", " ").strip()
         return normalized.title() if normalized else "Backup"
-

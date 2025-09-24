@@ -16,7 +16,9 @@ EXPECTED_NORMALIZED_VALUES = {
 
 
 def test_normalized_status_enum_values_are_expected() -> None:
-    assert {status.value for status in NormalizedGenerationStatus} == EXPECTED_NORMALIZED_VALUES
+    assert {
+        status.value for status in NormalizedGenerationStatus
+    } == EXPECTED_NORMALIZED_VALUES
 
 
 @pytest.mark.parametrize(
@@ -36,7 +38,8 @@ def test_normalized_status_enum_values_are_expected() -> None:
     ],
 )
 def test_normalize_generation_status_matches_expected_values(
-    input_status: str | None, expected: str,
+    input_status: str | None,
+    expected: str,
 ) -> None:
     assert normalize_generation_status(input_status) == expected
 

@@ -38,10 +38,10 @@ def get_delivery(
 ):
     """Return the delivery job state for `delivery_id`."""
     dj = services.deliveries.get_job(delivery_id)
-    
+
     if not dj:
         raise HTTPException(status_code=404, detail="delivery not found")
-    
+
     # Convert to read model
     delivery_read = DeliveryRead(
         id=dj.id,
@@ -54,5 +54,5 @@ def get_delivery(
         started_at=dj.started_at,
         finished_at=dj.finished_at,
     )
-    
+
     return DeliveryWrapper(delivery=delivery_read)

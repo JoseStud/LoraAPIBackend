@@ -48,7 +48,9 @@ class DeliveryService:
         """Expose the active database session used by the repository."""
         return self._repository.session
 
-    def set_queue_orchestrator(self, orchestrator: Optional["QueueOrchestrator"]) -> None:
+    def set_queue_orchestrator(
+        self, orchestrator: Optional["QueueOrchestrator"]
+    ) -> None:
         """Configure or replace the queue orchestrator."""
         self._queue_orchestrator = orchestrator
 
@@ -137,7 +139,9 @@ class DeliveryService:
         """Parse and return job result as dict."""
         return self._repository.get_job_result(job)
 
-    def set_job_rating(self, job_id: str, rating: Optional[int]) -> Optional[DeliveryJob]:
+    def set_job_rating(
+        self, job_id: str, rating: Optional[int]
+    ) -> Optional[DeliveryJob]:
         """Update the stored rating for ``job_id``."""
         return self._repository.set_job_rating(job_id, rating)
 
@@ -196,7 +200,6 @@ class DeliveryService:
         spooled_file_max_size: int = 32 * 1024 * 1024,
     ) -> Optional[ResultArchive]:
         """Create a streaming archive for the specified results."""
-
         return self.result_manager.build_archive(
             job_ids,
             storage=storage,
@@ -215,7 +218,6 @@ class DeliveryService:
         chunk_size: int = 64 * 1024,
     ) -> Optional[ResultDownload]:
         """Prepare a download payload for the primary asset of ``job``."""
-
         return self.result_manager.build_download(
             job,
             storage=storage,
@@ -231,7 +233,6 @@ class DeliveryService:
         coordinator: Optional["GenerationCoordinator"] = None,
     ) -> List[str]:
         """Remove persisted files referenced by a job's result payload."""
-
         return self.result_manager.remove_assets(
             job,
             storage,

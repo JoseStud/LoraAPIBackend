@@ -38,19 +38,19 @@ def mock_storage_fixture(monkeypatch) -> MagicMock:
     both legacy and new storage systems to use the mock.
     """
     mock = MagicMock()
-    
+
     # The legacy compatibility modules have been removed
     # All mocking is now handled through the new app structure
-    
+
     # Create a mock storage backend
     mock_backend = MagicMock()
     mock_backend.file_exists.side_effect = lambda path: mock.exists(path)
-    
+
     # Create a mock storage service that uses our mock backend
     mock_storage_service = MagicMock()
     mock_storage_service.backend = mock_backend
     mock_storage_service.validate_file_path.side_effect = lambda path: mock.exists(path)
-    
+
     # Patch the default builder to reuse the mock storage service
     from backend.services import get_service_container_builder
 
@@ -61,7 +61,7 @@ def mock_storage_fixture(monkeypatch) -> MagicMock:
         "_storage",
         replace(builder._storage, storage=lambda: mock_storage_service),
     )
-    
+
     mock.storage_service = mock_storage_service
     return mock
 

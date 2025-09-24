@@ -31,10 +31,14 @@ class FileSystemImageStorage(ImageStorage):
     """Store generated images on the local filesystem."""
 
     def __init__(self, output_dir: Optional[str] = None) -> None:
+        """Initialise the storage backend.
+
+        Args:
+            output_dir: Directory where generated images should be written.
+
+        """
         self._output_dir = (
-            Path(output_dir)
-            if output_dir
-            else Path.cwd() / "generated_images"
+            Path(output_dir) if output_dir else Path.cwd() / "generated_images"
         )
 
     async def persist_images(
@@ -45,6 +49,7 @@ class FileSystemImageStorage(ImageStorage):
         save_images: bool,
         return_format: str,
     ) -> List[str]:
+        """Persist images to disk and return formatted representations."""
         processed: List[str] = []
 
         for index, img_b64 in enumerate(images):
@@ -73,6 +78,7 @@ class FileSystemImageStorage(ImageStorage):
         return processed
 
     async def save_image(self, img_b64: str, job_id: str, index: int) -> str:
+        """Write a base64 image to disk and return the file path."""
         output_path = self._output_dir
         output_path.mkdir(parents=True, exist_ok=True)
 

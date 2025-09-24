@@ -1,6 +1,5 @@
 """Router for SDNext generation endpoints."""
 
-import json
 from typing import Dict, List
 
 import structlog
@@ -18,13 +17,13 @@ from backend.schemas import (
     DeliveryCreateResponse,
     DeliveryRead,
     DeliveryWrapper,
-    GenerationCancelResponse,
     GenerationBulkDeleteRequest,
+    GenerationCancelResponse,
     GenerationExportRequest,
     GenerationJobStatus,
-    GenerationResultSummary,
     GenerationMode,
     GenerationResultFormat,
+    GenerationResultSummary,
     SDNextGenerationParams,
     SDNextGenerationResult,
 )
@@ -51,7 +50,6 @@ async def _execute_generation_request(
     application: ApplicationServices,
 ) -> SDNextGenerationResult:
     """Validate and orchestrate a generation request."""
-
     warnings = await domain.generation.validate_generation_params(generation_params)
     if warnings:
         logger.warning(
@@ -87,6 +85,7 @@ async def _execute_generation_request(
 async def list_generation_backends():
     """List available generation backends and their status."""
     from backend.delivery.base import delivery_registry
+
     backends_info = delivery_registry.list_available_backends()
     return backends_info.get("generation", {})
 
@@ -109,6 +108,8 @@ async def generate_image(
         mode: Generation mode ("immediate" or "deferred")
         save_images: Whether to save generated images
         return_format: Return format ("base64", "file_path", "url")
+        domain: Domain service container providing adapter access
+        application: Application service container orchestrating deliveries
 
     """
     return await _execute_generation_request(
@@ -130,9 +131,11 @@ async def check_generation_progress(
     """Check the progress of a generation job."""
     try:
         generation_backend = get_generation_backend(backend)
-    except ValueError:
-        raise HTTPException(status_code=404, detail=f"Backend '{backend}' not found")
-    
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=404, detail=f"Backend '{backend}' not found"
+        ) from exc
+
     result = await generation_backend.check_progress(job_id)
     normalized_status = normalize_generation_status(result.status)
     if normalized_status != result.status:
@@ -152,7 +155,7 @@ async def compose_and_generate(
     application: ApplicationServices = Depends(get_application_services),
 ):
     """Compose LoRA prompt and immediately generate images.
-    
+
     This endpoint combines the compose and generate operations for convenience.
     """
     # Step 1: Compose prompt via shared helper
@@ -173,7 +176,9 @@ async def compose_and_generate(
             mode=mode.value,
         )
 
-    composed_params = generation_params.model_copy(update={"prompt": composition.prompt})
+    composed_params = generation_params.model_copy(
+        update={"prompt": composition.prompt}
+    )
 
     return await _execute_generation_request(
         generation_params=composed_params,
@@ -198,7 +203,7 @@ async def queue_generation_job(
     application: ApplicationServices = Depends(get_application_services),
 ):
     """Queue a generation job for background processing.
-    
+
     This creates a delivery job that will be processed by a worker.
     """
     coordinator = application.generation_coordinator
@@ -213,7 +218,7 @@ async def queue_generation_job(
     )
 
     await coordinator.broadcast_job_started(job.id, generation_params)
-    
+
     return DeliveryCreateResponse(delivery_id=job.id)
 
 
@@ -235,10 +240,7 @@ async def list_active_generation_jobs(
         reverse=True,
     )
 
-    return [
-        build_active_job(job, coordinator)
-        for job in ordered_jobs[:limit]
-    ]
+    return [build_active_job(job, coordinator) for job in ordered_jobs[:limit]]
 
 
 @router.get("/jobs/{job_id}", response_model=DeliveryWrapper)
@@ -283,12 +285,18 @@ async def cancel_generation_job(
         raise HTTPException(status_code=404, detail="Job not found")
 
     if job.status not in CANCELLABLE_STATUSES:
-        raise HTTPException(status_code=400, detail="Job cannot be cancelled in its current state")
+        raise HTTPException(
+            status_code=400, detail="Job cannot be cancelled in its current state"
+        )
 
-    services.deliveries.update_job_status(job_id, "cancelled", result={"status": "cancelled"})
+    services.deliveries.update_job_status(
+        job_id, "cancelled", result={"status": "cancelled"}
+    )
     services.websocket.stop_job_monitoring(job_id)
 
-    return GenerationCancelResponse(status="cancelled", message="Generation job cancelled")
+    return GenerationCancelResponse(
+        status="cancelled", message="Generation job cancelled"
+    )
 
 
 @router.get("/results", response_model=List[GenerationResultSummary])
@@ -360,7 +368,9 @@ async def export_generation_results(
         "Content-Length": str(archive.size),
     }
 
-    return StreamingResponse(archive.iterator, media_type="application/zip", headers=headers)
+    return StreamingResponse(
+        archive.iterator, media_type="application/zip", headers=headers
+    )
 
 
 @router.get("/results/{result_id}/download")
@@ -388,4 +398,6 @@ async def download_generation_result(
     if payload.size is not None:
         headers["Content-Length"] = str(payload.size)
 
-    return StreamingResponse(payload.iterator, media_type=payload.content_type, headers=headers)
+    return StreamingResponse(
+        payload.iterator, media_type=payload.content_type, headers=headers
+    )

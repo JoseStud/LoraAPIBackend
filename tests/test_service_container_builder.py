@@ -15,7 +15,7 @@ def test_service_container_builder_gpu_cache_invalidation() -> None:
 
     builder = ServiceContainerBuilder(
         queue_orchestrator_factory=lambda: QueueOrchestrator(
-            fallback_backend=BackgroundTaskQueueBackend(lambda _: None)
+            fallback_backend=BackgroundTaskQueueBackend(lambda _: None),
         ),
         recommendation_gpu_detector=detector,
     )
@@ -30,14 +30,18 @@ def test_service_container_builder_gpu_cache_invalidation() -> None:
 def test_service_container_builder_resets_cached_orchestrator() -> None:
     class RecordingQueueOrchestrator(QueueOrchestrator):
         def __init__(self) -> None:
-            super().__init__(fallback_backend=BackgroundTaskQueueBackend(lambda _: None))
+            super().__init__(
+                fallback_backend=BackgroundTaskQueueBackend(lambda _: None)
+            )
             self.reset_calls = 0
 
         def reset(self) -> None:
             self.reset_calls += 1
             super().reset()
 
-    builder = ServiceContainerBuilder(queue_orchestrator_factory=RecordingQueueOrchestrator)
+    builder = ServiceContainerBuilder(
+        queue_orchestrator_factory=RecordingQueueOrchestrator
+    )
 
     first = builder._get_queue_orchestrator()
     assert isinstance(first, RecordingQueueOrchestrator)

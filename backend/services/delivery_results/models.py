@@ -19,7 +19,6 @@ class ResultAsset:
 
     def iter_bytes(self, chunk_size: int = 64 * 1024) -> Iterator[bytes]:
         """Yield file content as chunks or a single in-memory blob."""
-
         if self.path:
             path = Path(self.path)
             with path.open("rb") as stream:

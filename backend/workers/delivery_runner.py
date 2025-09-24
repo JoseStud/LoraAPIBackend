@@ -78,7 +78,9 @@ class DeliveryRunner:
 
         try:
             result_payload = await self._execute_delivery_backend(prompt, mode, params)
-            status = "succeeded" if self._is_successful_result(result_payload) else "failed"
+            status = (
+                "succeeded" if self._is_successful_result(result_payload) else "failed"
+            )
         except Exception as exc:  # pragma: no cover - defensive branch
             error = exc
             result_payload = {"error": str(exc)}
@@ -154,4 +156,3 @@ class DeliveryRunner:
     def _is_successful_result(result: Dict[str, Any]) -> bool:
         status = result.get("status")
         return status in _SUCCESS_STATUSES
-

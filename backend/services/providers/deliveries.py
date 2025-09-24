@@ -19,6 +19,7 @@ class DeliveryServiceFactory(Protocol):
         *,
         queue_orchestrator: QueueOrchestrator,
     ) -> DeliveryService:
+        """Create a :class:`DeliveryService` instance."""
         ...
 
 
@@ -27,7 +28,7 @@ def make_delivery_service(
     *,
     queue_orchestrator: QueueOrchestrator,
 ) -> DeliveryService:
-    """Create a :class:`DeliveryService` with explicit repository and queue orchestrator."""
+    """Create a :class:`DeliveryService` with a repository and queue orchestrator."""
     return DeliveryService(repository, queue_orchestrator=queue_orchestrator)
 
 
@@ -43,4 +44,3 @@ __all__ = [
     "DeliveryServiceFactory",
     "make_delivery_service",
 ]
-

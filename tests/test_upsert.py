@@ -67,6 +67,7 @@ def test_zero_weight_preserved_on_save_and_update(db_session, mock_storage):
     updated = svc.upsert_adapter(payload_zero)
     assert updated.weight == 0.0
 
+
 def test_duplicate_save_raises_integrity_error(db_session, mock_storage):
     """Direct save_adapter should raise IntegrityError when duplicate exists.
 

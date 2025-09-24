@@ -126,11 +126,15 @@ class AdapterService:
         hours: int = 24,
     ) -> int:
         """Return number of adapters ingested within the recent window."""
-        return statistics_count_recent_imports(self.db_session, since=since, hours=hours)
+        return statistics_count_recent_imports(
+            self.db_session, since=since, hours=hours
+        )
 
     def get_dashboard_statistics(self, *, recent_hours: int = 24) -> Dict[str, int]:
         """Return aggregate statistics used by the dashboard view."""
-        return statistics_get_dashboard_statistics(self.db_session, recent_hours=recent_hours)
+        return statistics_get_dashboard_statistics(
+            self.db_session, recent_hours=recent_hours
+        )
 
     def get_featured_adapters(self, limit: int = 5) -> List[Adapter]:
         """Return a list of adapters to highlight on the dashboard."""
@@ -198,9 +202,14 @@ class AdapterService:
             self.db_session.commit()
         return True
 
-    def activate_adapter(self, adapter_id: str, ordinal: Optional[int] = None) -> Optional[Adapter]:
+    def activate_adapter(
+        self, adapter_id: str, ordinal: Optional[int] = None
+    ) -> Optional[Adapter]:
         """Activate an adapter and optionally set its ordinal."""
-        updates: Dict[str, Any] = {"active": True, "updated_at": datetime.now(timezone.utc)}
+        updates: Dict[str, Any] = {
+            "active": True,
+            "updated_at": datetime.now(timezone.utc),
+        }
         if ordinal is not None:
             updates["ordinal"] = ordinal
 
@@ -288,7 +297,8 @@ class AdapterService:
             if field not in self.PATCHABLE_FIELDS:
                 allowed = ", ".join(sorted(self.PATCHABLE_FIELDS))
                 raise ValueError(
-                    f"Field '{field}' is not allowed to be modified. Allowed fields: {allowed}",
+                    f"Field '{field}' is not allowed to be modified. "
+                    f"Allowed fields: {allowed}",
                 )
 
             if field == "weight" and not isinstance(value, (int, float)):

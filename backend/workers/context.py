@@ -64,7 +64,9 @@ class WorkerContext:
 
         self.queue_backend = queue_backend
         self.fallback_queue_backend = fallback
-        self.primary_queue_backend = primary if isinstance(primary, RedisQueueBackend) else None
+        self.primary_queue_backend = (
+            primary if isinstance(primary, RedisQueueBackend) else None
+        )
         self.queue_orchestrator = queue_orchestrator
         self.delivery_runner = delivery_runner or DeliveryRunner(delivery_registry)
         self.recommendation_gpu_available = (
@@ -122,4 +124,3 @@ class WorkerContext:
             analytics_repository=analytics_repository,
             recommendation_gpu_available=self.recommendation_gpu_available,
         )
-

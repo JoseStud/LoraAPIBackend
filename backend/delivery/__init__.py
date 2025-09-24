@@ -16,7 +16,7 @@ def initialize_delivery_system() -> None:
     # Register delivery backends
     delivery_registry.register_delivery_backend("http", HTTPDeliveryBackend())
     delivery_registry.register_delivery_backend("cli", CLIDeliveryBackend())
-    
+
     # Register generation backends
     http_client = DeliveryHTTPClient(
         settings.SDNEXT_BASE_URL,
@@ -37,13 +37,13 @@ def initialize_delivery_system() -> None:
 
 def get_delivery_backend(name: str) -> DeliveryBackend:
     """Get a delivery backend by name.
-    
+
     Args:
         name: Backend name
-        
+
     Returns:
         Backend instance
-        
+
     Raises:
         ValueError: If backend not found
 
@@ -56,13 +56,13 @@ def get_delivery_backend(name: str) -> DeliveryBackend:
 
 def get_generation_backend(name: str) -> GenerationBackend:
     """Get a generation backend by name.
-    
+
     Args:
         name: Backend name
-        
+
     Returns:
         Backend instance
-        
+
     Raises:
         ValueError: If backend not found
 

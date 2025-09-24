@@ -63,9 +63,7 @@ def _apply_payload_updates(adapter: Adapter, payload: AdapterCreate) -> None:
     adapter.file_path = payload.file_path or adapter.file_path
     if payload.weight is not None:
         adapter.weight = payload.weight
-    adapter.active = (
-        payload.active if payload.active is not None else adapter.active
-    )
+    adapter.active = payload.active if payload.active is not None else adapter.active
     adapter.ordinal = (
         payload.ordinal if payload.ordinal is not None else adapter.ordinal
     )
@@ -97,9 +95,7 @@ def _apply_payload_updates(adapter: Adapter, payload: AdapterCreate) -> None:
     adapter.json_file_path = payload.json_file_path or adapter.json_file_path
     adapter.json_file_mtime = payload.json_file_mtime or adapter.json_file_mtime
     adapter.json_file_size = payload.json_file_size or adapter.json_file_size
-    adapter.last_ingested_at = (
-        payload.last_ingested_at or adapter.last_ingested_at
-    )
+    adapter.last_ingested_at = payload.last_ingested_at or adapter.last_ingested_at
 
 
 def upsert_adapter(db_session: Session, payload: AdapterCreate) -> Adapter:

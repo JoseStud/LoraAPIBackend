@@ -23,6 +23,7 @@ class ArchiveServiceFactory(Protocol):
         chunk_size: int = 64 * 1024,
         spooled_file_max_size: int = 32 * 1024 * 1024,
     ) -> ArchiveService:
+        """Create an :class:`ArchiveService` instance."""
         ...
 
 
@@ -35,7 +36,7 @@ def make_archive_service(
     chunk_size: int = 64 * 1024,
     spooled_file_max_size: int = 32 * 1024 * 1024,
 ) -> ArchiveService:
-    """Create an :class:`ArchiveService` wired with planner and executor collaborators."""
+    """Create an :class:`ArchiveService` with planner and executor collaborators."""
     return ArchiveService(
         adapter_service,
         storage_service,
@@ -58,4 +59,3 @@ __all__ = [
     "ArchiveServiceFactory",
     "make_archive_service",
 ]
-

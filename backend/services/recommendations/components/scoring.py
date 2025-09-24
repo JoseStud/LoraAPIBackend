@@ -53,9 +53,13 @@ class ScoreCalculator(ScoreCalculatorProtocol):
             "recency_score": self._recency_score(getattr(lora, "published_at", None)),
             "maturity_score": self._maturity_score(getattr(lora, "created_at", None)),
             "nsfw_level_normalized": (
-                getattr(lora, "nsfw_level", 0) / 10.0 if getattr(lora, "nsfw_level", None) else 0.0
+                getattr(lora, "nsfw_level", 0) / 10.0
+                if getattr(lora, "nsfw_level", None)
+                else 0.0
             ),
-            "supports_generation": float(bool(getattr(lora, "supports_generation", False))),
+            "supports_generation": float(
+                bool(getattr(lora, "supports_generation", False))
+            ),
             "sd_compatibility_score": self._sd_compatibility(sd_version),
             "user_activation_frequency": 0.0,
             "user_success_rate": 0.5,
@@ -177,4 +181,3 @@ class ScoreCalculator(ScoreCalculatorProtocol):
 
 
 __all__ = ["ScoreCalculator", "ScoreCalculatorProtocol"]
-
