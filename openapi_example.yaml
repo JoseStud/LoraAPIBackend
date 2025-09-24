@@ -1600,7 +1600,7 @@
     "/v1/recommendations/similar/{lora_id}": {
       "get": {
         "summary": "Get Similar Loras",
-        "description": "Get LoRAs similar to the specified LoRA.\n\nArgs:\n    lora_id: ID of the target LoRA\n    limit: Maximum number of recommendations to return\n    similarity_threshold: Minimum similarity score (0.0 to 1.0)\n    diversify_results: Whether to diversify results by different criteria\n    weights: Custom weights for similarity components\n        (semantic, artistic, technical)\n    services: Domain service container that provides recommendation logic\n\nReturns:\n    List of similar LoRA recommendations with similarity scores and explanations",
+        "description": "Get LoRAs similar to the specified LoRA. The recommendation engine ignores adapter description text; the field is preserved strictly for presentation.\n\nArgs:\n    lora_id: ID of the target LoRA\n    limit: Maximum number of recommendations to return\n    similarity_threshold: Minimum similarity score (0.0 to 1.0)\n    diversify_results: Whether to diversify results by different criteria\n    weights: Custom weights for similarity components\n        (semantic, artistic, technical)\n    services: Domain service container that provides recommendation logic\n\nReturns:\n    List of similar LoRA recommendations with similarity scores and explanations",
         "operationId": "get_similar_loras_v1_recommendations_similar__lora_id__get",
         "security": [
           {
@@ -1699,7 +1699,7 @@
     "/v1/recommendations/for-prompt": {
       "post": {
         "summary": "Get Recommendations For Prompt",
-        "description": "Get LoRA recommendations that would enhance a given prompt.\n\nArgs:\n    request: Prompt recommendation request with prompt text and preferences\n    services: Domain service container that provides recommendation logic\n\nReturns:\n    List of LoRA recommendations optimized for the given prompt",
+        "description": "Get LoRA recommendations that would enhance a given prompt. Adapter descriptions are ignored during embedding and ranking and remain available only for client display.\n\nArgs:\n    request: Prompt recommendation request with prompt text and preferences\n    services: Domain service container that provides recommendation logic\n\nReturns:\n    List of LoRA recommendations optimized for the given prompt",
         "operationId": "get_recommendations_for_prompt_v1_recommendations_for_prompt_post",
         "requestBody": {
           "content": {

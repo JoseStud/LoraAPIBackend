@@ -8,12 +8,19 @@ The system uses a multi-stage, GPU-accelerated pipeline to generate, analyze, an
 
 > **Reality check:** The live codebase only implements a subset of this plan. The `RecommendationService` stubs out many of these steps and requires manual model setup; production performance numbers listed here are design targets rather than measured results.【F:backend/services/recommendations/service.py†L1-L119】
 
+> **2025 production update:** The recommendation runtime no longer consumes
+> `lora.description` when preparing embeddings or calculating scores. The
+> field is retained strictly for UI presentation. Weighting across the
+> semantic, artistic, and technical embeddings has also been re-tuned to
+> **0.5 / 0.35 / 0.15** respectively to reflect the post-description feature
+> mix.【F:backend/services/recommendations/config.py†L12-L17】
+
 ---
 
 ## 2. Core Goals
 
 -   **Intelligent Discovery**: Suggest relevant LoRAs that the user might not have considered.
--   **Semantic Understanding**: Use Natural Language Processing (NLP) to understand the content and purpose of each LoRA from its metadata (description, tags, trained words).
+-   **Semantic Understanding**: Use Natural Language Processing (NLP) to understand the content and purpose of each LoRA from its actionable metadata (trained words, triggers, activation text, tags).
 -   **Multi-Modal Similarity**: Recommendations are based on a combination of:
     -   **Semantic Similarity**: What the LoRA is about (e.g., "character", "sci-fi").
     -   **Artistic Similarity**: The style and aesthetic (e.g., "anime", "photorealistic").
@@ -34,7 +41,7 @@ The recommendation engine is built on a three-stage pipeline:
 
 To capture different aspects of a LoRA, we use a multi-modal embedding approach. Different models are used to generate embeddings for semantic content, artistic style, and technical attributes.
 
--   **Primary Semantic Model**: `all-mpnet-base-v2` - Excellent for understanding the core concepts in descriptions and tags.
+-   **Primary Semantic Model**: `all-mpnet-base-v2` - Excellent for understanding the core concepts in trigger phrases, activation text, and tags after the description signal was deprecated.
 -   **Artistic Style Model**: `all-MiniLM-L12-v2` - Captures stylistic nuances.
 -   **Technical Model**: `paraphrase-mpnet-base-v2` - Analyzes technical details and compatibility.
 
@@ -185,20 +192,15 @@ The recommendation engine is exposed through a set of REST API endpoints in `bac
         
         # Semantic representation - comprehensive content understanding
         semantic_components = []
-        if lora.description:
-            semantic_components.append(f"Description: {lora.description}")
         if lora.trained_words:
             semantic_components.append(f"Trained on: {', '.join(lora.trained_words)}")
         if lora.triggers:
             semantic_components.append(f"Triggers: {', '.join(lora.triggers)}")
         if lora.activation_text:
             semantic_components.append(f"Activation: {lora.activation_text}")
-        
+
         # Artistic representation - style and aesthetic focus
         artistic_components = []
-        if lora.description:
-            # Extract style-related keywords using regex/NLP
-            artistic_components.append(self._extract_artistic_terms(lora.description))
         if lora.tags:
             # Filter for art/style related tags
             art_tags = [tag for tag in lora.tags if self._is_artistic_tag(tag)]
@@ -325,32 +327,10 @@ class GPULoRAFeatureExtractor:
             'technical_embedding': embeddings['technical']
         })
         
-        # Advanced keyword extraction
-        if lora.description:
-            keywords = self.keyword_extractor.extract_keywords(
-                lora.description,
-                keyphrase_ngram_range=(1, 3),
-                stop_words='english',
-                top_k=10
-            )
-            features['extracted_keywords'] = [kw[0] for kw in keywords]
-            features['keyword_scores'] = [kw[1] for kw in keywords]
-        
-        # Sentiment and emotional tone analysis
-        if lora.description:
-            sentiment = self.sentiment_analyzer(lora.description[:512])  # Truncate for model limits
-            features['sentiment_label'] = sentiment[0]['label']
-            features['sentiment_score'] = sentiment[0]['score']
-        
-        # Art style classification
-        if lora.description:
-            art_styles = [
-                "anime", "realistic", "cartoon", "abstract", "photographic",
-                "digital art", "painting", "sketch", "3D render", "pixel art"
-            ]
-            style_result = self.style_classifier(lora.description[:512], art_styles)
-            features['predicted_style'] = style_result['labels'][0]
-            features['style_confidence'] = style_result['scores'][0]
+        # Keyword, sentiment, and art style analyzers were removed when
+        # ``lora.description`` stopped contributing to recommendations.
+        # The field now passes straight through to the UI layer without
+        # touching the embedding or scoring stack.
         
         # Enhanced categorical features
         features.update({
@@ -555,10 +535,9 @@ class LoRARecommendationEngine:
         explanations = []
         
         # Content similarity
-        if target.description and candidate.description:
-            common_keywords = self._find_common_keywords(target.description, candidate.description)
-            if common_keywords:
-                explanations.append(f"Similar content: {', '.join(common_keywords[:3])}")
+        # Description-driven keyword explanations were deprecated alongside the
+        # description signal removal. Only tags and technical attributes
+        # contribute to explanations today.
         
         # Tag similarity
         if target.tags and candidate.tags:
@@ -823,6 +802,22 @@ class VRAMManager:
 - **Quality:** 95%+ of full-precision accuracy with FP16
 
 This configuration provides the optimal balance of quality, speed, and memory efficiency for an 8GB VRAM setup while maintaining production-ready performance.
+
+### **Staged Deployment & Cleanup Checklist (2025 refresh):**
+
+1. **Staging dry-run** – Deploy the recomputed embeddings and refreshed
+   services to staging, capturing runtime, VRAM usage, and index rebuild
+   duration. Validate recommendation quality against the baseline metrics
+   before proceeding.
+2. **Production rollout** – Promote the validated build, then monitor API error
+   rates, latency, and downstream engagement metrics (click-through, prompt
+   adoption) to ensure the description removal and new weights do not regress
+   quality.
+3. **Post-release cleanup (optional)** – Once the UI confirms it no longer
+   displays adapter descriptions, schedule the database migration that drops
+   the column and remove the `description` attribute from
+   `backend/models/adapters.py`. Communicate the change through release notes
+   for API consumers.
 
 ### **Alternative High-Performance Models for 8GB VRAM:**
 
