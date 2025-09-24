@@ -120,6 +120,7 @@ services:
       SDNEXT_POLL_INTERVAL: "2"        # Slightly slower polling for ROCm
       # Your specific setup
       LORA_DIRECTORY: "/app/loras"
+      HSA_OVERRIDE_GFX_VERSION: "10.3.0"
       # Development settings
       API_KEY: "dev-api-key-123"       # Fixed API key for development
     depends_on:
@@ -135,7 +136,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-      HSA_OVERRIDE_GFX_VERSION: "10.3.0"
+      
   worker:
     build:
       context: ../../
