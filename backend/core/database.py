@@ -7,7 +7,7 @@ can override the backend database (sqlite for local runs, Postgres in CI).
 from typing import Optional
 
 from sqlalchemy.pool import NullPool
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, create_engine
 
 from backend.core.config import settings
 
@@ -42,8 +42,10 @@ else:
 
 
 def init_db():
-    """Create database tables from SQLModel metadata."""
-    SQLModel.metadata.create_all(ENGINE)
+    """Ensure database migrations are applied for the configured engine."""
+    from backend.core import migrations as migration_module
+
+    migration_module.run_database_migrations()
 
 
 def get_session():

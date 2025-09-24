@@ -6,6 +6,13 @@ import { ApiError } from '@/types';
 export type { ApiResponseMeta } from '@/types';
 export { ApiError } from '@/types';
 
+const isAbortError = (error: unknown): boolean => {
+  if (typeof DOMException !== 'undefined' && error instanceof DOMException) {
+    return error.name === 'AbortError';
+  }
+  return error instanceof Error && error.name === 'AbortError';
+};
+
 export function useApi<T = unknown, TError = unknown>(
   url: MaybeRefOrGetter<string>,
   defaultOptions: RequestInit = {},
@@ -15,6 +22,7 @@ export function useApi<T = unknown, TError = unknown>(
   const isLoading = ref(false);
   const lastResponse = ref<ApiResponseMeta | null>(null);
   const activeRequestId = ref(0);
+  const activeController = ref<AbortController | null>(null);
 
   const applyState = (
     requestId: number,
@@ -122,6 +130,13 @@ export function useApi<T = unknown, TError = unknown>(
     }
   };
 
+  const cancelActiveRequest = () => {
+    if (activeController.value) {
+      activeController.value.abort();
+      activeController.value = null;
+    }
+  };
+
   const fetchData = async (init: RequestInit = {}) => {
     const targetUrl = resolveUrl();
     if (!targetUrl) {
@@ -134,8 +149,18 @@ export function useApi<T = unknown, TError = unknown>(
     isLoading.value = true;
     error.value = null;
 
+    const controller = new AbortController();
+    cancelActiveRequest();
+    activeController.value = controller;
+
     try {
-      const response = await fetch(targetUrl, { credentials: 'same-origin', ...defaultOptions, ...init });
+      const signal = init.signal ?? defaultOptions.signal ?? controller.signal;
+      const response = await fetch(targetUrl, {
+        credentials: 'same-origin',
+        ...defaultOptions,
+        ...init,
+        signal,
+      });
       const metaInfo: ApiResponseMeta = {
         ok: response.ok,
         status: response.status,
@@ -162,6 +187,9 @@ export function useApi<T = unknown, TError = unknown>(
       applyState(requestId, { data: (payload as T | null) ?? null, error: null, meta: metaInfo });
       return data.value;
     } catch (err) {
+      if (isAbortError(err)) {
+        return data.value;
+      }
       if (!(err instanceof ApiError)) {
         const fallbackMeta: ApiResponseMeta = {
           ok: false,
@@ -174,12 +202,15 @@ export function useApi<T = unknown, TError = unknown>(
       throw err;
     } finally {
       if (requestId === activeRequestId.value) {
+        if (activeController.value === controller) {
+          activeController.value = null;
+        }
         isLoading.value = false;
       }
     }
   };
 
-  return { data, error, isLoading, fetchData, lastResponse };
+  return { data, error, isLoading, fetchData, lastResponse, cancelActiveRequest };
 }
 
 export type UseApiReturn<T, TError = unknown> = ReturnType<typeof useApi<T, TError>>;

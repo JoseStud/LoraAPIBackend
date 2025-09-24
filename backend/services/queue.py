@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable, Optional, Tuple, Type
 
 from fastapi import BackgroundTasks
 
@@ -52,6 +52,51 @@ class RedisQueueBackend(QueueBackend):
             self._queue = Queue(self.queue_name, connection=redis_conn)
         return self._queue
 
+    def _reset_queue(self) -> None:
+        """Clear the cached queue reference and close its connection if needed."""
+        if self._queue is not None:
+            connection = getattr(self._queue, "connection", None)
+            close = getattr(connection, "close", None)
+            if callable(close):  # pragma: no cover - defensive guard
+                try:
+                    close()
+                except Exception:
+                    # Closing a broken connection should never surface to callers.
+                    pass
+        self._queue = None
+
+    def reset(self) -> None:
+        """Public helper to reset the cached Redis queue instance."""
+        self._reset_queue()
+
+    def _is_connection_error(self, exc: Exception) -> bool:
+        """Return ``True`` when ``exc`` represents a Redis connection failure."""
+
+        error_types: list[Type[BaseException]] = []
+        try:  # pragma: no cover - import guarded for optional dependency
+            from redis.exceptions import RedisError
+        except Exception:  # pragma: no cover - optional dependency guard
+            RedisError = None
+        else:
+            error_types.append(RedisError)
+
+        try:  # pragma: no cover - optional dependency guard
+            from rq.exceptions import NoRedisConnectionError
+        except Exception:  # pragma: no cover
+            NoRedisConnectionError = None
+        else:
+            error_types.append(NoRedisConnectionError)
+
+        if not error_types:
+            return False
+
+        error_tuple = tuple(error_types)
+        if isinstance(exc, error_tuple):
+            return True
+        if exc.__cause__ is not None and isinstance(exc.__cause__, error_tuple):
+            return True
+        return False
+
     @property
     def queue(self):
         """Expose the underlying RQ queue instance."""
@@ -65,7 +110,17 @@ class RedisQueueBackend(QueueBackend):
         **enqueue_kwargs: Any,
     ) -> Any:
         queue = self._get_queue()
-        return queue.enqueue(self.task_name, job_id, **enqueue_kwargs)
+        try:
+            return queue.enqueue(self.task_name, job_id, **enqueue_kwargs)
+        except Exception as exc:
+            if not self._is_connection_error(exc):
+                raise
+
+            # Reset the cached queue and retry once to transparently recover
+            # from Redis restarts or transient network failures.
+            self._reset_queue()
+            queue = self._get_queue()
+            return queue.enqueue(self.task_name, job_id, **enqueue_kwargs)
 
 
 class BackgroundTaskQueueBackend(QueueBackend):
@@ -74,10 +129,27 @@ class BackgroundTaskQueueBackend(QueueBackend):
     def __init__(self, runner: Callable[[str], Any]) -> None:
         self._runner = runner
 
+    @staticmethod
+    async def _consume_coroutine(coro):
+        return await coro
+
     def _execute(self, job_id: str) -> None:
         result = self._runner(job_id)
         if asyncio.iscoroutine(result):
-            asyncio.run(result)
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                try:
+                    from anyio import from_thread
+
+                    from_thread.run(self._consume_coroutine, result)
+                    return
+                except RuntimeError:
+                    import anyio
+
+                    anyio.run(self._consume_coroutine, result)
+                    return
+            loop.create_task(result)
 
     def enqueue_delivery(
         self,
@@ -150,9 +222,9 @@ class QueueOrchestrator:
                 background_tasks=background_tasks,
                 **enqueue_kwargs,
             )
-        except Exception:
+        except Exception as fallback_exc:
             if last_error is not None:
-                raise last_error
+                raise last_error from fallback_exc
             raise
 
     def get_delivery_runner(self) -> DeliveryRunner:
@@ -163,6 +235,8 @@ class QueueOrchestrator:
 
     def reset(self) -> None:
         """Reset cached queue instances (used primarily by tests)."""
+        if isinstance(self._primary_backend, RedisQueueBackend):
+            self._primary_backend.reset()
         self._primary_backend = self._initial_primary
         self._fallback_backend = self._initial_fallback
         self._delivery_runner = None

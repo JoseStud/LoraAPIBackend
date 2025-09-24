@@ -38,6 +38,8 @@ export const useGenerationHistory = ({
   const hasMore = ref(true);
   const currentPage = ref(1);
   const pageSize = ref(initialPageSize);
+  const activeRequestKey = ref(0);
+  let pendingController: AbortController | null = null;
 
   const searchTerm = ref('');
   const sortBy = ref<HistorySortOption>('created_at');
@@ -52,14 +54,46 @@ export const useGenerationHistory = ({
     total_size: 0,
   });
 
-  const calculateStats = (): void => {
+  const isAbortError = (err: unknown): boolean => {
+    if (typeof DOMException !== 'undefined' && err instanceof DOMException) {
+      return err.name === 'AbortError';
+    }
+    return err instanceof Error && err.name === 'AbortError';
+  };
+
+  const cancelPendingRequest = (): void => {
+    if (pendingController) {
+      pendingController.abort();
+      pendingController = null;
+    }
+  };
+
+  const applyStats = (incoming?: GenerationHistoryStats | null): void => {
+    if (incoming) {
+      stats.total_results = Number.isFinite(incoming.total_results) ? incoming.total_results : 0;
+      stats.avg_rating = Number.isFinite(incoming.avg_rating) ? incoming.avg_rating : 0;
+      stats.total_favorites = Number.isFinite(incoming.total_favorites) ? incoming.total_favorites : 0;
+      stats.total_size = Number.isFinite(incoming.total_size) ? incoming.total_size : 0;
+      return;
+    }
+
     stats.total_results = filteredResults.value.length;
 
     if (filteredResults.value.length > 0) {
       const totalRating = filteredResults.value.reduce((sum, result) => sum + (result.rating ?? 0), 0);
       stats.avg_rating = totalRating / filteredResults.value.length;
       stats.total_favorites = filteredResults.value.filter((result) => Boolean(result.is_favorite)).length;
-      stats.total_size = filteredResults.value.length * 2.5 * 1024 * 1024;
+      stats.total_size = filteredResults.value.reduce((sum, result) => {
+        const metadata = result.metadata;
+        if (metadata && typeof metadata === 'object') {
+          const record = metadata as Record<string, unknown>;
+          const sizeCandidate = record.size_bytes ?? record.file_size ?? record.byte_size;
+          if (typeof sizeCandidate === 'number' && Number.isFinite(sizeCandidate)) {
+            return sum + sizeCandidate;
+          }
+        }
+        return sum;
+      }, 0);
       return;
     }
 
@@ -68,9 +102,9 @@ export const useGenerationHistory = ({
     stats.total_size = 0;
   };
 
-  const updateDerivedData = (): void => {
+  const updateDerivedData = (incomingStats?: GenerationHistoryStats | null): void => {
     filteredResults.value = [...data.value];
-    calculateStats();
+    applyStats(incomingStats);
   };
 
   const parseDimensionFilter = (): { width?: number; height?: number } => {
@@ -173,8 +207,21 @@ export const useGenerationHistory = ({
     isLoading.value = true;
     error.value = null;
 
+    const requestId = activeRequestKey.value + 1;
+    activeRequestKey.value = requestId;
+
+    cancelPendingRequest();
+    const controller = new AbortController();
+    pendingController = controller;
+
     try {
-      const response = await listHistoryResults(resolveApiBase(apiBase), buildQuery(page));
+      const response = await listHistoryResults(resolveApiBase(apiBase), buildQuery(page), {
+        signal: controller.signal,
+      });
+
+      if (requestId !== activeRequestKey.value) {
+        return;
+      }
 
       const results = Array.isArray(response.results) ? response.results : [];
       updatePaginationState(results, response.response);
@@ -186,15 +233,23 @@ export const useGenerationHistory = ({
         currentPage.value = page;
       }
 
-      updateDerivedData();
+      updateDerivedData(response.stats);
 
       if (!append) {
         lastAppliedFilterKey.value = buildFilterStateKey();
       }
     } catch (err) {
+      if (isAbortError(err) || requestId !== activeRequestKey.value) {
+        return;
+      }
       error.value = err instanceof Error ? err.message : 'Failed to load results';
     } finally {
-      isLoading.value = false;
+      if (requestId === activeRequestKey.value) {
+        if (pendingController === controller) {
+          pendingController = null;
+        }
+        isLoading.value = false;
+      }
     }
   };
 
