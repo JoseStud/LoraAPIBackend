@@ -2,6 +2,60 @@
  * Type definitions mirroring backend/schemas/adapters.py.
  */
 
+type JsonPrimitive = string | number | boolean | null;
+
+/** JSON-compatible value used for metadata payloads. */
+export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
+
+export type AdapterStatsMetric =
+  | 'downloadCount'
+  | 'favoriteCount'
+  | 'commentCount'
+  | 'thumbsUpCount'
+  | 'rating'
+  | 'ratingCount'
+  | 'usage_count'
+  | 'generations'
+  | 'activations'
+  | 'success_rate'
+  | 'avg_time'
+  | 'avg_generation_time';
+
+/**
+ * Engagement and usage metrics tracked for adapters.
+ *
+ * Values originate from importer metadata (e.g. Civitai statistics) as well as
+ * runtime analytics aggregated by the backend. The metric keys are
+ * intentionally enumerated to keep the frontend aligned with backend
+ * contracts.
+ */
+export type AdapterStats = Partial<Record<AdapterStatsMetric, number>>;
+
+/**
+ * Rich metadata persisted alongside adapters.
+ *
+ * The importer populates these fields using the source manifest while the
+ * backend may attach additional presentation hints. Unknown fields are stored
+ * inside `unmapped` using JSON-compatible values.
+ */
+export interface AdapterMetadata {
+  description?: string | null;
+  author_username?: string | null;
+  published_at?: string | null;
+  trained_words?: string[] | null;
+  primary_file_name?: string | null;
+  primary_file_sha256?: string | null;
+  primary_file_download_url?: string | null;
+  primary_file_size_kb?: number | null;
+  supports_generation?: boolean | null;
+  sd_version?: string | null;
+  nsfw_level?: number | null;
+  activation_text?: string | null;
+  stats?: AdapterStats | null;
+  preview_image?: string | null;
+  unmapped?: { [key: string]: JsonValue } | null;
+}
+
 /** Request payload for creating a new adapter. */
 export interface AdapterCreate {
   name: string;
@@ -27,16 +81,10 @@ export interface AdapterCreate {
   sd_version?: string | null;
   nsfw_level?: number | null;
   activation_text?: string | null;
-  /**
-   * Backend stores arbitrary ingestion metrics here.
-   * TODO: replace with a structured shape when the API contract stabilises.
-   */
-  stats?: Record<string, unknown> | null;
-  /**
-   * Backend stores adapter-specific metadata here.
-   * TODO: document concrete keys once the backend schema stops evolving.
-   */
-  extra?: Record<string, unknown> | null;
+  /** Structured metrics sourced from importer metadata or analytics. */
+  stats?: AdapterStats | null;
+  /** Additional metadata collected during ingestion. */
+  extra?: AdapterMetadata | null;
   json_file_path?: string | null;
   json_file_mtime?: string | null;
   json_file_size?: number | null;
@@ -71,16 +119,10 @@ export interface AdapterRead {
   sd_version?: string | null;
   nsfw_level: number;
   activation_text?: string | null;
-  /**
-   * Adapter usage statistics emitted by the backend.
-   * TODO: keep this in sync with future stats schema updates.
-   */
-  stats?: Record<string, unknown> | null;
-  /**
-   * Additional metadata supplied by the backend.
-   * TODO: replace with specific keys when the API solidifies.
-   */
-  extra?: Record<string, unknown> | null;
+  /** Adapter usage statistics emitted by the backend. */
+  stats?: AdapterStats | null;
+  /** Additional metadata supplied by the backend. */
+  extra?: AdapterMetadata | null;
   json_file_path?: string | null;
   json_file_mtime?: string | null;
   json_file_size?: number | null;
