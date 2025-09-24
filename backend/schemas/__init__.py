@@ -35,6 +35,8 @@ from .deliveries import (
 )
 from .generation import (
     ComposeDeliverySDNext,
+    GenerationMode,
+    GenerationResultFormat,
     GenerationBulkDeleteRequest,
     GenerationCancelResponse,
     GenerationComplete,
@@ -100,6 +102,8 @@ __all__ = [
     "DeliveryCreateResponse",
     "ComposeDeliverySDNext",
     # Generation
+    "GenerationMode",
+    "GenerationResultFormat",
     "SDNextGenerationParams",
     "SDNextDeliveryParams",
     "SDNextGenerationResult",

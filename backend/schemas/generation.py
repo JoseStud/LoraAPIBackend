@@ -1,6 +1,7 @@
 """Generation and SDNext-related schemas."""
 
 from datetime import datetime
+from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
@@ -22,22 +23,37 @@ class SDNextGenerationParams(BaseModel):
     denoising_strength: Optional[float] = None
 
 
+class GenerationMode(str, Enum):
+    """Supported orchestration modes for generation requests."""
+
+    IMMEDIATE = "immediate"
+    DEFERRED = "deferred"
+
+
+class GenerationResultFormat(str, Enum):
+    """Accepted result serialization strategies for generation responses."""
+
+    BASE64 = "base64"
+    FILE_PATH = "file_path"
+    URL = "url"
+
+
 class ComposeDeliverySDNext(BaseModel):
     """SDNext delivery configuration for compose requests."""
-    
+
     generation_params: SDNextGenerationParams
-    mode: str = "immediate"
+    mode: GenerationMode = GenerationMode.IMMEDIATE
     save_images: bool = True
-    return_format: str = "base64"
+    return_format: GenerationResultFormat = GenerationResultFormat.BASE64
 
 
 class SDNextDeliveryParams(BaseModel):
     """SDNext-specific delivery configuration."""
-    
+
     generation_params: SDNextGenerationParams
-    mode: str = "immediate"  # "immediate" or "deferred"
+    mode: GenerationMode = GenerationMode.IMMEDIATE
     save_images: bool = True
-    return_format: str = "base64"  # "base64", "url", or "file_path"
+    return_format: GenerationResultFormat = GenerationResultFormat.BASE64
 
 
 class SDNextGenerationResult(BaseModel):
