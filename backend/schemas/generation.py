@@ -1,7 +1,7 @@
 """Generation and SDNext-related schemas."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -126,3 +126,16 @@ class GenerationResultSummary(BaseModel):
     created_at: datetime
     finished_at: Optional[datetime] = None
     generation_info: Optional[Dict[str, Any]] = None
+
+
+class GenerationBulkDeleteRequest(BaseModel):
+    """Request payload for bulk deletion of generation results."""
+
+    ids: List[Union[str, int]] = Field(default_factory=list)
+
+
+class GenerationExportRequest(BaseModel):
+    """Request payload for exporting generation results."""
+
+    ids: List[Union[str, int]] = Field(default_factory=list)
+    include_metadata: bool = True

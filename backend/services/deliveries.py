@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from fastapi import BackgroundTasks
 
 from backend.models import DeliveryJob
 
 from .delivery_repository import DeliveryJobRepository
+from .delivery_results import DeliveryResultManager, ResultArchive, ResultDownload
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
+    from .generation import GenerationCoordinator
     from .queue import QueueOrchestrator
+    from .storage import StorageService
 
 
 class DeliveryService:
@@ -21,9 +24,12 @@ class DeliveryService:
         self,
         repository: DeliveryJobRepository,
         queue_orchestrator: Optional["QueueOrchestrator"] = None,
+        *,
+        result_manager: Optional[DeliveryResultManager] = None,
     ) -> None:
         self._repository = repository
         self._queue_orchestrator = queue_orchestrator
+        self._result_manager = result_manager or DeliveryResultManager(repository)
 
     @property
     def repository(self) -> DeliveryJobRepository:
@@ -32,6 +38,10 @@ class DeliveryService:
     @property
     def queue_orchestrator(self) -> Optional["QueueOrchestrator"]:
         return self._queue_orchestrator
+
+    @property
+    def result_manager(self) -> DeliveryResultManager:
+        return self._result_manager
 
     @property
     def db_session(self):
@@ -126,6 +136,95 @@ class DeliveryService:
     def get_job_result(self, job: DeliveryJob) -> Optional[Dict[str, Any]]:
         """Parse and return job result as dict."""
         return self._repository.get_job_result(job)
+
+    # ------------------------------------------------------------------
+    # Result management helpers
+    # ------------------------------------------------------------------
+    def delete_job_result(
+        self,
+        job_id: str,
+        *,
+        storage: "StorageService",
+        coordinator: Optional["GenerationCoordinator"] = None,
+    ) -> bool:
+        """Remove a persisted result and delete the associated job record."""
+        job = self.get_job(job_id)
+        if job is None:
+            return False
+
+        self.remove_job_assets(job, storage, coordinator=coordinator)
+        return self._repository.delete_job(job_id)
+
+    def bulk_delete_job_results(
+        self,
+        job_ids: Sequence[str],
+        *,
+        storage: "StorageService",
+        coordinator: Optional["GenerationCoordinator"] = None,
+    ) -> int:
+        """Bulk delete results by removing assets then deleting rows."""
+        jobs = self._repository.list_jobs_by_ids(job_ids)
+        if not jobs:
+            return 0
+
+        for job in jobs:
+            self.remove_job_assets(job, storage, coordinator=coordinator)
+
+        deleted = self._repository.delete_jobs([job.id for job in jobs])
+        return deleted
+
+    def build_results_archive(
+        self,
+        job_ids: Sequence[str],
+        *,
+        storage: "StorageService",
+        coordinator: "GenerationCoordinator",
+        include_metadata: bool = True,
+        chunk_size: int = 64 * 1024,
+        spooled_file_max_size: int = 32 * 1024 * 1024,
+    ) -> Optional[ResultArchive]:
+        """Create a streaming archive for the specified results."""
+
+        return self.result_manager.build_archive(
+            job_ids,
+            storage=storage,
+            coordinator=coordinator,
+            include_metadata=include_metadata,
+            chunk_size=chunk_size,
+            spooled_file_max_size=spooled_file_max_size,
+        )
+
+    def build_result_download(
+        self,
+        job: DeliveryJob,
+        *,
+        storage: "StorageService",
+        coordinator: "GenerationCoordinator",
+        chunk_size: int = 64 * 1024,
+    ) -> Optional[ResultDownload]:
+        """Prepare a download payload for the primary asset of ``job``."""
+
+        return self.result_manager.build_download(
+            job,
+            storage=storage,
+            coordinator=coordinator,
+            chunk_size=chunk_size,
+        )
+
+    def remove_job_assets(
+        self,
+        job: DeliveryJob,
+        storage: "StorageService",
+        *,
+        coordinator: Optional["GenerationCoordinator"] = None,
+    ) -> List[str]:
+        """Remove persisted files referenced by a job's result payload."""
+
+        return self.result_manager.remove_assets(
+            job,
+            storage,
+            coordinator=coordinator,
+        )
 
     def _require_orchestrator(self) -> "QueueOrchestrator":
         if self._queue_orchestrator is None:

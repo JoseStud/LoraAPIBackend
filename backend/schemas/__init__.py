@@ -35,8 +35,10 @@ from .deliveries import (
 )
 from .generation import (
     ComposeDeliverySDNext,
+    GenerationBulkDeleteRequest,
     GenerationCancelResponse,
     GenerationComplete,
+    GenerationExportRequest,
     GenerationJobStatus,
     GenerationResultSummary,
     GenerationStarted,
@@ -107,6 +109,8 @@ __all__ = [
     "GenerationJobStatus",
     "GenerationCancelResponse",
     "GenerationResultSummary",
+    "GenerationBulkDeleteRequest",
+    "GenerationExportRequest",
     # Import/export
     "ExportConfig",
     "ExportEstimate",
