@@ -50,6 +50,10 @@ export interface ListResultsOutput {
   response: GenerationHistoryListResponse | null;
 }
 
+export interface ListResultsOptions {
+  signal?: AbortSignal;
+}
+
 const toListOutput = (payload: GenerationHistoryListPayload | null): ListResultsOutput => {
   if (!payload) {
     return {
@@ -173,13 +177,14 @@ export const useGenerationHistoryApi = (
 export const listResults = async (
   baseUrl: string,
   query: GenerationHistoryQuery = {},
+  options: ListResultsOptions = {},
 ): Promise<ListResultsOutput> => {
   const base = sanitizeBaseUrl(baseUrl);
   const targetUrl = `${base}/results${buildHistoryQuery(query)}`;
   const api = useApi<GenerationHistoryListPayload>(() => targetUrl, {
     credentials: 'same-origin',
   });
-  const payload = await api.fetchData();
+  const payload = await api.fetchData({ signal: options.signal });
   return toListOutput(payload ?? null);
 };
 

@@ -112,6 +112,20 @@ class ServiceContainerBuilder:
             self._cached_gpu_available = self._recommendation_gpu_detector()
         return self._cached_gpu_available
 
+    def reset_cached_queue_orchestrator(self) -> None:
+        """Drop the cached queue orchestrator so the next build recreates it."""
+        if self._cached_queue_orchestrator is not None:
+            self._cached_queue_orchestrator.reset()
+        self._cached_queue_orchestrator = None
+
+    def invalidate_recommendation_gpu_cache(self) -> None:
+        """Force the next build to recompute the GPU availability flag."""
+        self._cached_gpu_available = None
+
+    def get_recommendation_gpu_available(self) -> bool:
+        """Return the cached recommendation GPU availability flag."""
+        return self._get_gpu_available()
+
     def with_overrides(
         self,
         *,
@@ -168,7 +182,7 @@ class ServiceContainerBuilder:
         gpu_available = (
             recommendation_gpu_available
             if recommendation_gpu_available is not None
-            else self._get_gpu_available()
+            else self.get_recommendation_gpu_available()
         )
 
         if db_session is not None:
