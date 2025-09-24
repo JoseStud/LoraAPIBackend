@@ -36,9 +36,8 @@
       <GenerationHistory />
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-2">
+    <section class="grid gap-6">
       <ImportExportContainer />
-      <HelloWorld />
     </section>
   </div>
 </template>
@@ -48,7 +47,6 @@ import { RouterLink } from 'vue-router';
 
 import GenerationHistory from '@/components/history/GenerationHistory.vue';
 import GenerationStudio from '@/components/generation/GenerationStudio.vue';
-import HelloWorld from '@/components/HelloWorld.vue';
 import ImportExportContainer from '@/components/import-export/ImportExportContainer.vue';
 import JobQueue from '@/components/shared/JobQueue.vue';
 import LoraGallery from '@/components/lora-gallery/LoraGallery.vue';

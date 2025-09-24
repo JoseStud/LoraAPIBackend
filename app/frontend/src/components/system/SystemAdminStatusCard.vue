@@ -109,7 +109,7 @@
     </div>
     
     <!-- Performance Charts -->
-    <div class="card">
+    <div v-if="hasPerformanceTrends" class="card">
       <div class="card-header">
         <h3 class="text-lg font-semibold">Performance Trends</h3>
       </div>
@@ -190,6 +190,73 @@ const systemMetrics = computed(() => metrics.value);
 const systemStats = computed(() => stats.value);
 const statusLevel = computed<SystemStatusLevel>(() => status.value ?? 'unknown');
 const errorMessage = computed(() => (error.value ? error.value.message : null));
+
+const hasArrayData = (value: unknown): boolean => Array.isArray(value) && value.length > 0;
+
+const hasSeriesPayload = (payload: unknown): boolean => {
+  if (!payload || typeof payload !== 'object') {
+    return false;
+  }
+
+  const record = payload as Record<string, unknown>;
+
+  if (hasArrayData(record['history'])) {
+    return true;
+  }
+
+  if (hasArrayData(record['samples'])) {
+    return true;
+  }
+
+  if (hasArrayData(record['points'])) {
+    return true;
+  }
+
+  if (hasArrayData(record['timeline'])) {
+    return true;
+  }
+
+  const series = record['series'];
+  if (Array.isArray(series)) {
+    return series.some((seriesEntry) => {
+      if (!seriesEntry || typeof seriesEntry !== 'object') {
+        return false;
+      }
+      const seriesRecord = seriesEntry as Record<string, unknown>;
+      return (
+        hasArrayData(seriesRecord['data']) ||
+        hasArrayData(seriesRecord['values']) ||
+        hasArrayData(seriesRecord['points'])
+      );
+    });
+  }
+
+  return false;
+};
+
+const hasPerformanceTrends = computed(() => {
+  const snapshot = systemMetrics.value;
+
+  if (hasSeriesPayload(snapshot.cpu)) {
+    return true;
+  }
+
+  if (hasSeriesPayload(snapshot.memory)) {
+    return true;
+  }
+
+  if (hasSeriesPayload(snapshot.disk)) {
+    return true;
+  }
+
+  if (Array.isArray(snapshot.gpus) && snapshot.gpus.some((gpu) => hasSeriesPayload(gpu))) {
+    return true;
+  }
+
+  const seriesLikeKeys = ['cpu_history', 'memory_history', 'disk_history', 'gpu_history', 'usage_series'];
+
+  return seriesLikeKeys.some((key) => hasArrayData((snapshot as Record<string, unknown>)[key]));
+});
 
 const formatSize = (bytes: number | null | undefined): string => {
   if (!bytes || bytes <= 0) {
