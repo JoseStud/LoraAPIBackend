@@ -98,6 +98,19 @@ Not all suites run out of the box without additional services. Redis, SDNext,
 and headless browsers must be available for the queue, generation, and E2E
 tests respectively.【F:package.json†L18-L30】【F:tests/README.md†L70-L113】
 
+## Production builds
+
+Run `npm run prod:build` to emit a production bundle. The script sets
+`ENVIRONMENT=production` via `cross-env` before invoking the standard build so
+it works consistently on POSIX shells and Windows terminals.【F:package.json†L12-L24】
+
+## Unified quality workflow
+
+Execute `npm run ci:check` to reproduce the checks that CI runs. The helper
+script performs Ruff format/lint passes, runs the backend settings pytest,
+executes ESLint and TypeScript checks, and finishes by compiling the frontend
+bundle.【F:package.json†L22-L31】【F:scripts/ci_check.py†L1-L38】
+
 ## Documentation
 
 - [Developer guide](docs/DEVELOPMENT.md) – Architecture overview and workflow
