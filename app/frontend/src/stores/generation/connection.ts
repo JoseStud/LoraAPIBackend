@@ -5,16 +5,20 @@ import { DEFAULT_POLL_INTERVAL } from '@/services';
 import type { SystemStatusPayload, SystemStatusState } from '@/types';
 
 export const DEFAULT_SYSTEM_STATUS: SystemStatusState = {
-  gpu_available: true,
+  gpu_available: false,
   queue_length: 0,
-  status: 'healthy',
-  gpu_status: 'Available',
+  status: 'unknown',
+  gpu_status: 'Unknown',
   memory_used: 0,
-  memory_total: 8192,
+  memory_total: 0,
 };
 
+export const createDefaultSystemStatus = (): SystemStatusState => ({
+  ...DEFAULT_SYSTEM_STATUS,
+});
+
 export const useGenerationConnectionStore = defineStore('generation-connection', () => {
-  const systemStatus = reactive<SystemStatusState>({ ...DEFAULT_SYSTEM_STATUS });
+  const systemStatus = reactive<SystemStatusState>(createDefaultSystemStatus());
   const isConnected = ref(false);
   const pollIntervalMs = ref(DEFAULT_POLL_INTERVAL);
 
@@ -32,7 +36,7 @@ export const useGenerationConnectionStore = defineStore('generation-connection',
   }
 
   function resetSystemStatus(): void {
-    Object.assign(systemStatus, { ...DEFAULT_SYSTEM_STATUS });
+    Object.assign(systemStatus, createDefaultSystemStatus());
   }
 
   function applySystemStatusPayload(payload: SystemStatusPayload | Partial<SystemStatusState>): void {
