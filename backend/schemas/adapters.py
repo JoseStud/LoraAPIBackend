@@ -3,7 +3,14 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    field_validator,
+)
 
 
 class AdapterCreate(BaseModel):
@@ -114,3 +121,35 @@ class AdapterListResponse(BaseModel):
     page: int
     pages: int
     per_page: int
+
+
+class AdapterPatch(BaseModel):
+    """Partial update payload for adapter resources."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    weight: Optional[StrictFloat | StrictInt] = None
+    active: Optional[StrictBool] = None
+    ordinal: Optional[StrictInt] = None
+    tags: Optional[List[str]] = None
+    description: Optional[str] = None
+    activation_text: Optional[str] = None
+    trained_words: Optional[List[str]] = None
+    triggers: Optional[List[str]] = None
+    archetype: Optional[str] = None
+    archetype_confidence: Optional[StrictFloat] = None
+    visibility: Optional[str] = None
+    nsfw_level: Optional[StrictInt] = None
+    supports_generation: Optional[StrictBool] = None
+    sd_version: Optional[str] = None
+
+    @field_validator("tags", "trained_words", "triggers", mode="before")
+    @classmethod
+    def _validate_string_list(cls, value):
+        """Ensure list-based fields receive iterable collections."""
+
+        if value is None:
+            return value
+        if isinstance(value, list):
+            return value
+        raise TypeError("value must be a list of strings")

@@ -8,7 +8,12 @@ from sqlmodel import select
 
 from backend.core.dependencies import get_domain_services
 from backend.models import Adapter
-from backend.schemas import AdapterCreate, AdapterListResponse, AdapterWrapper
+from backend.schemas import (
+    AdapterCreate,
+    AdapterListResponse,
+    AdapterPatch,
+    AdapterWrapper,
+)
 from backend.services import DomainServices
 
 router = APIRouter()
@@ -144,19 +149,23 @@ def bulk_adapter_action(
     }
 
 
+# NOTE: response model documented via AdapterWrapper; request model is AdapterPatch
 @router.patch("/adapters/{adapter_id}", response_model=AdapterWrapper)
 def patch_adapter(
     adapter_id: str,
-    payload: dict,
+    payload: AdapterPatch,
     services: DomainServices = Depends(get_domain_services),  # noqa: B008
 ):
-    """Update an adapter's fields.
+    """Update an adapter's mutable fields using a validated payload.
 
-    Supports updating tags (stored as JSON string) and other updatable fields.
-    Only allows updating specific safe fields to prevent unauthorized modifications.
+    The request body is validated against :class:`AdapterPatch`, ensuring only
+    supported keys and value types are accepted. Business rules are still
+    enforced by the service layer, which limits updates to fields defined in
+    ``AdapterService.PATCHABLE_FIELDS``.
     """
+    updates = payload.model_dump(exclude_unset=True)
     try:
-        updated = services.adapters.patch_adapter(adapter_id, payload)
+        updated = services.adapters.patch_adapter(adapter_id, updates)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail="adapter not found") from exc
     except ValueError as exc:

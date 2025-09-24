@@ -3,6 +3,7 @@
 from .adapters import (
     AdapterCreate,
     AdapterListResponse,
+    AdapterPatch,
     AdapterRead,
     AdapterWrapper,
 )
@@ -79,6 +80,7 @@ __all__ = [
     "AdapterRead",
     "AdapterWrapper",
     "AdapterListResponse",
+    "AdapterPatch",
     # Analytics
     "PerformanceAnalyticsSummary",
     "PerformanceAnalyticsCharts",
