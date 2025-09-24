@@ -1,77 +1,5470 @@
-openapi: 3.0.3
-info:
-  title: LoRA Manager API (MVP)
-  version: 0.1.0
-paths:
-  /adapters:
-    post:
-      summary: Register a LoRA adapter
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name, file_path]
-              properties:
-                name:
-                  type: string
-                version:
-                  type: string
-                tags:
-                  type: array
-                  items:
-                    type: string
-                file_path:
-                  type: string
-                weight:
-                  type: number
-                active:
-                  type: boolean
-      responses:
-        '201':
-          description: Created
-  /adapters:
-    get:
-      summary: List adapters
-      parameters:
-        - name: active
-          in: query
-          schema:
-            type: boolean
-        - name: tag
-          in: query
-          schema:
-            type: string
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-  /compose:
-    post:
-      summary: Compose a prompt from active adapters and optionally deliver
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                prefix:
-                  type: string
-                suffix:
-                  type: string
-                delivery:
-                  type: object
-                  properties:
-                    mode:
-                      type: string
-                      enum: [http, cli]
-      responses:
-        '200':
-          description: OK
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "LoRA Manager Backend (MVP)",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/adapters": {
+      "post": {
+        "summary": "Create Adapter",
+        "description": "Create a new adapter from the provided payload.",
+        "operationId": "create_adapter_v1_adapters_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdapterCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterWrapper"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List Adapters",
+        "description": "Return a paginated list of adapters via the service layer.",
+        "operationId": "list_adapters_v1_adapters_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Search"
+            }
+          },
+          {
+            "name": "active_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Active Only"
+            }
+          },
+          {
+            "name": "tags",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Tags"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "name",
+              "title": "Sort"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 24,
+              "title": "Per Page"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/adapters/tags": {
+      "get": {
+        "summary": "Get Adapter Tags",
+        "description": "Return unique tag list across all adapters.\n\nResponse shape matches frontend expectation: {\"tags\": [..]}.",
+        "operationId": "get_adapter_tags_v1_adapters_tags_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/adapters/bulk": {
+      "post": {
+        "summary": "Bulk Adapter Action",
+        "description": "Perform a bulk action on a list of adapters in a transaction.\n\nActions supported: activate, deactivate, delete.\nReturns summary counts and processed IDs.",
+        "operationId": "bulk_adapter_action_v1_adapters_bulk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/adapters/{adapter_id}": {
+      "patch": {
+        "summary": "Patch Adapter",
+        "description": "Update an adapter's mutable fields using a validated payload.\n\nThe request body is validated against :class:`AdapterPatch`, ensuring only\nsupported keys and value types are accepted. Business rules are still\nenforced by the service layer, which limits updates to fields defined in\n``AdapterService.PATCHABLE_FIELDS``.",
+        "operationId": "patch_adapter_v1_adapters__adapter_id__patch",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "adapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Adapter Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdapterPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterWrapper"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Adapter",
+        "description": "Delete an adapter by id.\n\nReturns 204 on success.",
+        "operationId": "delete_adapter_v1_adapters__adapter_id__delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "adapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Adapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Get Adapter",
+        "description": "Return a single adapter by id.\n\nRaises HTTPException(404) if not found.",
+        "operationId": "get_adapter_v1_adapters__adapter_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "adapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Adapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterWrapper"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/adapters/{adapter_id}/activate": {
+      "post": {
+        "summary": "Activate Adapter",
+        "description": "Mark an adapter active and optionally set its ordinal.",
+        "operationId": "activate_adapter_v1_adapters__adapter_id__activate_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "adapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Adapter Id"
+            }
+          },
+          {
+            "name": "ordinal",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "title": "Ordinal"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterWrapper"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/adapters/{adapter_id}/deactivate": {
+      "post": {
+        "summary": "Deactivate Adapter",
+        "description": "Mark an adapter inactive.",
+        "operationId": "deactivate_adapter_v1_adapters__adapter_id__deactivate_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "adapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Adapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterWrapper"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analytics/summary": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Get Analytics Summary",
+        "description": "Return a comprehensive analytics snapshot for the requested range.",
+        "operationId": "get_analytics_summary_v1_analytics_summary_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "time_range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "type": "string",
+              "default": "24h",
+              "title": "Time Range"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceAnalyticsSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analytics/stats": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Get Generation Stats",
+        "description": "Expose headline generation KPIs for the requested range.",
+        "operationId": "get_generation_stats_v1_analytics_stats_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "time_range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "type": "string",
+              "default": "24h",
+              "title": "Time Range"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceKpiSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analytics/errors": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Get Error Breakdown",
+        "description": "Return error distribution for failed generation jobs.",
+        "operationId": "get_error_breakdown_v1_analytics_errors_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "time_range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "type": "string",
+              "default": "24h",
+              "title": "Time Range"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ErrorAnalysisEntry"
+                  },
+                  "title": "Response Get Error Breakdown V1 Analytics Errors Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analytics/timeseries": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Get Time Series Metrics",
+        "description": "Return time-series metrics for dashboard visualisations.",
+        "operationId": "get_time_series_metrics_v1_analytics_timeseries_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "time_range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "type": "string",
+              "default": "24h",
+              "title": "Time Range"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceAnalyticsCharts"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analytics/insights": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Get Performance Insights",
+        "description": "Return derived performance insights for the requested window.",
+        "operationId": "get_performance_insights_v1_analytics_insights_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "time_range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "type": "string",
+              "default": "24h",
+              "title": "Time Range"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PerformanceInsightEntry"
+                  },
+                  "title": "Response Get Performance Insights V1 Analytics Insights Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/compose": {
+      "post": {
+        "summary": "Compose",
+        "description": "Compose a prompt from active adapters and optionally schedule delivery.",
+        "operationId": "compose_v1_compose_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComposeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComposeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/deliveries": {
+      "post": {
+        "summary": "Create Delivery",
+        "description": "Create a delivery job and either enqueue it or schedule a background task.",
+        "operationId": "create_delivery_v1_deliveries_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeliveryCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/deliveries/{delivery_id}": {
+      "get": {
+        "summary": "Get Delivery",
+        "description": "Return the delivery job state for `delivery_id`.",
+        "operationId": "get_delivery_v1_deliveries__delivery_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "delivery_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Delivery Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryWrapper"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/generation/backends": {
+      "get": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "List Generation Backends",
+        "description": "List available generation backends and their status.",
+        "operationId": "list_generation_backends_v1_generation_backends_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object",
+                  "title": "Response List Generation Backends V1 Generation Backends Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/generation/generate": {
+      "post": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Generate Image",
+        "description": "Generate an image using the specified backend.",
+        "operationId": "generate_image_v1_generation_generate_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "backend",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "sdnext",
+              "title": "Backend"
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/GenerationMode",
+              "default": "immediate"
+            }
+          },
+          {
+            "name": "save_images",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Save Images"
+            }
+          },
+          {
+            "name": "return_format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/GenerationResultFormat",
+              "default": "base64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SDNextGenerationParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SDNextGenerationResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/generation/progress/{job_id}": {
+      "get": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Check Generation Progress",
+        "description": "Check the progress of a generation job.",
+        "operationId": "check_generation_progress_v1_generation_progress__job_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "backend",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "sdnext",
+              "title": "Backend"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SDNextGenerationResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/generation/compose-and-generate": {
+      "post": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Compose And Generate",
+        "description": "Compose LoRA prompt and immediately generate images.",
+        "operationId": "compose_and_generate_v1_generation_compose_and_generate_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "backend",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "sdnext",
+              "title": "Backend"
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/GenerationMode",
+              "default": "immediate"
+            }
+          },
+          {
+            "name": "save_images",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Save Images"
+            }
+          },
+          {
+            "name": "return_format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/GenerationResultFormat",
+              "default": "base64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_compose_and_generate_v1_generation_compose_and_generate_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SDNextGenerationResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/generation/queue-generation": {
+      "post": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Queue Generation Job",
+        "description": "Queue a generation job for background processing.",
+        "operationId": "queue_generation_job_v1_generation_queue_generation_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "backend",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "sdnext",
+              "title": "Backend"
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "deferred",
+              "title": "Mode"
+            }
+          },
+          {
+            "name": "save_images",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Save Images"
+            }
+          },
+          {
+            "name": "return_format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "base64",
+              "title": "Return Format"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SDNextGenerationParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/generation/jobs/active": {
+      "get": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "List Active Generation Jobs",
+        "description": "Return active generation jobs for frontend queues.",
+        "operationId": "list_active_generation_jobs_v1_generation_jobs_active_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GenerationJobStatus"
+                  },
+                  "title": "Response List Active Generation Jobs V1 Generation Jobs Active Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/generation/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Get Generation Job",
+        "description": "Get generation job status and results.",
+        "operationId": "get_generation_job_v1_generation_jobs__job_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryWrapper"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/generation/jobs/{job_id}/cancel": {
+      "post": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Cancel Generation Job",
+        "description": "Cancel an active generation job.",
+        "operationId": "cancel_generation_job_v1_generation_jobs__job_id__cancel_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationCancelResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/generation/results": {
+      "get": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "List Generation Results",
+        "description": "Return recent completed generation results.",
+        "operationId": "list_generation_results_v1_generation_results_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GenerationResultSummary"
+                  },
+                  "title": "Response List Generation Results V1 Generation Results Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/generation/results/bulk-delete": {
+      "delete": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Bulk Delete Generation Results",
+        "description": "Delete multiple generation results in a single request.",
+        "operationId": "bulk_delete_generation_results_v1_generation_results_bulk_delete_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerationBulkDeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/generation/results/{result_id}": {
+      "delete": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Delete Generation Result",
+        "description": "Delete a stored generation result and its associated artifacts.",
+        "operationId": "delete_generation_result_v1_generation_results__result_id__delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Result Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/generation/results/{result_id}/download": {
+      "get": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Download Generation Result",
+        "description": "Download the primary asset associated with a generation result.",
+        "operationId": "download_generation_result_v1_generation_results__result_id__download_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Result Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/generation/results/export": {
+      "post": {
+        "tags": [
+          "generation"
+        ],
+        "summary": "Export Generation Results",
+        "description": "Stream a ZIP archive containing the requested generation results.",
+        "operationId": "export_generation_results_v1_generation_results_export_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerationExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/recommendations/similar/{lora_id}": {
+      "get": {
+        "summary": "Get Similar Loras",
+        "description": "Get LoRAs similar to the specified LoRA.\n\nArgs:\n    lora_id: ID of the target LoRA\n    limit: Maximum number of recommendations to return\n    similarity_threshold: Minimum similarity score (0.0 to 1.0)\n    diversify_results: Whether to diversify results by different criteria\n    weights: Custom weights for similarity components\n        (semantic, artistic, technical)\n    services: Domain service container that provides recommendation logic\n\nReturns:\n    List of similar LoRA recommendations with similarity scores and explanations",
+        "operationId": "get_similar_loras_v1_recommendations_similar__lora_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lora_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lora Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "similarity_threshold",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "default": 0.1,
+              "title": "Similarity Threshold"
+            }
+          },
+          {
+            "name": "diversify_results",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Diversify Results"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "number"
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Weights"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/recommendations/for-prompt": {
+      "post": {
+        "summary": "Get Recommendations For Prompt",
+        "description": "Get LoRA recommendations that would enhance a given prompt.\n\nArgs:\n    request: Prompt recommendation request with prompt text and preferences\n    services: Domain service container that provides recommendation logic\n\nReturns:\n    List of LoRA recommendations optimized for the given prompt",
+        "operationId": "get_recommendations_for_prompt_v1_recommendations_for_prompt_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromptRecommendationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/recommendations/stats": {
+      "get": {
+        "summary": "Get Recommendation Stats",
+        "description": "Get comprehensive statistics about the recommendation system.\n\nArgs:\n    services: Domain service container that provides recommendation logic\n\nReturns:\n    Statistics including coverage, performance metrics, and system status",
+        "operationId": "get_recommendation_stats_v1_recommendations_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationStats"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/recommendations/embeddings/compute": {
+      "post": {
+        "summary": "Compute Embeddings",
+        "description": "Compute embeddings for LoRAs in batch.\n\nArgs:\n    request: Batch embedding request specifying which LoRAs to process\n    services: Domain service container that provides recommendation logic\n\nReturns:\n    Processing results with counts and timing information",
+        "operationId": "compute_embeddings_v1_recommendations_embeddings_compute_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchEmbeddingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchEmbeddingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/recommendations/embeddings/{lora_id}": {
+      "get": {
+        "summary": "Get Embedding Status",
+        "description": "Get embedding status for a specific LoRA.\n\nArgs:\n    lora_id: ID of the LoRA to check\n    services: Domain service container that provides recommendation logic\n\nReturns:\n    Embedding status including what embeddings are available and when computed",
+        "operationId": "get_embedding_status_v1_recommendations_embeddings__lora_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lora_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lora Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmbeddingStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/recommendations/embeddings/{lora_id}/compute": {
+      "post": {
+        "summary": "Compute Single Embedding",
+        "description": "Compute embeddings for a single LoRA.\n\nArgs:\n    lora_id: ID of the LoRA to process\n    force_recompute: Whether to recompute existing embeddings\n    services: Domain service container that provides recommendation logic\n\nReturns:\n    Success status",
+        "operationId": "compute_single_embedding_v1_recommendations_embeddings__lora_id__compute_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lora_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lora Id"
+            }
+          },
+          {
+            "name": "force_recompute",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Force Recompute"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/recommendations/feedback": {
+      "post": {
+        "summary": "Submit Recommendation Feedback",
+        "description": "Submit user feedback on recommendations for learning.\n\nArgs:\n    feedback: User feedback data\n    services: Domain service container that provides recommendation logic\n\nReturns:\n    Stored feedback record",
+        "operationId": "submit_recommendation_feedback_v1_recommendations_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserFeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationFeedbackRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/recommendations/preferences": {
+      "post": {
+        "summary": "Update User Preferences",
+        "description": "Update user preferences for personalized recommendations.\n\nArgs:\n    preference: User preference data\n    services: Domain service container that provides recommendation logic\n\nReturns:\n    Persisted preference record",
+        "operationId": "update_user_preferences_v1_recommendations_preferences_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserPreferenceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPreferenceRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/recommendations/index/rebuild": {
+      "post": {
+        "summary": "Rebuild Similarity Index",
+        "description": "Rebuild the similarity index for fast recommendations.\n\nArgs:\n    force: Force rebuild even if index exists\n    services: Domain service container that provides recommendation logic\n\nReturns:\n    Rebuild status and timing",
+        "operationId": "rebuild_similarity_index_v1_recommendations_index_rebuild_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "force",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Force"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexRebuildResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/recommendations/health": {
+      "get": {
+        "summary": "Get Recommendation Health",
+        "description": "Get health status of the recommendation system.\n\nReturns:\n    Health status including model availability and performance metrics",
+        "operationId": "get_recommendation_health_v1_recommendations_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/export/estimate": {
+      "post": {
+        "tags": [
+          "import-export"
+        ],
+        "summary": "Estimate Export",
+        "description": "Calculate export size and time estimates using archive metadata.",
+        "operationId": "estimate_export_v1_export_estimate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportEstimate"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/export": {
+      "post": {
+        "tags": [
+          "import-export"
+        ],
+        "summary": "Export Data",
+        "description": "Stream an archive export of adapters using the archive helper.",
+        "operationId": "export_data_v1_export_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/import": {
+      "post": {
+        "tags": [
+          "import-export"
+        ],
+        "summary": "Import Data",
+        "description": "Import adapters from uploaded archives after validation.",
+        "operationId": "import_data_v1_import_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_data_v1_import_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/backups/history": {
+      "get": {
+        "tags": [
+          "import-export"
+        ],
+        "summary": "Get Backup History",
+        "description": "Get persisted backup history entries.",
+        "operationId": "get_backup_history_v1_backups_history_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BackupHistoryItem"
+                  },
+                  "type": "array",
+                  "title": "Response Get Backup History V1 Backups History Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/backup/create": {
+      "post": {
+        "tags": [
+          "import-export"
+        ],
+        "summary": "Create Backup",
+        "description": "Create a new backup and return the created metadata.",
+        "operationId": "create_backup_v1_backup_create_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/backups/{backup_id}": {
+      "delete": {
+        "tags": [
+          "import-export"
+        ],
+        "summary": "Delete Backup",
+        "description": "Delete a backup entry and its archive.",
+        "operationId": "delete_backup_v1_backups__backup_id__delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "backup_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Backup Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/stats": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Get Dashboard Stats",
+        "description": "Get dashboard statistics and system health information.",
+        "operationId": "get_dashboard_stats_v1_dashboard_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/featured-loras": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Get Featured Loras",
+        "description": "Get featured LoRAs for the dashboard.",
+        "operationId": "get_featured_loras_v1_dashboard_featured_loras_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/activity-feed": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Get Activity Feed",
+        "description": "Get recent activity feed for the dashboard.",
+        "operationId": "get_activity_feed_v1_dashboard_activity_feed_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/system/status": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Get System Status",
+        "description": "Return a snapshot of system status and telemetry data.",
+        "operationId": "get_system_status_v1_system_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get System Status V1 System Status Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "description": "Return a simple health status used by tests and readiness checks.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AdapterCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "canonical_version_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonical Version Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "author_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author Username"
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visibility",
+            "default": "Public"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          },
+          "trained_words": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trained Words"
+          },
+          "triggers": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Triggers"
+          },
+          "file_path": {
+            "type": "string",
+            "title": "File Path"
+          },
+          "weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight",
+            "default": 1.0
+          },
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active",
+            "default": false
+          },
+          "ordinal": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ordinal"
+          },
+          "primary_file_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary File Name"
+          },
+          "primary_file_size_kb": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary File Size Kb"
+          },
+          "primary_file_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary File Sha256"
+          },
+          "primary_file_download_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary File Download Url"
+          },
+          "primary_file_local_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary File Local Path"
+          },
+          "supports_generation": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supports Generation",
+            "default": false
+          },
+          "sd_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sd Version"
+          },
+          "nsfw_level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nsfw Level",
+            "default": 0
+          },
+          "activation_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activation Text"
+          },
+          "stats": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stats"
+          },
+          "extra": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra"
+          },
+          "json_file_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Json File Path"
+          },
+          "json_file_mtime": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Json File Mtime"
+          },
+          "json_file_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Json File Size"
+          },
+          "last_ingested_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Ingested At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "file_path"
+        ],
+        "title": "AdapterCreate",
+        "description": "Input model for creating an adapter."
+      },
+      "AdapterListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdapterRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "filtered": {
+            "type": "integer",
+            "title": "Filtered"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pages": {
+            "type": "integer",
+            "title": "Pages"
+          },
+          "per_page": {
+            "type": "integer",
+            "title": "Per Page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "filtered",
+          "page",
+          "pages",
+          "per_page"
+        ],
+        "title": "AdapterListResponse",
+        "description": "Paginated list response for adapters."
+      },
+      "AdapterPatch": {
+        "properties": {
+          "weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight"
+          },
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "ordinal": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ordinal"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "activation_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activation Text"
+          },
+          "trained_words": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trained Words"
+          },
+          "triggers": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Triggers"
+          },
+          "archetype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archetype"
+          },
+          "archetype_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archetype Confidence"
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visibility"
+          },
+          "nsfw_level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nsfw Level"
+          },
+          "supports_generation": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supports Generation"
+          },
+          "sd_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sd Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AdapterPatch",
+        "description": "Partial update payload for adapter resources."
+      },
+      "AdapterRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "canonical_version_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonical Version Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "author_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author Username"
+          },
+          "visibility": {
+            "type": "string",
+            "title": "Visibility",
+            "default": "Public"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "trained_words": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Trained Words"
+          },
+          "triggers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Triggers"
+          },
+          "file_path": {
+            "type": "string",
+            "title": "File Path"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "ordinal": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ordinal"
+          },
+          "archetype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archetype"
+          },
+          "archetype_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archetype Confidence"
+          },
+          "primary_file_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary File Name"
+          },
+          "primary_file_size_kb": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary File Size Kb"
+          },
+          "primary_file_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary File Sha256"
+          },
+          "primary_file_download_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary File Download Url"
+          },
+          "primary_file_local_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary File Local Path"
+          },
+          "supports_generation": {
+            "type": "boolean",
+            "title": "Supports Generation",
+            "default": false
+          },
+          "sd_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sd Version"
+          },
+          "nsfw_level": {
+            "type": "integer",
+            "title": "Nsfw Level",
+            "default": 0
+          },
+          "activation_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activation Text"
+          },
+          "stats": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stats"
+          },
+          "extra": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra"
+          },
+          "json_file_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Json File Path"
+          },
+          "json_file_mtime": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Json File Mtime"
+          },
+          "json_file_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Json File Size"
+          },
+          "last_ingested_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Ingested At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "tags",
+          "trained_words",
+          "triggers",
+          "file_path",
+          "weight",
+          "active",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AdapterRead",
+        "description": "Public read model for adapters."
+      },
+      "AdapterWrapper": {
+        "properties": {
+          "adapter": {
+            "$ref": "#/components/schemas/AdapterRead"
+          }
+        },
+        "type": "object",
+        "required": [
+          "adapter"
+        ],
+        "title": "AdapterWrapper",
+        "description": "Wrapper for a single Adapter in responses."
+      },
+      "BackupCreateRequest": {
+        "properties": {
+          "backup_type": {
+            "type": "string",
+            "title": "Backup Type",
+            "default": "full"
+          }
+        },
+        "type": "object",
+        "title": "BackupCreateRequest",
+        "description": "Request body for initiating a backup operation."
+      },
+      "BackupHistoryItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "type",
+          "status"
+        ],
+        "title": "BackupHistoryItem",
+        "description": "Backup history item schema."
+      },
+      "BatchEmbeddingRequest": {
+        "properties": {
+          "adapter_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Adapter Ids"
+          },
+          "force_recompute": {
+            "type": "boolean",
+            "title": "Force Recompute",
+            "default": false
+          },
+          "compute_all": {
+            "type": "boolean",
+            "title": "Compute All",
+            "default": false
+          },
+          "batch_size": {
+            "type": "integer",
+            "maximum": 128.0,
+            "minimum": 1.0,
+            "title": "Batch Size",
+            "default": 32
+          }
+        },
+        "type": "object",
+        "title": "BatchEmbeddingRequest",
+        "description": "Request to compute embeddings for multiple LoRAs."
+      },
+      "BatchEmbeddingResponse": {
+        "properties": {
+          "processed_count": {
+            "type": "integer",
+            "title": "Processed Count"
+          },
+          "skipped_count": {
+            "type": "integer",
+            "title": "Skipped Count"
+          },
+          "error_count": {
+            "type": "integer",
+            "title": "Error Count"
+          },
+          "processing_time_seconds": {
+            "type": "number",
+            "title": "Processing Time Seconds"
+          },
+          "errors": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Errors"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Completed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "processed_count",
+          "skipped_count",
+          "error_count",
+          "processing_time_seconds",
+          "completed_at"
+        ],
+        "title": "BatchEmbeddingResponse",
+        "description": "Response for batch embedding computation."
+      },
+      "Body_compose_and_generate_v1_generation_compose_and_generate_post": {
+        "properties": {
+          "compose_request": {
+            "$ref": "#/components/schemas/ComposeRequest"
+          },
+          "generation_params": {
+            "$ref": "#/components/schemas/SDNextGenerationParams"
+          }
+        },
+        "type": "object",
+        "required": [
+          "compose_request",
+          "generation_params"
+        ],
+        "title": "Body_compose_and_generate_v1_generation_compose_and_generate_post"
+      },
+      "Body_import_data_v1_import_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string",
+              "format": "binary"
+            },
+            "type": "array",
+            "title": "Files"
+          },
+          "config": {
+            "type": "string",
+            "title": "Config"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files",
+          "config"
+        ],
+        "title": "Body_import_data_v1_import_post"
+      },
+      "BulkActionRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "activate",
+              "deactivate",
+              "delete"
+            ],
+            "title": "Action"
+          },
+          "lora_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Lora Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "lora_ids"
+        ],
+        "title": "BulkActionRequest",
+        "description": "Request body for bulk adapter actions."
+      },
+      "ComposeDelivery": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "http": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComposeDeliveryHTTP"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cli": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComposeDeliveryCLI"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sdnext": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComposeDeliverySDNext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "title": "ComposeDelivery",
+        "description": "Delivery configuration for compose requests."
+      },
+      "ComposeDeliveryCLI": {
+        "properties": {
+          "template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template"
+          }
+        },
+        "type": "object",
+        "title": "ComposeDeliveryCLI",
+        "description": "CLI-specific delivery parameters."
+      },
+      "ComposeDeliveryHTTP": {
+        "properties": {
+          "host": {
+            "type": "string",
+            "title": "Host"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Port"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "host"
+        ],
+        "title": "ComposeDeliveryHTTP",
+        "description": "HTTP delivery configuration for compose requests."
+      },
+      "ComposeDeliveryInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "ComposeDeliveryInfo",
+        "description": "Information about an enqueued or scheduled delivery."
+      },
+      "ComposeDeliverySDNext": {
+        "properties": {
+          "generation_params": {
+            "$ref": "#/components/schemas/SDNextGenerationParams"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/GenerationMode",
+            "default": "immediate"
+          },
+          "save_images": {
+            "type": "boolean",
+            "title": "Save Images",
+            "default": true
+          },
+          "return_format": {
+            "$ref": "#/components/schemas/GenerationResultFormat",
+            "default": "base64"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generation_params"
+        ],
+        "title": "ComposeDeliverySDNext",
+        "description": "SDNext delivery configuration for compose requests."
+      },
+      "ComposeRequest": {
+        "properties": {
+          "prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prefix"
+          },
+          "suffix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suffix"
+          },
+          "delivery": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComposeDelivery"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ComposeRequest",
+        "description": "Request body for composing a prompt."
+      },
+      "ComposeResponse": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "tokens": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tokens"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "delivery": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComposeDeliveryInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt",
+          "tokens"
+        ],
+        "title": "ComposeResponse",
+        "description": "Response returned from the compose endpoint."
+      },
+      "DeliveryCreate": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Params"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt",
+          "mode"
+        ],
+        "title": "DeliveryCreate",
+        "description": "Request body for creating a delivery job."
+      },
+      "DeliveryCreateResponse": {
+        "properties": {
+          "delivery_id": {
+            "type": "string",
+            "title": "Delivery Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "delivery_id"
+        ],
+        "title": "DeliveryCreateResponse",
+        "description": "Response returned when a delivery is created."
+      },
+      "DeliveryRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "result": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "prompt",
+          "mode",
+          "params",
+          "status",
+          "created_at"
+        ],
+        "title": "DeliveryRead",
+        "description": "Read model for a delivery job."
+      },
+      "DeliveryWrapper": {
+        "properties": {
+          "delivery": {
+            "$ref": "#/components/schemas/DeliveryRead"
+          }
+        },
+        "type": "object",
+        "required": [
+          "delivery"
+        ],
+        "title": "DeliveryWrapper",
+        "description": "Wrapper for delivery read responses."
+      },
+      "EmbeddingStatus": {
+        "properties": {
+          "adapter_id": {
+            "type": "string",
+            "title": "Adapter Id"
+          },
+          "has_semantic_embedding": {
+            "type": "boolean",
+            "title": "Has Semantic Embedding"
+          },
+          "has_artistic_embedding": {
+            "type": "boolean",
+            "title": "Has Artistic Embedding"
+          },
+          "has_technical_embedding": {
+            "type": "boolean",
+            "title": "Has Technical Embedding"
+          },
+          "has_extracted_features": {
+            "type": "boolean",
+            "title": "Has Extracted Features"
+          },
+          "last_computed": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Computed"
+          },
+          "needs_recomputation": {
+            "type": "boolean",
+            "title": "Needs Recomputation",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "adapter_id",
+          "has_semantic_embedding",
+          "has_artistic_embedding",
+          "has_technical_embedding",
+          "has_extracted_features"
+        ],
+        "title": "EmbeddingStatus",
+        "description": "Status of embedding computation for a LoRA."
+      },
+      "ErrorAnalysisEntry": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "percentage": {
+            "type": "number",
+            "title": "Percentage"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "count",
+          "percentage",
+          "description"
+        ],
+        "title": "ErrorAnalysisEntry",
+        "description": "Error breakdown entry with counts and percentages."
+      },
+      "ExportConfig": {
+        "properties": {
+          "loras": {
+            "type": "boolean",
+            "title": "Loras",
+            "default": false
+          },
+          "lora_files": {
+            "type": "boolean",
+            "title": "Lora Files",
+            "default": false
+          },
+          "lora_metadata": {
+            "type": "boolean",
+            "title": "Lora Metadata",
+            "default": false
+          },
+          "lora_embeddings": {
+            "type": "boolean",
+            "title": "Lora Embeddings",
+            "default": false
+          },
+          "generations": {
+            "type": "boolean",
+            "title": "Generations",
+            "default": false
+          },
+          "generation_range": {
+            "type": "string",
+            "title": "Generation Range",
+            "default": "all"
+          },
+          "date_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date From"
+          },
+          "date_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date To"
+          },
+          "user_data": {
+            "type": "boolean",
+            "title": "User Data",
+            "default": false
+          },
+          "system_config": {
+            "type": "boolean",
+            "title": "System Config",
+            "default": false
+          },
+          "analytics": {
+            "type": "boolean",
+            "title": "Analytics",
+            "default": false
+          },
+          "format": {
+            "type": "string",
+            "title": "Format",
+            "default": "zip"
+          },
+          "compression": {
+            "type": "string",
+            "title": "Compression",
+            "default": "balanced"
+          },
+          "split_archives": {
+            "type": "boolean",
+            "title": "Split Archives",
+            "default": false
+          },
+          "max_size_mb": {
+            "type": "integer",
+            "title": "Max Size Mb",
+            "default": 1024
+          },
+          "encrypt": {
+            "type": "boolean",
+            "title": "Encrypt",
+            "default": false
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "title": "ExportConfig",
+        "description": "Export configuration schema shared across services."
+      },
+      "ExportEstimate": {
+        "properties": {
+          "size": {
+            "type": "string",
+            "title": "Size"
+          },
+          "time": {
+            "type": "string",
+            "title": "Time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "size",
+          "time"
+        ],
+        "title": "ExportEstimate",
+        "description": "Export size and time estimates."
+      },
+      "GenerationBulkDeleteRequest": {
+        "properties": {
+          "ids": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Ids"
+          }
+        },
+        "type": "object",
+        "title": "GenerationBulkDeleteRequest",
+        "description": "Request payload for bulk deletion of generation results."
+      },
+      "GenerationCancelResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "default": true
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "GenerationCancelResponse",
+        "description": "Response returned when cancelling a generation job."
+      },
+      "GenerationExportRequest": {
+        "properties": {
+          "ids": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Ids"
+          },
+          "include_metadata": {
+            "type": "boolean",
+            "title": "Include Metadata",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "GenerationExportRequest",
+        "description": "Request payload for exporting generation results."
+      },
+      "GenerationJobStatus": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "jobId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jobid"
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "progress": {
+            "type": "number",
+            "title": "Progress",
+            "default": 0.0
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "startTime": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starttime"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "created_at"
+        ],
+        "title": "GenerationJobStatus",
+        "description": "Summary of an active generation job for queue displays."
+      },
+      "GenerationMode": {
+        "type": "string",
+        "enum": [
+          "immediate",
+          "deferred"
+        ],
+        "title": "GenerationMode",
+        "description": "Supported orchestration modes for generation requests."
+      },
+      "GenerationResultFormat": {
+        "type": "string",
+        "enum": [
+          "base64",
+          "file_path",
+          "url"
+        ],
+        "title": "GenerationResultFormat",
+        "description": "Accepted result serialization strategies for generation responses."
+      },
+      "GenerationResultSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt"
+          },
+          "negative_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Negative Prompt"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "steps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steps"
+          },
+          "cfg_scale": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cfg Scale"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "generation_info": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generation Info"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "is_favorite": {
+            "type": "boolean",
+            "title": "Is Favorite",
+            "default": false
+          },
+          "rating_updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Updated At"
+          },
+          "favorite_updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Favorite Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "job_id",
+          "status",
+          "created_at"
+        ],
+        "title": "GenerationResultSummary",
+        "description": "Summary of a completed generation result."
+      },
+      "GenerationVolumePoint": {
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp",
+          "count"
+        ],
+        "title": "GenerationVolumePoint",
+        "description": "Time-series point representing generation volume."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "IndexRebuildResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "rebuilt",
+              "skipped",
+              "empty"
+            ],
+            "title": "Status"
+          },
+          "indexed_items": {
+            "type": "integer",
+            "title": "Indexed Items"
+          },
+          "index_path": {
+            "type": "string",
+            "title": "Index Path"
+          },
+          "index_size_bytes": {
+            "type": "integer",
+            "title": "Index Size Bytes",
+            "default": 0
+          },
+          "processing_time_seconds": {
+            "type": "number",
+            "title": "Processing Time Seconds"
+          },
+          "rebuilt_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Rebuilt At"
+          },
+          "skipped": {
+            "type": "boolean",
+            "title": "Skipped",
+            "default": false
+          },
+          "skipped_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skipped Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "indexed_items",
+          "index_path",
+          "processing_time_seconds",
+          "rebuilt_at"
+        ],
+        "title": "IndexRebuildResponse",
+        "description": "Response returned when rebuilding the similarity index."
+      },
+      "LoraUsageSlice": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "usage_count": {
+            "type": "integer",
+            "title": "Usage Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "usage_count"
+        ],
+        "title": "LoraUsageSlice",
+        "description": "Breakdown entry describing LoRA usage distribution."
+      },
+      "PerformanceAnalyticsCharts": {
+        "properties": {
+          "generation_volume": {
+            "items": {
+              "$ref": "#/components/schemas/GenerationVolumePoint"
+            },
+            "type": "array",
+            "title": "Generation Volume"
+          },
+          "performance": {
+            "items": {
+              "$ref": "#/components/schemas/PerformanceSeriesPoint"
+            },
+            "type": "array",
+            "title": "Performance"
+          },
+          "lora_usage": {
+            "items": {
+              "$ref": "#/components/schemas/LoraUsageSlice"
+            },
+            "type": "array",
+            "title": "Lora Usage"
+          },
+          "resource_usage": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceUsagePoint"
+            },
+            "type": "array",
+            "title": "Resource Usage"
+          }
+        },
+        "type": "object",
+        "title": "PerformanceAnalyticsCharts",
+        "description": "Collection of chart data used by the analytics dashboard."
+      },
+      "PerformanceAnalyticsSummary": {
+        "properties": {
+          "time_range": {
+            "type": "string",
+            "enum": [
+              "24h",
+              "7d",
+              "30d"
+            ],
+            "title": "Time Range"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "kpis": {
+            "$ref": "#/components/schemas/PerformanceKpiSummary"
+          },
+          "chart_data": {
+            "$ref": "#/components/schemas/PerformanceAnalyticsCharts"
+          },
+          "error_breakdown": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorAnalysisEntry"
+            },
+            "type": "array",
+            "title": "Error Breakdown"
+          },
+          "performance_insights": {
+            "items": {
+              "$ref": "#/components/schemas/PerformanceInsightEntry"
+            },
+            "type": "array",
+            "title": "Performance Insights"
+          }
+        },
+        "type": "object",
+        "required": [
+          "time_range",
+          "generated_at"
+        ],
+        "title": "PerformanceAnalyticsSummary",
+        "description": "Aggregated analytics payload returned by the API."
+      },
+      "PerformanceInsightEntry": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity"
+          },
+          "recommendation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "severity"
+        ],
+        "title": "PerformanceInsightEntry",
+        "description": "Actionable insight generated from analytics data."
+      },
+      "PerformanceKpiSummary": {
+        "properties": {
+          "total_generations": {
+            "type": "integer",
+            "title": "Total Generations",
+            "default": 0
+          },
+          "generation_growth": {
+            "type": "number",
+            "title": "Generation Growth",
+            "default": 0.0
+          },
+          "avg_generation_time": {
+            "type": "number",
+            "title": "Avg Generation Time",
+            "default": 0.0
+          },
+          "time_improvement": {
+            "type": "number",
+            "title": "Time Improvement",
+            "default": 0.0
+          },
+          "success_rate": {
+            "type": "number",
+            "title": "Success Rate",
+            "default": 0.0
+          },
+          "total_failed": {
+            "type": "integer",
+            "title": "Total Failed",
+            "default": 0
+          },
+          "active_loras": {
+            "type": "integer",
+            "title": "Active Loras",
+            "default": 0
+          },
+          "total_loras": {
+            "type": "integer",
+            "title": "Total Loras",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "PerformanceKpiSummary",
+        "description": "Key performance indicators for generation analytics."
+      },
+      "PerformanceSeriesPoint": {
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "avg_time": {
+            "type": "number",
+            "title": "Avg Time"
+          },
+          "success_rate": {
+            "type": "number",
+            "title": "Success Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp",
+          "avg_time",
+          "success_rate"
+        ],
+        "title": "PerformanceSeriesPoint",
+        "description": "Time-series point representing performance metrics."
+      },
+      "PromptRecommendationRequest": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "active_loras": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Active Loras"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 10
+          },
+          "include_explanations": {
+            "type": "boolean",
+            "title": "Include Explanations",
+            "default": true
+          },
+          "style_preference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style Preference"
+          },
+          "technical_requirements": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Technical Requirements"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "PromptRecommendationRequest",
+        "description": "Request for prompt-based recommendations."
+      },
+      "RecommendationFeedbackRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "recommended_lora_id": {
+            "type": "string",
+            "title": "Recommended Lora Id"
+          },
+          "feedback_type": {
+            "type": "string",
+            "title": "Feedback Type"
+          },
+          "feedback_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Reason"
+          },
+          "implicit_signal": {
+            "type": "boolean",
+            "title": "Implicit Signal"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "session_id",
+          "recommended_lora_id",
+          "feedback_type",
+          "implicit_signal",
+          "created_at"
+        ],
+        "title": "RecommendationFeedbackRead",
+        "description": "Database-backed representation of recorded recommendation feedback."
+      },
+      "RecommendationItem": {
+        "properties": {
+          "lora_id": {
+            "type": "string",
+            "title": "Lora Id"
+          },
+          "lora_name": {
+            "type": "string",
+            "title": "Lora Name"
+          },
+          "lora_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lora Description"
+          },
+          "similarity_score": {
+            "type": "number",
+            "title": "Similarity Score"
+          },
+          "final_score": {
+            "type": "number",
+            "title": "Final Score"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          },
+          "semantic_similarity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semantic Similarity"
+          },
+          "artistic_similarity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artistic Similarity"
+          },
+          "technical_similarity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Technical Similarity"
+          },
+          "quality_boost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Boost"
+          },
+          "popularity_boost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Popularity Boost"
+          },
+          "recency_boost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recency Boost"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lora_id",
+          "lora_name",
+          "similarity_score",
+          "final_score",
+          "explanation"
+        ],
+        "title": "RecommendationItem",
+        "description": "Individual recommendation item."
+      },
+      "RecommendationResponse": {
+        "properties": {
+          "target_lora_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Lora Id"
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt"
+          },
+          "recommendations": {
+            "items": {
+              "$ref": "#/components/schemas/RecommendationItem"
+            },
+            "type": "array",
+            "title": "Recommendations"
+          },
+          "total_candidates": {
+            "type": "integer",
+            "title": "Total Candidates"
+          },
+          "processing_time_ms": {
+            "type": "number",
+            "title": "Processing Time Ms"
+          },
+          "recommendation_config": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Recommendation Config"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recommendations",
+          "total_candidates",
+          "processing_time_ms",
+          "recommendation_config",
+          "generated_at"
+        ],
+        "title": "RecommendationResponse",
+        "description": "Response containing recommendations."
+      },
+      "RecommendationStats": {
+        "properties": {
+          "total_loras": {
+            "type": "integer",
+            "title": "Total Loras"
+          },
+          "loras_with_embeddings": {
+            "type": "integer",
+            "title": "Loras With Embeddings"
+          },
+          "embedding_coverage": {
+            "type": "number",
+            "title": "Embedding Coverage"
+          },
+          "avg_recommendation_time_ms": {
+            "type": "number",
+            "title": "Avg Recommendation Time Ms"
+          },
+          "cache_hit_rate": {
+            "type": "number",
+            "title": "Cache Hit Rate"
+          },
+          "total_sessions": {
+            "type": "integer",
+            "title": "Total Sessions"
+          },
+          "user_preferences_count": {
+            "type": "integer",
+            "title": "User Preferences Count"
+          },
+          "feedback_count": {
+            "type": "integer",
+            "title": "Feedback Count"
+          },
+          "model_memory_usage_gb": {
+            "type": "number",
+            "title": "Model Memory Usage Gb"
+          },
+          "last_index_update": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Index Update"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_loras",
+          "loras_with_embeddings",
+          "embedding_coverage",
+          "avg_recommendation_time_ms",
+          "cache_hit_rate",
+          "total_sessions",
+          "user_preferences_count",
+          "feedback_count",
+          "model_memory_usage_gb",
+          "last_index_update"
+        ],
+        "title": "RecommendationStats",
+        "description": "Statistics about the recommendation system."
+      },
+      "ResourceUsagePoint": {
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "cpu_percent": {
+            "type": "number",
+            "title": "Cpu Percent"
+          },
+          "memory_percent": {
+            "type": "number",
+            "title": "Memory Percent"
+          },
+          "gpu_percent": {
+            "type": "number",
+            "title": "Gpu Percent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp",
+          "cpu_percent",
+          "memory_percent",
+          "gpu_percent"
+        ],
+        "title": "ResourceUsagePoint",
+        "description": "Time-series point representing system resource utilisation."
+      },
+      "SDNextGenerationParams": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "negative_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Negative Prompt"
+          },
+          "steps": {
+            "type": "integer",
+            "title": "Steps",
+            "default": 20
+          },
+          "sampler_name": {
+            "type": "string",
+            "title": "Sampler Name",
+            "default": "DPM++ 2M"
+          },
+          "cfg_scale": {
+            "type": "number",
+            "title": "Cfg Scale",
+            "default": 7.0
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width",
+            "default": 512
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height",
+            "default": 512
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed",
+            "default": -1
+          },
+          "batch_size": {
+            "type": "integer",
+            "title": "Batch Size",
+            "default": 1
+          },
+          "n_iter": {
+            "type": "integer",
+            "title": "N Iter",
+            "default": 1
+          },
+          "denoising_strength": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Denoising Strength"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "SDNextGenerationParams",
+        "description": "Parameters for SDNext text-to-image generation."
+      },
+      "SDNextGenerationResult": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "images": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Images"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progress"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "generation_info": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generation Info"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "SDNextGenerationResult",
+        "description": "Result of SDNext generation operation."
+      },
+      "UserFeedbackRequest": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "recommended_lora_id": {
+            "type": "string",
+            "title": "Recommended Lora Id"
+          },
+          "feedback_type": {
+            "type": "string",
+            "pattern": "^(positive|negative|activated|ignored|dismissed)$",
+            "title": "Feedback Type"
+          },
+          "feedback_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Reason"
+          },
+          "implicit_signal": {
+            "type": "boolean",
+            "title": "Implicit Signal",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "recommended_lora_id",
+          "feedback_type"
+        ],
+        "title": "UserFeedbackRequest",
+        "description": "User feedback on recommendations."
+      },
+      "UserPreferenceRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "preference_type": {
+            "type": "string",
+            "title": "Preference Type"
+          },
+          "preference_value": {
+            "type": "string",
+            "title": "Preference Value"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "learned_from": {
+            "type": "string",
+            "title": "Learned From"
+          },
+          "evidence_count": {
+            "type": "integer",
+            "title": "Evidence Count"
+          },
+          "last_evidence_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Evidence At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "preference_type",
+          "preference_value",
+          "confidence",
+          "learned_from",
+          "evidence_count",
+          "last_evidence_at",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "UserPreferenceRead",
+        "description": "Persisted user preference representation."
+      },
+      "UserPreferenceRequest": {
+        "properties": {
+          "preference_type": {
+            "type": "string",
+            "pattern": "^(archetype|style|technical|author|tag)$",
+            "title": "Preference Type"
+          },
+          "preference_value": {
+            "type": "string",
+            "title": "Preference Value"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "explicit": {
+            "type": "boolean",
+            "title": "Explicit",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "preference_type",
+          "preference_value",
+          "confidence"
+        ],
+        "title": "UserPreferenceRequest",
+        "description": "Request to update user preferences."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "APIKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    }
+  }
+}

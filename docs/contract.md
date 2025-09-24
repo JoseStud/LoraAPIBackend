@@ -68,6 +68,14 @@ service runs without the wrapper in `app/main.py`). Routes are implemented under
   backend supports it.
 - `GET /v1/generation/results` – List recent generation results, including image
   payloads or file paths.
+- `POST /v1/generation/results/export` – Stream a ZIP archive containing
+  selected generation results.
+- `DELETE /v1/generation/results/bulk-delete` – Remove multiple generation
+  results in a single request.
+- `DELETE /v1/generation/results/{result_id}` – Delete an individual result and
+  its associated artifacts.
+- `GET /v1/generation/results/{result_id}/download` – Stream the primary asset
+  for a stored result.
 - `GET /v1/generation/progress/{job_id}` – Poll SDNext progress directly.
 
 ### Recommendations (`/v1/recommendations`)
@@ -81,8 +89,18 @@ service runs without the wrapper in `app/main.py`). Routes are implemented under
   more adapters (requires ML stack).
 - `GET /v1/recommendations/embeddings/{lora_id}` – Inspect the embedding status
   for an adapter.
-- Additional feedback endpoints exist but expect custom persistence layers
-  before they return meaningful data.
+- `POST /v1/recommendations/embeddings/{lora_id}/compute` – Compute embeddings
+  for a specific adapter, optionally forcing recomputation.
+- `POST /v1/recommendations/feedback` – Persist explicit user feedback for
+  recommendation quality tuning.
+- `POST /v1/recommendations/preferences` – Store user preference profiles that
+  influence future recommendations.
+- `POST /v1/recommendations/index/rebuild` – Refresh similarity indexes used by
+  the recommendation engine.
+- `GET /v1/recommendations/health` – Summarise runtime health checks and
+  readiness for the recommendation subsystem.
+- Feedback and preference persistence requires the optional feedback storage
+  configured in `RecommendationService`.
 
 ### Analytics (`/v1/analytics`)
 
