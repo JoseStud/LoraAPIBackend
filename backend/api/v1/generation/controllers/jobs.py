@@ -5,8 +5,6 @@ from __future__ import annotations
 from typing import List
 
 from fastapi import BackgroundTasks, HTTPException
-
-from backend.models import DeliveryJob
 from backend.schemas import (
     DeliveryCreateResponse,
     DeliveryRead,
@@ -19,7 +17,7 @@ from backend.services import ApplicationServices
 
 from ..presenters.jobs import build_active_job
 
-ACTIVE_JOB_STATUSES = frozenset({"pending", "running"})
+ACTIVE_JOB_STATUSES = frozenset({"pending", "running", "retrying"})
 CANCELLABLE_STATUSES = frozenset({"pending", "running"})
 
 __all__ = [
@@ -68,18 +66,11 @@ def list_active_jobs(
 ) -> List[GenerationJobStatus]:
     """Return active generation jobs for frontend queues."""
     coordinator = application.generation_coordinator
-    jobs_by_id: dict[str, DeliveryJob] = {}
-    for status in ACTIVE_JOB_STATUSES:
-        for job in application.deliveries.list_jobs(status=status, limit=limit):
-            jobs_by_id[job.id] = job
-
-    ordered_jobs = sorted(
-        jobs_by_id.values(),
-        key=lambda job: job.started_at or job.created_at,
-        reverse=True,
+    jobs = application.deliveries.list_jobs_by_statuses(
+        statuses=ACTIVE_JOB_STATUSES,
+        limit=limit,
     )
-
-    return [build_active_job(job, coordinator) for job in ordered_jobs[:limit]]
+    return [build_active_job(job, coordinator) for job in jobs]
 
 
 def get_job_wrapper(

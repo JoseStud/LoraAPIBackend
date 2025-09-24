@@ -98,6 +98,42 @@ class TestDeliveryService:
         assert job.id == fallback.enqueued[0][0]
         assert primary.enqueued == []
 
+    def test_list_jobs_by_statuses_filters_and_orders(
+        self, delivery_service: DeliveryService, db_session
+    ):
+        """Jobs are filtered by status and ordered by started/created timestamps."""
+        running_new = delivery_service.create_job("prompt-a", "cli", {})
+        running_old = delivery_service.create_job("prompt-b", "cli", {})
+        pending_job = delivery_service.create_job("prompt-c", "cli", {})
+        finished_job = delivery_service.create_job("prompt-d", "cli", {})
+
+        running_new.status = "running"
+        running_new.created_at = datetime(2024, 1, 1, 10, 0, 0)
+        running_new.started_at = datetime(2024, 1, 1, 16, 0, 0)
+
+        running_old.status = "running"
+        running_old.created_at = datetime(2024, 1, 1, 9, 0, 0)
+        running_old.started_at = datetime(2024, 1, 1, 14, 0, 0)
+
+        pending_job.status = "pending"
+        pending_job.created_at = datetime(2024, 1, 1, 15, 0, 0)
+
+        finished_job.status = "succeeded"
+        finished_job.created_at = datetime(2024, 1, 1, 20, 0, 0)
+
+        db_session.add_all([running_new, running_old, pending_job, finished_job])
+        db_session.commit()
+
+        jobs = delivery_service.list_jobs_by_statuses(
+            ["running", "pending", "running"], limit=10
+        )
+
+        assert [job.id for job in jobs] == [
+            running_new.id,
+            pending_job.id,
+            running_old.id,
+        ]
+
     def test_process_delivery_job_success(self, db_session, monkeypatch):
         """Processing a delivery job marks it as succeeded with the result."""
         service = DeliveryService(DeliveryJobRepository(db_session))

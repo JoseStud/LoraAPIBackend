@@ -108,6 +108,12 @@ class DeliveryService:
         """List delivery jobs with optional filtering and pagination."""
         return self._repository.list_jobs(status=status, limit=limit, offset=offset)
 
+    def list_jobs_by_statuses(
+        self, statuses: Sequence[str], *, limit: int
+    ) -> List[DeliveryJob]:
+        """List delivery jobs matching any of ``statuses`` ordered by recency."""
+        return self._repository.list_jobs_by_statuses(statuses, limit=limit)
+
     def count_active_jobs(self) -> int:
         """Return the number of jobs currently in flight."""
         return self._repository.count_active_jobs()
