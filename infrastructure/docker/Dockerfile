@@ -18,8 +18,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend ./backend
 COPY app ./app
 
+# Copy infrastructure for migrations
+COPY infrastructure ./infrastructure
+
 # Create necessary directories
 RUN mkdir -p loras outputs cache/embeddings logs
+
+# Make startup scripts executable
+RUN chmod +x infrastructure/docker/start-api.sh infrastructure/docker/migrate.sh
 
 EXPOSE 8000
 
@@ -27,5 +33,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Run the backend API server
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the API with migrations
+CMD ["./infrastructure/docker/start-api.sh"]
