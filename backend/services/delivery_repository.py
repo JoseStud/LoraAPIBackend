@@ -194,6 +194,33 @@ class DeliveryJobRepository:
         )
         return list(self._session.exec(query).all())
 
+    def list_jobs_by_statuses(
+        self, statuses: Sequence[str], limit: int
+    ) -> List[DeliveryJob]:
+        """Return jobs matching ``statuses`` ordered by recency."""
+        if limit <= 0:
+            return []
+
+        normalized_statuses = [
+            status for status in statuses if isinstance(status, str) and status
+        ]
+        if not normalized_statuses:
+            return []
+
+        unique_statuses = tuple(dict.fromkeys(normalized_statuses))
+
+        order_expression = func.coalesce(
+            DeliveryJob.started_at, DeliveryJob.created_at
+        ).desc()
+
+        query = (
+            select(DeliveryJob)
+            .where(DeliveryJob.status.in_(unique_statuses))
+            .order_by(order_expression, DeliveryJob.created_at.desc())
+            .limit(limit)
+        )
+        return list(self._session.exec(query).all())
+
     def count_active_jobs(self) -> int:
         """Return the number of jobs considered active."""
         result = self._session.exec(

@@ -2,6 +2,7 @@
 
 from contextlib import contextmanager
 from dataclasses import replace
+from datetime import datetime
 from types import SimpleNamespace
 from typing import Any, Dict
 from unittest.mock import MagicMock
@@ -79,6 +80,43 @@ def test_cancel_generation_job_invalid_state(
 
     response = client.post(f"/api/v1/generation/jobs/{job.id}/cancel")
     assert response.status_code == 400
+
+
+def test_list_active_generation_jobs_orders_results(
+    client: TestClient, delivery_service: DeliveryService, db_session
+):
+    """Active job listing returns multi-status results ordered by recency."""
+    running_job = delivery_service.create_job("run", "sdnext", {})
+    retry_job = delivery_service.create_job("retry", "sdnext", {})
+    pending_job = delivery_service.create_job("pend", "sdnext", {})
+    finished_job = delivery_service.create_job("done", "sdnext", {})
+
+    running_job.status = "running"
+    running_job.created_at = datetime(2024, 1, 1, 9, 0, 0)
+    running_job.started_at = datetime(2024, 1, 1, 18, 0, 0)
+
+    retry_job.status = "retrying"
+    retry_job.created_at = datetime(2024, 1, 1, 8, 0, 0)
+    retry_job.started_at = datetime(2024, 1, 1, 17, 0, 0)
+
+    pending_job.status = "pending"
+    pending_job.created_at = datetime(2024, 1, 1, 16, 0, 0)
+
+    finished_job.status = "succeeded"
+    finished_job.created_at = datetime(2024, 1, 1, 20, 0, 0)
+
+    db_session.add_all([running_job, retry_job, pending_job, finished_job])
+    db_session.commit()
+
+    response = client.get("/api/v1/generation/jobs/active", params={"limit": 10})
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert [item["id"] for item in payload] == [
+        running_job.id,
+        retry_job.id,
+        pending_job.id,
+    ]
 
 
 def test_serialize_generation_job_normalizes_payload(
