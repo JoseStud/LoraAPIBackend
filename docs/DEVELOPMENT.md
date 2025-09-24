@@ -42,7 +42,10 @@ Key concepts:
 
 - `ServiceContainerBuilder` composes `CoreServiceRegistry`,
   `DomainServiceRegistry`, and `InfrastructureServiceRegistry` objects so each
-  request receives the correct service graph.
+  request receives the correct service graph. Use
+  `service_container_builder_scope()` when you need an isolated container for a
+  test or request; it stores the active builder in context-local storage so
+  overrides never leak across async tasks.【F:backend/services/__init__.py†L1-L70】
 - WebSockets are handled by `backend/api/v1/websocket.py`, which delegates to
   `WebSocketService` for subscription management and broadcasting.
 - Import/export flows live under `backend/services/archive`, exposing

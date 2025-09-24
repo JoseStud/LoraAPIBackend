@@ -12,7 +12,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from app.main import app as fastapi_app
 from app.main import backend_app
 from backend.core.database import get_session
-from backend.services import get_service_container_builder
+from backend.services import get_service_container_builder, service_container_builder_scope
 from backend.services.adapters import AdapterService
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.composition import ComposeService
@@ -26,6 +26,14 @@ from backend.services.queue import create_queue_orchestrator
 def anyio_backend():
     """Force AnyIO tests to execute using the asyncio backend."""
     return "asyncio"
+
+
+@pytest.fixture(autouse=True)
+def isolated_service_container_builder():
+    """Provide an isolated service container builder per test."""
+
+    with service_container_builder_scope():
+        yield
 
 
 @pytest.fixture(name="mock_storage")

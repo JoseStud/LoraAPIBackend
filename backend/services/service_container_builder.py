@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from threading import RLock
 from typing import Callable, Optional, TypeVar, Union
 
 from sqlmodel import Session
@@ -113,28 +114,33 @@ class ServiceContainerBuilder:
         self._delivery_repository_factory = delivery_repository_factory
         self._recommendation_gpu_detector = recommendation_gpu_detector
 
+        self._lock = RLock()
         self._cached_queue_orchestrator: Optional[QueueOrchestrator] = None
         self._cached_gpu_available: Optional[bool] = None
 
     def _get_queue_orchestrator(self) -> QueueOrchestrator:
-        if self._cached_queue_orchestrator is None:
-            self._cached_queue_orchestrator = self._queue_orchestrator_factory()
-        return self._cached_queue_orchestrator
+        with self._lock:
+            if self._cached_queue_orchestrator is None:
+                self._cached_queue_orchestrator = self._queue_orchestrator_factory()
+            return self._cached_queue_orchestrator
 
     def _get_gpu_available(self) -> bool:
-        if self._cached_gpu_available is None:
-            self._cached_gpu_available = self._recommendation_gpu_detector()
-        return self._cached_gpu_available
+        with self._lock:
+            if self._cached_gpu_available is None:
+                self._cached_gpu_available = self._recommendation_gpu_detector()
+            return self._cached_gpu_available
 
     def reset_cached_queue_orchestrator(self) -> None:
         """Drop the cached queue orchestrator so the next build recreates it."""
-        if self._cached_queue_orchestrator is not None:
-            self._cached_queue_orchestrator.reset()
-        self._cached_queue_orchestrator = None
+        with self._lock:
+            if self._cached_queue_orchestrator is not None:
+                self._cached_queue_orchestrator.reset()
+            self._cached_queue_orchestrator = None
 
     def invalidate_recommendation_gpu_cache(self) -> None:
         """Force the next build to recompute the GPU availability flag."""
-        self._cached_gpu_available = None
+        with self._lock:
+            self._cached_gpu_available = None
 
     def get_recommendation_gpu_available(self) -> bool:
         """Return the cached recommendation GPU availability flag."""

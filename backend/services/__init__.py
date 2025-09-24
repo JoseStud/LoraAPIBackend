@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from contextvars import ContextVar
+from typing import Iterator, Optional
+
 from sqlmodel import Session
 
 from .adapters import AdapterService
@@ -29,17 +33,41 @@ from .storage import StorageService
 from .system import SystemService
 from .websocket import WebSocketService
 
-_DEFAULT_BUILDER = ServiceContainerBuilder()
+_builder_var: ContextVar[ServiceContainerBuilder] = ContextVar(
+    "service_container_builder"
+)
+
+
+def _create_default_builder() -> ServiceContainerBuilder:
+    return ServiceContainerBuilder()
 
 
 def get_service_container_builder() -> ServiceContainerBuilder:
-    """Return the shared service container builder."""
-    return _DEFAULT_BUILDER
+    """Return the current service container builder for this context."""
+    try:
+        return _builder_var.get()
+    except LookupError:
+        builder = _create_default_builder()
+        _builder_var.set(builder)
+        return builder
+
+
+@contextmanager
+def service_container_builder_scope(
+    builder: Optional[ServiceContainerBuilder] = None,
+) -> Iterator[ServiceContainerBuilder]:
+    """Provide a scoped service container builder override."""
+
+    token = _builder_var.set(builder or _create_default_builder())
+    try:
+        yield _builder_var.get()
+    finally:
+        _builder_var.reset(token)
 
 
 def create_service_container(db_session: Session) -> ServiceRegistry:
     """Create a service registry for the provided database session."""
-    return _DEFAULT_BUILDER.build(db_session)
+    return get_service_container_builder().build(db_session)
 
 
 __all__ = [
@@ -58,4 +86,5 @@ __all__ = [
     "StorageService",
     "QueueOrchestrator",
     "get_service_container_builder",
+    "service_container_builder_scope",
 ]
