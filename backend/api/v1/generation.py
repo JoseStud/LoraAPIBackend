@@ -1,11 +1,17 @@
 """Router for SDNext generation endpoints."""
 
+import json
 from typing import Dict, List
 
 import structlog
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response
+from fastapi.responses import StreamingResponse
 
-from backend.core.dependencies import get_application_services, get_domain_services
+from backend.core.dependencies import (
+    get_application_services,
+    get_core_services,
+    get_domain_services,
+)
 from backend.delivery import get_generation_backend
 from backend.schemas import (
     ComposeRequest,
@@ -13,12 +19,14 @@ from backend.schemas import (
     DeliveryRead,
     DeliveryWrapper,
     GenerationCancelResponse,
+    GenerationBulkDeleteRequest,
+    GenerationExportRequest,
     GenerationJobStatus,
     GenerationResultSummary,
     SDNextGenerationParams,
     SDNextGenerationResult,
 )
-from backend.services import ApplicationServices, DomainServices
+from backend.services import ApplicationServices, CoreServices, DomainServices
 from backend.services.generation import normalize_generation_status
 from backend.services.generation.presenter import build_active_job, build_result
 
@@ -298,3 +306,90 @@ async def list_generation_results(
 
     coordinator = services.generation_coordinator
     return [build_result(job, coordinator) for job in jobs]
+
+
+@router.delete("/results/bulk-delete")
+async def bulk_delete_generation_results(
+    request: GenerationBulkDeleteRequest,
+    application: ApplicationServices = Depends(get_application_services),
+    core: CoreServices = Depends(get_core_services),
+):
+    """Delete multiple generation results in a single request."""
+    target_ids = [str(identifier) for identifier in request.ids]
+    deleted = application.deliveries.bulk_delete_job_results(
+        target_ids,
+        storage=core.storage,
+        coordinator=application.generation_coordinator,
+    )
+    return {"deleted": deleted}
+
+
+@router.delete("/results/{result_id}", status_code=204)
+async def delete_generation_result(
+    result_id: str,
+    application: ApplicationServices = Depends(get_application_services),
+    core: CoreServices = Depends(get_core_services),
+):
+    """Delete a stored generation result and its associated artifacts."""
+    deleted = application.deliveries.delete_job_result(
+        str(result_id),
+        storage=core.storage,
+        coordinator=application.generation_coordinator,
+    )
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Result not found")
+
+    return Response(status_code=204)
+
+
+@router.post("/results/export")
+async def export_generation_results(
+    request: GenerationExportRequest,
+    application: ApplicationServices = Depends(get_application_services),
+    core: CoreServices = Depends(get_core_services),
+):
+    """Stream a ZIP archive containing the requested generation results."""
+    target_ids = [str(identifier) for identifier in request.ids]
+    archive = application.deliveries.build_results_archive(
+        target_ids,
+        storage=core.storage,
+        coordinator=application.generation_coordinator,
+        include_metadata=request.include_metadata,
+    )
+    if archive is None:
+        raise HTTPException(status_code=404, detail="No results found")
+
+    headers = {
+        "Content-Disposition": f'attachment; filename="{archive.filename}"',
+        "Content-Length": str(archive.size),
+    }
+
+    return StreamingResponse(archive.iterator, media_type="application/zip", headers=headers)
+
+
+@router.get("/results/{result_id}/download")
+async def download_generation_result(
+    result_id: str,
+    application: ApplicationServices = Depends(get_application_services),
+    core: CoreServices = Depends(get_core_services),
+):
+    """Download the primary asset associated with a generation result."""
+    job = application.deliveries.get_job(result_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Result not found")
+
+    payload = application.deliveries.build_result_download(
+        job,
+        storage=core.storage,
+        coordinator=application.generation_coordinator,
+    )
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Result asset is unavailable")
+
+    headers = {
+        "Content-Disposition": f'attachment; filename="{payload.filename}"',
+    }
+    if payload.size is not None:
+        headers["Content-Length"] = str(payload.size)
+
+    return StreamingResponse(payload.iterator, media_type=payload.content_type, headers=headers)

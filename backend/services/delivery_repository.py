@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from sqlalchemy import func
 from sqlmodel import Session, select
@@ -198,6 +198,66 @@ class DeliveryJobRepository:
         )
         jobs = list(self._session.exec(query).all())
         return [self._mapper.build_activity(job) for job in jobs]
+
+    def list_jobs_by_ids(self, job_ids: Sequence[str]) -> List[DeliveryJob]:
+        """Return delivery jobs matching ``job_ids`` preserving database order."""
+        if not job_ids:
+            return []
+
+        normalized_ids = [str(job_id) for job_id in job_ids]
+
+        query = select(DeliveryJob).where(DeliveryJob.id.in_(normalized_ids))
+        jobs = list(self._session.exec(query).all())
+        if not jobs:
+            return []
+
+        jobs_by_id = {job.id: job for job in jobs}
+        return [jobs_by_id[job_id] for job_id in normalized_ids if job_id in jobs_by_id]
+
+    def delete_job(self, job_id: str) -> bool:
+        """Delete a delivery job and commit the change."""
+        job = self.get_job(job_id)
+        if job is None:
+            return False
+
+        self._session.delete(job)
+        self._session.commit()
+        return True
+
+    def delete_jobs(self, job_ids: Sequence[str]) -> int:
+        """Bulk delete delivery jobs by identifier."""
+        jobs = self.list_jobs_by_ids(job_ids)
+        if not jobs:
+            return 0
+
+        for job in jobs:
+            self._session.delete(job)
+
+        self._session.commit()
+        return len(jobs)
+
+    def bulk_update_jobs(
+        self,
+        job_ids: Sequence[str],
+        *,
+        status: Optional[str] = None,
+        result: Optional[Dict[str, Any]] = None,
+        error: Optional[str] = None,
+    ) -> int:
+        """Apply status/result updates to multiple jobs at once."""
+        jobs = self.list_jobs_by_ids(job_ids)
+        if not jobs:
+            return 0
+
+        for job in jobs:
+            if status is not None:
+                self._mapper.apply_status(job, status)
+            if result is not None or error is not None:
+                job.result = self._mapper.serialize_result(result, error)
+            self._session.add(job)
+
+        self._session.commit()
+        return len(jobs)
 
     def update_job_status(
         self,
