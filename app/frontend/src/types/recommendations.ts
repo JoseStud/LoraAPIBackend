@@ -2,6 +2,8 @@
  * Type definitions mirroring backend/schemas/recommendations.py.
  */
 
+import type { JsonObject } from './json';
+
 export interface RecommendationRequest {
   target_lora_id?: string | null;
   prompt?: string | null;
@@ -9,11 +11,7 @@ export interface RecommendationRequest {
   limit?: number;
   include_explanations?: boolean;
   weights?: Record<string, number> | null;
-  /**
-   * Filter structure is backend-defined and may evolve.
-   * TODO: sync with backend filter schema when documented.
-   */
-  filters?: Record<string, unknown> | null;
+  filters?: JsonObject | null;
 }
 
 export interface RecommendationItem {
@@ -29,11 +27,7 @@ export interface RecommendationItem {
   quality_boost?: number | null;
   popularity_boost?: number | null;
   recency_boost?: number | null;
-  /**
-   * Recommendation engine attaches contextual metadata here.
-   * TODO: capture specific keys when backend payload stabilises.
-   */
-  metadata?: Record<string, unknown> | null;
+  metadata?: JsonObject | null;
 }
 
 export interface RecommendationResponse {
@@ -42,11 +36,7 @@ export interface RecommendationResponse {
   recommendations: RecommendationItem[];
   total_candidates: number;
   processing_time_ms: number;
-  /**
-   * Backend emits configuration details for debugging.
-   * TODO: document expected shape and replace with strong types.
-   */
-  recommendation_config: Record<string, unknown>;
+  recommendation_config: JsonObject;
   generated_at: string;
 }
 
@@ -56,7 +46,7 @@ export interface PromptRecommendationRequest {
   limit?: number;
   include_explanations?: boolean;
   style_preference?: string | null;
-  technical_requirements?: Record<string, unknown> | null;
+  technical_requirements?: JsonObject | null;
 }
 
 export interface SimilarityRequest {

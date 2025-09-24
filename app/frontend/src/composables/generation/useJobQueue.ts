@@ -3,11 +3,11 @@ import { storeToRefs } from 'pinia';
 
 import { useGenerationQueueStore, useGenerationResultsStore } from '@/stores/generation';
 import { useBackendBase } from '@/utils/backend';
-import type { GenerationJob, GenerationResult } from '@/types';
+import type { GenerationJob, GenerationJobStatus, GenerationResult } from '@/types';
 import { normalizeJobStatus } from '@/utils/status';
 import { useToast } from '@/composables/shared';
 
-import { useJobQueueTransport, type JobQueueRecord } from '@/composables/generation';
+import { useJobQueueTransport } from '@/composables/generation';
 import { useJobQueuePolling } from '@/composables/generation';
 
 const DEFAULT_POLL_INTERVAL = 2000;
@@ -64,7 +64,7 @@ const normaliseProgress = (value: unknown, fallback = 0): number => {
   return Math.min(100, Math.max(0, Math.round(numeric)));
 };
 
-const pickJobId = (record: JobQueueRecord): string | null => {
+const pickJobId = (record: GenerationJobStatus): string | null => {
   const rawId = record.id ?? record.jobId;
   if (rawId == null) {
     return null;
@@ -73,7 +73,7 @@ const pickJobId = (record: JobQueueRecord): string | null => {
   return id.trim().length > 0 ? id : null;
 };
 
-const extractErrorMessage = (record: JobQueueRecord, fallback = 'Unknown error'): string => {
+const extractErrorMessage = (record: GenerationJobStatus, fallback = 'Unknown error'): string => {
   const error = record.error;
   const message = record.message;
 
@@ -89,7 +89,7 @@ const extractErrorMessage = (record: JobQueueRecord, fallback = 'Unknown error')
 };
 
 const applyJobRecord = (
-  record: JobQueueRecord,
+  record: GenerationJobStatus,
   getActiveJobs: () => ReadonlyArray<GenerationJob>,
   queueStore: ReturnType<typeof useGenerationQueueStore>,
   resultsStore: ReturnType<typeof useGenerationResultsStore>,
@@ -107,7 +107,7 @@ const applyJobRecord = (
   const status = normalizeJobStatus(rawStatus ?? (existing?.status ?? undefined));
 
   if (status === 'completed') {
-    if (record.result) {
+    if (record.result && typeof record.result === 'object') {
       resultsStore.addResult(record.result as GenerationResult);
     }
     if (wasTracked && existing) {
@@ -130,12 +130,12 @@ const applyJobRecord = (
     return;
   }
 
-  const progress = normaliseProgress(record.progress ?? existing?.progress ?? 0, 0);
+  const progress = normaliseProgress(
+    typeof record.progress === 'number' ? record.progress : existing?.progress ?? 0,
+    0,
+  );
   const message = typeof record.message === 'string' ? record.message : existing?.message;
-  const params =
-    record.params && typeof record.params === 'object'
-      ? (record.params as GenerationJob['params'])
-      : existing?.params;
+  const params = record.params ?? existing?.params ?? null;
 
   const updates: Partial<GenerationJob> = {
     status,

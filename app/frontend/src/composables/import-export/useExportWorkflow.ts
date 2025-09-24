@@ -3,6 +3,7 @@ import { computed, reactive, ref, watch, type ComputedRef } from 'vue';
 import { ensureData, getFilenameFromContentDisposition, postJson, requestBlob } from '@/utils/api';
 import { downloadFile } from '@/utils/browser';
 import { formatFileSize as formatBytes } from '@/utils/format';
+import type { ExportConfig, ExportEstimate } from '@/types';
 
 export type NotifyType = 'success' | 'error' | 'warning' | 'info';
 export type NotifyFn = (message: string, type?: NotifyType) => void;
@@ -17,26 +18,6 @@ export interface ProgressCallbacks {
   begin: () => void;
   update: (update: ProgressUpdate) => void;
   end: () => void;
-}
-
-export interface ExportConfig {
-  loras: boolean;
-  lora_files: boolean;
-  lora_metadata: boolean;
-  lora_embeddings: boolean;
-  generations: boolean;
-  generation_range: 'all' | 'date_range';
-  date_from: string;
-  date_to: string;
-  user_data: boolean;
-  system_config: boolean;
-  analytics: boolean;
-  format: 'zip' | 'tar.gz' | 'json';
-  compression: 'none' | 'fast' | 'balanced' | 'maximum';
-  split_archives: boolean;
-  max_size_mb: number;
-  encrypt: boolean;
-  password: string;
 }
 
 interface UseExportWorkflowOptions {
@@ -158,11 +139,11 @@ export function useExportWorkflow(options: UseExportWorkflowOptions): UseExportW
   const updateEstimates = async () => {
     try {
       const estimates = ensureData(
-        await postJson('/api/v1/export/estimate', { ...exportConfig })
+        await postJson<ExportEstimate, ExportConfig>('/api/v1/export/estimate', { ...exportConfig })
       );
 
       if (estimates && typeof estimates === 'object') {
-        const { size, time } = estimates as Record<string, unknown>;
+        const { size, time } = estimates;
         if (typeof size === 'string') {
           estimatedSize.value = size;
         }

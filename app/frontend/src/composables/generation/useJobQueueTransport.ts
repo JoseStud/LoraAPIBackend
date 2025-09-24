@@ -2,15 +2,14 @@ import { ref, unref, type MaybeRefOrGetter, type Ref } from 'vue';
 
 import { fetchActiveGenerationJobs } from '@/services';
 import { DEFAULT_BACKEND_BASE } from '@/utils/backend';
-
-export type JobQueueRecord = Record<string, unknown>;
+import type { GenerationJobStatus } from '@/types';
 
 export interface UseJobQueueTransportOptions {
   backendBase: MaybeRefOrGetter<string>;
 }
 
 export interface UseJobQueueTransportReturn {
-  fetchJobs: () => Promise<JobQueueRecord[] | null>;
+  fetchJobs: () => Promise<GenerationJobStatus[] | null>;
   apiAvailable: Ref<boolean>;
 }
 
@@ -35,7 +34,7 @@ export const useJobQueueTransport = (
 ): UseJobQueueTransportReturn => {
   const apiAvailable = ref(true);
 
-  const fetchJobs = async (): Promise<JobQueueRecord[] | null> => {
+  const fetchJobs = async (): Promise<GenerationJobStatus[] | null> => {
     const backendBase = resolveBackendBase(options.backendBase);
 
     try {

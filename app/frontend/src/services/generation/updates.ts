@@ -7,10 +7,12 @@ import {
   startGeneration,
 } from '@/services';
 import { requestJson } from '@/utils/api';
+import { normalizeJobStatus } from '@/utils/status';
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,
   GenerationJob,
+  GenerationJobStatus,
   GenerationProgressMessage,
   GenerationRequestPayload,
   GenerationResult,
@@ -107,11 +109,24 @@ export const createGenerationQueueClient = (
 
   const fetchActiveJobs = async (): Promise<Partial<GenerationJob>[]> => {
     try {
-      const result = await requestJson<Partial<GenerationJob>[]>(
+      const result = await requestJson<GenerationJobStatus[]>(
         buildGenerationUrl('jobs/active'),
         withCredentials(),
       );
-      return ensureArray(result.data);
+      return ensureArray(result.data).map((status) => ({
+        id: status.id,
+        jobId: status.jobId ?? undefined,
+        prompt: status.prompt ?? undefined,
+        status: normalizeJobStatus(status.status),
+        progress: status.progress,
+        message: status.message ?? undefined,
+        params: status.params ?? null,
+        result: status.result ?? null,
+        error: status.error ?? undefined,
+        created_at: status.created_at,
+        startTime: status.startTime ?? undefined,
+        finished_at: status.finished_at ?? undefined,
+      }));
     } catch (error) {
       console.error('Failed to load active jobs:', error);
       throw error;
