@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import builtins
 import types
 
 from redis.exceptions import ConnectionError as RedisConnectionError
@@ -13,11 +14,13 @@ from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.queue import (
     BackgroundTaskQueueBackend,
+    QueueBackend,
     QueueOrchestrator,
     RedisQueueBackend,
 )
 from backend.workers import tasks as worker_tasks
 from backend.workers.tasks import reset_worker_context, set_worker_context
+from unittest.mock import MagicMock
 
 
 def test_queue_factory_shared_backend_with_redis(db_session) -> None:
@@ -184,3 +187,110 @@ def test_background_queue_runs_coroutine_without_loop(monkeypatch) -> None:
     backend.enqueue_delivery("job-3")
 
     assert executed == ["job-3"]
+
+
+def test_orchestrator_logs_warning_when_primary_errors(capsys) -> None:
+    """Fallback queue usage should emit a warning with the original error."""
+
+    executed: list[str] = []
+
+    def record_job(job_id: str) -> None:
+        executed.append(job_id)
+
+    fallback = BackgroundTaskQueueBackend(record_job)
+    primary = MagicMock(spec=QueueBackend)
+    primary.enqueue_delivery.side_effect = RuntimeError("primary exploded")
+
+    orchestrator = QueueOrchestrator(
+        primary_backend=primary,
+        fallback_backend=fallback,
+    )
+
+    orchestrator.enqueue_delivery("job-error")
+
+    out = capsys.readouterr().out
+
+    assert executed == ["job-error"]
+    assert "queue_orchestrator.fallback" in out
+    assert "reason=primary_error" in out
+    assert "error_type=RuntimeError" in out
+    assert "primary exploded" in out
+
+
+def test_orchestrator_reports_missing_redis_dependency(capsys, monkeypatch) -> None:
+    """Missing optional Redis modules should trigger a guided fallback warning."""
+
+    executed: list[str] = []
+
+    def record_job(job_id: str) -> None:
+        executed.append(job_id)
+
+    fallback = BackgroundTaskQueueBackend(record_job)
+    orchestrator = QueueOrchestrator(
+        fallback_backend=fallback,
+        redis_url_factory=lambda: "redis://localhost:6379/0",
+    )
+
+    original_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name == "redis" or name.startswith("redis."):
+            raise ModuleNotFoundError("No module named 'redis'")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    orchestrator.enqueue_delivery("job-missing-redis")
+
+    out = capsys.readouterr().out
+
+    assert executed == ["job-missing-redis"]
+    assert "queue_orchestrator.fallback" in out
+    assert "reason=primary_error" in out
+    assert "error_type=RuntimeError" in out
+    assert "optional 'redis' package" in out
+
+
+def test_orchestrator_logs_redis_outage_warning(capsys, monkeypatch) -> None:
+    """Redis outages should fall back with actionable diagnostics."""
+
+    executed: list[str] = []
+
+    def record_job(job_id: str) -> None:
+        executed.append(job_id)
+
+    fallback = BackgroundTaskQueueBackend(record_job)
+    backend = RedisQueueBackend("redis://localhost:6379/0")
+
+    class AlwaysFailQueue:
+        def __init__(self) -> None:
+            self.connection = None
+
+        def enqueue(self, *args, **kwargs):
+            raise RedisConnectionError("redis unavailable")
+
+    def fake_get_queue(self):
+        if self._queue is None:
+            self._queue = AlwaysFailQueue()
+        return self._queue
+
+    monkeypatch.setattr(
+        backend,
+        "_get_queue",
+        types.MethodType(fake_get_queue, backend),
+    )
+
+    orchestrator = QueueOrchestrator(
+        primary_backend=backend,
+        fallback_backend=fallback,
+    )
+
+    orchestrator.enqueue_delivery("job-redis-outage")
+
+    out = capsys.readouterr().out
+
+    assert executed == ["job-redis-outage"]
+    assert "queue_orchestrator.fallback" in out
+    assert "reason=primary_error" in out
+    assert f"error_type={RedisConnectionError.__name__}" in out
+    assert "redis unavailable" in out
