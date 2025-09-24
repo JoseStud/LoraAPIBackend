@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { useMigrationWorkflow } from '../../app/frontend/src/composables/useMigrationWorkflow';
+import { useMigrationWorkflow } from '../../app/frontend/src/composables/import-export/useMigrationWorkflow';
 
 describe('useMigrationWorkflow', () => {
   const notify = vi.fn();

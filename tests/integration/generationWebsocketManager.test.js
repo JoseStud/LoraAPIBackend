@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { setActivePinia, createPinia, storeToRefs } from 'pinia'
 
-import { createGenerationOrchestrator } from '../../app/frontend/src/services/generationOrchestrator'
+import { createGenerationOrchestrator } from '../../app/frontend/src/services/generation/orchestrator'
 import {
   useGenerationQueueStore,
   useGenerationResultsStore,

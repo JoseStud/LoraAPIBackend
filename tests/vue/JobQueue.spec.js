@@ -6,6 +6,16 @@ import { useAppStore } from '../../app/frontend/src/stores/app';
 import { useGenerationQueueStore } from '../../app/frontend/src/stores/generation';
 import { useSettingsStore } from '../../app/frontend/src/stores/settings';
 
+const serviceMocks = vi.hoisted(() => ({
+  cancelGenerationJob: vi.fn(),
+  fetchActiveGenerationJobs: vi.fn(),
+}));
+
+vi.mock('@/services', () => ({
+  cancelGenerationJob: serviceMocks.cancelGenerationJob,
+  fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
+}));
+
 const flush = async () => {
   await Promise.resolve();
   await nextTick();
@@ -20,6 +30,10 @@ let updateJobSpy;
 let addNotificationSpy;
 
 beforeEach(() => {
+  vi.clearAllMocks();
+  serviceMocks.cancelGenerationJob.mockResolvedValue({ success: true });
+  serviceMocks.fetchActiveGenerationJobs.mockResolvedValue([]);
+
   appStore = useAppStore();
   appStore.$reset();
   queueStore = useGenerationQueueStore();
@@ -134,10 +148,7 @@ describe('JobQueue.vue', () => {
   });
 
   it('handles job cancellation with id fallback when jobId is missing', async () => {
-    global.fetch = vi.fn(async () => ({
-      ok: true,
-      status: 200
-    }));
+    serviceMocks.cancelGenerationJob.mockResolvedValueOnce({ success: true });
 
     queueStore.setJobs([
       {
@@ -156,20 +167,14 @@ describe('JobQueue.vue', () => {
     await flush();
 
     // Should use the job.id when jobId is not available
-    expect(global.fetch).toHaveBeenCalledWith('/api/v1/generation/jobs/job1/cancel', {
-      method: 'POST',
-      credentials: 'same-origin'
-    });
+    expect(serviceMocks.cancelGenerationJob).toHaveBeenCalledWith('job1', '/api/v1');
     expect(removeJobSpy).toHaveBeenCalledWith('job1');
 
     wrapper.unmount();
   });
 
   it('calls cancelJob when cancel button is clicked', async () => {
-    global.fetch = vi.fn(async () => ({
-      ok: true,
-      status: 200
-    }));
+    serviceMocks.cancelGenerationJob.mockResolvedValueOnce({ success: true });
 
     queueStore.setJobs([
       {
@@ -195,10 +200,7 @@ describe('JobQueue.vue', () => {
     await flush();
 
     // Should try generation endpoint first
-    expect(global.fetch).toHaveBeenCalledWith('/api/v1/generation/jobs/backend-job-1/cancel', {
-      method: 'POST',
-      credentials: 'same-origin'
-    });
+    expect(serviceMocks.cancelGenerationJob).toHaveBeenCalledWith('backend-job-1', '/api/v1');
     expect(removeJobSpy).toHaveBeenCalledWith('job1');
     expect(addNotificationSpy).toHaveBeenCalledWith('Job cancelled', 'info', expect.any(Number));
 
@@ -279,7 +281,7 @@ describe('JobQueue.vue', () => {
   });
 
   it('handles API polling errors gracefully', async () => {
-    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+    serviceMocks.fetchActiveGenerationJobs.mockRejectedValueOnce(new Error('Network error'));
     
     const consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
 

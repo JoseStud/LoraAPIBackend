@@ -3,9 +3,9 @@ import { computed, nextTick, ref } from 'vue';
 import { mount } from '@vue/test-utils';
 
 import type { AdapterSummary, SavedComposition } from '@/types';
-import type { AdapterCatalogApi } from '../../app/frontend/src/composables/useAdapterCatalog';
+import type { AdapterCatalogApi } from '../../app/frontend/src/composables/compose/useAdapterCatalog';
 
-import { usePromptComposition } from '../../app/frontend/src/composables/usePromptComposition';
+import { usePromptComposition } from '../../app/frontend/src/composables/compose/usePromptComposition';
 import { usePromptCompositionState } from '../../app/frontend/src/composables/prompt-composer/usePromptCompositionState';
 import { usePromptCompositionPersistence } from '../../app/frontend/src/composables/prompt-composer/usePromptCompositionPersistence';
 import { usePromptGenerationActions } from '../../app/frontend/src/composables/prompt-composer/usePromptGenerationActions';
@@ -49,7 +49,7 @@ const catalogModuleMock = vi.hoisted(() => ({
   useAdapterCatalog: vi.fn<[], AdapterCatalogApi>(),
 }));
 
-vi.mock('../../app/frontend/src/composables/useAdapterCatalog', () => catalogModuleMock);
+vi.mock('../../app/frontend/src/composables/compose/useAdapterCatalog', () => catalogModuleMock);
 
 const servicesModuleMock = vi.hoisted(() => {
   const clipboard = { copy: vi.fn(async () => true) };

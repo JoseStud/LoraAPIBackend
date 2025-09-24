@@ -1,16 +1,22 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import type { SpyInstance } from 'vitest';
 
-vi.mock('@/services', () => ({
-  deriveMetricsFromDashboard: vi.fn(),
-  emptyMetricsSnapshot: vi.fn(),
-  fetchDashboardStats: vi.fn(),
-}));
+vi.mock('@/services', async () => {
+  const actual = await vi.importActual('@/services');
+  return {
+    ...actual,
+    deriveMetricsFromDashboard: vi.fn(),
+    emptyMetricsSnapshot: vi.fn(),
+    fetchDashboardStats: vi.fn(),
+  };
+});
 
 import { mount } from '@vue/test-utils';
-import { defineComponent } from 'vue';
+import { defineComponent, nextTick } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 
-import { useAdminMetrics } from '@/composables/useAdminMetrics';
+import { useAdminMetrics } from '@/composables/system';
+import { useAdminMetricsStore } from '@/stores';
 import {
   deriveMetricsFromDashboard,
   emptyMetricsSnapshot,
@@ -22,8 +28,9 @@ const deriveMetricsFromDashboardMock = vi.mocked(deriveMetricsFromDashboard);
 const emptyMetricsSnapshotMock = vi.mocked(emptyMetricsSnapshot);
 
 const flushAsync = async () => {
+  await nextTick();
   await Promise.resolve();
-  await Promise.resolve();
+  await nextTick();
 };
 
 const createMetricsPayload = () => ({
@@ -48,9 +55,15 @@ const createSummaryPayload = () => ({
 });
 
 describe('useAdminMetrics composable', () => {
+  let store: ReturnType<typeof useAdminMetricsStore>;
+  let refreshSpy: SpyInstance;
+
   beforeEach(() => {
     vi.useFakeTimers();
     setActivePinia(createPinia());
+
+    store = useAdminMetricsStore();
+    refreshSpy = vi.spyOn(store, 'refresh');
 
     emptyMetricsSnapshotMock.mockReturnValue(createMetricsPayload());
     deriveMetricsFromDashboardMock.mockReturnValue(createMetricsPayload());
@@ -62,6 +75,7 @@ describe('useAdminMetrics composable', () => {
     vi.clearAllTimers();
     vi.useRealTimers();
     vi.clearAllMocks();
+    refreshSpy.mockRestore();
   });
 
   const createHarness = (intervalMs: number) =>
@@ -75,46 +89,46 @@ describe('useAdminMetrics composable', () => {
   it('starts polling on mount and stops after unmounting', async () => {
     const wrapper = mount(createHarness(1_000));
     await flushAsync();
-    expect(fetchDashboardStatsMock).toHaveBeenCalledTimes(1);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
 
     vi.advanceTimersByTime(1_000);
     await flushAsync();
-    expect(fetchDashboardStatsMock).toHaveBeenCalledTimes(2);
+    expect(refreshSpy).toHaveBeenCalledTimes(2);
 
     wrapper.unmount();
 
     vi.advanceTimersByTime(1_000);
     await flushAsync();
-    expect(fetchDashboardStatsMock).toHaveBeenCalledTimes(2);
+    expect(refreshSpy).toHaveBeenCalledTimes(2);
   });
 
   it('shares a single polling loop across multiple consumers', async () => {
     const first = mount(createHarness(1_000));
     await flushAsync();
-    expect(fetchDashboardStatsMock).toHaveBeenCalledTimes(1);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
 
     const second = mount(createHarness(2_000));
     await flushAsync();
-    expect(fetchDashboardStatsMock).toHaveBeenCalledTimes(1);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
 
     vi.advanceTimersByTime(1_000);
     await flushAsync();
-    expect(fetchDashboardStatsMock).toHaveBeenCalledTimes(1);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
 
     vi.advanceTimersByTime(1_000);
     await flushAsync();
-    expect(fetchDashboardStatsMock).toHaveBeenCalledTimes(2);
+    expect(refreshSpy).toHaveBeenCalledTimes(2);
 
     second.unmount();
 
     vi.advanceTimersByTime(2_000);
     await flushAsync();
-    expect(fetchDashboardStatsMock).toHaveBeenCalledTimes(3);
+    expect(refreshSpy).toHaveBeenCalledTimes(3);
 
     first.unmount();
 
     vi.advanceTimersByTime(2_000);
     await flushAsync();
-    expect(fetchDashboardStatsMock).toHaveBeenCalledTimes(3);
+    expect(refreshSpy).toHaveBeenCalledTimes(3);
   });
 });

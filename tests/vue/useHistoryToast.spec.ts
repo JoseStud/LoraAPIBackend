@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
-import { useHistoryToast } from '../../app/frontend/src/composables/useHistoryToast';
+import { useHistoryToast } from '../../app/frontend/src/composables/history/useHistoryToast';
 
 describe('useHistoryToast', () => {
   beforeEach(() => {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 
-import PromptComposerAvailableList from '../../app/frontend/src/components/PromptComposerAvailableList.vue';
+import PromptComposerAvailableList from '../../app/frontend/src/components/compose/PromptComposerAvailableList.vue';
 
 describe('PromptComposerAvailableList', () => {
   const baseProps = {

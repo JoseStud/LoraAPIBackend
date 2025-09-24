@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 
-import Notifications from '../../app/frontend/src/components/Notifications.vue';
+import Notifications from '../../app/frontend/src/components/shared/Notifications.vue';
 import { useAppStore } from '../../app/frontend/src/stores/app';
 
 beforeEach(() => {

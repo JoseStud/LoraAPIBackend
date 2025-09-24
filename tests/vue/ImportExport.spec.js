@@ -65,24 +65,183 @@ const mockMigrationWorkflow = {
   startPlatformMigration: vi.fn()
 };
 
-vi.mock('@/composables/useExportWorkflow', () => ({
-  useExportWorkflow: vi.fn((options) => {
-    exportProgressHandlers.push(options.progress);
-    return mockExportWorkflow;
-  })
+const importExportState = vi.hoisted(() => ({
+  progress: null,
+  toast: null,
 }));
 
-vi.mock('@/composables/useImportWorkflow', () => ({
-  useImportWorkflow: vi.fn(() => mockImportWorkflow)
-}));
+vi.mock('@/composables/import-export', async () => {
+  const { ref } = await import('vue');
 
-vi.mock('@/composables/useBackupWorkflow', () => ({
-  useBackupWorkflow: vi.fn(() => mockBackupWorkflow)
-}));
+  const progressState = {
+    showProgress: ref(false),
+    progressTitle: ref(''),
+    progressValue: ref(0),
+    currentStep: ref(''),
+    progressMessages: ref([]),
+    currentOperation: ref(null),
+  };
 
-vi.mock('@/composables/useMigrationWorkflow', () => ({
-  useMigrationWorkflow: vi.fn(() => mockMigrationWorkflow)
-}));
+  const toastState = {
+    showToast: ref(false),
+    toastMessage: ref(''),
+    toastType: ref('info'),
+    notify: vi.fn(),
+  };
+
+  importExportState.progress = progressState;
+  importExportState.toast = toastState;
+
+  const begin = vi.fn((operation) => {
+    progressState.currentOperation.value = operation;
+    progressState.showProgress.value = true;
+  });
+
+  const update = vi.fn((updateState) => {
+    if (typeof updateState.value === 'number') {
+      progressState.progressValue.value = updateState.value;
+    }
+    if (typeof updateState.step === 'string') {
+      progressState.currentStep.value = updateState.step;
+    }
+    if (typeof updateState.message === 'string') {
+      progressState.progressMessages.value = [
+        ...progressState.progressMessages.value,
+        { id: progressState.progressMessages.value.length, text: updateState.message },
+      ];
+    }
+  });
+
+  const end = vi.fn(() => {
+    progressState.showProgress.value = false;
+    progressState.progressValue.value = 0;
+    progressState.currentStep.value = '';
+    progressState.progressMessages.value = [];
+    progressState.currentOperation.value = null;
+  });
+
+  const buildActions = (
+    exportWorkflow,
+    importWorkflow,
+    backupWorkflow,
+    migrationWorkflow,
+    activeTab,
+    currentOperation,
+    endProgress,
+    notify,
+  ) => ({
+    handleActiveTabChange: (value) => {
+      activeTab.value = value;
+    },
+    handleExportConfigUpdate: (key, value) => {
+      exportWorkflow.updateConfig(key, value);
+    },
+    handleValidateExport: () => {
+      exportWorkflow.validateExport();
+    },
+    handlePreviewExport: () => {
+      exportWorkflow.previewExport();
+    },
+    handleStartExport: async () => {
+      await exportWorkflow.startExport();
+    },
+    handleQuickExportAll: async () => {
+      await exportWorkflow.quickExportAll();
+    },
+    handleImportConfigUpdate: (key, value) => {
+      importWorkflow.updateConfig(key, value);
+    },
+    handleImportFilesAdded: (files) => {
+      const items = Array.isArray(files) ? files : Array.from(files ?? []);
+      importWorkflow.addFiles(items);
+    },
+    handleImportFileRemoved: (file) => {
+      importWorkflow.removeFile(file);
+    },
+    handleAnalyzeFiles: async () => {
+      await importWorkflow.analyzeFiles();
+    },
+    handleValidateImport: () => {
+      importWorkflow.validateImport();
+    },
+    handleStartImport: async () => {
+      await importWorkflow.startImport();
+    },
+    handleCreateFullBackup: async () => {
+      await backupWorkflow.createFullBackup();
+    },
+    handleCreateQuickBackup: async () => {
+      await backupWorkflow.createQuickBackup();
+    },
+    handleScheduleBackup: () => {
+      backupWorkflow.scheduleBackup();
+    },
+    handleDownloadBackup: (id) => {
+      backupWorkflow.downloadBackup(id);
+    },
+    handleRestoreBackup: (id) => {
+      backupWorkflow.restoreBackup(id);
+    },
+    handleDeleteBackup: (id) => {
+      backupWorkflow.deleteBackup(id);
+    },
+    handleMigrationConfigUpdate: (key, value) => {
+      migrationWorkflow.updateConfig(key, value);
+    },
+    handleStartVersionMigration: () => {
+      migrationWorkflow.startVersionMigration();
+    },
+    handleStartPlatformMigration: () => {
+      migrationWorkflow.startPlatformMigration();
+    },
+    handleViewHistory: () => {
+      activeTab.value = 'backup';
+    },
+    handleCancelOperation: () => {
+      if (currentOperation.value === 'export') {
+        exportWorkflow.cancelExport();
+      } else if (currentOperation.value === 'import') {
+        importWorkflow.cancelImport();
+      }
+      endProgress();
+      notify('Operation cancelled', 'warning');
+    },
+  });
+
+  return {
+    useExportWorkflow: vi.fn((options) => {
+      exportProgressHandlers.push(options.progress);
+      return mockExportWorkflow;
+    }),
+    useImportWorkflow: vi.fn(() => mockImportWorkflow),
+    useBackupWorkflow: vi.fn(() => mockBackupWorkflow),
+    useMigrationWorkflow: vi.fn(() => mockMigrationWorkflow),
+    useOperationProgress: vi.fn(() => ({
+      showProgress: progressState.showProgress,
+      progressTitle: progressState.progressTitle,
+      progressValue: progressState.progressValue,
+      currentStep: progressState.currentStep,
+      progressMessages: progressState.progressMessages,
+      currentOperation: progressState.currentOperation,
+      begin,
+      update,
+      end,
+    })),
+    useImportExportActions: vi.fn((options) =>
+      buildActions(
+        options.exportWorkflow,
+        options.importWorkflow,
+        options.backupWorkflow,
+        options.migrationWorkflow,
+        options.activeTab,
+        options.currentOperation,
+        options.endProgress,
+        options.notify,
+      ),
+    ),
+    useWorkflowToast: vi.fn(() => toastState),
+  };
+});
 
 vi.mock('@/components/import-export/ExportConfigurationPanel.vue', () => ({
   default: stubComponent('ExportConfigurationPanel', ['update-config', 'validate', 'preview', 'start'])
@@ -134,6 +293,24 @@ describe('ImportExportContainer.vue', () => {
         }
       });
     });
+
+    const progressState = importExportState.progress;
+    if (progressState) {
+      progressState.showProgress.value = false;
+      progressState.progressTitle.value = '';
+      progressState.progressValue.value = 0;
+      progressState.currentStep.value = '';
+      progressState.progressMessages.value = [];
+      progressState.currentOperation.value = null;
+    }
+
+    const toastState = importExportState.toast;
+    if (toastState) {
+      toastState.showToast.value = false;
+      toastState.toastMessage.value = '';
+      toastState.toastType.value = 'info';
+      toastState.notify.mockClear();
+    }
   });
 
   afterEach(() => {

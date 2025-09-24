@@ -8,7 +8,7 @@ import {
   resolveBackendUrl,
   resolveGenerationBaseUrl,
   startGeneration,
-} from '../../app/frontend/src/services/generationService.ts'
+} from '../../app/frontend/src/services/generation/generationService.ts'
 import { useSettingsStore } from '../../app/frontend/src/stores/settings'
 import type {
   GenerationCancelResponse,

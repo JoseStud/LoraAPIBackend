@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 
-import { useApi, ApiError } from '@/composables/useApi';
+import { useApi, ApiError } from '@/composables/shared/useApi';
 
 const originalFetch = global.fetch;
 

@@ -2,9 +2,9 @@ import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-import HistoryGrid from '../../app/frontend/src/components/HistoryGrid.vue';
-import HistoryGridItem from '../../app/frontend/src/components/HistoryGridItem.vue';
-import HistoryList from '../../app/frontend/src/components/HistoryList.vue';
+import HistoryGrid from '@/components/history/HistoryGrid.vue';
+import HistoryGridItem from '@/components/history/HistoryGridItem.vue';
+import HistoryList from '@/components/history/HistoryList.vue';
 
 const createResults = (count: number) =>
   Array.from({ length: count }, (_, index) => ({

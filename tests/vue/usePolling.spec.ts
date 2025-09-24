@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { usePolling } from '@/composables/usePolling';
+import { usePolling } from '@/composables/shared/usePolling';
 
 describe('usePolling composable', () => {
   beforeEach(() => {

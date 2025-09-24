@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { useLoraSelection } from '../../app/frontend/src/composables/useLoraSelection';
+import { useLoraSelection } from '../../app/frontend/src/composables/lora-gallery/useLoraSelection';
 
 describe('useLoraSelection', () => {
   it('adds and removes ids using payload helper', () => {
