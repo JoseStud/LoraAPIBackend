@@ -1,4 +1,4 @@
-import { reactive, ref, unref, type ComputedRef } from 'vue';
+import { computed, ref, unref, type ComputedRef } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
 
 import { debounce, type DebouncedFunction } from '@/utils/async';
@@ -13,6 +13,15 @@ export type HistorySortOption = 'created_at' | 'created_at_asc' | 'prompt' | 'ra
 export type DateFilterOption = 'all' | 'today' | 'week' | 'month';
 export type RatingFilterOption = 0 | 1 | 2 | 3 | 4 | 5;
 export type DimensionFilterOption = 'all' | '512x512' | '768x768' | '1024x1024';
+
+type FilterSnapshot = {
+  search: string;
+  sort: HistorySortOption;
+  date: DateFilterOption;
+  rating: RatingFilterOption;
+  dimension: DimensionFilterOption;
+  pageSize: number;
+};
 
 export interface UseGenerationHistoryOptions {
   apiBase: MaybeRefOrGetter<string> | ComputedRef<string>;
@@ -31,7 +40,6 @@ export const useGenerationHistory = ({
   pageSize: initialPageSize = 50,
 }: UseGenerationHistoryOptions) => {
   const data = ref<GenerationHistoryResult[]>([]);
-  const filteredResults = ref<GenerationHistoryResult[]>([]);
 
   const isLoading = ref(false);
   const error = ref<string | null>(null);
@@ -47,11 +55,68 @@ export const useGenerationHistory = ({
   const ratingFilter = ref<RatingFilterOption>(0);
   const dimensionFilter = ref<DimensionFilterOption>('all');
 
-  const stats = reactive<GenerationHistoryStats>({
-    total_results: 0,
-    avg_rating: 0,
-    total_favorites: 0,
-    total_size: 0,
+  const appliedFilters = ref<FilterSnapshot>({
+    search: '',
+    sort: 'created_at',
+    date: 'all',
+    rating: 0,
+    dimension: 'all',
+    pageSize: pageSize.value,
+  });
+  const serverStats = ref<GenerationHistoryStats | null>(null);
+  let hasFetchedOnce = false;
+
+  const filteredResults = computed(() => data.value);
+
+  const stats = computed<GenerationHistoryStats>(() => {
+    const sanitize = (value: unknown): number =>
+      typeof value === 'number' && Number.isFinite(value) ? value : 0;
+
+    if (serverStats.value) {
+      const snapshot = serverStats.value;
+      return {
+        total_results: sanitize(snapshot.total_results),
+        avg_rating: sanitize(snapshot.avg_rating),
+        total_favorites: sanitize(snapshot.total_favorites),
+        total_size: sanitize(snapshot.total_size),
+      };
+    }
+
+    const results = filteredResults.value;
+    const totalResults = results.length;
+
+    if (totalResults === 0) {
+      return {
+        total_results: 0,
+        avg_rating: 0,
+        total_favorites: 0,
+        total_size: 0,
+      };
+    }
+
+    const totalRating = results.reduce((sum, result) => sum + (result.rating ?? 0), 0);
+    const totalFavorites = results.reduce(
+      (sum, result) => (result.is_favorite ? sum + 1 : sum),
+      0,
+    );
+    const totalSize = results.reduce((sum, result) => {
+      const metadata = result.metadata;
+      if (metadata && typeof metadata === 'object') {
+        const record = metadata as Record<string, unknown>;
+        const sizeCandidate = record.size_bytes ?? record.file_size ?? record.byte_size;
+        if (typeof sizeCandidate === 'number' && Number.isFinite(sizeCandidate)) {
+          return sum + sizeCandidate;
+        }
+      }
+      return sum;
+    }, 0);
+
+    return {
+      total_results: totalResults,
+      avg_rating: totalRating / totalResults,
+      total_favorites: totalFavorites,
+      total_size: totalSize,
+    };
   });
 
   const isAbortError = (err: unknown): boolean => {
@@ -68,51 +133,31 @@ export const useGenerationHistory = ({
     }
   };
 
-  const applyStats = (incoming?: GenerationHistoryStats | null): void => {
-    if (incoming) {
-      stats.total_results = Number.isFinite(incoming.total_results) ? incoming.total_results : 0;
-      stats.avg_rating = Number.isFinite(incoming.avg_rating) ? incoming.avg_rating : 0;
-      stats.total_favorites = Number.isFinite(incoming.total_favorites) ? incoming.total_favorites : 0;
-      stats.total_size = Number.isFinite(incoming.total_size) ? incoming.total_size : 0;
-      return;
-    }
+  const createFilterSnapshot = (): FilterSnapshot => ({
+    search: searchTerm.value.trim(),
+    sort: sortBy.value,
+    date: dateFilter.value,
+    rating: ratingFilter.value,
+    dimension: dimensionFilter.value,
+    pageSize: pageSize.value,
+  });
 
-    stats.total_results = filteredResults.value.length;
+  const areFiltersEqual = (a: FilterSnapshot, b: FilterSnapshot): boolean =>
+    a.search === b.search &&
+    a.sort === b.sort &&
+    a.date === b.date &&
+    a.rating === b.rating &&
+    a.dimension === b.dimension &&
+    a.pageSize === b.pageSize;
 
-    if (filteredResults.value.length > 0) {
-      const totalRating = filteredResults.value.reduce((sum, result) => sum + (result.rating ?? 0), 0);
-      stats.avg_rating = totalRating / filteredResults.value.length;
-      stats.total_favorites = filteredResults.value.filter((result) => Boolean(result.is_favorite)).length;
-      stats.total_size = filteredResults.value.reduce((sum, result) => {
-        const metadata = result.metadata;
-        if (metadata && typeof metadata === 'object') {
-          const record = metadata as Record<string, unknown>;
-          const sizeCandidate = record.size_bytes ?? record.file_size ?? record.byte_size;
-          if (typeof sizeCandidate === 'number' && Number.isFinite(sizeCandidate)) {
-            return sum + sizeCandidate;
-          }
-        }
-        return sum;
-      }, 0);
-      return;
-    }
-
-    stats.avg_rating = 0;
-    stats.total_favorites = 0;
-    stats.total_size = 0;
-  };
-
-  const updateDerivedData = (incomingStats?: GenerationHistoryStats | null): void => {
-    filteredResults.value = [...data.value];
-    applyStats(incomingStats);
-  };
-
-  const parseDimensionFilter = (): { width?: number; height?: number } => {
-    if (dimensionFilter.value === 'all') {
+  const parseDimensionFilter = (
+    dimension: DimensionFilterOption,
+  ): { width?: number; height?: number } => {
+    if (dimension === 'all') {
       return {};
     }
 
-    const [widthText, heightText] = dimensionFilter.value.split('x');
+    const [widthText, heightText] = dimension.split('x');
     const width = Number(widthText);
     const height = Number(heightText);
 
@@ -123,36 +168,27 @@ export const useGenerationHistory = ({
     return { width, height };
   };
 
-  const buildFilterStateKey = (): string => JSON.stringify({
-    search: searchTerm.value.trim(),
-    sort: sortBy.value,
-    date: dateFilter.value,
-    rating: ratingFilter.value,
-    dimension: dimensionFilter.value,
-    pageSize: pageSize.value,
-  });
-
-  const buildQuery = (page: number): GenerationHistoryQuery => {
+  const buildQuery = (filters: FilterSnapshot, page: number): GenerationHistoryQuery => {
     const query: GenerationHistoryQuery = {
       page,
-      page_size: pageSize.value,
-      sort: sortBy.value,
+      page_size: filters.pageSize,
+      sort: filters.sort,
     };
 
-    const search = searchTerm.value.trim();
+    const search = filters.search;
     if (search) {
       query.search = search;
     }
 
-    if (ratingFilter.value > 0) {
-      query.min_rating = ratingFilter.value;
+    if (filters.rating > 0) {
+      query.min_rating = filters.rating;
     }
 
-    if (dateFilter.value && dateFilter.value !== 'all') {
-      query.date_filter = dateFilter.value;
+    if (filters.date && filters.date !== 'all') {
+      query.date_filter = filters.date;
     }
 
-    const { width, height } = parseDimensionFilter();
+    const { width, height } = parseDimensionFilter(filters.dimension);
     if (typeof width === 'number') {
       query.width = width;
     }
@@ -163,22 +199,21 @@ export const useGenerationHistory = ({
     return query;
   };
 
-  const lastAppliedFilterKey = ref('');
-
   const applyFilters = (): void => {
-    const nextKey = buildFilterStateKey();
-
-    if (nextKey !== lastAppliedFilterKey.value) {
-      lastAppliedFilterKey.value = nextKey;
-      currentPage.value = 1;
-      hasMore.value = true;
-      void loadPage(1, false);
-      return;
+    const nextFilters = createFilterSnapshot();
+    if (areFiltersEqual(appliedFilters.value, nextFilters)) {
+      if (hasFetchedOnce) {
+        return;
+      }
     }
 
-    if (!isLoading.value) {
-      updateDerivedData();
-    }
+    appliedFilters.value = nextFilters;
+    currentPage.value = 1;
+    hasMore.value = true;
+    data.value = [];
+    serverStats.value = null;
+    hasFetchedOnce = false;
+    void loadPage(1, false);
   };
 
   const debouncedApplyFilters: DebouncedFunction<() => void> = debounce(() => applyFilters(), 300);
@@ -214,8 +249,10 @@ export const useGenerationHistory = ({
     const controller = new AbortController();
     pendingController = controller;
 
+    const filters = appliedFilters.value ?? createFilterSnapshot();
+
     try {
-      const response = await listHistoryResults(resolveApiBase(apiBase), buildQuery(page), {
+      const response = await listHistoryResults(resolveApiBase(apiBase), buildQuery(filters, page), {
         signal: controller.signal,
       });
 
@@ -227,17 +264,23 @@ export const useGenerationHistory = ({
       updatePaginationState(results, response.response);
 
       if (append) {
-        data.value = [...data.value, ...results];
+        if (results.length > 0) {
+          data.value.push(...results);
+        }
       } else {
-        data.value = [...results];
+        data.value.length = 0;
+        if (results.length > 0) {
+          data.value.push(...results);
+        }
         currentPage.value = page;
       }
 
-      updateDerivedData(response.stats);
-
-      if (!append) {
-        lastAppliedFilterKey.value = buildFilterStateKey();
+      if (response.stats && typeof response.stats === 'object') {
+        serverStats.value = response.stats as GenerationHistoryStats;
+      } else if (!append) {
+        serverStats.value = null;
       }
+      hasFetchedOnce = true;
     } catch (err) {
       if (isAbortError(err) || requestId !== activeRequestKey.value) {
         return;
@@ -254,7 +297,12 @@ export const useGenerationHistory = ({
   };
 
   const loadInitialResults = async (): Promise<void> => {
+    appliedFilters.value = createFilterSnapshot();
     currentPage.value = 1;
+    hasMore.value = true;
+    data.value = [];
+    serverStats.value = null;
+    hasFetchedOnce = false;
     await loadPage(currentPage.value, false);
   };
 

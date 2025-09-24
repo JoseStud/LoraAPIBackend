@@ -126,7 +126,7 @@ describe('useGenerationHistory', () => {
       expect.anything(),
     );
     expect(history.filteredResults.value).toHaveLength(2);
-    expect(history.stats.total_results).toBe(2);
+    expect(history.stats.value.total_results).toBe(2);
     expect(history.hasMore.value).toBe(true);
   });
 
@@ -203,6 +203,93 @@ describe('useGenerationHistory', () => {
     history.applyFilters();
     await flush();
     expect(serviceMocks.listResults).toHaveBeenCalledTimes(3);
+  });
+
+  it('computes stats locally when the API omits aggregate values', async () => {
+    serviceMocks.listResults.mockResolvedValue({
+      results: [
+        {
+          ...sampleResults[0],
+          rating: 4,
+          is_favorite: true,
+          metadata: { size_bytes: 1_024 },
+        },
+        {
+          ...sampleResults[1],
+          rating: 2,
+          is_favorite: false,
+          metadata: { file_size: 2_048 },
+        },
+      ],
+      response: { has_more: false },
+    });
+
+    const history = useGenerationHistory({ apiBase: ref('/api') });
+
+    await history.loadInitialResults();
+
+    expect(history.stats.value).toEqual({
+      total_results: 2,
+      avg_rating: 3,
+      total_favorites: 1,
+      total_size: 3_072,
+    });
+  });
+
+  it('prefers server provided stats when available', async () => {
+    serviceMocks.listResults.mockResolvedValue({
+      results: sampleResults,
+      response: { has_more: false },
+      stats: {
+        total_results: 42,
+        avg_rating: 4.5,
+        total_favorites: 7,
+        total_size: 12_345,
+      },
+    });
+
+    const history = useGenerationHistory({ apiBase: ref('/api') });
+
+    await history.loadInitialResults();
+
+    expect(history.stats.value).toEqual({
+      total_results: 42,
+      avg_rating: 4.5,
+      total_favorites: 7,
+      total_size: 12_345,
+    });
+  });
+
+  it('preserves array identity when appending additional pages', async () => {
+    const firstPage = sampleResults.map((result) => ({ ...result }));
+    const secondPage = [
+      {
+        ...sampleResults[0],
+        id: 99,
+        prompt: 'Fresh entry',
+      },
+    ];
+
+    serviceMocks.listResults
+      .mockResolvedValueOnce({
+        results: firstPage,
+        response: { has_more: true },
+      })
+      .mockResolvedValueOnce({
+        results: secondPage,
+        response: { has_more: false },
+      });
+
+    const history = useGenerationHistory({ apiBase: ref('/api') });
+
+    await history.loadInitialResults();
+    const initialReference = history.filteredResults.value;
+
+    await history.loadMore();
+
+    expect(history.filteredResults.value).toBe(initialReference);
+    expect(history.filteredResults.value).toHaveLength(3);
+    expect(history.hasMore.value).toBe(false);
   });
 });
 
