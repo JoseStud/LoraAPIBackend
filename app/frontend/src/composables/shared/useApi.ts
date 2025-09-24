@@ -2,6 +2,7 @@ import { MaybeRefOrGetter, Ref, ref, unref } from 'vue';
 
 import type { ApiResponseMeta } from '@/types';
 import { ApiError } from '@/types';
+import { buildAuthenticatedHeaders } from '@/utils/httpAuth';
 
 export type { ApiResponseMeta } from '@/types';
 export { ApiError } from '@/types';
@@ -155,12 +156,20 @@ export function useApi<T = unknown, TError = unknown>(
 
     try {
       const signal = init.signal ?? defaultOptions.signal ?? controller.signal;
-      const response = await fetch(targetUrl, {
+      const headers = buildAuthenticatedHeaders(
+        defaultOptions.headers,
+        init.headers,
+      );
+
+      const requestInit: RequestInit = {
         credentials: 'same-origin',
         ...defaultOptions,
         ...init,
+        headers,
         signal,
-      });
+      };
+
+      const response = await fetch(targetUrl, requestInit);
       const metaInfo: ApiResponseMeta = {
         ok: response.ok,
         status: response.status,

@@ -73,14 +73,14 @@
 </template>
 
 <script setup lang="ts">
-import type { Ref } from 'vue'
+import { toRefs } from 'vue'
 
 import type { UseGenerationStudioReturn } from '@/composables/generation'
 import type { GenerationResult } from '@/types'
 
 const props = defineProps<{
-  recentResults: Ref<GenerationResult[]>
-  showHistory: Ref<boolean>
+  recentResults: GenerationResult[]
+  showHistory: boolean
   formatTime: UseGenerationStudioReturn['formatTime']
 }>()
 
@@ -91,7 +91,5 @@ const emit = defineEmits<{
   (event: 'show-image-modal', result: GenerationResult): void
 }>()
 
-const recentResults = props.recentResults
-const showHistory = props.showHistory
-const formatTime = props.formatTime
+const { recentResults, showHistory, formatTime } = toRefs(props)
 </script>
