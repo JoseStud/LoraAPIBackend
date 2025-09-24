@@ -32,17 +32,28 @@ experience comes from enabling the optional dependencies:
 - **Prompt composition** – Compose active adapters into prompts with optional
   delivery orchestration.【F:backend/api/v1/compose.py†L1-L45】【F:backend/services/composition.py†L1-L128】
 - **Generation pipeline** – Immediate and queued SDNext jobs with WebSocket
-  telemetry and history presenters.【F:backend/api/v1/generation.py†L1-L373】【F:backend/services/generation/__init__.py†L1-L92】【F:backend/api/v1/websocket.py†L1-L55】
+  telemetry and history presenters.【F:backend/api/v1/generation/__init__.py†L1-L11】【F:backend/api/v1/generation/jobs.py†L1-L52】【F:backend/api/v1/generation/results.py†L1-L63】【F:backend/services/generation/__init__.py†L1-L93】
 - **Import/export and backups** – Estimate, stream, and ingest archives plus
   backup scheduling helpers exposed through dedicated endpoints.【F:backend/api/v1/import_export.py†L1-L115】【F:backend/services/archive/__init__.py†L1-L84】
 - **Analytics dashboard data** – Aggregated KPIs, error breakdowns, and time
   series built from delivery history.【F:backend/api/v1/analytics.py†L1-L48】【F:backend/services/analytics/service.py†L1-L129】
 - **AI-powered recommendations** – Similar-LoRA and prompt-based suggestions via
-  the recommendation service facade.【F:backend/services/recommendations/service.py†L1-L111】【F:backend/api/v1/recommendations.py†L1-L134】
+  the recommendation service facade.【F:backend/services/recommendations/service.py†L1-L119】【F:backend/api/v1/recommendations.py†L1-L118】
 - **Vue 3 SPA** – Route-based views for dashboards, galleries, history, and
   admin panels backed by Pinia stores and composables.【F:app/frontend/src/router/index.ts†L1-L54】【F:app/frontend/src/views/DashboardView.vue†L1-L49】
 - **Offline-friendly frontend** – A service worker caches the compiled SPA for
-  basic offline support.【F:app/frontend/static/sw.js†L1-L88】
+  basic offline support.【F:app/frontend/static/sw.js†L1-L90】
+
+## Experimental features
+
+- **Real-time progress WebSocket** – `/api/v1/ws/progress` broadcasts job
+  updates through a dedicated WebSocket service, but the feature still lacks
+  broad load testing and hardened error recovery, so treat it as
+  experimental.【F:backend/api/v1/websocket.py†L1-L43】【F:backend/services/websocket/service.py†L1-L95】【F:docs/WEBSOCKET_IMPLEMENTATION.md†L120-L149】
+- **Recommendation pipeline** – Endpoints are wired to the async recommendation
+  service, yet production-quality behaviour depends on optional GPU-accelerated
+  embeddings and several manual setup steps described in the design doc. Expect
+  degraded results without that configuration.【F:backend/services/recommendations/service.py†L1-L119】【F:docs/RECOMMENDATION_MODEL_DESIGN.md†L7-L24】
 
 ## Getting started
 
