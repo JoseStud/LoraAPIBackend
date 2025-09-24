@@ -12,14 +12,12 @@ from backend.services import (
     get_service_container_builder,
 )
 
-_BUILDER = get_service_container_builder()
-
 
 def get_service_container(
     db_session: Session = Depends(get_session),  # noqa: B008 - FastAPI DI
 ) -> ServiceRegistry:
     """Return a service registry tied to the current database session."""
-    return _BUILDER.build(db_session)
+    return get_service_container_builder().build(db_session)
 
 
 def get_core_services(

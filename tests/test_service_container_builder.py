@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import pytest
 
+from backend.services import (
+    get_service_container_builder,
+    service_container_builder_scope,
+)
 from backend.services.queue import BackgroundTaskQueueBackend, QueueOrchestrator
 from backend.services.service_container_builder import ServiceContainerBuilder
 
@@ -59,3 +63,13 @@ def test_service_container_builder_rejects_missing_session() -> None:
 
     with pytest.raises(ValueError, match="requires an active database session"):
         builder.build(None)  # type: ignore[arg-type]
+
+
+def test_service_container_builder_scope_restores_previous_builder() -> None:
+    original = get_service_container_builder()
+
+    with service_container_builder_scope() as scoped:
+        assert scoped is get_service_container_builder()
+        assert scoped is not original
+
+    assert get_service_container_builder() is original
