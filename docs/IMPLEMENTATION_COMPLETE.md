@@ -13,7 +13,7 @@ that are tracked for future work.
   activation workflows exposed via the adapter router and service facade.【F:backend/models/adapters.py†L1-L46】【F:backend/api/v1/adapters.py†L1-L151】
 - **Prompt composition & generation** – Composition helpers and SDNext-backed
   generation endpoints handle immediate and queued jobs with WebSocket
-  broadcasting and presenter utilities for history/results views.【F:backend/services/composition.py†L1-L128】【F:backend/api/v1/generation.py†L1-L373】【F:backend/api/v1/websocket.py†L1-L55】
+  broadcasting and presenter utilities for history/results views.【F:backend/services/composition.py†L1-L128】【F:backend/api/v1/generation/__init__.py†L1-L11】【F:backend/api/v1/generation/live.py†L1-L60】【F:backend/api/v1/generation/jobs.py†L1-L52】【F:backend/api/v1/generation/results.py†L1-L63】【F:backend/api/v1/websocket.py†L1-L43】
 - **Import/export & backups** – Archive planner/executor, import validation, and
   backup helpers surface through the `/v1/export`, `/v1/import`, and `/v1/backups`
   endpoints.【F:backend/services/archive/__init__.py†L1-L84】【F:backend/api/v1/import_export.py†L1-L115】
@@ -25,7 +25,7 @@ that are tracked for future work.
   update management.【F:app/frontend/src/router/index.ts†L1-L54】【F:app/frontend/src/views/DashboardView.vue†L1-L49】【F:app/frontend/static/sw.js†L1-L88】
 - **Testing scaffolding** – Pytest suites cover services and APIs, Vitest covers
   components/composables, and Playwright exercises end-to-end flows. Commands
-  live in `package.json` and `tests/README.md`.【F:package.json†L5-L31】【F:tests/README.md†L70-L140】
+  live in `package.json` and `tests/README.md`.【F:package.json†L5-L31】【F:tests/README.md†L70-L138】
 
 ## Requires configuration or optional dependencies
 
@@ -50,7 +50,8 @@ that are tracked for future work.
 - **Extended SDNext features** – img2img, ControlNet, retries, and richer error
   handling are future targets for the generation pipeline.【F:backend/delivery/sdnext.py†L52-L138】
 - **Recommendation persistence** – Feedback endpoints and advanced analytics are
-  scaffolds awaiting backing stores and ML fine-tuning.
+  scaffolds awaiting backing stores and ML fine-tuning; the ML pipeline still
+  requires manual configuration to hit production targets.【F:docs/RECOMMENDATION_MODEL_DESIGN.md†L7-L24】
 - **Operational hardening** – Production runbooks should cover Redis, SDNext,
   worker processes, and monitoring/alerting integrations.
 - **Test coverage tuning** – Several suites depend on optional infrastructure;

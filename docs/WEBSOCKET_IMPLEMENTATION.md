@@ -18,12 +18,12 @@ The WebSocket implementation provides a way for clients to receive live updates 
 
 The implementation consists of three main components:
 
-1.  **`ConnectionManager` (`backend/services/websocket.py`)**:
+1.  **`ConnectionManager` (`backend/services/websocket/connection_manager.py`)**:
     -   Manages all active WebSocket connections.
     -   Handles client subscriptions to specific job IDs.
     -   Broadcasts messages to relevant subscribed clients.
 
-2.  **`WebSocketService` (`backend/services/websocket.py`)**:
+2.  **`WebSocketService` (`backend/services/websocket/service.py`)**:
     -   The core service that orchestrates WebSocket functionality.
     -   Starts and stops background tasks to poll for job progress from the SD.Next API.
     -   Handles incoming client messages (e.g., subscription requests).
@@ -139,7 +139,7 @@ delivery infrastructure is hardened.
   via the main app) delegate to the shared `WebSocketService`, which subscribes
   to delivery and generation updates.【F:backend/api/v1/websocket.py†L1-L43】
 - ✅ The service layer can start and stop job monitors, broadcasting structured
-  events as jobs transition states.【F:backend/services/websocket.py†L1-L200】
+  events as jobs transition states.【F:backend/services/websocket/service.py†L1-L95】【F:backend/services/websocket/job_monitor.py†L1-L120】
 - ⚠️ Load and failure-mode testing is limited; queue backpressure and
   disconnect handling still need real-world validation alongside the delivery
   worker.【F:backend/services/deliveries.py†L16-L205】
