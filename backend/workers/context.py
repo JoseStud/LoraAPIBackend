@@ -103,14 +103,16 @@ class WorkerContext:
                 return None
         return None
 
-    def create_service_container(self, db_session: Optional[Session]) -> ServiceRegistry:
+    def create_service_container(self, db_session: Session) -> ServiceRegistry:
         """Instantiate a service container sharing this context's dependencies."""
-        delivery_repository = (
-            DeliveryJobRepository(db_session) if db_session is not None else None
-        )
-        analytics_repository = (
-            AnalyticsRepository(db_session) if db_session is not None else None
-        )
+        if db_session is None:  # Defensive guard for callers bypassing type hints
+            raise ValueError(
+                "WorkerContext.create_service_container() requires an active database "
+                "session to construct repositories.",
+            )
+
+        delivery_repository = DeliveryJobRepository(db_session)
+        analytics_repository = AnalyticsRepository(db_session)
 
         builder = get_service_container_builder()
         return builder.build(
