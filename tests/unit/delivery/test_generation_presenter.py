@@ -6,9 +6,10 @@ from datetime import datetime, timezone
 
 import pytest
 
+from backend.api.v1.generation.presenters.jobs import build_active_job
+from backend.api.v1.generation.presenters.results import build_result
 from backend.services.deliveries import DeliveryService
 from backend.services.generation import GenerationCoordinator, GenerationService
-from backend.services.generation.presenter import build_active_job, build_result
 from backend.services.websocket import WebSocketService
 
 
