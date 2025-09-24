@@ -148,6 +148,37 @@ const apiMocks = {
         return lora;
     },
 
+    'GET /api/v1/adapters': (url) => {
+        const urlObj = new URL(url, 'http://localhost');
+        const search = (urlObj.searchParams.get('search') || '').toLowerCase();
+        const tags = urlObj.searchParams.getAll('tags');
+
+        let adapters = [...mockData.loras];
+
+        if (search) {
+            adapters = adapters.filter((item) =>
+                item.name.toLowerCase().includes(search) || item.description.toLowerCase().includes(search),
+            );
+        }
+
+        if (tags.length > 0) {
+            adapters = adapters.filter((item) => tags.every((tag) => item.tags.includes(tag)));
+        }
+
+        return {
+            data: adapters,
+            meta: {
+                total: adapters.length,
+                page: Number(urlObj.searchParams.get('page') ?? 1),
+                page_size: Number(urlObj.searchParams.get('page_size') ?? adapters.length),
+            },
+        };
+    },
+
+    'GET /api/v1/adapters/tags': () => ({
+        data: Array.from(new Set(mockData.loras.flatMap((item) => item.tags))),
+    }),
+
     'POST /api/loras': (url, options = {}) => {
         try {
             const body = options.body ? JSON.parse(options.body) : {};
@@ -196,6 +227,22 @@ const apiMocks = {
     'DELETE /api/loras/:id': () => ({
         message: 'LoRA deleted successfully'
     }),
+
+    'POST /api/v1/adapters/bulk': (url, options = {}) => {
+        try {
+            const body = options.body ? JSON.parse(options.body) : {};
+            if (!Array.isArray(body.ids) || typeof body.action !== 'string') {
+                throw new Error('validation: ids and action are required');
+            }
+        } catch (error) {
+            if (error instanceof SyntaxError) {
+                throw new Error('validation: malformed JSON');
+            }
+            throw error;
+        }
+
+        return { success: true };
+    },
     
     // Recommendations
     'GET /api/recommendations': (url) => {
@@ -294,8 +341,21 @@ const apiMocks = {
     }),
     
     // Import/Export
-    'POST /api/export': () => new Blob(['mock export data'], { type: 'application/json' }),
-    
+    'POST /api/v1/export/estimate': () => ({
+        size: '512 MB',
+        time: '5 minutes',
+    }),
+
+    'POST /api/v1/export': () => new Blob(['mock export data'], { type: 'application/zip' }),
+
+    'POST /api/export': () => new Blob(['legacy export data'], { type: 'application/json' }),
+
+    'POST /api/v1/import': () => ({
+        success: true,
+        processed_files: 2,
+        total_files: 2,
+    }),
+
     'POST /api/import': () => ({
         success: true,
         message: 'Import started successfully',
@@ -303,6 +363,42 @@ const apiMocks = {
         processed_files: 1,
         total_files: 1,
     }),
+
+    'GET /api/v1/backups/history': () => ({
+        history: [
+            {
+                id: 'backup-1',
+                type: 'full',
+                size: 512 * 1024 * 1024,
+                status: 'completed',
+                created_at: '2024-01-01T00:00:00Z',
+            },
+            {
+                id: 'backup-2',
+                type: 'quick',
+                size: 128 * 1024 * 1024,
+                status: 'processing',
+                created_at: '2024-01-02T12:00:00Z',
+            },
+        ],
+    }),
+
+    'POST /api/v1/backup/create': (url, options = {}) => {
+        try {
+            const body = options.body ? JSON.parse(options.body) : {};
+            const backupType = body.backup_type ?? 'full';
+
+            return {
+                success: true,
+                backup_id: `${backupType}-backup-${Date.now()}`,
+            };
+        } catch {
+            return {
+                success: true,
+                backup_id: `backup-${Date.now()}`,
+            };
+        }
+    },
 
     'GET /api/v1/dashboard/stats': () => ({
         stats: {
@@ -365,8 +461,9 @@ const mockFetch = (url, options = {}) => {
         normalizedPath = normalizedPath.replace(/\/+$/, '');
     }
 
+    const directKey = `${method} ${normalizedPath}`;
+
     const findHandler = () => {
-        const directKey = `${method} ${normalizedPath}`;
         if (apiMocks[directKey]) {
             return apiMocks[directKey];
         }
@@ -419,7 +516,9 @@ const mockFetch = (url, options = {}) => {
             });
         }
         
-        console.log(`No mock found for: ${method} ${path} (tried: ${exactKey}, ${patternKey})`);
+        console.log(
+            `No mock found for: ${method} ${path} (tried: ${directKey}, ${Object.keys(apiMocks).join(', ')})`,
+        );
         
         return Promise.resolve({
             ok: false,

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
 
-import HistoryActionToolbar from '../../app/frontend/src/components/HistoryActionToolbar.vue';
+import HistoryActionToolbar from '../../app/frontend/src/components/history/HistoryActionToolbar.vue';
 
 describe('HistoryActionToolbar', () => {
   it('emits update:viewMode when toggling view mode', async () => {

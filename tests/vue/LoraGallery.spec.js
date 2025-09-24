@@ -1,16 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
-import LoraGallery from '../../app/frontend/src/components/lora-gallery/LoraGallery.vue';
-import LoraCard from '../../app/frontend/src/components/LoraCard.vue';
+import LoraGallery from '@/components/lora-gallery/LoraGallery.vue';
+import LoraCard from '@/components/lora-gallery/LoraCard.vue';
 
 const mocks = vi.hoisted(() => ({
   fetchAdaptersMock: vi.fn(),
   fetchAdapterTagsMock: vi.fn(),
   performBulkLoraActionMock: vi.fn(),
-}))
+}));
 
-vi.mock('../../app/frontend/src/services/loraService.ts', async () => {
-  const actual = await vi.importActual('../../app/frontend/src/services/loraService.ts');
+vi.mock('@/services', async () => {
+  const actual = await vi.importActual('@/services');
   return {
     ...actual,
     fetchAdapters: mocks.fetchAdaptersMock,

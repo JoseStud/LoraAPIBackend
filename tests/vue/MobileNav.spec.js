@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { defineComponent, h, nextTick } from 'vue';
 import { vi } from 'vitest';
-import MobileNav from '../../app/frontend/src/components/MobileNav.vue';
+import MobileNav from '../../app/frontend/src/components/layout/MobileNav.vue';
 
 vi.mock('vue-router', () => ({
   RouterLink: defineComponent({

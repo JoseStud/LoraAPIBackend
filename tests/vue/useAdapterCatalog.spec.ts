@@ -14,16 +14,20 @@ const fetchData = vi.fn(async () => {
   return adaptersRef.value;
 });
 
-vi.mock('../../app/frontend/src/services/loraService', () => ({
-  useAdapterListApi: vi.fn(() => ({
-    adapters: computed(() => adaptersRef.value),
-    error: errorRef,
-    isLoading: loadingRef,
-    fetchData,
-  })),
-}));
+vi.mock('@/services', async () => {
+  const actual = await vi.importActual('@/services');
+  return {
+    ...actual,
+    useAdapterListApi: vi.fn(() => ({
+      adapters: computed(() => adaptersRef.value),
+      error: errorRef,
+      isLoading: loadingRef,
+      fetchData,
+    })),
+  };
+});
 
-import { useAdapterCatalog } from '../../app/frontend/src/composables/useAdapterCatalog';
+import { useAdapterCatalog } from '@/composables/compose/useAdapterCatalog';
 
 type CatalogReturn = ReturnType<typeof useAdapterCatalog>;
 

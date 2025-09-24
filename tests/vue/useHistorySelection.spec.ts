@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { useHistorySelection } from '../../app/frontend/src/composables/useHistorySelection';
+import { useHistorySelection } from '../../app/frontend/src/composables/history/useHistorySelection';
 
 describe('useHistorySelection', () => {
   it('adds and removes ids from the selection set', () => {

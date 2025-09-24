@@ -5,7 +5,7 @@ import {
   useAdapterListApi,
   useDashboardStatsApi,
   useSystemStatusApi,
-} from '../../app/frontend/src/composables/apiClients';
+} from '../../app/frontend/src/composables/shared/apiClients';
 import { useSettingsStore } from '../../app/frontend/src/stores/settings';
 
 const createJsonResponse = (payload: unknown): Response => ({

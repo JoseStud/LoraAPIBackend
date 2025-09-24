@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { useImportWorkflow, type ProgressCallbacks } from '../../app/frontend/src/composables/useImportWorkflow';
+import { useImportWorkflow, type ProgressCallbacks } from '../../app/frontend/src/composables/import-export/useImportWorkflow';
 
 const requestJson = vi.fn();
 
