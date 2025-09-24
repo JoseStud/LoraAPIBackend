@@ -18,7 +18,6 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./tests/setup/vitest.setup.js'],
     include: [
-      'tests/unit/**/*.spec.{js,ts}',
       'tests/vue/**/*.spec.{js,ts}',
       'tests/integration/**/*.test.js',
     ],

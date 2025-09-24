@@ -10,7 +10,7 @@ the dependencies that may be required.
   and worker helpers. Fixtures live in `tests/conftest.py` and rely on in-memory
   SQLite databases by default.【F:tests/conftest.py†L1-L120】
 - **Vitest** – Runs component, composable, and store tests under
-  `tests/unit` and `tests/vue`.
+  `tests/vue`.
 - **Integration tests** – Additional Vitest suites under `tests/integration`
   exercise frontend logic that talks to the backend API via mocked HTTP calls.
 - **Playwright** – End-to-end browser tests under `tests/e2e` simulate user
@@ -70,7 +70,6 @@ the dependencies that may be required.
 
 ```
 tests/
-├── unit/            # Python and TypeScript unit tests
 ├── vue/             # Vue component tests
 ├── integration/     # Frontend integration suites
 ├── e2e/             # Playwright scenarios
