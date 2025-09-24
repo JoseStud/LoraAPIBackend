@@ -9,10 +9,10 @@ import {
 } from '../../app/frontend/src/stores/generation';
 import { createGenerationOrchestrator } from '../../app/frontend/src/services/generation';
 
-const transportClearMock = vi.fn();
-const transportStopUpdatesMock = vi.fn();
+const transportClearMock = vi.hoisted(() => vi.fn());
+const transportStopUpdatesMock = vi.hoisted(() => vi.fn());
 
-const transportMock = {
+const transportMock = vi.hoisted(() => ({
   startGeneration: vi.fn(),
   cancelJob: vi.fn(),
   deleteResult: vi.fn(),
@@ -25,9 +25,9 @@ const transportMock = {
   reconnectUpdates: vi.fn(),
   setPollInterval: vi.fn(),
   clear: transportClearMock,
-};
+}));
 
-const useGenerationTransportMock = vi.fn(() => transportMock);
+const useGenerationTransportMock = vi.hoisted(() => vi.fn(() => transportMock));
 
 vi.mock('../../app/frontend/src/composables/generation', () => ({
   useGenerationTransport: useGenerationTransportMock,

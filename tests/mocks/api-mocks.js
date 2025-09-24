@@ -96,7 +96,46 @@ const mockData = {
                 { id: 'worker-3', status: 'active', task: 'generating_recommendations' }
             ]
         }
-    }
+    },
+    adapters: [
+        {
+            id: 'adapter-1',
+            name: 'Portrait Enhancer',
+            description: 'Boosts portrait generation quality',
+            active: true,
+            tags: ['portrait', 'people'],
+            stats: {
+                usage_count: 120,
+                success_rate: 0.92,
+                avg_time: 42,
+            },
+        },
+        {
+            id: 'adapter-2',
+            name: 'Landscape Booster',
+            description: 'Optimized for scenic landscapes',
+            active: false,
+            tags: ['landscape', 'nature'],
+            stats: {
+                usage_count: 85,
+                success_rate: 0.88,
+                avg_time: 55,
+            },
+        },
+        {
+            id: 'adapter-3',
+            name: 'Anime Style Pro',
+            description: 'Creates stylized anime visuals',
+            active: true,
+            tags: ['anime', 'character'],
+            stats: {
+                usage_count: 200,
+                success_rate: 0.95,
+                avg_time: 38,
+            },
+        },
+    ],
+    adapterTags: ['portrait', 'people', 'landscape', 'nature', 'anime', 'character'],
 };
 
 // API Mock Functions
@@ -196,7 +235,110 @@ const apiMocks = {
     'DELETE /api/loras/:id': () => ({
         message: 'LoRA deleted successfully'
     }),
-    
+
+    // Generation Workflows
+    'POST /api/v1/generation/generate': (url, options = {}) => {
+        let payload = {};
+        try {
+            payload = options.body ? JSON.parse(options.body) : {};
+        } catch {
+            // ignore malformed JSON in tests
+        }
+
+        return {
+            job_id: `job-${Date.now()}`,
+            status: 'queued',
+            progress: 0,
+            parameters: payload,
+        };
+    },
+
+    'GET /api/v1/generation/jobs/active': () => ([
+        {
+            job_id: 'job-1',
+            id: 'job-1',
+            status: 'processing',
+            progress: 45,
+            prompt: 'Test prompt',
+            eta: 30,
+            created_at: new Date().toISOString(),
+        },
+        {
+            job_id: 'job-2',
+            id: 'job-2',
+            status: 'queued',
+            progress: 0,
+            prompt: 'Another prompt',
+            created_at: new Date().toISOString(),
+        },
+    ]),
+
+    'GET /api/v1/generation/results': (url) => {
+        let limit = 5;
+        try {
+            const urlObj = new URL(url, 'http://localhost');
+            limit = parseInt(urlObj.searchParams.get('limit')) || limit;
+        } catch {
+            // ignore invalid URLs in tests
+        }
+
+        return Array.from({ length: Math.max(1, limit) }).map((_, index) => ({
+            id: `result-${index + 1}`,
+            prompt: `Generated prompt ${index + 1}`,
+            status: 'completed',
+            width: 512,
+            height: 512,
+            steps: 20,
+            cfg_scale: 7,
+            seed: 42 + index,
+            image_url: `https://example.com/generated-${index + 1}.png`,
+            created_at: new Date(Date.now() - index * 60000).toISOString(),
+        }));
+    },
+
+    'POST /api/v1/generation/jobs/:id/cancel': () => ({ success: true }),
+
+    'DELETE /api/v1/generation/results/:id': () => ({ success: true }),
+
+    // Adapter Catalog
+    'GET /api/v1/adapters': (url) => {
+        let page = 1;
+        let perPage = 20;
+        try {
+            const urlObj = new URL(url, 'http://localhost');
+            page = parseInt(urlObj.searchParams.get('page')) || page;
+            perPage = parseInt(urlObj.searchParams.get('perPage')) || perPage;
+        } catch {
+            // ignore invalid URLs in tests
+        }
+
+        const start = Math.max(0, (page - 1) * perPage);
+        const items = mockData.adapters.slice(start, start + perPage);
+        return {
+            items,
+            total: mockData.adapters.length,
+            page,
+            per_page: perPage,
+        };
+    },
+
+    'GET /api/v1/adapters/tags': () => ({ tags: mockData.adapterTags }),
+
+    'POST /api/v1/adapters/bulk': (url, options = {}) => {
+        let body = {};
+        try {
+            body = options.body ? JSON.parse(options.body) : {};
+        } catch {
+            body = {};
+        }
+
+        const ids = Array.isArray(body?.ids) ? body.ids : mockData.adapters.map((adapter) => adapter.id);
+        return {
+            success: true,
+            updated: ids,
+        };
+    },
+
     // Recommendations
     'GET /api/recommendations': (url) => {
         const urlObj = new URL(url, 'http://localhost');
@@ -366,18 +508,25 @@ const mockFetch = (url, options = {}) => {
     }
 
     const findHandler = () => {
-        const directKey = `${method} ${normalizedPath}`;
-        if (apiMocks[directKey]) {
-            return apiMocks[directKey];
+        const exactKey = `${method} ${normalizedPath}`;
+        if (apiMocks[exactKey]) {
+            return {
+                handler: apiMocks[exactKey],
+                exactKey,
+                attemptedPatternKeys: [],
+            };
         }
 
         const pathSegments = normalizedPath.split('/').filter(Boolean);
+        const attemptedPatternKeys = [];
 
         for (const [key, handler] of Object.entries(apiMocks)) {
             const [patternMethod, patternPath] = key.split(' ');
             if (patternMethod !== method) {
                 continue;
             }
+
+            attemptedPatternKeys.push(key);
 
             let normalisedPattern = patternPath || '/';
             if (!normalisedPattern.startsWith('/')) {
@@ -398,14 +547,22 @@ const mockFetch = (url, options = {}) => {
             });
 
             if (matches) {
-                return handler;
+                return {
+                    handler,
+                    exactKey,
+                    attemptedPatternKeys,
+                };
             }
         }
 
-        return undefined;
+        return {
+            handler: undefined,
+            exactKey,
+            attemptedPatternKeys,
+        };
     };
 
-    const mockFn = findHandler();
+    const { handler: mockFn, exactKey, attemptedPatternKeys } = findHandler();
 
     if (!mockFn) {
         // Handle unknown endpoints
@@ -419,7 +576,9 @@ const mockFetch = (url, options = {}) => {
             });
         }
         
-        console.log(`No mock found for: ${method} ${path} (tried: ${exactKey}, ${patternKey})`);
+        const attemptedKeys = [exactKey, ...attemptedPatternKeys];
+        const attemptedSummary = attemptedKeys.filter(Boolean).join(', ') || 'none';
+        console.log(`No mock found for: ${method} ${normalizedPath} (tried: ${attemptedSummary})`);
         
         return Promise.resolve({
             ok: false,

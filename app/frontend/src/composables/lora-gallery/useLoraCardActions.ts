@@ -6,7 +6,7 @@ import {
   toggleLoraActiveState,
   triggerPreviewGeneration,
   updateLoraWeight,
-} from '@/services';
+} from '@/services/loraService';
 import type { LoraListItem, LoraUpdatePayload } from '@/types';
 
 type NotificationType = 'success' | 'error' | 'warning' | 'info';

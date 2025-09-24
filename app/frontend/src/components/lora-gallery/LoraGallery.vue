@@ -63,7 +63,7 @@ import LoraGalleryFilters from './LoraGalleryFilters.vue';
 import LoraGalleryGrid from './LoraGalleryGrid.vue';
 import LoraGalleryHeader from './LoraGalleryHeader.vue';
 import LoraGalleryTagModal from './LoraGalleryTagModal.vue';
-import { performBulkLoraAction } from '@/services';
+import { performBulkLoraAction } from '@/services/loraService';
 import { useLoraGalleryData } from '@/composables/lora-gallery';
 import { useLoraGalleryFilters } from '@/composables/lora-gallery';
 import { useLoraGallerySelection } from '@/composables/lora-gallery';

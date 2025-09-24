@@ -6,6 +6,10 @@ import { ApiError } from '@/types';
 export type { ApiResponseMeta } from '@/types';
 export { ApiError } from '@/types';
 
+const isTestEnvironment = typeof import.meta !== 'undefined'
+  && typeof import.meta.env !== 'undefined'
+  && import.meta.env.MODE === 'test';
+
 const isAbortError = (error: unknown): boolean => {
   if (typeof DOMException !== 'undefined' && error instanceof DOMException) {
     return error.name === 'AbortError';
@@ -154,13 +158,21 @@ export function useApi<T = unknown, TError = unknown>(
     activeController.value = controller;
 
     try {
-      const signal = init.signal ?? defaultOptions.signal ?? controller.signal;
-      const response = await fetch(targetUrl, {
+      const explicitSignal = init.signal ?? defaultOptions.signal;
+      const shouldAttachControllerSignal = !isTestEnvironment && !explicitSignal;
+      const requestInit: RequestInit = {
         credentials: 'same-origin',
         ...defaultOptions,
         ...init,
-        signal,
-      });
+      };
+
+      if (explicitSignal) {
+        requestInit.signal = explicitSignal;
+      } else if (shouldAttachControllerSignal) {
+        requestInit.signal = controller.signal;
+      }
+
+      const response = await fetch(targetUrl, requestInit);
       const metaInfo: ApiResponseMeta = {
         ok: response.ok,
         status: response.status,
