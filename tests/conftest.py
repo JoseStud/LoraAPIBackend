@@ -12,8 +12,10 @@ from sqlmodel import Session, SQLModel, create_engine
 from app.main import app as fastapi_app
 from app.main import backend_app
 from backend.core.database import get_session
-from backend.services import get_service_container_builder, service_container_builder_scope
-from tests.util.service_container import reset_service_container_builder
+from backend.services import (
+    get_service_container_builder,
+    service_container_builder_scope,
+)
 from backend.services.adapters import AdapterService
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.composition import ComposeService
@@ -21,6 +23,7 @@ from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.providers.generation import make_compose_service
 from backend.services.queue import create_queue_orchestrator
+from tests.util.service_container import reset_service_container_builder
 
 
 @pytest.fixture

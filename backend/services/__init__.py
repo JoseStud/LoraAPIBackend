@@ -57,7 +57,6 @@ def service_container_builder_scope(
     builder: Optional[ServiceContainerBuilder] = None,
 ) -> Iterator[ServiceContainerBuilder]:
     """Provide a scoped service container builder override."""
-
     token = _builder_var.set(builder or _create_default_builder())
     try:
         yield _builder_var.get()

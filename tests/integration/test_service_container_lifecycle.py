@@ -156,7 +156,7 @@ def test_queue_fallback_recovers_from_redis_errors(db_session) -> None:
     deliveries_one.enqueue_job("job-1", background_tasks=background_tasks_one)
 
     orchestrator_one = deliveries_one.queue_orchestrator
-    call_log_one = getattr(orchestrator_one, "_test_call_log")
+    call_log_one = orchestrator_one._test_call_log
     assert call_log_one == ["job-1"]
     assert len(background_tasks_one.tasks) == 1
     _run_background_tasks(background_tasks_one.tasks)
@@ -174,7 +174,7 @@ def test_queue_fallback_recovers_from_redis_errors(db_session) -> None:
     orchestrator_two = deliveries_two.queue_orchestrator
 
     assert orchestrator_two is not orchestrator_one
-    call_log_two = getattr(orchestrator_two, "_test_call_log")
+    call_log_two = orchestrator_two._test_call_log
     assert call_log_two == []
 
     background_tasks_two = BackgroundTasks()

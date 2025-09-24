@@ -7,7 +7,10 @@ from typing import Any, Dict, Optional
 
 from backend.models import DeliveryJob
 from backend.schemas import GenerationResultSummary
-from backend.services.generation import GenerationCoordinator, normalize_generation_status
+from backend.services.generation import (
+    GenerationCoordinator,
+    normalize_generation_status,
+)
 
 __all__ = ["build_result"]
 

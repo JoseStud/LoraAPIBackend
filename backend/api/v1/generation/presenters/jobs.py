@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from backend.models import DeliveryJob
 from backend.schemas import GenerationJobStatus
-from backend.services.generation import GenerationCoordinator, normalize_generation_status
+from backend.services.generation import (
+    GenerationCoordinator,
+    normalize_generation_status,
+)
 
 __all__ = ["build_active_job"]
 
