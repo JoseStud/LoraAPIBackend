@@ -2,9 +2,10 @@
 
 import pytest
 
-from app.frontend.utils.http import HTTPClient
 from backend.core.config import Settings
+from backend.utils import format_bytes, format_duration
 from backend.utils.cache import TTLCache
+from tests.util.http_client import HTTPClient
 
 
 class TestSettings:
@@ -25,6 +26,39 @@ class TestSettings:
         # (sans trailing slash)
         s = Settings(BACKEND_URL="http://localhost:9999/api/")
         assert s.get_backend_url == "http://localhost:9999/api"
+
+
+class TestFormattingUtilities:
+    """Ensure backend.utils format helpers behave as expected."""
+
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            (0, "0 Bytes"),
+            (512, "512 Bytes"),
+            (2048, "2.00 KB"),
+            (5 * 1024 * 1024, "5.00 MB"),
+        ],
+    )
+    def test_format_bytes(self, value, expected):
+        """``format_bytes`` should return human-friendly representations."""
+
+        assert format_bytes(value) == expected
+
+    @pytest.mark.parametrize(
+        "seconds, expected",
+        [
+            (0, "0 seconds"),
+            (1, "1 seconds"),
+            (59, "59 seconds"),
+            (60, "1 minutes"),
+            (120, "2 minutes"),
+        ],
+    )
+    def test_format_duration(self, seconds, expected):
+        """``format_duration`` should normalise durations into strings."""
+
+        assert format_duration(seconds) == expected
 
 
 class TestTTLCache:

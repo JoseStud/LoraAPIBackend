@@ -4,12 +4,12 @@ Wire the FastAPI backend with the Vue single-page application build.
 """
 
 from pathlib import Path
+from typing import Any, Dict
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.frontend.config import get_settings as get_frontend_settings
 from backend.core.config import settings as backend_settings
 from backend.main import app as backend_app
 
@@ -19,16 +19,49 @@ app = FastAPI(
     version="1.0.0",
 )
 
-_fe_settings = get_frontend_settings()
-_cors = _fe_settings.get_cors_config()
+
+def _build_cors_config() -> Dict[str, Any]:
+    """Construct the CORS options from the backend settings."""
+
+    allow_origins = list(backend_settings.CORS_ORIGINS)
+    allow_credentials = backend_settings.CORS_ALLOW_CREDENTIALS
+    if "*" in allow_origins:
+        allow_credentials = False
+    return {
+        "allow_origins": allow_origins
+        or ["http://localhost:5173", "http://localhost:8000"],
+        "allow_credentials": allow_credentials,
+        "allow_methods": ["*"],
+        "allow_headers": ["*"],
+    }
+
+
+def _normalise_public_api_url(raw_url: str | None) -> str:
+    """Normalise the backend URL exposed to the SPA settings endpoint."""
+
+    if raw_url is None:
+        return "/api/v1"
+
+    candidate = raw_url.strip()
+    if not candidate:
+        return "/api/v1"
+
+    if candidate.startswith(("http://", "https://")):
+        return candidate.rstrip("/") or "/api/v1"
+
+    if not candidate.startswith("/"):
+        candidate = f"/{candidate}"
+    candidate = candidate.rstrip("/")
+    return candidate or "/api/v1"
+
+
+_cors = _build_cors_config()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors.get(
-        "allow_origins", ["http://localhost:5173", "http://localhost:8000"]
-    ),
-    allow_credentials=_cors.get("allow_credentials", True),
-    allow_methods=_cors.get("allow_methods", ["*"]),
-    allow_headers=_cors.get("allow_headers", ["*"]),
+    allow_origins=_cors["allow_origins"],
+    allow_credentials=_cors["allow_credentials"],
+    allow_methods=_cors["allow_methods"],
+    allow_headers=_cors["allow_headers"],
 )
 
 # Include backend API routes
@@ -69,8 +102,7 @@ SPA_STATIC_APP = SPAStaticFiles(SPA_DIST_DIR)
 @app.get("/frontend/settings", tags=["frontend"])
 async def frontend_settings():
     """Expose runtime configuration for the Vue SPA."""
-    raw_backend_url = _fe_settings.backend_url or "/api/v1"
-    backend_url = raw_backend_url.rstrip("/") or "/api/v1"
+    backend_url = _normalise_public_api_url(backend_settings.BACKEND_URL)
     return {
         "backendUrl": backend_url,
         "backendApiKey": backend_settings.API_KEY or None,

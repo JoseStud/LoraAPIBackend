@@ -1,8 +1,4 @@
-"""Provide minimal HTTP client helpers for unit tests and utilities.
-
-This client implements construction and URL building logic required by
-tests/unit/test_backend_validation.py.
-"""
+"""Testing helper utilities for HTTP-style URL assembly."""
 
 from __future__ import annotations
 
@@ -11,7 +7,7 @@ from urllib.parse import urlencode
 
 
 class HTTPClient:
-    """Provide a simple HTTP client facade with URL building support."""
+    """Provide a simple HTTP client facade with URL building support for tests."""
 
     def __init__(
         self,
@@ -19,7 +15,7 @@ class HTTPClient:
         timeout: float = 30.0,
         max_retries: int = 0,
     ) -> None:
-        """Initialize an HTTP client configuration."""
+        """Initialise an HTTP client configuration."""
         if not isinstance(base_url, str) or not base_url:
             raise ValueError("base_url must be a non-empty string")
         if not (base_url.startswith("http://") or base_url.startswith("https://")):
