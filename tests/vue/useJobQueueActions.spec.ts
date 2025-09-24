@@ -7,30 +7,42 @@ import { useGenerationQueueStore } from '@/stores/generation';
 
 const serviceMocks = vi.hoisted(() => ({
   cancelGenerationJob: vi.fn(),
+  fetchActiveGenerationJobs: vi.fn(),
 }));
 
 vi.mock('@/services', () => ({
-  fetchActiveGenerationJobs: vi.fn(),
   cancelGenerationJob: serviceMocks.cancelGenerationJob,
+  fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
+  buildAdapterListQuery: vi.fn(),
+  useAdapterListApi: vi.fn(),
 }));
 
-const notificationMocks = vi.hoisted(() => ({
-  notifications: { value: [] as unknown[] },
+const toastMocks = vi.hoisted(() => ({
+  isVisible: { value: false },
+  message: { value: '' },
+  type: { value: 'info' },
+  duration: { value: 3000 },
+  showToast: vi.fn(),
+  hideToast: vi.fn(),
   showSuccess: vi.fn(),
   showError: vi.fn(),
   showInfo: vi.fn(),
   showWarning: vi.fn(),
-  addNotification: vi.fn(),
-  removeNotification: vi.fn(),
-  clearAll: vi.fn(),
+  clearTimer: vi.fn(),
 }));
 
-vi.mock('@/composables/shared', () => ({
-  useNotifications: () => notificationMocks,
-}));
+vi.mock('@/composables/shared', async () => {
+  const actual = await vi.importActual('@/composables/shared');
+  return {
+    ...actual,
+    useToast: () => toastMocks,
+  };
+});
 
 vi.mock('@/utils/backend', () => ({
+  DEFAULT_BACKEND_BASE: '/api/v1',
   useBackendBase: () => computed(() => '/api/v1'),
+  resolveBackendUrl: (path: string) => `/api/v1${path}`,
 }));
 
 const withActions = async (
@@ -53,7 +65,8 @@ const withActions = async (
 describe('useJobQueueActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    notificationMocks.notifications.value = [];
+    toastMocks.showInfo.mockClear();
+    toastMocks.showError.mockClear();
   });
 
   it('cancels a job via the primary endpoint', async () => {
@@ -67,7 +80,7 @@ describe('useJobQueueActions', () => {
       const result = await actions.cancelJob('job-1');
 
       expect(result).toBe(true);
-      expect(notificationMocks.showInfo).toHaveBeenCalledWith('Job cancelled');
+      expect(toastMocks.showInfo).toHaveBeenCalledWith('Job cancelled');
       expect(jobs.value).toHaveLength(0);
     });
   });
@@ -83,7 +96,7 @@ describe('useJobQueueActions', () => {
       const result = await actions.cancelJob('job-3');
 
       expect(result).toBe(false);
-      expect(notificationMocks.showError).toHaveBeenCalledWith('Failed to cancel job');
+      expect(toastMocks.showError).toHaveBeenCalledWith('Failed to cancel job');
       expect(jobs.value).toHaveLength(1);
     });
   });
@@ -99,7 +112,7 @@ describe('useJobQueueActions', () => {
       const result = await actions.cancelJob('job-4');
 
       expect(result).toBe(false);
-      expect(notificationMocks.showError).toHaveBeenCalledWith('Failed to cancel job');
+      expect(toastMocks.showError).toHaveBeenCalledWith('Failed to cancel job');
       expect(jobs.value).toHaveLength(1);
     });
   });

@@ -15,8 +15,7 @@
 <script setup lang="ts">
 import type { PropType } from 'vue';
 
-import type { GenerationHistoryResult } from '@/types';
-import type { HistoryToastType } from '@/composables/history';
+import type { GenerationHistoryResult, NotificationType } from '@/types';
 
 import HistoryModalLauncher from './HistoryModalLauncher.vue';
 import HistoryToast from './HistoryToast.vue';
@@ -39,7 +38,7 @@ defineProps({
     required: true,
   },
   toastType: {
-    type: String as PropType<HistoryToastType>,
+    type: String as PropType<NotificationType>,
     required: true,
   },
   formatDate: {

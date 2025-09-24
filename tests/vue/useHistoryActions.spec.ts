@@ -4,6 +4,7 @@ import type { Router } from 'vue-router';
 
 import type { GenerationHistoryResult } from '../../app/frontend/src/types';
 import { useHistoryActions } from '../../app/frontend/src/composables/history/useHistoryActions';
+import { PERSISTENCE_KEYS } from '../../app/frontend/src/constants/persistence';
 
 const serviceMocks = vi.hoisted(() => ({
   rateResult: vi.fn(),
@@ -168,7 +169,7 @@ describe('useHistoryActions', () => {
 
     expect(success).toBe(true);
     expect(setItem).toHaveBeenCalledWith(
-      'reuse-parameters',
+      PERSISTENCE_KEYS.reuseParameters,
       expect.stringContaining('Prompt 1'),
     );
     expect(routerPush).toHaveBeenCalledWith({ name: 'compose' });
