@@ -13,6 +13,7 @@ from app.main import app as fastapi_app
 from app.main import backend_app
 from backend.core.database import get_session
 from backend.services import get_service_container_builder, service_container_builder_scope
+from tests.util.service_container import reset_service_container_builder
 from backend.services.adapters import AdapterService
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.composition import ComposeService
@@ -30,10 +31,14 @@ def anyio_backend():
 
 @pytest.fixture(autouse=True)
 def isolated_service_container_builder():
-    """Provide an isolated service container builder per test."""
+    """Provide an isolated and freshly reset service container builder per test."""
 
-    with service_container_builder_scope():
-        yield
+    with service_container_builder_scope() as builder:
+        reset_service_container_builder(builder)
+        try:
+            yield
+        finally:
+            reset_service_container_builder(builder)
 
 
 @pytest.fixture(name="mock_storage")
