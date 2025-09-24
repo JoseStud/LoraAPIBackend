@@ -9,12 +9,14 @@ from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
 from backend.core.config import settings
-from backend.models import Adapter  # noqa: F401  # ensure models are imported
-from backend.models import DeliveryJob  # noqa: F401
-from backend.models import LoRAEmbedding  # noqa: F401
-from backend.models import RecommendationFeedback  # noqa: F401
-from backend.models import RecommendationSession  # noqa: F401
-from backend.models import UserPreference  # noqa: F401
+from backend.models import (
+    Adapter,  # noqa: F401  # ensure models are imported
+    DeliveryJob,  # noqa: F401
+    LoRAEmbedding,  # noqa: F401
+    RecommendationFeedback,  # noqa: F401
+    RecommendationSession,  # noqa: F401
+    UserPreference,  # noqa: F401
+)
 
 config = context.config
 
@@ -36,7 +38,6 @@ target_metadata = SQLModel.metadata
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
-
     _configure_url()
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
@@ -52,7 +53,6 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-
     _configure_url()
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),

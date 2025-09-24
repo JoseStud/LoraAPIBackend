@@ -64,4 +64,3 @@ class TTLCache:
 
 
 __all__ = ["TTLCache"]
-

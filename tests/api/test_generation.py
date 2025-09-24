@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.schemas import SDNextGenerationResult
 from backend.core.dependencies import get_application_services, get_domain_services
 from backend.main import app as backend_app
+from backend.schemas import SDNextGenerationResult
 
 
 class DummyGenerationBackend:
@@ -25,7 +25,6 @@ class DummyGenerationBackend:
 
 def test_generation_generate_request(client: TestClient, monkeypatch):
     """Generation endpoint should complete without duplicate parameter errors."""
-
     monkeypatch.setattr(
         "backend.services.generation.get_generation_backend",
         lambda backend_name: DummyGenerationBackend(),
@@ -71,7 +70,8 @@ def test_generation_rejects_invalid_return_format(client: TestClient):
     ],
 )
 def test_compose_and_generate_rejects_invalid_values(
-    client: TestClient, query_param: dict[str, str]
+    client: TestClient,
+    query_param: dict[str, str],
 ):
     response = client.post(
         "/api/v1/generation/compose-and-generate",
@@ -99,7 +99,7 @@ def test_compose_and_generate_uses_shared_orchestration(client: TestClient):
     stub_domain = SimpleNamespace()
     stub_domain.adapters = object()
     stub_domain.compose = SimpleNamespace(
-        compose_from_adapter_service=lambda adapters, prefix="", suffix="": composition
+        compose_from_adapter_service=lambda adapters, prefix="", suffix="": composition,
     )
     stub_domain.generation = SimpleNamespace(
         validate_generation_params=AsyncMock(return_value=[]),
@@ -109,11 +109,13 @@ def test_compose_and_generate_uses_shared_orchestration(client: TestClient):
     stub_application = SimpleNamespace(
         generation_coordinator=SimpleNamespace(
             broadcast_job_started=AsyncMock(),
-        )
+        ),
     )
 
     backend_app.dependency_overrides[get_domain_services] = lambda: stub_domain
-    backend_app.dependency_overrides[get_application_services] = lambda: stub_application
+    backend_app.dependency_overrides[get_application_services] = (
+        lambda: stub_application
+    )
 
     response = client.post(
         "/api/v1/generation/compose-and-generate",
@@ -138,5 +140,6 @@ def test_compose_and_generate_uses_shared_orchestration(client: TestClient):
     assert generate_call.kwargs["save_images"] is False
 
     stub_application.generation_coordinator.broadcast_job_started.assert_awaited_once_with(
-        "job-123", validate_call.args[0]
+        "job-123",
+        validate_call.args[0],
     )

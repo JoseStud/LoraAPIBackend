@@ -1,3 +1,5 @@
+"""Convenience imports and helpers for constructing service registries."""
+
 from __future__ import annotations
 
 from sqlmodel import Session

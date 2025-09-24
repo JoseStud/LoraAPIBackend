@@ -13,6 +13,7 @@ from typing import Dict, Optional
 VITE_DEV_SERVER = "http://localhost:5173"
 VITE_MANIFEST_PATH = "dist/.vite/manifest.json"
 
+
 def is_development() -> bool:
     """Determine if we're in development mode.
 
@@ -21,15 +22,16 @@ def is_development() -> bool:
     # Check multiple environment indicators
     env = os.getenv("ENVIRONMENT", "development").lower()
     debug = os.getenv("DEBUG", "true").lower() in ("true", "1", "yes")
-    
+
     # Also check if Vite dev server is running
     vite_dev_running = os.getenv("VITE_DEV_SERVER", "true").lower() in (
         "true",
         "1",
         "yes",
     )
-    
+
     return env == "development" or debug or vite_dev_running
+
 
 def load_vite_manifest() -> Optional[Dict]:
     """Load the Vite manifest file if it exists.
@@ -45,15 +47,16 @@ def load_vite_manifest() -> Optional[Dict]:
         print(f"Warning: Could not load Vite manifest: {e}")
     return None
 
+
 def vite_asset(path: str) -> str:
     """Generate the correct asset path for Vite.
-    
+
     In development, it points to the Vite dev server.
     In production, it uses the manifest file to get the hashed filename.
-    
+
     Args:
         path: The asset path relative to the static directory (e.g., 'src/main.ts')
-    
+
     Returns:
         The complete URL for the asset
 
@@ -71,12 +74,13 @@ def vite_asset(path: str) -> str:
             # Fallback if manifest is not found or path is not in manifest
             return f"/static/{path}"
 
+
 def vite_asset_css(js_path: str) -> Optional[str]:
     """Get the corresponding CSS file for a JavaScript entry point.
-    
+
     Args:
         js_path: The JavaScript asset path (e.g., 'src/main.ts')
-    
+
     Returns:
         The CSS file URL if it exists, None otherwise
 
@@ -84,12 +88,12 @@ def vite_asset_css(js_path: str) -> Optional[str]:
     if is_development():
         # In development, CSS is injected by Vite
         return None
-    
+
     manifest = load_vite_manifest()
     if manifest and js_path in manifest:
         entry = manifest[js_path]
         if "css" in entry and entry["css"]:
             # Return the first CSS file (usually there's only one)
             return f"/{entry['css'][0]}"
-    
+
     return None

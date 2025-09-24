@@ -14,11 +14,11 @@ from .recommendations import (
 
 __all__ = [
     "Adapter",
-    "DeliveryJob", 
+    "DeliveryJob",
     "BaseModel",
     "SQLModel",
     "RecommendationSession",
     "UserPreference",
-    "LoRAEmbedding", 
+    "LoRAEmbedding",
     "RecommendationFeedback",
 ]

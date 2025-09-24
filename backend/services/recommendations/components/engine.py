@@ -59,7 +59,9 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
 
         self.semantic_embeddings = self._normalize_embeddings(self.semantic_embeddings)
         self.artistic_embeddings = self._normalize_embeddings(self.artistic_embeddings)
-        self.technical_embeddings = self._normalize_embeddings(self.technical_embeddings)
+        self.technical_embeddings = self._normalize_embeddings(
+            self.technical_embeddings
+        )
 
         self.lora_ids = [lora.id for lora in loras]
         self.loras_dict = {lora.id: lora for lora in loras}
@@ -102,8 +104,10 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
                 "technical": 0.1,
             }
 
-        target_embeddings = self.feature_extractor.semantic_embedder.create_multi_modal_embedding(
-            target_lora,
+        target_embeddings = (
+            self.feature_extractor.semantic_embedder.create_multi_modal_embedding(
+                target_lora,
+            )
         )
 
         semantic_query = self._normalize_embeddings(
@@ -188,7 +192,9 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
 
     def _is_compatible(self, target_lora: Any, candidate_lora: Any) -> bool:
         if getattr(target_lora, "sd_version", None) and getattr(
-            candidate_lora, "sd_version", None,
+            candidate_lora,
+            "sd_version",
+            None,
         ):
             return target_lora.sd_version == candidate_lora.sd_version
         return True
@@ -197,7 +203,9 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
         explanations: List[str] = []
 
         if getattr(target_lora, "description", None) and getattr(
-            candidate_lora, "description", None,
+            candidate_lora,
+            "description",
+            None,
         ):
             common_keywords = self._find_common_keywords(
                 target_lora.description,
@@ -209,7 +217,9 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
                 )
 
         if getattr(target_lora, "tags", None) and getattr(
-            candidate_lora, "tags", None,
+            candidate_lora,
+            "tags",
+            None,
         ):
             common_tags = set(target_lora.tags) & set(candidate_lora.tags)
             if common_tags:
@@ -218,7 +228,9 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
                 )
 
         if getattr(target_lora, "sd_version", None) == getattr(
-            candidate_lora, "sd_version", None,
+            candidate_lora,
+            "sd_version",
+            None,
         ) and getattr(target_lora, "sd_version", None):
             explanations.append(f"Same SD version ({target_lora.sd_version})")
 
@@ -298,8 +310,10 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
 
         self._logger.info("Adding %s new LoRAs to index", len(new_loras))
 
-        new_embeddings = self.feature_extractor.semantic_embedder.batch_encode_collection(
-            new_loras,
+        new_embeddings = (
+            self.feature_extractor.semantic_embedder.batch_encode_collection(
+                new_loras,
+            )
         )
 
         new_semantic = self._normalize_embeddings(

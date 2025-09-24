@@ -47,7 +47,6 @@ class DeliveryResultManager:
         coordinator: Optional["GenerationCoordinator"] = None,
     ) -> List[ResultAsset]:
         """Collect assets referenced by ``job``'s persisted payloads."""
-
         return self._assets.collect(job, storage, coordinator=coordinator)
 
     def remove_assets(
@@ -58,7 +57,6 @@ class DeliveryResultManager:
         coordinator: Optional["GenerationCoordinator"] = None,
     ) -> List[str]:
         """Remove any files referenced by ``job`` and return their paths."""
-
         return self._assets.remove(job, storage, coordinator=coordinator)
 
     # ------------------------------------------------------------------
@@ -75,7 +73,6 @@ class DeliveryResultManager:
         spooled_file_max_size: int = 32 * 1024 * 1024,
     ) -> Optional[ResultArchive]:
         """Create a streaming archive for the specified results."""
-
         return self._archive_builder.build(
             job_ids,
             storage=storage,
@@ -94,7 +91,6 @@ class DeliveryResultManager:
         chunk_size: int = 64 * 1024,
     ) -> Optional[ResultDownload]:
         """Prepare a download payload for the primary asset of ``job``."""
-
         return self._download_builder.build(
             job,
             storage=storage,

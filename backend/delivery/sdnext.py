@@ -49,7 +49,9 @@ class SDNextGenerationBackend(GenerationBackend):
         """Check if SDNext backend is configured and available."""
         return self._session.is_configured()
 
-    async def generate_image(self, prompt: str, params: Dict[str, Any]) -> SDNextGenerationResult:
+    async def generate_image(
+        self, prompt: str, params: Dict[str, Any]
+    ) -> SDNextGenerationResult:
         """Generate image using SDNext API."""
         job_id = str(uuid4())
 
@@ -135,4 +137,3 @@ class SDNextGenerationBackend(GenerationBackend):
     def get_backend_name(self) -> str:
         """Return backend name."""
         return "sdnext"
-

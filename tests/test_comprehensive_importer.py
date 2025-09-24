@@ -54,7 +54,7 @@ def test_comprehensive_civitai_parsing():
     with tempfile.TemporaryDirectory() as tmpdir:
         json_path = Path(tmpdir) / "test.json"
         model_path = Path(tmpdir) / "test_character.safetensors"
-        
+
         # Write JSON and model file
         json_path.write_text(json.dumps(civitai_data))
         model_path.write_text("fake model data")
@@ -63,12 +63,12 @@ def test_comprehensive_civitai_parsing():
 
         # Parse the comprehensive JSON
         parsed = parse_civitai_json(str(json_path))
-        
+
         # Verify all fields are extracted
         assert parsed.name == "Test Character LoRA"
         assert parsed.version == "V1.2"
         assert parsed.tags == ["character", "anime", "test"]
-        
+
         extra = parsed.extra
         assert extra["author_username"] == "testuser"
         assert extra["description"] == "A test character LoRA for testing purposes"
@@ -84,10 +84,12 @@ def test_comprehensive_civitai_parsing():
 
         # Test dry-run output
         result = register_adapter_from_metadata(
-            parsed, json_path=str(json_path), dry_run=True,
+            parsed,
+            json_path=str(json_path),
+            dry_run=True,
         )
         assert result["status"] == "would_register"
-        
+
         payload = result["payload"]
         assert payload["name"] == "Test Character LoRA"
         assert payload["version"] == "V1.2"

@@ -16,7 +16,9 @@ class RecommendationPersistenceService(PersistenceServiceProtocol):
     def __init__(self, manager: RecommendationPersistenceManager) -> None:
         self._manager = manager
 
-    async def rebuild_similarity_index(self, *, force: bool = False) -> IndexRebuildResponse:
+    async def rebuild_similarity_index(
+        self, *, force: bool = False
+    ) -> IndexRebuildResponse:
         """Delegate to the underlying persistence manager."""
         return await self._manager.rebuild_similarity_index(force=force)
 
@@ -37,4 +39,3 @@ class RecommendationPersistenceService(PersistenceServiceProtocol):
     @embedding_cache_dir.setter
     def embedding_cache_dir(self, value: str) -> None:
         self._manager.embedding_cache_dir = Path(value)
-

@@ -60,9 +60,9 @@ class TestFrontendStructure:
             view_path = VUE_SRC / "views" / view_name
             content = view_path.read_text(encoding="utf-8")
             for component in required_components:
-                assert (
-                    f"<{component}" in content
-                ), f"{component} missing from {view_name}"
+                assert f"<{component}" in content, (
+                    f"{component} missing from {view_name}"
+                )
 
     def test_app_shell_uses_router_view(self) -> None:
         """The root shell should delegate routing to the Vue router."""

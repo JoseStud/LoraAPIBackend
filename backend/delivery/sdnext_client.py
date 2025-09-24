@@ -28,6 +28,12 @@ class SDNextSession:
         self,
         http_client: Optional[DeliveryHTTPClient] = None,
     ) -> None:
+        """Initialise the SDNext session helper.
+
+        Args:
+            http_client: Optional HTTP client override for testing.
+
+        """
         self._http_client = http_client or DeliveryHTTPClient(
             settings.SDNEXT_BASE_URL,
             timeout=settings.SDNEXT_TIMEOUT,
@@ -104,10 +110,12 @@ class SDNextSession:
             "negative_prompt": generation_params.get("negative_prompt", ""),
             "steps": generation_params.get("steps", settings.SDNEXT_DEFAULT_STEPS),
             "sampler_name": generation_params.get(
-                "sampler_name", settings.SDNEXT_DEFAULT_SAMPLER,
+                "sampler_name",
+                settings.SDNEXT_DEFAULT_SAMPLER,
             ),
             "cfg_scale": generation_params.get(
-                "cfg_scale", settings.SDNEXT_DEFAULT_CFG_SCALE,
+                "cfg_scale",
+                settings.SDNEXT_DEFAULT_CFG_SCALE,
             ),
             "width": generation_params.get("width", 512),
             "height": generation_params.get("height", 512),
@@ -120,4 +128,3 @@ class SDNextSession:
             payload["denoising_strength"] = generation_params["denoising_strength"]
 
         return payload
-

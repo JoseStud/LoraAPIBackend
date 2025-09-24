@@ -27,9 +27,10 @@ def _build_config(database_url: Optional[str] = None) -> Config:
     return config
 
 
-def run_database_migrations(revision: str = "head", *, database_url: Optional[str] = None) -> None:
+def run_database_migrations(
+    revision: str = "head", *, database_url: Optional[str] = None
+) -> None:
     """Upgrade the configured database to ``revision`` (defaults to ``head``)."""
-
     config = _build_config(database_url)
     command.upgrade(config, revision)
 

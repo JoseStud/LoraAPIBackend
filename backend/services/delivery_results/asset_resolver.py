@@ -34,7 +34,6 @@ class ResultAssetResolver:
         coordinator: Optional["GenerationCoordinator"] = None,
     ) -> List[ResultAsset]:
         """Collect assets referenced by ``job``'s persisted payloads."""
-
         _, _, assets = self.collect_with_payloads(
             job,
             storage,
@@ -50,7 +49,6 @@ class ResultAssetResolver:
         coordinator: Optional["GenerationCoordinator"] = None,
     ) -> tuple[Dict[str, Any], Dict[str, Any], List[ResultAsset]]:
         """Return payload metadata alongside resolved assets."""
-
         params_payload, result_payload = self._load_payloads(job, coordinator)
         assets = self._extract_assets(
             job,
@@ -68,7 +66,6 @@ class ResultAssetResolver:
         coordinator: Optional["GenerationCoordinator"] = None,
     ) -> List[str]:
         """Remove any files referenced by ``job`` and return their paths."""
-
         removed: List[str] = []
         for asset in self.collect(job, storage, coordinator=coordinator):
             if not asset.path:
@@ -125,7 +122,7 @@ class ResultAssetResolver:
                     storage,
                     return_format,
                     seen_paths,
-                )
+                ),
             )
 
         for key in ("image_url", "thumbnail_url"):
@@ -199,7 +196,9 @@ class ResultAssetResolver:
             path_candidate = candidate
 
         if path_candidate is not None:
-            return self._build_file_asset(path_candidate, default_filename, fallback_mime, storage)
+            return self._build_file_asset(
+                path_candidate, default_filename, fallback_mime, storage
+            )
 
         return self._decode_base64_blob(candidate, default_filename, fallback_mime)
 

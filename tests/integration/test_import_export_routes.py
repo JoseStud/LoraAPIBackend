@@ -88,12 +88,16 @@ def test_import_endpoint_creates_adapter(client, db_session, tmp_path, monkeypat
     body = response.json()
     assert body["success"] is True
     assert body["processed_files"] == 1
-    stored = db_session.exec(select(Adapter).where(Adapter.name == weights.stem)).first()
+    stored = db_session.exec(
+        select(Adapter).where(Adapter.name == weights.stem)
+    ).first()
     assert stored is not None
     assert Path(stored.file_path).exists()
 
 
-def test_import_endpoint_rejects_invalid_archive(client, db_session, tmp_path, monkeypatch):
+def test_import_endpoint_rejects_invalid_archive(
+    client, db_session, tmp_path, monkeypatch
+):
     _DIST_DIR.mkdir(parents=True, exist_ok=True)
     target_dir = tmp_path / "invalid_import"
     monkeypatch.setattr(settings, "IMPORT_PATH", str(target_dir), raising=False)

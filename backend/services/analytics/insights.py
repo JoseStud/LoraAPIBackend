@@ -31,7 +31,9 @@ class InsightGenerator:
                 PerformanceInsightEntry(
                     id=f"insight-{identifier}",
                     title="Declining success rate",
-                    description="Success rate dropped below 90% in the selected window.",
+                    description=(
+                        "Success rate dropped below 90% in the selected window."
+                    ),
                     severity="high",
                     recommendation="review_failed_jobs",
                 ),
@@ -43,7 +45,10 @@ class InsightGenerator:
                 PerformanceInsightEntry(
                     id=f"insight-{identifier}",
                     title="Generation time regression",
-                    description="Average generation time increased compared to the previous period.",
+                    description=(
+                        "Average generation time increased compared to the "
+                        "previous period."
+                    ),
                     severity="medium",
                     recommendation="investigate_performance",
                 ),
@@ -57,7 +62,10 @@ class InsightGenerator:
                     PerformanceInsightEntry(
                         id=f"insight-{identifier}",
                         title=f"Frequent error: {top_error.type}",
-                        description=f"{top_error.percentage:.1f}% of failures were '{top_error.type}'.",
+                        description=(
+                            f"{top_error.percentage:.1f}% of failures were "
+                            f"'{top_error.type}'."
+                        ),
                         severity="medium",
                         recommendation="analyse_error_trends",
                     ),
@@ -69,11 +77,12 @@ class InsightGenerator:
                 PerformanceInsightEntry(
                     id="insight-stable",
                     title="Stable performance",
-                    description="System performance is stable with no major issues detected.",
+                    description=(
+                        "System performance is stable with no major issues detected."
+                    ),
                     severity="low",
                     recommendation=None,
                 ),
             )
 
         return insights
-

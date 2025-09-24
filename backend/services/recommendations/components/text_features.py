@@ -10,7 +10,9 @@ from typing import Any, Dict, List, Protocol, Sequence
 class KeywordExtractorProtocol(Protocol):
     """Minimal protocol for keyword extraction helpers."""
 
-    def extract(self, text: str) -> Dict[str, Sequence[Any]]:  # pragma: no cover - interface
+    def extract(
+        self, text: str
+    ) -> Dict[str, Sequence[Any]]:  # pragma: no cover - interface
         """Return keyword strings and their scores for the provided text."""
 
 
@@ -42,7 +44,9 @@ class KeywordExtractor(KeywordExtractorProtocol):
                 "keyword_scores": [kw[1] for kw in keywords],
             }
         except Exception:  # pragma: no cover - defensive branch
-            self._logger.debug("Falling back to heuristic keyword extraction", exc_info=True)
+            self._logger.debug(
+                "Falling back to heuristic keyword extraction", exc_info=True
+            )
             return self._fallback(text)
 
     def _ensure_model(self) -> None:
@@ -69,9 +73,10 @@ class KeywordExtractor(KeywordExtractorProtocol):
 
         return {
             "extracted_keywords": [kw[0] for kw in top_keywords],
-            "keyword_scores": [kw[1] / len(words) for kw in top_keywords] if words else [],
+            "keyword_scores": [kw[1] / len(words) for kw in top_keywords]
+            if words
+            else [],
         }
 
 
 __all__ = ["KeywordExtractor", "KeywordExtractorProtocol"]
-

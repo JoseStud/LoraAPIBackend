@@ -58,6 +58,7 @@ class RecommendationServiceFactory(Protocol):
         stats_reporter: Optional[StatsReporter] = None,
         builder: Optional[RecommendationServiceBuilder] = None,
     ) -> RecommendationService:
+        """Create a :class:`RecommendationService` instance."""
         ...
 
 
@@ -84,7 +85,9 @@ def make_recommendation_service(
     builder: Optional[RecommendationServiceBuilder] = None,
 ) -> RecommendationService:
     """Create a :class:`RecommendationService` wired with explicit collaborators."""
-    bootstrap = model_bootstrap or RecommendationModelBootstrap(gpu_enabled=gpu_available)
+    bootstrap = model_bootstrap or RecommendationModelBootstrap(
+        gpu_enabled=gpu_available
+    )
     model_registry = bootstrap.get_model_registry()
 
     repository = repository or RecommendationRepository(db_session)
@@ -138,16 +141,14 @@ def make_recommendation_service(
     )
 
     builder = builder or RecommendationServiceBuilder()
-    return (
-        builder.with_components(
-            embedding_coordinator=embedding_coordinator,
-            feedback_manager=feedback_manager,
-            stats_reporter=stats_reporter,
-            similar_lora_use_case=similar_use_case,
-            prompt_recommendation_use_case=prompt_use_case,
-            config=config,
-        ).build()
-    )
+    return builder.with_components(
+        embedding_coordinator=embedding_coordinator,
+        feedback_manager=feedback_manager,
+        stats_reporter=stats_reporter,
+        similar_lora_use_case=similar_use_case,
+        prompt_recommendation_use_case=prompt_use_case,
+        config=config,
+    ).build()
 
 
 @dataclass(frozen=True)
@@ -162,4 +163,3 @@ __all__ = [
     "RecommendationServiceFactory",
     "make_recommendation_service",
 ]
-

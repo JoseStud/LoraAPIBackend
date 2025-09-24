@@ -23,10 +23,10 @@ async def websocket_progress_endpoint(
     container: ApplicationServices = Depends(get_application_services),
 ):
     """WebSocket endpoint for real-time generation progress monitoring.
-    
+
     Clients can connect to this endpoint to receive real-time updates about
     generation jobs. After connecting, send a subscription message:
-    
+
     ```json
     {
         "type": "subscribe",
@@ -34,9 +34,9 @@ async def websocket_progress_endpoint(
         "include_previews": false
     }
     ```
-    
+
     The server will send progress updates, generation started/completed notifications:
-    
+
     ```json
     {
         "type": "progress_update",

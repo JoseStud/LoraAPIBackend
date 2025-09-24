@@ -100,7 +100,9 @@ class TimeSeriesBuilder:
         return charts
 
     def _bucket_timestamp(
-        self, timestamp: datetime, time_range: PerformanceTimeRange,
+        self,
+        timestamp: datetime,
+        time_range: PerformanceTimeRange,
     ) -> datetime:
         if timestamp.tzinfo is None:
             timestamp = timestamp.replace(tzinfo=timezone.utc)
@@ -113,4 +115,3 @@ class TimeSeriesBuilder:
         if total <= 0:
             return 0.0
         return (value / total) * 100
-

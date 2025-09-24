@@ -11,7 +11,9 @@ from backend.services.websocket import WebSocketService
 
 
 @pytest.mark.anyio
-async def test_generation_coordinator_broadcast_job_started(monkeypatch: pytest.MonkeyPatch):
+async def test_generation_coordinator_broadcast_job_started(
+    monkeypatch: pytest.MonkeyPatch,
+):
     """Coordinator triggers WebSocket monitoring and broadcasts."""
     deliveries = MagicMock(spec=DeliveryService)
     websocket = WebSocketService()
@@ -24,7 +26,9 @@ async def test_generation_coordinator_broadcast_job_started(monkeypatch: pytest.
     start_mock = AsyncMock()
     broadcast_mock = AsyncMock()
     monkeypatch.setattr(websocket, "start_job_monitoring", start_mock)
-    monkeypatch.setattr(websocket.manager, "broadcast_generation_started", broadcast_mock)
+    monkeypatch.setattr(
+        websocket.manager, "broadcast_generation_started", broadcast_mock
+    )
 
     params = SDNextGenerationParams(prompt="Prompt")
 

@@ -31,10 +31,14 @@ class RecommendationBootstrap(Protocol):
 class RecommendationRepository(Protocol):
     """Persistence boundary for recommendation data."""
 
-    def record_feedback(self, feedback: UserFeedbackRequest):  # pragma: no cover - Protocol
+    def record_feedback(
+        self, feedback: UserFeedbackRequest
+    ):  # pragma: no cover - Protocol
         """Persist user feedback about a recommendation."""
 
-    def update_user_preference(self, preference: UserPreferenceRequest):  # pragma: no cover
+    def update_user_preference(
+        self, preference: UserPreferenceRequest
+    ):  # pragma: no cover
         """Create or update a stored user preference."""
 
     def get_adapter(self, adapter_id: str):  # pragma: no cover
@@ -62,7 +66,9 @@ class RecommendationRepository(Protocol):
     def count_feedback(self) -> int:  # pragma: no cover - Protocol
         """Return the total number of feedback records."""
 
-    def get_last_embedding_update(self) -> Optional[datetime]:  # pragma: no cover - Protocol
+    def get_last_embedding_update(
+        self,
+    ) -> Optional[datetime]:  # pragma: no cover - Protocol
         """Return the most recent embedding update timestamp."""
 
     def get_embedding(self, adapter_id: str):  # pragma: no cover - Protocol
@@ -88,7 +94,9 @@ class EmbeddingWorkflow(Protocol):
     ) -> Dict[str, Any]:  # pragma: no cover - Protocol
         """Compute embeddings for a set of adapters."""
 
-    async def ensure_embeddings_exist(self, adapters: Sequence[Any]) -> None:  # pragma: no cover
+    async def ensure_embeddings_exist(
+        self, adapters: Sequence[Any]
+    ) -> None:  # pragma: no cover
         """Ensure embeddings exist for ``adapters``."""
 
     async def build_similarity_index(self) -> None:  # pragma: no cover - Protocol
@@ -98,7 +106,9 @@ class EmbeddingWorkflow(Protocol):
 class RecommendationPersistenceService(Protocol):
     """Coordinate persistence of recommendation caches."""
 
-    async def rebuild_similarity_index(self, *, force: bool = False) -> IndexRebuildResponse:
+    async def rebuild_similarity_index(
+        self, *, force: bool = False
+    ) -> IndexRebuildResponse:
         """Rebuild the persisted similarity index."""
 
     @property
@@ -145,4 +155,3 @@ class RecommendationMetricsTracker(Protocol):
         gpu_enabled: bool,
     ) -> RecommendationStats:  # pragma: no cover - Protocol
         """Generate a recommendation statistics snapshot."""
-

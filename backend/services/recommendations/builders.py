@@ -89,7 +89,8 @@ def build_persistence_components(
         if manager is None:
             if embedding_manager is None:
                 raise ValueError(
-                    "embedding_manager is required when creating persistence components",
+                    "embedding_manager is required when creating "
+                    "persistence components",
                 )
             manager = RecommendationPersistenceManager(
                 embedding_manager,

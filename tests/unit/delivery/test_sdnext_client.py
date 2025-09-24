@@ -11,7 +11,9 @@ from backend.delivery.sdnext_client import SDNextSession
 
 
 class _FakeResponse:
-    def __init__(self, status: int, json_data: dict | None = None, text: str = "") -> None:
+    def __init__(
+        self, status: int, json_data: dict | None = None, text: str = ""
+    ) -> None:
         self.status = status
         self._json_data = json_data or {}
         self._text = text
@@ -54,7 +56,8 @@ class FakeDeliveryHTTPClient:
 async def test_submit_txt2img_success() -> None:
     http_client = FakeDeliveryHTTPClient()
     http_client.responses["/sdapi/v1/txt2img"] = _FakeResponse(
-        200, {"images": ["img"], "info": {}},
+        200,
+        {"images": ["img"], "info": {}},
     )
 
     session = SDNextSession(http_client)
@@ -150,4 +153,3 @@ async def test_get_progress_error_status() -> None:
     assert response.ok is False
     assert response.status == 404
     assert response.error == "missing"
-

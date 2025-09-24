@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import builtins
 import types
+from unittest.mock import MagicMock
 
 from redis.exceptions import ConnectionError as RedisConnectionError
 
@@ -20,7 +21,6 @@ from backend.services.queue import (
 )
 from backend.workers import tasks as worker_tasks
 from backend.workers.tasks import reset_worker_context, set_worker_context
-from unittest.mock import MagicMock
 
 
 def test_queue_factory_shared_backend_with_redis(db_session) -> None:
@@ -100,7 +100,6 @@ def test_queue_factory_shared_backend_without_redis(db_session) -> None:
 
 def test_redis_backend_recovers_from_connection_error(monkeypatch) -> None:
     """RedisQueueBackend should reset its queue when a connection error occurs."""
-
     backend = RedisQueueBackend("redis://localhost:6379/0")
     created_queues = []
 
@@ -138,7 +137,6 @@ def test_redis_backend_recovers_from_connection_error(monkeypatch) -> None:
 
 def test_background_queue_schedules_coroutine(monkeypatch) -> None:
     """BackgroundTaskQueueBackend should schedule coroutines on the running loop."""
-
     scheduled = []
 
     async def runner(job_id: str):
@@ -162,7 +160,6 @@ def test_background_queue_schedules_coroutine(monkeypatch) -> None:
 
 def test_background_queue_runs_coroutine_without_loop(monkeypatch) -> None:
     """BackgroundTaskQueueBackend should fall back to anyio when no loop is active."""
-
     executed: list[str] = []
 
     async def runner(job_id: str):
@@ -191,7 +188,6 @@ def test_background_queue_runs_coroutine_without_loop(monkeypatch) -> None:
 
 def test_orchestrator_logs_warning_when_primary_errors(capsys) -> None:
     """Fallback queue usage should emit a warning with the original error."""
-
     executed: list[str] = []
 
     def record_job(job_id: str) -> None:
@@ -219,7 +215,6 @@ def test_orchestrator_logs_warning_when_primary_errors(capsys) -> None:
 
 def test_orchestrator_reports_missing_redis_dependency(capsys, monkeypatch) -> None:
     """Missing optional Redis modules should trigger a guided fallback warning."""
-
     executed: list[str] = []
 
     def record_job(job_id: str) -> None:
@@ -253,7 +248,6 @@ def test_orchestrator_reports_missing_redis_dependency(capsys, monkeypatch) -> N
 
 def test_orchestrator_logs_redis_outage_warning(capsys, monkeypatch) -> None:
     """Redis outages should fall back with actionable diagnostics."""
-
     executed: list[str] = []
 
     def record_job(job_id: str) -> None:

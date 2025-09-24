@@ -30,7 +30,6 @@ class ResultDownloadBuilder:
         chunk_size: int = 64 * 1024,
     ) -> Optional[ResultDownload]:
         """Prepare a download payload for the primary asset of ``job``."""
-
         assets = self._assets.collect(job, storage, coordinator=coordinator)
         if not assets:
             return None

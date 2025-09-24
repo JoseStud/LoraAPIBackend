@@ -56,6 +56,13 @@ class RecommendationMetricsTracker:
         *,
         memory_probe: Optional[Callable[[], float]] = None,
     ) -> None:
+        """Create a tracker with optional metric state and memory probe.
+
+        Args:
+            metrics: Existing metrics accumulator to reuse.
+            memory_probe: Callable returning GPU memory usage in gigabytes.
+
+        """
         self._metrics = metrics or RecommendationMetrics()
         self._memory_probe = memory_probe or self._default_memory_probe
 
@@ -65,20 +72,25 @@ class RecommendationMetricsTracker:
         return self._metrics
 
     def record_query(self, elapsed_ms: float) -> None:
+        """Record a completed recommendation query duration."""
         self._metrics.record_query(elapsed_ms)
 
     def record_cache_hit(self) -> None:
+        """Record a cache hit."""
         self._metrics.record_cache_hit()
 
     def record_cache_miss(self) -> None:
+        """Record a cache miss."""
         self._metrics.record_cache_miss()
 
     @property
     def cache_hit_rate(self) -> float:
+        """Return the cache hit rate as a floating point ratio."""
         return self._metrics.cache_hit_rate
 
     @property
     def average_query_time(self) -> float:
+        """Return the average query duration in milliseconds."""
         return self._metrics.average_query_time
 
     def build_stats(
@@ -128,4 +140,3 @@ class RecommendationMetricsTracker:
         except ImportError:  # pragma: no cover - optional dependency
             return 0.0
         return 0.0
-

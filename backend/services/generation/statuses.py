@@ -1,6 +1,4 @@
-
 """Normalization helpers for delivery and generation statuses."""
-
 
 from __future__ import annotations
 

@@ -7,7 +7,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Callable, Optional, Tuple, Type
 
 import structlog
-
 from fastapi import BackgroundTasks
 
 from backend.core.config import settings
@@ -42,6 +41,14 @@ class RedisQueueBackend(QueueBackend):
         queue_name: str = "default",
         task_name: str = "backend.workers.tasks.process_delivery",
     ) -> None:
+        """Initialise the Redis queue backend.
+
+        Args:
+            redis_url: Connection URL used to talk to Redis.
+            queue_name: Name of the queue to enqueue delivery jobs into.
+            task_name: Fully qualified task path executed by workers.
+
+        """
         self.redis_url = redis_url
         self.queue_name = queue_name
         self.task_name = task_name
@@ -62,7 +69,7 @@ class RedisQueueBackend(QueueBackend):
             raise RuntimeError(
                 "Redis queue backend requires the optional 'redis' package. "
                 "Install redis and rq (e.g. `pip install redis rq`) or disable the "
-                "Redis queue by clearing REDIS_URL."
+                "Redis queue by clearing REDIS_URL.",
             ) from exc
 
         try:
@@ -71,7 +78,7 @@ class RedisQueueBackend(QueueBackend):
             raise RuntimeError(
                 "Redis queue backend requires the optional 'rq' package. "
                 "Install redis and rq (e.g. `pip install redis rq`) or disable the "
-                "Redis queue by clearing REDIS_URL."
+                "Redis queue by clearing REDIS_URL.",
             ) from exc
 
         return Redis, Queue
@@ -95,7 +102,6 @@ class RedisQueueBackend(QueueBackend):
 
     def _is_connection_error(self, exc: Exception) -> bool:
         """Return ``True`` when ``exc`` represents a Redis connection failure."""
-
         error_types: list[Type[BaseException]] = []
         try:  # pragma: no cover - import guarded for optional dependency
             from redis.exceptions import RedisError
@@ -151,6 +157,12 @@ class BackgroundTaskQueueBackend(QueueBackend):
     """Queue implementation that executes jobs in-process via BackgroundTasks."""
 
     def __init__(self, runner: Callable[[str], Any]) -> None:
+        """Create a background task queue backend.
+
+        Args:
+            runner: Callable invoked with the delivery job identifier.
+
+        """
         self._runner = runner
 
     @staticmethod
@@ -313,4 +325,3 @@ def create_queue_orchestrator(
         redis_url_factory=redis_url_factory,
         delivery_runner_factory=delivery_runner_factory,
     )
-

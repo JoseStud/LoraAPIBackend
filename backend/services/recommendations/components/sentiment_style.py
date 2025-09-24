@@ -9,10 +9,14 @@ from typing import Any, Dict, Protocol
 class SentimentStyleAnalyzerProtocol(Protocol):
     """Minimal protocol for combined sentiment and style analysis."""
 
-    def analyze_sentiment(self, text: str) -> Dict[str, Any]:  # pragma: no cover - interface
+    def analyze_sentiment(
+        self, text: str
+    ) -> Dict[str, Any]:  # pragma: no cover - interface
         """Return sentiment metadata for the supplied text."""
 
-    def classify_style(self, text: str) -> Dict[str, Any]:  # pragma: no cover - interface
+    def classify_style(
+        self, text: str
+    ) -> Dict[str, Any]:  # pragma: no cover - interface
         """Return artistic style predictions for the supplied text."""
 
 
@@ -32,7 +36,9 @@ class SentimentStyleAnalyzer(SentimentStyleAnalyzerProtocol):
         "pixel art",
     ]
 
-    def __init__(self, *, device: str = "cuda", logger: logging.Logger | None = None) -> None:
+    def __init__(
+        self, *, device: str = "cuda", logger: logging.Logger | None = None
+    ) -> None:
         self._device = device
         self._logger = logger or logging.getLogger(__name__)
         self._sentiment_pipeline: Any | None = None
@@ -53,7 +59,9 @@ class SentimentStyleAnalyzer(SentimentStyleAnalyzerProtocol):
                 "sentiment_score": sentiment[0]["score"],
             }
         except Exception:  # pragma: no cover - defensive branch
-            self._logger.debug("Falling back to heuristic sentiment analysis", exc_info=True)
+            self._logger.debug(
+                "Falling back to heuristic sentiment analysis", exc_info=True
+            )
             return self._fallback_sentiment(text)
 
     def classify_style(self, text: str) -> Dict[str, Any]:
@@ -71,7 +79,9 @@ class SentimentStyleAnalyzer(SentimentStyleAnalyzerProtocol):
                 "style_confidence": style_result["scores"][0],
             }
         except Exception:  # pragma: no cover - defensive branch
-            self._logger.debug("Falling back to heuristic style classification", exc_info=True)
+            self._logger.debug(
+                "Falling back to heuristic style classification", exc_info=True
+            )
             return self._fallback_style(text)
 
     def _ensure_sentiment_pipeline(self) -> None:
@@ -88,7 +98,9 @@ class SentimentStyleAnalyzer(SentimentStyleAnalyzerProtocol):
             )
             self._logger.info("Sentiment analysis pipeline loaded")
         except ImportError:
-            self._logger.debug("Transformers unavailable, using sentiment fallback heuristics")
+            self._logger.debug(
+                "Transformers unavailable, using sentiment fallback heuristics"
+            )
             self._sentiment_pipeline = "fallback"
 
     def _ensure_style_pipeline(self) -> None:
@@ -105,7 +117,9 @@ class SentimentStyleAnalyzer(SentimentStyleAnalyzerProtocol):
             )
             self._logger.info("Style classification pipeline loaded")
         except ImportError:
-            self._logger.debug("Transformers unavailable, using style fallback heuristics")
+            self._logger.debug(
+                "Transformers unavailable, using style fallback heuristics"
+            )
             self._style_pipeline = "fallback"
 
     def _fallback_sentiment(self, text: str) -> Dict[str, Any]:
@@ -164,4 +178,3 @@ class SentimentStyleAnalyzer(SentimentStyleAnalyzerProtocol):
 
 
 __all__ = ["SentimentStyleAnalyzer", "SentimentStyleAnalyzerProtocol"]
-

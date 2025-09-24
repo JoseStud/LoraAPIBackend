@@ -18,4 +18,3 @@ async def get_system_status(
 ) -> Dict[str, Any]:
     """Return a snapshot of system status and telemetry data."""
     return services.system.get_system_status_payload()
-

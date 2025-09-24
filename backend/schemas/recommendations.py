@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class RecommendationRequest(BaseModel):
     """Request for LoRA recommendations."""
-    
+
     target_lora_id: Optional[str] = None
     prompt: Optional[str] = None
     active_loras: List[str] = Field(default_factory=list)
@@ -20,7 +20,7 @@ class RecommendationRequest(BaseModel):
 
 class RecommendationItem(BaseModel):
     """Individual recommendation item."""
-    
+
     lora_id: str
     lora_name: str
     lora_description: Optional[str] = None
@@ -38,7 +38,7 @@ class RecommendationItem(BaseModel):
 
 class RecommendationResponse(BaseModel):
     """Response containing recommendations."""
-    
+
     target_lora_id: Optional[str] = None
     prompt: Optional[str] = None
     recommendations: List[RecommendationItem]
@@ -50,7 +50,7 @@ class RecommendationResponse(BaseModel):
 
 class PromptRecommendationRequest(BaseModel):
     """Request for prompt-based recommendations."""
-    
+
     prompt: str
     active_loras: List[str] = Field(default_factory=list)
     limit: int = Field(default=10, ge=1, le=50)
@@ -61,7 +61,7 @@ class PromptRecommendationRequest(BaseModel):
 
 class SimilarityRequest(BaseModel):
     """Request for similar LoRA recommendations."""
-    
+
     target_lora_id: str
     limit: int = Field(default=10, ge=1, le=50)
     include_explanations: bool = True
@@ -74,7 +74,9 @@ class UserFeedbackRequest(BaseModel):
 
     session_id: str
     recommended_lora_id: str
-    feedback_type: str = Field(pattern="^(positive|negative|activated|ignored|dismissed)$")
+    feedback_type: str = Field(
+        pattern="^(positive|negative|activated|ignored|dismissed)$"
+    )
     feedback_reason: Optional[str] = None
     implicit_signal: bool = False
 
@@ -120,7 +122,7 @@ class UserPreferenceRead(BaseModel):
 
 class RecommendationStats(BaseModel):
     """Statistics about the recommendation system."""
-    
+
     total_loras: int
     loras_with_embeddings: int
     embedding_coverage: float
@@ -135,7 +137,7 @@ class RecommendationStats(BaseModel):
 
 class EmbeddingStatus(BaseModel):
     """Status of embedding computation for a LoRA."""
-    
+
     adapter_id: str
     has_semantic_embedding: bool
     has_artistic_embedding: bool
@@ -147,7 +149,7 @@ class EmbeddingStatus(BaseModel):
 
 class BatchEmbeddingRequest(BaseModel):
     """Request to compute embeddings for multiple LoRAs."""
-    
+
     adapter_ids: List[str] = Field(default_factory=list)
     force_recompute: bool = False
     compute_all: bool = False

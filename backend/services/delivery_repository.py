@@ -183,12 +183,16 @@ class DeliveryJobRepository:
         if status:
             query = query.where(DeliveryJob.status == status)
 
-        query = query.offset(offset).limit(limit).order_by(DeliveryJob.created_at.desc())
+        query = (
+            query.offset(offset).limit(limit).order_by(DeliveryJob.created_at.desc())
+        )
         return list(self._session.exec(query).all())
 
     def count_active_jobs(self) -> int:
         result = self._session.exec(
-            select(func.count(DeliveryJob.id)).where(DeliveryJob.status.in_(_ACTIVE_STATUSES)),
+            select(func.count(DeliveryJob.id)).where(
+                DeliveryJob.status.in_(_ACTIVE_STATUSES)
+            ),
         ).one()
         return int(result or 0)
 
@@ -197,13 +201,17 @@ class DeliveryJobRepository:
         active_jobs = self.count_active_jobs()
         running_jobs = (
             self._session.exec(
-                select(func.count(DeliveryJob.id)).where(DeliveryJob.status == "running"),
+                select(func.count(DeliveryJob.id)).where(
+                    DeliveryJob.status == "running"
+                ),
             ).one()
             or 0
         )
         failed_jobs = (
             self._session.exec(
-                select(func.count(DeliveryJob.id)).where(DeliveryJob.status == "failed"),
+                select(func.count(DeliveryJob.id)).where(
+                    DeliveryJob.status == "failed"
+                ),
             ).one()
             or 0
         )
@@ -224,7 +232,9 @@ class DeliveryJobRepository:
         jobs = list(self._session.exec(query).all())
         return [self._mapper.build_activity(job) for job in jobs]
 
-    def set_job_rating(self, job_id: str, rating: Optional[int]) -> Optional[DeliveryJob]:
+    def set_job_rating(
+        self, job_id: str, rating: Optional[int]
+    ) -> Optional[DeliveryJob]:
         """Update the rating value for ``job_id``."""
         job = self.get_job(job_id)
         if job is None:
@@ -352,4 +362,3 @@ class DeliveryJobRepository:
 
 
 __all__ = ["DeliveryJobRepository", "DeliveryJobMapper"]
-

@@ -12,7 +12,8 @@ from fastapi.testclient import TestClient
 from backend.services.deliveries import DeliveryService
 
 PNG_BASE64 = (
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg=="
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQAB"
+    "DQottAAAAABJRU5ErkJggg=="
 )
 
 
@@ -22,7 +23,9 @@ def _store_completed_job(
     *,
     result_overrides: Dict[str, object] | None = None,
 ):
-    job = delivery_service.create_job(prompt, "sdnext", {"generation_params": {"prompt": prompt}})
+    job = delivery_service.create_job(
+        prompt, "sdnext", {"generation_params": {"prompt": prompt}}
+    )
     payload = {
         "status": "completed",
         "images": [PNG_BASE64],

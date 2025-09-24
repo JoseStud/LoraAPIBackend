@@ -15,6 +15,7 @@ class ComposeServiceFactory(Protocol):
     """Callable protocol for creating :class:`ComposeService` instances."""
 
     def __call__(self) -> ComposeService:
+        """Create a :class:`ComposeService` instance."""
         ...
 
 
@@ -22,6 +23,7 @@ class GenerationServiceFactory(Protocol):
     """Callable protocol for creating :class:`GenerationService` instances."""
 
     def __call__(self) -> GenerationService:
+        """Create a :class:`GenerationService` instance."""
         ...
 
 
@@ -34,6 +36,7 @@ class GenerationCoordinatorFactory(Protocol):
         websocket_service: WebSocketService,
         generation_service: GenerationService,
     ) -> GenerationCoordinator:
+        """Create a :class:`GenerationCoordinator` instance."""
         ...
 
 
@@ -53,7 +56,9 @@ def make_generation_coordinator(
     generation_service: GenerationService,
 ) -> GenerationCoordinator:
     """Create a :class:`GenerationCoordinator` with its collaborators."""
-    return GenerationCoordinator(delivery_service, websocket_service, generation_service)
+    return GenerationCoordinator(
+        delivery_service, websocket_service, generation_service
+    )
 
 
 @dataclass(frozen=True)
@@ -74,4 +79,3 @@ __all__ = [
     "make_generation_coordinator",
     "make_generation_service",
 ]
-

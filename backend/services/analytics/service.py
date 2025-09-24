@@ -51,7 +51,9 @@ class AnalyticsService:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
-    def get_summary(self, time_range: PerformanceTimeRange = "24h") -> PerformanceAnalyticsSummary:
+    def get_summary(
+        self, time_range: PerformanceTimeRange = "24h"
+    ) -> PerformanceAnalyticsSummary:
         """Return a comprehensive analytics snapshot for the requested window."""
         stats = self.get_generation_stats(time_range)
         error_breakdown = self.get_error_breakdown(time_range)
@@ -71,7 +73,9 @@ class AnalyticsService:
             performance_insights=insights,
         )
 
-    def get_generation_stats(self, time_range: PerformanceTimeRange = "24h") -> PerformanceKpiSummary:
+    def get_generation_stats(
+        self, time_range: PerformanceTimeRange = "24h"
+    ) -> PerformanceKpiSummary:
         """Aggregate key performance indicators for the requested range."""
         window_start, window_end, previous_start = self._resolve_time_bounds(time_range)
 
@@ -79,17 +83,22 @@ class AnalyticsService:
         previous_generations = self.repository.count_jobs(previous_start, window_start)
 
         succeeded = self.repository.count_jobs(
-            window_start, window_end, status="succeeded",
+            window_start,
+            window_end,
+            status="succeeded",
         )
         failed = self.repository.count_jobs(window_start, window_end, status="failed")
 
         avg_duration = self.repository.average_duration(window_start, window_end)
         previous_avg_duration = self.repository.average_duration(
-            previous_start, window_start,
+            previous_start,
+            window_start,
         )
 
         growth = self._calculate_growth(previous_generations, total_generations)
-        time_improvement = self._calculate_growth(previous_avg_duration, avg_duration, invert=True)
+        time_improvement = self._calculate_growth(
+            previous_avg_duration, avg_duration, invert=True
+        )
         success_rate = self._calculate_percentage(succeeded, succeeded + failed)
 
         active_loras = self.repository.count_active_loras()
@@ -106,7 +115,9 @@ class AnalyticsService:
             total_loras=total_loras,
         )
 
-    def get_error_breakdown(self, time_range: PerformanceTimeRange = "24h") -> List[ErrorAnalysisEntry]:
+    def get_error_breakdown(
+        self, time_range: PerformanceTimeRange = "24h"
+    ) -> List[ErrorAnalysisEntry]:
         """Return error distribution for failed jobs in the selected window."""
         window_start, window_end, _ = self._resolve_time_bounds(time_range)
 
@@ -143,7 +154,8 @@ class AnalyticsService:
         return breakdown
 
     def get_time_series_metrics(
-        self, time_range: PerformanceTimeRange = "24h",
+        self,
+        time_range: PerformanceTimeRange = "24h",
     ) -> PerformanceAnalyticsCharts:
         """Produce chart datasets for the requested time window."""
         window_start, window_end, _ = self._resolve_time_bounds(time_range)
@@ -164,7 +176,8 @@ class AnalyticsService:
     # Internal helpers
     # ------------------------------------------------------------------
     def _resolve_time_bounds(
-        self, time_range: PerformanceTimeRange,
+        self,
+        time_range: PerformanceTimeRange,
     ) -> tuple[datetime, datetime, datetime]:
         delta = self._TIME_RANGE_MAP.get(time_range, self._TIME_RANGE_MAP["24h"])
         now = datetime.now(timezone.utc)
@@ -173,7 +186,11 @@ class AnalyticsService:
         return start, now, previous_start
 
     def _calculate_growth(
-        self, previous: float, current: float, *, invert: bool = False,
+        self,
+        previous: float,
+        current: float,
+        *,
+        invert: bool = False,
     ) -> float:
         if previous <= 0:
             return 0.0

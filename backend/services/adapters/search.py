@@ -116,7 +116,10 @@ def search_adapters(
             name_sort,
         ]
     elif sort_key == "file_size":
-        order_clause = [func.coalesce(Adapter.primary_file_size_kb, 0).desc(), name_sort]
+        order_clause = [
+            func.coalesce(Adapter.primary_file_size_kb, 0).desc(),
+            name_sort,
+        ]
     else:
         order_clause = [name_sort]
 

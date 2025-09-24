@@ -34,21 +34,23 @@ async def get_similar_loras(
     services: DomainServices = Depends(get_domain_services),
 ):
     """Get LoRAs similar to the specified LoRA.
-    
+
     Args:
         lora_id: ID of the target LoRA
         limit: Maximum number of recommendations to return
         similarity_threshold: Minimum similarity score (0.0 to 1.0)
         diversify_results: Whether to diversify results by different criteria
-        weights: Custom weights for similarity components (semantic, artistic, technical)
-        
+        weights: Custom weights for similarity components
+            (semantic, artistic, technical)
+        services: Domain service container that provides recommendation logic
+
     Returns:
         List of similar LoRA recommendations with similarity scores and explanations
 
     """
     try:
         start_time = datetime.now()
-        
+
         # Generate recommendations
         recommendation_service = services.recommendations
         recommendations = await recommendation_service.similar_loras(
@@ -58,27 +60,31 @@ async def get_similar_loras(
             diversify_results=diversify_results,
             weights=weights,
         )
-        
+
         processing_time = (datetime.now() - start_time).total_seconds() * 1000
-        
+
         return RecommendationResponse(
             target_lora_id=lora_id,
             recommendations=recommendations,
             total_candidates=len(recommendations),
             processing_time_ms=processing_time,
             recommendation_config={
-                'device': recommendation_service.device,
-                'gpu_enabled': recommendation_service.gpu_enabled,
-                'similarity_threshold': similarity_threshold,
-                'weights': weights or {'semantic': 0.6, 'artistic': 0.3, 'technical': 0.1},
+                "device": recommendation_service.device,
+                "gpu_enabled": recommendation_service.gpu_enabled,
+                "similarity_threshold": similarity_threshold,
+                "weights": weights
+                or {"semantic": 0.6, "artistic": 0.3, "technical": 0.1},
             },
             generated_at=datetime.now(timezone.utc),
         )
-        
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Recommendation generation failed: {e}")
+
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Recommendation generation failed: {exc}",
+        ) from exc
 
 
 @router.post("/recommendations/for-prompt", response_model=RecommendationResponse)
@@ -87,17 +93,18 @@ async def get_recommendations_for_prompt(
     services: DomainServices = Depends(get_domain_services),
 ):
     """Get LoRA recommendations that would enhance a given prompt.
-    
+
     Args:
         request: Prompt recommendation request with prompt text and preferences
-        
+        services: Domain service container that provides recommendation logic
+
     Returns:
         List of LoRA recommendations optimized for the given prompt
 
     """
     try:
         start_time = datetime.now()
-        
+
         # Generate recommendations
         recommendation_service = services.recommendations
         recommendations = await recommendation_service.recommend_for_prompt(
@@ -106,25 +113,28 @@ async def get_recommendations_for_prompt(
             limit=request.limit,
             style_preference=request.style_preference,
         )
-        
+
         processing_time = (datetime.now() - start_time).total_seconds() * 1000
-        
+
         return RecommendationResponse(
             prompt=request.prompt,
             recommendations=recommendations,
             total_candidates=len(recommendations),
             processing_time_ms=processing_time,
             recommendation_config={
-                'device': recommendation_service.device,
-                'gpu_enabled': recommendation_service.gpu_enabled,
-                'style_preference': request.style_preference,
-                'technical_requirements': request.technical_requirements,
+                "device": recommendation_service.device,
+                "gpu_enabled": recommendation_service.gpu_enabled,
+                "style_preference": request.style_preference,
+                "technical_requirements": request.technical_requirements,
             },
             generated_at=datetime.now(timezone.utc),
         )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prompt recommendation failed: {e}")
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Prompt recommendation failed: {exc}",
+        ) from exc
 
 
 @router.get("/recommendations/stats", response_model=RecommendationStats)
@@ -132,7 +142,10 @@ async def get_recommendation_stats(
     services: DomainServices = Depends(get_domain_services),
 ):
     """Get comprehensive statistics about the recommendation system.
-    
+
+    Args:
+        services: Domain service container that provides recommendation logic
+
     Returns:
         Statistics including coverage, performance metrics, and system status
 
@@ -141,21 +154,26 @@ async def get_recommendation_stats(
         recommendation_service = services.recommendations
         stats = recommendation_service.stats()
         return stats
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get stats: {e}")
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get stats: {exc}"
+        ) from exc
 
 
-@router.post("/recommendations/embeddings/compute", response_model=BatchEmbeddingResponse)
+@router.post(
+    "/recommendations/embeddings/compute", response_model=BatchEmbeddingResponse
+)
 async def compute_embeddings(
     request: BatchEmbeddingRequest,
     services: DomainServices = Depends(get_domain_services),
 ):
     """Compute embeddings for LoRAs in batch.
-    
+
     Args:
         request: Batch embedding request specifying which LoRAs to process
-        
+        services: Domain service container that provides recommendation logic
+
     Returns:
         Processing results with counts and timing information
 
@@ -176,11 +194,14 @@ async def compute_embeddings(
                 force_recompute=request.force_recompute,
                 batch_size=request.batch_size,
             )
-        
+
         return BatchEmbeddingResponse(**result)
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Embedding computation failed: {e}")
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Embedding computation failed: {exc}",
+        ) from exc
 
 
 @router.get("/recommendations/embeddings/{lora_id}", response_model=EmbeddingStatus)
@@ -189,10 +210,11 @@ async def get_embedding_status(
     services: DomainServices = Depends(get_domain_services),
 ):
     """Get embedding status for a specific LoRA.
-    
+
     Args:
         lora_id: ID of the LoRA to check
-        
+        services: Domain service container that provides recommendation logic
+
     Returns:
         Embedding status including what embeddings are available and when computed
 
@@ -201,9 +223,12 @@ async def get_embedding_status(
         recommendation_service = services.recommendations
         status = recommendation_service.embedding_status(lora_id)
         return status
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get embedding status: {e}")
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get embedding status: {exc}",
+        ) from exc
 
 
 @router.post("/recommendations/embeddings/{lora_id}/compute")
@@ -213,11 +238,12 @@ async def compute_single_embedding(
     services: DomainServices = Depends(get_domain_services),
 ):
     """Compute embeddings for a single LoRA.
-    
+
     Args:
         lora_id: ID of the LoRA to process
         force_recompute: Whether to recompute existing embeddings
-        
+        services: Domain service container that provides recommendation logic
+
     Returns:
         Success status
 
@@ -228,16 +254,22 @@ async def compute_single_embedding(
             lora_id,
             force_recompute=force_recompute,
         )
-        
+
         if success:
-            return {"status": "success", "message": f"Embeddings computed for {lora_id}"}
+            return {
+                "status": "success",
+                "message": f"Embeddings computed for {lora_id}",
+            }
         else:
             raise HTTPException(status_code=500, detail="Embedding computation failed")
-            
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Embedding computation failed: {e}")
+
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Embedding computation failed: {exc}",
+        ) from exc
 
 
 @router.post("/recommendations/feedback", response_model=RecommendationFeedbackRead)
@@ -249,6 +281,7 @@ async def submit_recommendation_feedback(
 
     Args:
         feedback: User feedback data
+        services: Domain service container that provides recommendation logic
 
     Returns:
         Stored feedback record
@@ -259,10 +292,13 @@ async def submit_recommendation_feedback(
         record = recommendation_service.feedback.record_feedback(feedback)
         return RecommendationFeedbackRead.from_orm(record)
 
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Feedback submission failed: {e}")
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Feedback submission failed: {exc}",
+        ) from exc
 
 
 @router.post("/recommendations/preferences", response_model=UserPreferenceRead)
@@ -274,6 +310,7 @@ async def update_user_preferences(
 
     Args:
         preference: User preference data
+        services: Domain service container that provides recommendation logic
 
     Returns:
         Persisted preference record
@@ -281,11 +318,16 @@ async def update_user_preferences(
     """
     try:
         recommendation_service = services.recommendations
-        preference_record = recommendation_service.feedback.update_user_preference(preference)
+        preference_record = recommendation_service.feedback.update_user_preference(
+            preference
+        )
         return UserPreferenceRead.from_orm(preference_record)
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Preference update failed: {e}")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Preference update failed: {exc}",
+        ) from exc
 
 
 @router.post(
@@ -297,9 +339,10 @@ async def rebuild_similarity_index(
     services: DomainServices = Depends(get_domain_services),
 ):
     """Rebuild the similarity index for fast recommendations.
-    
+
     Args:
         force: Force rebuild even if index exists
+        services: Domain service container that provides recommendation logic
 
     Returns:
         Rebuild status and timing
@@ -310,8 +353,10 @@ async def rebuild_similarity_index(
         result = await recommendation_service.refresh_indexes(force=force)
         return result
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Index rebuild failed: {e}")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Index rebuild failed: {exc}"
+        ) from exc
 
 
 @router.get("/recommendations/health")
@@ -319,7 +364,7 @@ async def get_recommendation_health(
     services: DomainServices = Depends(get_domain_services),
 ):
     """Get health status of the recommendation system.
-    
+
     Returns:
         Health status including model availability and performance metrics
 
@@ -327,7 +372,7 @@ async def get_recommendation_health(
     try:
         recommendation_service = services.recommendations
         stats = recommendation_service.stats()
-        
+
         # Basic health checks
         health_status = {
             "status": "healthy",
@@ -346,13 +391,13 @@ async def get_recommendation_health(
             },
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
-        
+
         # Overall health determination
         all_checks_pass = all(health_status["checks"].values())
         health_status["status"] = "healthy" if all_checks_pass else "degraded"
-        
+
         return health_status
-        
+
     except Exception as e:
         return {
             "status": "unhealthy",

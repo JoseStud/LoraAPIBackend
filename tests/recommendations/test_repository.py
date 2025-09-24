@@ -73,4 +73,3 @@ class TestRecommendationRepository:
         stored = db_session.get(UserPreference, first.id)
         assert stored.evidence_count == 2
         assert stored.learned_from == "feedback"
-

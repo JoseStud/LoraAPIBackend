@@ -27,11 +27,11 @@ class ComposeService:
 
     def format_token(self, name: str, weight: float) -> str:
         """Format a lora token string for composition.
-        
+
         Args:
             name: LoRA name
             weight: LoRA weight
-            
+
         Returns:
             Formatted token string
 
@@ -39,18 +39,18 @@ class ComposeService:
         return f"<lora:{name}:{weight:.3f}>"
 
     def compose_prompt(
-        self, 
-        adapters: List[Adapter], 
-        prefix: str = "", 
+        self,
+        adapters: List[Adapter],
+        prefix: str = "",
         suffix: str = "",
     ) -> tuple[str, List[str]]:
         """Compose a prompt from active adapters with prefix/suffix.
-        
+
         Args:
             adapters: List of active adapters
             prefix: Optional prefix text
             suffix: Optional suffix text
-            
+
         Returns:
             Tuple of (full_prompt, tokens_list)
 
@@ -59,15 +59,15 @@ class ComposeService:
         for adapter in adapters:
             token = self.format_token(adapter.name, adapter.weight)
             tokens.append(token)
-        
+
         # Build prompt components
         components = []
         if prefix.strip():
             components.append(prefix.strip())
-        
+
         if tokens:
             components.extend(tokens)
-        
+
         if suffix.strip():
             components.append(suffix.strip())
 
@@ -99,19 +99,19 @@ class ComposeService:
 
     def validate_adapters(self, adapters: List[Adapter]) -> List[str]:
         """Validate adapters for composition and return any warnings.
-        
+
         Args:
             adapters: List of adapters to validate
-            
+
         Returns:
             List of warning messages
 
         """
         warnings = []
-        
+
         if not adapters:
             warnings.append("No active adapters found for composition")
-        
+
         # Check for duplicate names
         names = [adapter.name for adapter in adapters]
         seen = set()
@@ -128,20 +128,20 @@ class ComposeService:
 
         if duplicates:
             warnings.append(f"Duplicate adapter names found: {', '.join(duplicates)}")
-        
+
         # Check for missing weights
         zero_weights = [adapter.name for adapter in adapters if adapter.weight == 0]
         if zero_weights:
             warnings.append(f"Adapters with zero weight: {', '.join(zero_weights)}")
-        
+
         return warnings
 
     def get_composition_stats(self, adapters: List[Adapter]) -> dict:
         """Get statistics about the composition.
-        
+
         Args:
             adapters: List of adapters in composition
-            
+
         Returns:
             Dict with composition statistics
 
@@ -153,10 +153,10 @@ class ComposeService:
                 "average_weight": 0.0,
                 "unique_names": 0,
             }
-        
+
         weights = [adapter.weight for adapter in adapters]
         names = set(adapter.name for adapter in adapters)
-        
+
         return {
             "total_adapters": len(adapters),
             "total_weight": sum(weights),

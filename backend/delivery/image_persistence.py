@@ -16,6 +16,12 @@ class ImagePersistence:
     """Handle persistence and formatting of generated images."""
 
     def __init__(self, storage: Optional[ImageStorage] = None) -> None:
+        """Initialise the persistence helper.
+
+        Args:
+            storage: Storage backend used to persist generated images.
+
+        """
         self._storage = storage or FileSystemImageStorage(settings.SDNEXT_OUTPUT_DIR)
 
     async def persist_images(
@@ -26,6 +32,7 @@ class ImagePersistence:
         save_images: bool,
         return_format: str,
     ) -> List[str]:
+        """Persist images and return data matching the requested format."""
         if hasattr(self._storage, "persist_images"):
             storage = cast(ImageStorage, self._storage)
             return await storage.persist_images(

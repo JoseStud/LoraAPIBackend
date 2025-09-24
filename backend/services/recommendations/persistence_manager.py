@@ -59,7 +59,9 @@ class RecommendationPersistenceManager:
         path.parent.mkdir(parents=True, exist_ok=True)
         self._index_cache_path = path
 
-    async def rebuild_similarity_index(self, *, force: bool = False) -> IndexRebuildResponse:
+    async def rebuild_similarity_index(
+        self, *, force: bool = False
+    ) -> IndexRebuildResponse:
         """Rebuild the similarity index and persist it to disk."""
         engine = self._engine_getter()
         index_file = self._index_cache_path
@@ -113,4 +115,3 @@ class RecommendationPersistenceManager:
             skipped=False,
             skipped_reason=skipped_reason,
         )
-

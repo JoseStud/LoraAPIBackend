@@ -36,12 +36,21 @@ def test_build_plan_includes_existing_files(tmp_path, db_session):
     plan = planner.build_plan()
 
     assert plan.manifest["adapter_count"] == 1
-    assert plan.manifest["file_total_bytes"] == sum(entry.size for entry in plan.file_entries)
+    assert plan.manifest["file_total_bytes"] == sum(
+        entry.size for entry in plan.file_entries
+    )
     paths = {entry.archive_path: entry.source_path for entry in plan.file_entries}
-    weight_entry = next(entry for entry in plan.file_entries if entry.source_path == str(weights.resolve()))
+    weight_entry = next(
+        entry
+        for entry in plan.file_entries
+        if entry.source_path == str(weights.resolve())
+    )
     assert Path(paths[weight_entry.archive_path]).resolve() == weights.resolve()
     assert plan.metadata_entries[0].archive_path.endswith("metadata.json")
-    assert json.loads(plan.metadata_entries[0].payload.decode("utf-8"))["name"] == "planner"
+    assert (
+        json.loads(plan.metadata_entries[0].payload.decode("utf-8"))["name"]
+        == "planner"
+    )
 
 
 def test_estimate_reflects_plan_totals(tmp_path, db_session):

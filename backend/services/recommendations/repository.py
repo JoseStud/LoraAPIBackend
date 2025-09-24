@@ -30,7 +30,9 @@ class RecommendationRepository:
     # ------------------------------------------------------------------
     def record_feedback(self, feedback: UserFeedbackRequest) -> RecommendationFeedback:
         """Persist recommendation feedback for later learning."""
-        recommendation_session = self._session.get(RecommendationSession, feedback.session_id)
+        recommendation_session = self._session.get(
+            RecommendationSession, feedback.session_id
+        )
         if recommendation_session is None:
             raise ValueError(
                 f"Recommendation session {feedback.session_id} not found",
@@ -56,10 +58,10 @@ class RecommendationRepository:
             recommendation_session.user_feedback or {}
         )
         feedback_map[feedback.recommended_lora_id] = {
-            'feedback_type': feedback.feedback_type,
-            'implicit_signal': feedback.implicit_signal,
-            'feedback_reason': feedback.feedback_reason,
-            'recorded_at': datetime.now(timezone.utc).isoformat(),
+            "feedback_type": feedback.feedback_type,
+            "implicit_signal": feedback.implicit_signal,
+            "feedback_reason": feedback.feedback_reason,
+            "recorded_at": datetime.now(timezone.utc).isoformat(),
         }
         recommendation_session.user_feedback = feedback_map
         self._session.add(recommendation_session)
@@ -81,7 +83,7 @@ class RecommendationRepository:
 
         existing = self._session.exec(stmt).first()
         now = datetime.now(timezone.utc)
-        learned_from = 'explicit' if preference.explicit else 'feedback'
+        learned_from = "explicit" if preference.explicit else "feedback"
 
         if existing:
             existing.confidence = preference.confidence

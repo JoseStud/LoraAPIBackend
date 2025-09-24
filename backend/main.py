@@ -42,10 +42,13 @@ async def lifespan(app: FastAPI):
             await asyncio.to_thread(RecommendationService.preload_models)
         except Exception:  # pragma: no cover - defensive guard against startup failures
             recommendation_logger.exception(
-                "Recommendation model preload failed; falling back to lazy initialization",
+                "Recommendation model preload failed; falling back to "
+                "lazy initialization",
             )
         else:
-            recommendation_logger.info("Recommendation model preload completed successfully")
+            recommendation_logger.info(
+                "Recommendation model preload completed successfully"
+            )
 
     startup_tasks.append(asyncio.create_task(_preload_recommendations()))
 
@@ -79,7 +82,8 @@ async def lifespan(app: FastAPI):
                         ignore_patterns=(settings.IMPORT_IGNORE_PATTERNS or None),
                     )
                     importer_logger.info(
-                        "Startup import finished: processed=%d skipped=%d errors=%d orphans=%d",
+                        "Startup import finished: processed=%d skipped=%d "
+                        "errors=%d orphans=%d",
                         summary.get("processed", 0),
                         summary.get("skipped", 0),
                         summary.get("errors", 0),
@@ -115,16 +119,32 @@ def create_app() -> FastAPI:
     )
 
     # Include API routers with consistent /v1 prefix
-    app.include_router(adapters.router, prefix="/v1", dependencies=[Depends(get_api_key)])
-    app.include_router(analytics.router, prefix="/v1", dependencies=[Depends(get_api_key)])
-    app.include_router(compose.router, prefix="/v1", dependencies=[Depends(get_api_key)])
-    app.include_router(deliveries.router, prefix="/v1", dependencies=[Depends(get_api_key)])
-    app.include_router(generation.router, prefix="/v1", dependencies=[Depends(get_api_key)])
-    app.include_router(recommendations.router, prefix="/v1", dependencies=[Depends(get_api_key)])
-    app.include_router(import_export.router, prefix="/v1", dependencies=[Depends(get_api_key)])
+    app.include_router(
+        adapters.router, prefix="/v1", dependencies=[Depends(get_api_key)]
+    )
+    app.include_router(
+        analytics.router, prefix="/v1", dependencies=[Depends(get_api_key)]
+    )
+    app.include_router(
+        compose.router, prefix="/v1", dependencies=[Depends(get_api_key)]
+    )
+    app.include_router(
+        deliveries.router, prefix="/v1", dependencies=[Depends(get_api_key)]
+    )
+    app.include_router(
+        generation.router, prefix="/v1", dependencies=[Depends(get_api_key)]
+    )
+    app.include_router(
+        recommendations.router, prefix="/v1", dependencies=[Depends(get_api_key)]
+    )
+    app.include_router(
+        import_export.router, prefix="/v1", dependencies=[Depends(get_api_key)]
+    )
     app.include_router(dashboard.router, prefix="/v1")
     app.include_router(system.router, prefix="/v1")
-    app.include_router(websocket.router, prefix="/v1")  # Canonical WebSocket path -> /api/v1/ws/progress
+    app.include_router(
+        websocket.router, prefix="/v1"
+    )  # Canonical WebSocket path -> /api/v1/ws/progress
 
     # Note: Unversioned routes are intentionally not included; use /v1/*
 

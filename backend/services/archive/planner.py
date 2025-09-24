@@ -90,7 +90,9 @@ class ArchiveExportPlanner:
             metadata_payload = self._serialize_adapter(adapter)
             metadata_bytes = json.dumps(metadata_payload, indent=2).encode("utf-8")
             metadata_path = f"adapters/{adapter.id}/metadata.json"
-            metadata_entries.append(MetadataEntry(archive_path=metadata_path, payload=metadata_bytes))
+            metadata_entries.append(
+                MetadataEntry(archive_path=metadata_path, payload=metadata_bytes)
+            )
             metadata_total_bytes += len(metadata_bytes)
 
             files_manifest: List[Dict[str, Any]] = []
@@ -103,7 +105,9 @@ class ArchiveExportPlanner:
                     "size": candidate["size"],
                 }
                 if candidate["exists"]:
-                    archive_path = f"adapters/{adapter.id}/files/{index}_{candidate['name']}"
+                    archive_path = (
+                        f"adapters/{adapter.id}/files/{index}_{candidate['name']}"
+                    )
                     manifest_entry["archive_path"] = archive_path
                     file_entries.append(
                         PlannedFile(
@@ -174,7 +178,9 @@ class ArchiveExportPlanner:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
-    def _load_adapters(self, adapter_ids: Optional[Sequence[str]] = None) -> List[Adapter]:
+    def _load_adapters(
+        self, adapter_ids: Optional[Sequence[str]] = None
+    ) -> List[Adapter]:
         session = self._adapter_service.db_session
         if adapter_ids:
             stmt = select(Adapter).where(Adapter.id.in_(adapter_ids))

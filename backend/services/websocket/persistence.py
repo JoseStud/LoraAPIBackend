@@ -22,7 +22,9 @@ class DeliveryJobStateRepository(JobStateRepository):
 
     def __init__(
         self,
-        session_factory: Callable[[], AbstractContextManager[Session]] = get_session_context,
+        session_factory: Callable[
+            [], AbstractContextManager[Session]
+        ] = get_session_context,
     ) -> None:
         self._session_factory = session_factory
 

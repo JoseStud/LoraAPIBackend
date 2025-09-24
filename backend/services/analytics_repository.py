@@ -58,10 +58,9 @@ class AnalyticsRepository:
                 - func.julianday(DeliveryJob.started_at)
             ) * 86400.0
         else:
-            duration_expression = (
-                func.extract("epoch", DeliveryJob.finished_at)
-                - func.extract("epoch", DeliveryJob.started_at)
-            )
+            duration_expression = func.extract(
+                "epoch", DeliveryJob.finished_at
+            ) - func.extract("epoch", DeliveryJob.started_at)
 
         query = (
             select(func.avg(duration_expression))
@@ -80,7 +79,9 @@ class AnalyticsRepository:
             return result.total_seconds()
         return float(result)
 
-    def fetch_time_series_rows(self, start: datetime, end: datetime) -> List[TimeSeriesRow]:
+    def fetch_time_series_rows(
+        self, start: datetime, end: datetime
+    ) -> List[TimeSeriesRow]:
         """Return time-series raw data for aggregation."""
         query = (
             select(
@@ -130,4 +131,3 @@ class AnalyticsRepository:
         """Count all registered adapters."""
         result = self._session.exec(select(func.count(Adapter.id))).one()
         return int(result or 0)
-

@@ -17,6 +17,13 @@ class RecommendationModelBootstrap:
         gpu_enabled: Optional[bool] = None,
         logger: Optional[logging.Logger] = None,
     ) -> None:
+        """Initialise the bootstrap helper.
+
+        Args:
+            gpu_enabled: Optional override for GPU availability detection.
+            logger: Logger used to emit diagnostic messages.
+
+        """
         self._logger = logger or logging.getLogger(__name__)
         self._device, self._gpu_enabled = self._detect_device(gpu_enabled)
         self._model_registry: RecommendationModelRegistry | None = None
@@ -42,7 +49,8 @@ class RecommendationModelBootstrap:
         return self._model_registry
 
     def set_model_registry(
-        self, registry: RecommendationModelRegistry,
+        self,
+        registry: RecommendationModelRegistry,
     ) -> None:
         """Inject a custom model registry implementation."""
         self._model_registry = registry
@@ -56,7 +64,9 @@ class RecommendationModelBootstrap:
 
     @classmethod
     def preload_models_for_environment(
-        cls, *, gpu_enabled: Optional[bool] = None,
+        cls,
+        *,
+        gpu_enabled: Optional[bool] = None,
     ) -> None:
         """Preload models for the detected runtime environment."""
         bootstrap = cls(gpu_enabled=gpu_enabled)
@@ -89,4 +99,3 @@ class RecommendationModelBootstrap:
     def models_loaded(cls) -> bool:
         """Return whether shared models have been loaded for the process."""
         return RecommendationModelRegistry.models_loaded()
-

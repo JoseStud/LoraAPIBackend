@@ -12,6 +12,7 @@ class WebSocketServiceFactory(Protocol):
     """Callable protocol for producing :class:`WebSocketService` instances."""
 
     def __call__(self) -> WebSocketService:
+        """Create a :class:`WebSocketService` instance."""
         ...
 
 
@@ -21,10 +22,12 @@ def make_websocket_service(
     connection_manager=None,
     job_monitor=None,
 ) -> WebSocketService:
-    """Create or return a :class:`WebSocketService` configured with explicit collaborators."""
+    """Create or return a :class:`WebSocketService` with explicit collaborators."""
     if service is not None:
         return service
-    return WebSocketService(connection_manager=connection_manager, job_monitor=job_monitor)
+    return WebSocketService(
+        connection_manager=connection_manager, job_monitor=job_monitor
+    )
 
 
 def default_websocket_service_factory() -> WebSocketService:
@@ -45,4 +48,3 @@ __all__ = [
     "default_websocket_service_factory",
     "make_websocket_service",
 ]
-

@@ -123,7 +123,10 @@ def test_archive_service_streams_planned_archive(tmp_path):
     assert archive.manifest["adapter_count"] == 1
     with zipfile.ZipFile(io.BytesIO(payload)) as zf:
         assert "manifest.json" in zf.namelist()
-        assert zf.read(plan.metadata_entries[0].archive_path) == plan.metadata_entries[0].payload
+        assert (
+            zf.read(plan.metadata_entries[0].archive_path)
+            == plan.metadata_entries[0].payload
+        )
         assert zf.read(plan.file_entries[0].archive_path) == weights.read_bytes()
 
 

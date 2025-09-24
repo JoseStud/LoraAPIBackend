@@ -17,11 +17,11 @@ logger = structlog.get_logger(__name__)
 class GenerationProgressClient(Protocol):
     """Protocol describing the subset of generation service APIs used."""
 
-    async def check_progress(self, job_id: str) -> SDNextGenerationResult:
-        ...
+    async def check_progress(self, job_id: str) -> SDNextGenerationResult: ...
 
-    async def check_generation_progress(self, job_id: str) -> SDNextGenerationResult:
-        ...
+    async def check_generation_progress(
+        self, job_id: str
+    ) -> SDNextGenerationResult: ...
 
 
 @dataclass
@@ -37,8 +37,7 @@ class PersistedJobState:
 class JobStateRepository(Protocol):
     """Protocol for loading persisted job state."""
 
-    def get_job_state(self, job_id: str) -> Optional[PersistedJobState]:
-        ...
+    def get_job_state(self, job_id: str) -> Optional[PersistedJobState]: ...
 
 
 ProgressCallback = Callable[[ProgressUpdate], Awaitable[None]]
@@ -94,7 +93,9 @@ class JobProgressMonitor:
     ) -> None:
         try:
             while True:
-                result = await self._call_generation_progress(generation_service, job_id)
+                result = await self._call_generation_progress(
+                    generation_service, job_id
+                )
                 persisted_state = self._safe_load_state(job_id)
 
                 status_value = _normalize_generation_status(result.status or "pending")
@@ -102,11 +103,13 @@ class JobProgressMonitor:
                 error_message = result.error_message
 
                 if persisted_state is not None:
-                    status_value, progress_value, error_message = self._merge_persisted_state(
-                        status_value,
-                        progress_value,
-                        error_message,
-                        persisted_state,
+                    status_value, progress_value, error_message = (
+                        self._merge_persisted_state(
+                            status_value,
+                            progress_value,
+                            error_message,
+                            persisted_state,
+                        )
                     )
 
                 if progress_value is None:
@@ -140,7 +143,9 @@ class JobProgressMonitor:
             self._tasks.pop(job_id, None)
 
     async def _call_generation_progress(
-        self, generation_service: GenerationProgressClient, job_id: str,
+        self,
+        generation_service: GenerationProgressClient,
+        job_id: str,
     ) -> SDNextGenerationResult:
         if hasattr(generation_service, "check_progress"):
             return await generation_service.check_progress(job_id)
@@ -189,7 +194,9 @@ class JobProgressMonitor:
         if stored_progress is not None:
             progress_value = stored_progress
 
-        if status_value == "completed" and (progress_value is None or progress_value < 1.0):
+        if status_value == "completed" and (
+            progress_value is None or progress_value < 1.0
+        ):
             progress_value = 1.0
 
         if error_message is None:
@@ -198,7 +205,8 @@ class JobProgressMonitor:
         return status_value, progress_value, error_message
 
     def _extract_progress_from_payload(
-        self, payload: Optional[Dict[str, Any]],
+        self,
+        payload: Optional[Dict[str, Any]],
     ) -> Optional[float]:
         if not isinstance(payload, dict):
             return None

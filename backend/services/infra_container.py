@@ -34,7 +34,9 @@ class InfrastructureServiceRegistry:
         queue_orchestrator: Optional[QueueOrchestrator],
         archive_provider: ArchiveServiceFactory = make_archive_service,
         delivery_provider: DeliveryServiceFactory = make_delivery_service,
-        generation_coordinator_provider: GenerationCoordinatorFactory = make_generation_coordinator,
+        generation_coordinator_provider: GenerationCoordinatorFactory = (
+            make_generation_coordinator
+        ),
         websocket_provider: Optional[WebSocketServiceFactory] = None,
         system_provider: SystemServiceFactory = make_system_service,
     ) -> None:

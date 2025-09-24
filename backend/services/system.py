@@ -18,7 +18,7 @@ if TYPE_CHECKING:  # pragma: no cover
 def _bytes_to_gigabytes(value: Optional[int]) -> float:
     if not value or value <= 0:
         return 0.0
-    return round(value / (1024 ** 3), 1)
+    return round(value / (1024**3), 1)
 
 
 def _to_mebibytes(value: Optional[int]) -> int:
@@ -42,7 +42,9 @@ def _gpu_status_label(gpu_info: Dict[str, Any]) -> str:
 
 
 def _collect_gpu_metrics(
-    memory_used_mb: int, memory_total_mb: int, gpu_info: Dict[str, Any],
+    memory_used_mb: int,
+    memory_total_mb: int,
+    gpu_info: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
     if not gpu_info.get("available"):
         return []
@@ -52,7 +54,11 @@ def _collect_gpu_metrics(
     memory_used = memory_used_mb
     percent: Optional[int] = None
     if memory_total:
-        percent = min(100, max(0, round((memory_used / memory_total) * 100))) if memory_used else 0
+        percent = (
+            min(100, max(0, round((memory_used / memory_total) * 100)))
+            if memory_used
+            else 0
+        )
 
     gpu_entry: Dict[str, Any] = {
         "id": 0,
@@ -148,7 +154,9 @@ class SystemService:
         memory_used_mb = _to_mebibytes(gpu_memory.get("allocated"))
 
         if not memory_total_mb:
-            memory_total_mb = _to_mebibytes(gpu_info.get("details", {}).get("memory_total"))
+            memory_total_mb = _to_mebibytes(
+                gpu_info.get("details", {}).get("memory_total")
+            )
         if memory_used_mb > memory_total_mb:
             memory_total_mb = memory_used_mb
 
