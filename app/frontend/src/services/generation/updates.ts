@@ -113,7 +113,7 @@ export const createGenerationQueueClient = (
         buildGenerationUrl('jobs/active'),
         withCredentials(),
       );
-      return ensureArray(result.data).map((status) => ({
+      return ensureArray<GenerationJobStatus>(result.data).map((status) => ({
         id: status.id,
         jobId: status.jobId ?? undefined,
         prompt: status.prompt ?? undefined,
@@ -140,7 +140,7 @@ export const createGenerationQueueClient = (
         buildGenerationUrl(`results?limit=${normalizedLimit}`),
         withCredentials(),
       );
-      return ensureArray(result.data);
+      return ensureArray<GenerationResult>(result.data);
     } catch (error) {
       console.error('Failed to load recent results:', error);
       throw error;

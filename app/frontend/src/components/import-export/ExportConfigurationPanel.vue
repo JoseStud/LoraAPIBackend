@@ -27,7 +27,7 @@ import ExportDataSelectionForm from './ExportDataSelectionForm.vue';
 import ExportSettingsForm from './ExportSettingsForm.vue';
 import ExportWorkflowActions from './ExportWorkflowActions.vue';
 
-import type { ExportConfig } from '@/composables/import-export';
+import type { ExportConfig } from '@/types';
 
 type UpdateConfigEmitter<TConfig> = {
   <K extends keyof TConfig>(event: 'update-config', key: K, value: TConfig[K]): void;

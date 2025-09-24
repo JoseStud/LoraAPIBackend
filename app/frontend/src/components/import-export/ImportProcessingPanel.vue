@@ -206,7 +206,8 @@
 </template>
 
 <script setup lang="ts">
-import type { ImportConfig, ImportPreviewItem } from '@/composables/import-export';
+import type { ImportPreviewItem } from '@/composables/import-export';
+import type { ImportConfig } from '@/types';
 
 type ImportConfigKey = keyof ImportConfig;
 

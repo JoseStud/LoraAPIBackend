@@ -92,10 +92,10 @@
 </template>
 
 <script setup lang="ts">
-import type { BackupEntry } from '@/composables/import-export';
+import type { BackupHistoryItem } from '@/types';
 
 defineProps<{
-  history: readonly BackupEntry[];
+  history: readonly BackupHistoryItem[];
   formatFileSize: (bytes: number) => string;
   formatDate: (input: string) => string;
 }>();

@@ -10,14 +10,14 @@
         />
 
         <img
-          :src="result.thumbnail_url || result.image_url"
-          :alt="result.prompt"
+          :src="result.thumbnail_url ?? result.image_url ?? ''"
+          :alt="result.prompt ?? 'Generated image'"
           class="w-16 h-16 object-cover rounded cursor-pointer"
           @click="$emit('view')"
         />
 
         <div class="flex-1 min-w-0">
-          <div class="text-sm font-medium text-gray-900 mb-1">{{ result.prompt }}</div>
+          <div class="text-sm font-medium text-gray-900 mb-1">{{ result.prompt ?? 'Untitled generation' }}</div>
           <div class="text-xs text-gray-500">
             <span>{{ formattedDate }}</span>
             <span class="mx-1">•</span>
