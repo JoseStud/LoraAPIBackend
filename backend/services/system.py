@@ -226,7 +226,9 @@ class SystemService:
 
         if last_ingested:
             if isinstance(last_ingested, datetime):
-                status["last_ingested_at"] = last_ingested.astimezone(timezone.utc).isoformat()
+                status["last_ingested_at"] = last_ingested.astimezone(
+                    timezone.utc
+                ).isoformat()
             else:  # pragma: no cover - defensive guard for non-datetime
                 status["last_ingested_at"] = str(last_ingested)
 
@@ -260,10 +262,10 @@ class SystemService:
                         status["stale"] = idle_duration >= inactivity_window + buffer
         return status
 
-    async def _gather_recommendation_status(self) -> Dict[str, Any]:
+    def _gather_recommendation_status(self) -> Dict[str, Any]:
         """Return recommendation subsystem runtime details."""
-        models_loaded = await RecommendationService.models_loaded()
-        gpu_available = await RecommendationService.is_gpu_available()
+        models_loaded = RecommendationService.models_loaded()
+        gpu_available = RecommendationService.is_gpu_available()
         return {
             "models_loaded": models_loaded,
             "gpu_available": gpu_available,
@@ -297,7 +299,7 @@ class SystemService:
 
         sdnext_status = await self._gather_sdnext_status()
         importer_status = self._gather_importer_status()
-        recommendation_status = await self._gather_recommendation_status()
+        recommendation_status = self._gather_recommendation_status()
         thresholds = self._queue_thresholds()
 
         warnings: List[str] = []
@@ -307,14 +309,20 @@ class SystemService:
             warnings.append("GPU unavailable; falling back to CPU execution")
 
         active_threshold = thresholds.get("active_warning")
-        if isinstance(active_threshold, int) and queue_stats["active"] > active_threshold:
+        if (
+            isinstance(active_threshold, int)
+            and queue_stats["active"] > active_threshold
+        ):
             warnings.append(
                 "Queue backlog above threshold: "
                 f"{queue_stats['active']} active > {active_threshold}"
             )
 
         failed_threshold = thresholds.get("failed_warning")
-        if isinstance(failed_threshold, int) and queue_stats["failed"] > failed_threshold:
+        if (
+            isinstance(failed_threshold, int)
+            and queue_stats["failed"] > failed_threshold
+        ):
             warnings.append(
                 "Delivery failures exceed threshold: "
                 f"{queue_stats['failed']} failed > {failed_threshold}"
@@ -328,9 +336,7 @@ class SystemService:
         if importer_stale is True:
             hours = importer_status.get("stale_threshold_hours")
             if hours:
-                warnings.append(
-                    f"Importer inactive for more than {int(hours)} hours"
-                )
+                warnings.append(f"Importer inactive for more than {int(hours)} hours")
             else:
                 warnings.append("Importer inactivity detected")
 

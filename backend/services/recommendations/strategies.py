@@ -108,13 +108,11 @@ async def get_recommendations_for_prompt(
 
     recommendations: List[RecommendationItem] = []
     for adapter, embedding in results:
-        if not all(
-            [
-                embedding.semantic_embedding,
-                embedding.artistic_embedding,
-                embedding.technical_embedding,
-            ]
-        ):
+        if not all([
+            embedding.semantic_embedding,
+            embedding.artistic_embedding,
+            embedding.technical_embedding,
+        ]):
             continue
 
         # Unpack embeddings

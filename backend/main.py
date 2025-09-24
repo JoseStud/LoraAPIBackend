@@ -104,19 +104,27 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         # On shutdown, ensure all background tasks are completed or cancelled
+        lifespan_logger = logging.getLogger("lora.lifespan")
         for task in startup_tasks:
-            if not task.done():
-                task.cancel()
             try:
-                await task
+                if task.done():
+                    await task
+                else:
+                    await asyncio.wait_for(asyncio.shield(task), timeout=1.0)
+            except asyncio.TimeoutError:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    # Task cancellation is expected on shutdown
+                    pass
+                except Exception:  # pragma: no cover - defensive guard
+                    lifespan_logger.exception("Background task failed during shutdown")
             except asyncio.CancelledError:
                 # Task cancellation is expected on shutdown
                 pass
             except Exception:  # pragma: no cover - defensive guard
-                # Log any other exceptions during shutdown
-                logging.getLogger("lora.lifespan").exception(
-                    "Background task failed during shutdown"
-                )
+                lifespan_logger.exception("Background task failed during shutdown")
 
 
 def create_app() -> FastAPI:

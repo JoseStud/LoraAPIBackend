@@ -10,58 +10,58 @@ from typing import Set
 import sqlalchemy as sa
 from alembic import op
 
-revision = '0002_add_deliveryjob_feedback_fields'
-down_revision = '0001_initial_schema'
+revision = "0002_add_deliveryjob_feedback_fields"
+down_revision = "0001_initial_schema"
 branch_labels = None
 depends_on = None
 
-TABLE_NAME = 'deliveryjob'
+TABLE_NAME = "deliveryjob"
 
 
 def _existing_columns() -> Set[str]:
     bind = op.get_bind()
     inspector = sa.inspect(bind)
-    return {column['name'] for column in inspector.get_columns(TABLE_NAME)}
+    return {column["name"] for column in inspector.get_columns(TABLE_NAME)}
 
 
 def upgrade() -> None:
     existing = _existing_columns()
 
     with op.batch_alter_table(TABLE_NAME, schema=None) as batch_op:
-        if 'rating' not in existing:
-            batch_op.add_column(sa.Column('rating', sa.Integer(), nullable=True))
+        if "rating" not in existing:
+            batch_op.add_column(sa.Column("rating", sa.Integer(), nullable=True))
 
-        if 'is_favorite' not in existing:
+        if "is_favorite" not in existing:
             batch_op.add_column(
                 sa.Column(
-                    'is_favorite',
+                    "is_favorite",
                     sa.Boolean(),
                     nullable=False,
                     server_default=sa.false(),
                 ),
             )
 
-        if 'rating_updated_at' not in existing:
+        if "rating_updated_at" not in existing:
             batch_op.add_column(
                 sa.Column(
-                    'rating_updated_at',
+                    "rating_updated_at",
                     sa.DateTime(timezone=True),
                     nullable=True,
                 ),
             )
 
-        if 'favorite_updated_at' not in existing:
+        if "favorite_updated_at" not in existing:
             batch_op.add_column(
                 sa.Column(
-                    'favorite_updated_at',
+                    "favorite_updated_at",
                     sa.DateTime(timezone=True),
                     nullable=True,
                 ),
             )
 
-        if 'is_favorite' not in existing:
+        if "is_favorite" not in existing:
             batch_op.alter_column(
-                'is_favorite',
+                "is_favorite",
                 server_default=None,
                 existing_type=sa.Boolean(),
                 existing_nullable=False,
@@ -70,7 +70,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     with op.batch_alter_table(TABLE_NAME, schema=None) as batch_op:
-        batch_op.drop_column('favorite_updated_at')
-        batch_op.drop_column('rating_updated_at')
-        batch_op.drop_column('is_favorite')
-        batch_op.drop_column('rating')
+        batch_op.drop_column("favorite_updated_at")
+        batch_op.drop_column("rating_updated_at")
+        batch_op.drop_column("is_favorite")
+        batch_op.drop_column("rating")

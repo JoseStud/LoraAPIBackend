@@ -11,7 +11,9 @@ from backend.services.delivery_results.models import ResultArchive, ResultDownlo
 __all__ = ["stream_archive", "stream_download"]
 
 
-def _build_headers(filename: str, *, size: int | None = None, extra: Mapping[str, str] | None = None) -> dict[str, str]:
+def _build_headers(
+    filename: str, *, size: int | None = None, extra: Mapping[str, str] | None = None
+) -> dict[str, str]:
     headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
     if size is not None:
         headers["Content-Length"] = str(size)

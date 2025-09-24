@@ -88,8 +88,14 @@ def test_service_container_overrides_do_not_leak_state(db_session) -> None:
         delivery_repository=DeliveryJobRepository(db_session),
     )
 
-    assert override_registry_a.application.deliveries.queue_orchestrator is sentinel_orchestrator
-    assert override_registry_b.application.deliveries.queue_orchestrator is sentinel_orchestrator
+    assert (
+        override_registry_a.application.deliveries.queue_orchestrator
+        is sentinel_orchestrator
+    )
+    assert (
+        override_registry_b.application.deliveries.queue_orchestrator
+        is sentinel_orchestrator
+    )
     assert override_builder.get_recommendation_gpu_available() is True
     assert base_builder.get_recommendation_gpu_available() is False
 
@@ -99,7 +105,10 @@ def test_service_container_overrides_do_not_leak_state(db_session) -> None:
         delivery_repository=DeliveryJobRepository(db_session),
     )
 
-    assert base_registry.application.deliveries.queue_orchestrator is not sentinel_orchestrator
+    assert (
+        base_registry.application.deliveries.queue_orchestrator
+        is not sentinel_orchestrator
+    )
 
 
 @dataclass

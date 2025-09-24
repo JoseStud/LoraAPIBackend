@@ -4,7 +4,7 @@ import type { MaybeRefOrGetter } from 'vue';
 import { useApi } from '@/composables/shared';
 import { DEFAULT_BACKEND_BASE } from '@/config/runtime';
 import { getFilenameFromContentDisposition, requestBlob } from '@/utils/api';
-import { resolveGenerationRoute } from '@/services/generation';
+import { resolveGenerationRoute } from '@/services';
 
 import type {
   GenerationBulkDeleteRequest,

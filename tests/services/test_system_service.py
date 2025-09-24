@@ -64,11 +64,13 @@ async def test_system_status_reports_extended_fields(monkeypatch):
     async def fake_sdnext_status(self):
         return {"configured": True, "available": False, "error": "network"}
 
-    async def fake_recommendation_status(self):
+    def fake_recommendation_status(self):
         return {"models_loaded": False, "gpu_available": True}
 
     monkeypatch.setattr(SystemService, "_gather_sdnext_status", fake_sdnext_status)
-    monkeypatch.setattr(SystemService, "_gather_recommendation_status", fake_recommendation_status)
+    monkeypatch.setattr(
+        SystemService, "_gather_recommendation_status", fake_recommendation_status
+    )
 
     payload = await service.get_system_status_payload()
 
@@ -115,11 +117,13 @@ async def test_system_status_handles_healthy_runtime(monkeypatch):
     async def healthy_sdnext(self):
         return {"configured": True, "available": True}
 
-    async def healthy_recommendations(self):
+    def healthy_recommendations(self):
         return {"models_loaded": True, "gpu_available": True}
 
     monkeypatch.setattr(SystemService, "_gather_sdnext_status", healthy_sdnext)
-    monkeypatch.setattr(SystemService, "_gather_recommendation_status", healthy_recommendations)
+    monkeypatch.setattr(
+        SystemService, "_gather_recommendation_status", healthy_recommendations
+    )
 
     payload = await service.get_system_status_payload()
 
