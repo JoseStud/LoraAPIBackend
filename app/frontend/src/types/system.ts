@@ -4,6 +4,50 @@
 
 import type { SystemStatusState } from './app';
 
+export interface SystemSdNextStatus {
+  configured: boolean;
+  base_url?: string | null;
+  available?: boolean;
+  error?: string | null;
+  checked_at?: string | null;
+  [key: string]: unknown;
+}
+
+export interface SystemImporterStatus {
+  import_path?: string | null;
+  last_ingested_at?: string | null;
+  recent_imports?: number | null;
+  total_adapters?: number | null;
+  stale?: boolean | null;
+  stale_threshold_hours?: number | null;
+  [key: string]: unknown;
+}
+
+export interface RecommendationRuntimeStatus {
+  models_loaded: boolean;
+  gpu_available: boolean;
+  [key: string]: unknown;
+}
+
+export interface SystemQueueStatistics {
+  active?: number;
+  failed?: number;
+  running?: number;
+  [key: string]: unknown;
+}
+
+export interface SystemQueueThresholds {
+  active_warning?: number | null;
+  failed_warning?: number | null;
+  [key: string]: unknown;
+}
+
+export interface SystemThresholds {
+  queue?: SystemQueueThresholds | null;
+  importer?: { stale_hours?: number | null; [key: string]: unknown } | null;
+  [key: string]: unknown;
+}
+
 export type StatusClassBinding = string | string[] | Record<string, boolean>;
 
 export type StatusLabel = string;
@@ -102,6 +146,11 @@ export interface SystemStatusPayload extends Partial<SystemStatusState> {
   metrics?: SystemMetricsSnapshot | null;
   message?: string | null;
   updated_at?: string | null;
+  sdnext?: SystemSdNextStatus | null;
+  importer?: SystemImporterStatus | null;
+  recommendations?: RecommendationRuntimeStatus | null;
+  queue?: SystemQueueStatistics | null;
+  thresholds?: SystemThresholds | null;
   [key: string]: unknown;
 }
 
