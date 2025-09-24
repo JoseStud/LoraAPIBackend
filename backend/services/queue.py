@@ -6,11 +6,15 @@ import asyncio
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Optional, Tuple, Type
 
+import structlog
+
 from fastapi import BackgroundTasks
 
 from backend.core.config import settings
 from backend.delivery.base import delivery_registry
 from backend.workers.delivery_runner import DeliveryRunner
+
+logger = structlog.get_logger(__name__)
 
 PrimaryFallbackQueues = Tuple[Optional["QueueBackend"], "QueueBackend"]
 
@@ -45,12 +49,32 @@ class RedisQueueBackend(QueueBackend):
 
     def _get_queue(self):
         if self._queue is None:
-            from redis import Redis
-            from rq import Queue
+            Redis, Queue = self._import_dependencies()
 
             redis_conn = Redis.from_url(self.redis_url)
             self._queue = Queue(self.queue_name, connection=redis_conn)
         return self._queue
+
+    def _import_dependencies(self) -> Tuple[Any, Any]:
+        try:
+            from redis import Redis
+        except ModuleNotFoundError as exc:
+            raise RuntimeError(
+                "Redis queue backend requires the optional 'redis' package. "
+                "Install redis and rq (e.g. `pip install redis rq`) or disable the "
+                "Redis queue by clearing REDIS_URL."
+            ) from exc
+
+        try:
+            from rq import Queue
+        except ModuleNotFoundError as exc:
+            raise RuntimeError(
+                "Redis queue backend requires the optional 'rq' package. "
+                "Install redis and rq (e.g. `pip install redis rq`) or disable the "
+                "Redis queue by clearing REDIS_URL."
+            ) from exc
+
+        return Redis, Queue
 
     def _reset_queue(self) -> None:
         """Clear the cached queue reference and close its connection if needed."""
@@ -215,6 +239,23 @@ class QueueOrchestrator:
                 )
             except Exception as exc:  # pragma: no cover - defensive branch
                 last_error = exc
+                logger.warning(
+                    "queue_orchestrator.fallback",  # structured log key
+                    job_id=job_id,
+                    reason="primary_error",
+                    primary_backend=type(primary).__name__,
+                    fallback_backend=type(fallback).__name__,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
+        else:
+            logger.warning(
+                "queue_orchestrator.fallback",
+                job_id=job_id,
+                reason="primary_unavailable",
+                primary_backend=None,
+                fallback_backend=type(fallback).__name__,
+            )
 
         try:
             return fallback.enqueue_delivery(
