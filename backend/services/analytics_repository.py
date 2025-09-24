@@ -45,8 +45,8 @@ class AnalyticsRepository:
         if status is not None:
             query = query.where(DeliveryJob.status == status)
 
-        result = self._session.exec(query).one()
-        return int(result or 0)
+        result = self._session.exec(query).one_or_none()
+        return int(result[0] if result else 0)
 
     def average_duration(self, start: datetime, end: datetime) -> float:
         """Return the mean execution time for completed jobs in the window."""
@@ -125,10 +125,10 @@ class AnalyticsRepository:
         """Count currently active adapters."""
         result = self._session.exec(
             select(func.count(Adapter.id)).where(Adapter.active.is_(True)),
-        ).one()
-        return int(result or 0)
+        ).one_or_none()
+        return int(result[0] if result else 0)
 
     def count_total_loras(self) -> int:
         """Count all registered adapters."""
-        result = self._session.exec(select(func.count(Adapter.id))).one()
-        return int(result or 0)
+        result = self._session.exec(select(func.count(Adapter.id))).one_or_none()
+        return int(result[0] if result else 0)
