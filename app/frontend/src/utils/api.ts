@@ -1,5 +1,6 @@
 import { useApi } from '@/composables/shared';
 import type { ApiResponseMeta } from '@/composables/shared';
+import { buildAuthenticatedHeaders } from '@/utils/httpAuth';
 
 export interface ApiResult<T> {
   data: T | null;
@@ -78,7 +79,12 @@ export interface BlobResult {
 }
 
 export async function requestBlob(url: string, options: RequestInit = {}): Promise<BlobResult> {
-  const response = await fetch(url, { credentials: 'same-origin', ...options });
+  const headers = buildAuthenticatedHeaders(options.headers);
+  const response = await fetch(url, {
+    credentials: 'same-origin',
+    ...options,
+    headers,
+  });
   if (!response.ok) {
     const message = await response.text().catch(() => '');
     throw new Error(message || `Request failed with status ${response.status}`);
