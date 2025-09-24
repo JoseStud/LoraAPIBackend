@@ -3,6 +3,7 @@ import type {
   GenerationCancelResponse,
   GenerationDownloadMetadata,
   GenerationFormState,
+  GenerationJobStatus,
   GenerationRequestPayload,
   GenerationStartResponse,
   SDNextGenerationParams,
@@ -34,8 +35,6 @@ export const resolveGenerationBaseUrl = (baseOverride?: string | null): string =
   resolveBackendBaseUrl(baseOverride);
 
 export { resolveBackendUrlHelper as resolveBackendUrl };
-
-type JobStatusRecord = Record<string, unknown>;
 
 export const resolveGenerationRoute = (path: string, baseOverride?: string | null): string =>
   resolveBackendUrlHelper(`/generation/${trimLeadingSlash(path)}`, baseOverride);
@@ -70,8 +69,8 @@ export const requestGeneration = async (
 
 export const fetchActiveGenerationJobs = async (
   baseUrl?: string | null,
-): Promise<JobStatusRecord[]> => {
-  const result = await requestJson<JobStatusRecord[]>(
+): Promise<GenerationJobStatus[]> => {
+  const result = await requestJson<GenerationJobStatus[]>(
     resolveGenerationRoute('jobs/active', baseUrl),
     { credentials: 'same-origin' },
   );

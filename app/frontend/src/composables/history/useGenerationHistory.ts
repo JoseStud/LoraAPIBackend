@@ -7,6 +7,7 @@ import type {
   GenerationHistoryQuery,
   GenerationHistoryResult,
   GenerationHistoryStats,
+  JsonObject,
 } from '@/types';
 
 export type HistorySortOption = 'created_at' | 'created_at_asc' | 'prompt' | 'rating';
@@ -100,10 +101,10 @@ export const useGenerationHistory = ({
       0,
     );
     const totalSize = results.reduce((sum, result) => {
-      const metadata = result.metadata;
-      if (metadata && typeof metadata === 'object') {
-        const record = metadata as Record<string, unknown>;
-        const sizeCandidate = record.size_bytes ?? record.file_size ?? record.byte_size;
+      const metadata = result.metadata as JsonObject | null;
+      if (metadata) {
+        const sizeCandidate =
+          metadata.size_bytes ?? metadata.file_size ?? metadata.byte_size ?? metadata.size;
         if (typeof sizeCandidate === 'number' && Number.isFinite(sizeCandidate)) {
           return sum + sizeCandidate;
         }

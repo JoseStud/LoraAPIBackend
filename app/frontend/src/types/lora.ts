@@ -2,10 +2,7 @@
  * Type definitions mirroring backend/schemas/adapters.py.
  */
 
-type JsonPrimitive = string | number | boolean | null;
-
-/** JSON-compatible value used for metadata payloads. */
-export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
+import type { JsonObject, JsonValue } from './json';
 
 export type AdapterStatsMetric =
   | 'downloadCount'
@@ -53,7 +50,7 @@ export interface AdapterMetadata {
   activation_text?: string | null;
   stats?: AdapterStats | null;
   preview_image?: string | null;
-  unmapped?: { [key: string]: JsonValue } | null;
+  unmapped?: JsonObject | null;
 }
 
 /** Request payload for creating a new adapter. */

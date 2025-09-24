@@ -1,18 +1,8 @@
 import { computed, reactive, ref, type ComputedRef } from 'vue';
 
 import { ensureData, requestJson } from '@/utils/api';
+import type { ImportConfig, ImportMode } from '@/types';
 import type { NotifyFn, ProgressCallbacks } from './useExportWorkflow';
-
-export type ImportMode = 'merge' | 'replace' | 'skip';
-export type ConflictResolution = 'ask' | 'keep_existing' | 'overwrite' | 'rename';
-
-export interface ImportConfig {
-  mode: ImportMode;
-  conflict_resolution: ConflictResolution;
-  validate: boolean;
-  backup_before: boolean;
-  password: string;
-}
 
 export interface ImportPreviewItem {
   id: string;
