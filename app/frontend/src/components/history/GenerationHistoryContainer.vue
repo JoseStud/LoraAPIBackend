@@ -129,6 +129,7 @@ import {
   type HistoryToastType,
 } from '@/composables/history';
 import { useBackendBase } from '@/utils/backend';
+import { formatHistoryDate } from '@/utils/format';
 import type { GenerationHistoryResult } from '@/types';
 
 import type { HistoryViewMode } from './HistoryActionToolbar.vue';
@@ -219,28 +220,7 @@ const loadMore = async (): Promise<void> => {
   await loadMoreResults();
 };
 
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  if (!Number.isFinite(date.getTime())) {
-    return '';
-  }
-
-  const now = new Date();
-  const diffTime = Math.abs(now.getTime() - date.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 1) {
-    return 'Today';
-  }
-  if (diffDays === 2) {
-    return 'Yesterday';
-  }
-  if (diffDays <= 7) {
-    return `${diffDays - 1} days ago`;
-  }
-
-  return date.toLocaleDateString();
-};
+const formatDate = (dateString: string): string => formatHistoryDate(dateString);
 
 const onSelectionChange = (payload: HistorySelectionChangePayload): void => {
   updateSelection(payload);
