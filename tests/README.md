@@ -48,6 +48,9 @@ the dependencies that may be required.
    npm run test:unit
    ```
 
+   The default `npm run test` shortcut executes the same Vitest suite without
+   any of the Playwright overhead, which keeps local feedback cycles fast.
+
 4. **Run integration or end-to-end suites as needed**
 
    ```bash

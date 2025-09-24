@@ -109,6 +109,9 @@ components, Playwright end-to-end specs, and optional Lighthouse checks.
 - Frontend integration tests: `npm run test:integration`
 - E2E tests: `npm run test:e2e`
 
+Use `npm run test` for the fast Vitest-only loop and `npm run test:all` to combine
+unit and Playwright coverage when you need the full browser suite.
+
 Not all suites run out of the box without additional services. Redis, SDNext,
 and headless browsers must be available for the queue, generation, and E2E
 tests respectively.【F:package.json†L18-L30】【F:tests/README.md†L70-L113】
