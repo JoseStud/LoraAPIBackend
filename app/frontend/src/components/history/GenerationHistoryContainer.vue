@@ -9,7 +9,7 @@
       :date-filter="state.dateFilter.value"
       :rating-filter="state.ratingFilter.value"
       :dimension-filter="state.dimensionFilter.value"
-      :stats="state.stats"
+      :stats="state.stats.value"
       :results="state.filteredResults.value"
       :selected-set="state.selectedSet.value"
       :is-loading="state.isLoading.value"
