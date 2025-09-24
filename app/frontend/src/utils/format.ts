@@ -166,6 +166,35 @@ export function formatRelativeTime(input: DateInput, base: DateInput = new Date(
 }
 
 /**
+ * Format a generation history timestamp into a human-readable label.
+ */
+export function formatHistoryDate(input: DateInput, base: DateInput = new Date()): string {
+  const targetDate = toDate(input);
+  const baseDate = toDate(base) ?? new Date();
+
+  if (!targetDate) {
+    return '';
+  }
+
+  const diff = Math.abs(baseDate.getTime() - targetDate.getTime());
+  const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) {
+    return 'Today';
+  }
+
+  if (diffDays === 1) {
+    return 'Yesterday';
+  }
+
+  if (diffDays <= 7) {
+    return `${diffDays} days ago`;
+  }
+
+  return targetDate.toLocaleDateString();
+}
+
+/**
  * Format a number using Intl.NumberFormat.
  */
 export function formatNumber(value: number, locale = 'en-US', options?: Intl.NumberFormatOptions): string {
