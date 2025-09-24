@@ -28,6 +28,7 @@ class RecommendationPersistenceManager:
         index_cache_path: str | Path = "cache/similarity_index.pkl",
         clock: Callable[[], float] = time.time,
     ) -> None:
+        """Initialise cache paths and collaborators for persistence."""
         self._embedding_manager = embedding_manager
         self._engine_getter = engine_getter
         self._embedding_cache_dir = Path(embedding_cache_dir)

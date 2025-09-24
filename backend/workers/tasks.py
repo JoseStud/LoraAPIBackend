@@ -221,7 +221,7 @@ def process_embeddings_batch(
     *,
     context: Optional[WorkerContext] = None,
 ):
-    """Synchronously execute :func:`process_embeddings_batch_async`."""
+    """Run :func:`process_embeddings_batch_async` synchronously."""
     ctx = context or get_worker_context()
     return ctx.run_async(
         process_embeddings_batch_async(
@@ -283,7 +283,7 @@ def compute_single_embedding(
     *,
     context: Optional[WorkerContext] = None,
 ) -> bool:
-    """Synchronously execute :func:`compute_single_embedding_async`."""
+    """Run :func:`compute_single_embedding_async` synchronously."""
     ctx = context or get_worker_context()
     return ctx.run_async(
         compute_single_embedding_async(

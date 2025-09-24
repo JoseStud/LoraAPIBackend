@@ -32,6 +32,7 @@ class SimilarLoraUseCase:
         engine_provider: Callable[[], Any],
         metrics: RecommendationMetricsTracker,
     ) -> None:
+        """Store collaborators used to resolve similarity queries."""
         self._repository = repository
         self._embedding_workflow = embedding_workflow
         self._engine_provider = engine_provider
@@ -76,6 +77,7 @@ class PromptRecommendationUseCase:
         metrics: RecommendationMetricsTracker,
         device: str,
     ) -> None:
+        """Persist dependencies required to generate prompt recommendations."""
         self._repository = repository
         self._embedder_provider = embedder_provider
         self._metrics = metrics

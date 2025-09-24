@@ -23,6 +23,7 @@ class RecommendationRepository:
     """Encapsulate persistence concerns for recommendations."""
 
     def __init__(self, session: Session):
+        """Store the database session used for recommendation persistence."""
         self._session = session
 
     # ------------------------------------------------------------------

@@ -21,6 +21,7 @@ class InsightGenerator:
         errors: List[ErrorAnalysisEntry],
         charts: PerformanceAnalyticsCharts,
     ) -> List[PerformanceInsightEntry]:
+        """Return narrative insights derived from analytics data."""
         del charts  # Currently unused but reserved for future heuristics
 
         insights: List[PerformanceInsightEntry] = []

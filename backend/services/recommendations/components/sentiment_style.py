@@ -39,12 +39,14 @@ class SentimentStyleAnalyzer(SentimentStyleAnalyzerProtocol):
     def __init__(
         self, *, device: str = "cuda", logger: logging.Logger | None = None
     ) -> None:
+        """Initialise the analyser with device preference and logging."""
         self._device = device
         self._logger = logger or logging.getLogger(__name__)
         self._sentiment_pipeline: Any | None = None
         self._style_pipeline: Any | None = None
 
     def analyze_sentiment(self, text: str) -> Dict[str, Any]:
+        """Analyse ``text`` and return sentiment metadata."""
         if not text:
             return {"sentiment_label": "NEUTRAL", "sentiment_score": 0.5}
 
@@ -65,6 +67,7 @@ class SentimentStyleAnalyzer(SentimentStyleAnalyzerProtocol):
             return self._fallback_sentiment(text)
 
     def classify_style(self, text: str) -> Dict[str, Any]:
+        """Classify ``text`` into coarse style categories."""
         if not text:
             return {"predicted_style": "unknown", "style_confidence": 0.0}
 

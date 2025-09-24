@@ -70,6 +70,7 @@ class ArchiveExportPlanner:
         *,
         throughput_bytes_per_sec: int = 10 * 1024 * 1024,
     ) -> None:
+        """Configure planner dependencies and throughput assumptions."""
         self._adapter_service = adapter_service
         self._storage = storage_service
         self._throughput_bytes_per_sec = throughput_bytes_per_sec

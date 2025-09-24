@@ -31,6 +31,7 @@ class ConnectionManager:
     """Manage WebSocket connections and subscription routing."""
 
     def __init__(self) -> None:
+        """Initialise connection registries."""
         self.active_connections: Dict[str, WebSocket] = {}
         self.job_subscriptions: Dict[str, Set[str]] = {}
         self.connection_subscriptions: Dict[str, Set[str]] = {}

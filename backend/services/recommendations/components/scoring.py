@@ -32,9 +32,11 @@ class ScoreCalculator(ScoreCalculatorProtocol):
     ]
 
     def __init__(self, *, logger: logging.Logger | None = None) -> None:
+        """Initialise the score calculator with an optional logger."""
         self._logger = logger or logging.getLogger(__name__)
 
     def compute(self, lora: Any) -> Dict[str, Any]:
+        """Calculate heuristic scoring data for ``lora``."""
         stats = getattr(lora, "stats", None)
         tags = getattr(lora, "tags", None)
         sd_version = getattr(lora, "sd_version", None)

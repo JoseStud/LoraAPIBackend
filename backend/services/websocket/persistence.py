@@ -26,9 +26,11 @@ class DeliveryJobStateRepository(JobStateRepository):
             [], AbstractContextManager[Session]
         ] = get_session_context,
     ) -> None:
+        """Store the session factory used to access delivery data."""
         self._session_factory = session_factory
 
     def get_job_state(self, job_id: str) -> Optional[PersistedJobState]:
+        """Return persisted state for ``job_id`` using a service context."""
         with self._session_factory() as session:
             repository = DeliveryJobRepository(session)
             service = DeliveryService(repository)

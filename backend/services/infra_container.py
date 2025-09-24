@@ -1,3 +1,5 @@
+"""Infrastructure service registry assembly utilities."""
+
 from __future__ import annotations
 
 from typing import Optional
@@ -40,6 +42,7 @@ class InfrastructureServiceRegistry:
         websocket_provider: Optional[WebSocketServiceFactory] = None,
         system_provider: SystemServiceFactory = make_system_service,
     ) -> None:
+        """Prepare infrastructure service factories and optional overrides."""
         self._core = core
         self._domain = domain
         self._queue_orchestrator = queue_orchestrator

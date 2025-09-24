@@ -18,6 +18,7 @@ class DeliveryRunner:
     """Coordinate delivery job execution using registered backends."""
 
     def __init__(self, delivery_registry: DeliveryRegistry) -> None:
+        """Store the registry used to resolve delivery backends."""
         self._delivery_registry = delivery_registry
 
     def process_delivery_job(
@@ -56,7 +57,7 @@ class DeliveryRunner:
         retries_left: Optional[int] = None,
         raise_on_error: bool = False,
     ) -> None:
-        """Internal coroutine that loads state and executes the backend."""
+        """Load delivery state and execute the selected backend."""
         prompt: str
         mode: str
         params: Dict[str, Any]

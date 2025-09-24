@@ -1,3 +1,5 @@
+"""Domain service registry composition helpers."""
+
 from __future__ import annotations
 
 from typing import Optional
@@ -43,6 +45,7 @@ class DomainServiceRegistry:
         ),
         recommendation_gpu_available: Optional[bool] = None,
     ) -> None:
+        """Initialise factories for domain-level service construction."""
         self._core = core
         self.db_session = db_session
         self._analytics_repository = analytics_repository

@@ -38,6 +38,7 @@ class ArchiveService:
         chunk_size: int = 64 * 1024,
         spooled_file_max_size: int = 32 * 1024 * 1024,
     ) -> None:
+        """Initialise archive planners and executors with optional overrides."""
         self._adapter_service = adapter_service
         self._chunk_size = chunk_size
         self._spooled_file_max_size = spooled_file_max_size

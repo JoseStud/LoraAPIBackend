@@ -14,6 +14,7 @@ class RecommendationPersistenceService(PersistenceServiceProtocol):
     """Adapter around ``RecommendationPersistenceManager`` with friendly APIs."""
 
     def __init__(self, manager: RecommendationPersistenceManager) -> None:
+        """Store the low-level persistence manager."""
         self._manager = manager
 
     async def rebuild_similarity_index(

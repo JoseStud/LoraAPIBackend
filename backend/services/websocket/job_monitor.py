@@ -37,7 +37,9 @@ class PersistedJobState:
 class JobStateRepository(Protocol):
     """Protocol for loading persisted job state."""
 
-    def get_job_state(self, job_id: str) -> Optional[PersistedJobState]: ...
+    def get_job_state(self, job_id: str) -> Optional[PersistedJobState]:
+        """Return persisted state for ``job_id`` if available."""
+        ...
 
 
 ProgressCallback = Callable[[ProgressUpdate], Awaitable[None]]
@@ -53,6 +55,7 @@ class JobProgressMonitor:
         repository: Optional[JobStateRepository] = None,
         poll_interval: float = 2.0,
     ) -> None:
+        """Configure the repository and polling interval."""
         self._repository = repository
         self._poll_interval = poll_interval
         self._tasks: Dict[str, asyncio.Task[None]] = {}

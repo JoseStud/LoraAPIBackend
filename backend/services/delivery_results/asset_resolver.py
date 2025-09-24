@@ -21,6 +21,7 @@ class ResultAssetResolver:
     """Discover and delete persisted result assets."""
 
     def __init__(self, repository: DeliveryJobRepository) -> None:
+        """Initialise resolver with the delivery repository."""
         self._repository = repository
 
     # ------------------------------------------------------------------

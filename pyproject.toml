@@ -23,10 +23,6 @@ ignore = ["D203", "D213", "COM812"]
 "tests/**/*.py" = ["D"]
 "infrastructure/alembic/versions/*.py" = ["D"]
 "backend/migrations/versions/*.py" = ["D"]
-# TODO: remove these docstring exemptions once legacy services/workers gain documentation.
-"backend/services/**/*.py" = ["D100", "D101", "D102", "D103", "D105", "D107", "D401"]
-"backend/utils/cache.py" = ["D100", "D101", "D102", "D103", "D105", "D107", "D401"]
-"backend/workers/**/*.py" = ["D100", "D101", "D102", "D103", "D105", "D107", "D401"]
 "examples/**/*.py" = ["D"]
 
 [tool.ruff.lint.flake8-bugbear]

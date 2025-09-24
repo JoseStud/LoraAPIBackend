@@ -36,6 +36,7 @@ class RecommendationService:
         config: RecommendationConfig,
         logger: Optional[logging.Logger] = None,
     ) -> None:
+        """Initialise the service facade with its core collaborators."""
         self._logger = logger or logging.getLogger(__name__)
 
         self._embedding_coordinator = embedding_coordinator

@@ -9,6 +9,7 @@ class RecommendationConfig:
     """Expose tunable persistence paths for recommendations."""
 
     def __init__(self, persistence: RecommendationPersistenceService) -> None:
+        """Store the persistence service used to resolve paths."""
         self._persistence = persistence
 
     @property

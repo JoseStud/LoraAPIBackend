@@ -18,6 +18,7 @@ class DeliveryJobMapper:
     """Serialize and deserialize database columns for delivery jobs."""
 
     def __init__(self, *, now: Optional[Callable[[], datetime]] = None) -> None:
+        """Store the callable used for timestamp generation."""
         self._now = now or (lambda: datetime.now(timezone.utc))
 
     def serialize_params(self, params: Optional[Dict[str, Any]]) -> str:
@@ -141,11 +142,13 @@ class DeliveryJobRepository:
         *,
         mapper: Optional[DeliveryJobMapper] = None,
     ) -> None:
+        """Initialise repository with a session and optional mapper."""
         self._session = session
         self._mapper = mapper or DeliveryJobMapper()
 
     @property
     def mapper(self) -> DeliveryJobMapper:
+        """Return the mapper responsible for serialization helpers."""
         return self._mapper
 
     @property
@@ -159,6 +162,7 @@ class DeliveryJobRepository:
         mode: str,
         params: Optional[Dict[str, Any]] = None,
     ) -> DeliveryJob:
+        """Persist a new delivery job and return the stored model."""
         job = DeliveryJob(
             prompt=prompt,
             mode=mode,
@@ -170,6 +174,7 @@ class DeliveryJobRepository:
         return job
 
     def get_job(self, job_id: str) -> Optional[DeliveryJob]:
+        """Retrieve a delivery job by identifier."""
         return self._session.get(DeliveryJob, job_id)
 
     def list_jobs(
@@ -179,6 +184,7 @@ class DeliveryJobRepository:
         limit: int = 100,
         offset: int = 0,
     ) -> List[DeliveryJob]:
+        """List jobs with optional status filtering and pagination."""
         query = select(DeliveryJob)
         if status:
             query = query.where(DeliveryJob.status == status)
@@ -189,6 +195,7 @@ class DeliveryJobRepository:
         return list(self._session.exec(query).all())
 
     def count_active_jobs(self) -> int:
+        """Return the number of jobs considered active."""
         result = self._session.exec(
             select(func.count(DeliveryJob.id)).where(
                 DeliveryJob.status.in_(_ACTIVE_STATUSES)
@@ -197,6 +204,7 @@ class DeliveryJobRepository:
         return int(result or 0)
 
     def get_queue_statistics(self) -> Dict[str, int]:
+        """Summarise queue-oriented counts for dashboards."""
         total_jobs = self._session.exec(select(func.count(DeliveryJob.id))).one() or 0
         active_jobs = self.count_active_jobs()
         running_jobs = (
@@ -224,6 +232,7 @@ class DeliveryJobRepository:
         }
 
     def get_recent_activity(self, *, limit: int = 10) -> List[Dict[str, Any]]:
+        """Return recent job activity formatted for the dashboard feed."""
         query = (
             select(DeliveryJob)
             .order_by(DeliveryJob.created_at.desc())
@@ -339,6 +348,7 @@ class DeliveryJobRepository:
         result: Optional[Dict[str, Any]] = None,
         error: Optional[str] = None,
     ) -> Optional[DeliveryJob]:
+        """Update stored job status/result fields and return the job."""
         job = self.get_job(job_id)
         if job is None:
             return None
@@ -355,9 +365,11 @@ class DeliveryJobRepository:
         return job
 
     def get_job_params(self, job: DeliveryJob) -> Dict[str, Any]:
+        """Decode the serialized parameter payload for ``job``."""
         return self._mapper.deserialize_params(job.params)
 
     def get_job_result(self, job: DeliveryJob) -> Optional[Dict[str, Any]]:
+        """Decode the serialized result payload for ``job``."""
         return self._mapper.deserialize_result(job.result)
 
 

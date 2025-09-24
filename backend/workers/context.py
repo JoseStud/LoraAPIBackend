@@ -57,6 +57,7 @@ class WorkerContext:
         recommendation_gpu_available: Optional[bool] = None,
         async_runner: Optional[AsyncRunner] = None,
     ) -> None:
+        """Capture queue, runner, and scheduling helpers for worker tasks."""
         primary, fallback = queue_orchestrator.get_backends()
         queue_backend = primary or fallback
         if queue_backend is None:  # pragma: no cover - defensive guard

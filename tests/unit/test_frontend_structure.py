@@ -24,6 +24,23 @@ class TestFrontendStructure:
         legacy_root = FRONTEND_DIR / "static" / "js"
         assert not legacy_root.exists(), "legacy Alpine bundles should be removed"
 
+    def test_python_frontend_package_removed(self) -> None:
+        """Historical Python frontend modules should no longer exist."""
+
+        legacy_modules = [
+            FRONTEND_DIR / "__init__.py",
+            FRONTEND_DIR / "config.py",
+            FRONTEND_DIR / "cache.py",
+            FRONTEND_DIR / "errors.py",
+            FRONTEND_DIR / "schemas.py",
+            FRONTEND_DIR / "logging.py",
+            FRONTEND_DIR / "utils",
+        ]
+
+        for module in legacy_modules:
+            message = f"{module} should be removed with the SPA migration"
+            assert not module.exists(), message
+
     def test_vue_views_cover_workflows(self) -> None:
         """Ensure that workflow views include the core feature components."""
         workflows = {

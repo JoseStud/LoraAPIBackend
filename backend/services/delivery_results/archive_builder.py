@@ -27,6 +27,7 @@ class ResultArchiveBuilder:
         repository: DeliveryJobRepository,
         asset_resolver: ResultAssetResolver,
     ) -> None:
+        """Initialise the builder with persistence and asset resolvers."""
         self._repository = repository
         self._assets = asset_resolver
 

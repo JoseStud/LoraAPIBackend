@@ -27,6 +27,7 @@ class BackupService:
         *,
         base_directory: Optional[Path | str] = None,
     ) -> None:
+        """Initialise backup storage paths and dependencies."""
         self._archive_service = archive_service
         root = Path(base_directory or settings.IMPORT_PATH or (Path.cwd() / "loras"))
         self._backups_dir = root / "backups"
