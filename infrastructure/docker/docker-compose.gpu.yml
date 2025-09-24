@@ -24,7 +24,9 @@ services:
 
   # SDNext with GPU support for faster generation
   sdnext:
-    image: vladmandic/automatic:latest
+    build:
+      context: ./sdnext_src
+      dockerfile: Dockerfile
     restart: unless-stopped
     ports:
       - '7860:7860'

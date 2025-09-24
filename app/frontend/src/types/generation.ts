@@ -3,6 +3,7 @@
  */
 
 import type { GenerationJob, NormalizedJobStatus } from './app';
+import type { JsonObject } from './json';
 import type { SystemStatusPayload } from './system';
 
 export interface GenerationFormState {
@@ -33,20 +34,22 @@ export interface SDNextGenerationParams {
   denoising_strength?: number | null;
 }
 
+export type GenerationMode = 'immediate' | 'deferred';
+
+export type GenerationResultFormat = 'base64' | 'file_path' | 'url';
+
 export interface ComposeDeliverySDNext {
   generation_params: SDNextGenerationParams;
-  mode?: string;
+  mode?: GenerationMode;
   save_images?: boolean;
-  return_format?: string;
+  return_format?: GenerationResultFormat;
 }
 
 export interface SDNextDeliveryParams {
   generation_params: SDNextGenerationParams;
-  /** One of "immediate" or "deferred". */
-  mode?: string;
+  mode?: GenerationMode;
   save_images?: boolean;
-  /** One of "base64", "url", or "file_path". */
-  return_format?: string;
+  return_format?: GenerationResultFormat;
 }
 
 export interface SDNextGenerationResult {
@@ -58,11 +61,7 @@ export interface SDNextGenerationResult {
   /** 0.0–1.0 progress indicator. */
   progress?: number | null;
   error_message?: string | null;
-  /**
-   * Backend emits engine-specific metadata here.
-   * TODO: update once generation_info payload is formalised.
-   */
-  generation_info?: Record<string, unknown> | null;
+  generation_info?: JsonObject | null;
 }
 
 export interface GenerationLoraReference {
@@ -71,38 +70,49 @@ export interface GenerationLoraReference {
   version?: string | null;
   weight?: number | null;
   adapter_id?: string | null;
-  /** Additional metadata attached to the LoRA reference. */
-  extra?: Record<string, unknown> | null;
+  extra?: JsonObject | null;
+}
+
+export interface GenerationJobStatus {
+  id: string;
+  jobId?: string | null;
+  prompt?: string | null;
+  status: NormalizedJobStatus | string;
+  progress: number;
+  message?: string | null;
+  error?: string | null;
+  params?: JsonObject;
+  created_at: string;
+  startTime?: string | null;
+  finished_at?: string | null;
+  result?: JsonObject | null;
 }
 
 export interface GenerationHistoryResult {
   id: string | number;
-  job_id?: string | null;
-  prompt: string;
+  job_id?: string;
+  prompt?: string | null;
   negative_prompt?: string | null;
-  image_url: string;
+  status?: NormalizedJobStatus | string | null;
+  image_url?: string | null;
   thumbnail_url?: string | null;
   created_at: string;
+  finished_at?: string | null;
   updated_at?: string | null;
-  width: number;
-  height: number;
-  steps: number;
-  cfg_scale: number;
+  width?: number | null;
+  height?: number | null;
+  steps?: number | null;
+  cfg_scale?: number | null;
   seed?: number | null;
   sampler_name?: string | null;
   model_name?: string | null;
-  status?: string | null;
   rating?: number | null;
   is_favorite?: boolean;
   rating_updated_at?: string | null;
   favorite_updated_at?: string | null;
+  generation_info?: JsonObject | null;
+  metadata?: JsonObject | null;
   loras?: GenerationLoraReference[] | null;
-  metadata?: Record<string, unknown> | null;
-  /**
-   * Backend may return additional engine-specific fields.
-   * Consumers should narrow this record when stricter typing becomes available.
-   */
-  [key: string]: unknown;
 }
 
 export type GenerationHistoryEntry = GenerationHistoryResult;
@@ -145,7 +155,7 @@ export interface GenerationHistoryQuery {
   height?: number;
   start_date?: string;
   end_date?: string;
-  [key: string]: unknown;
+  date_filter?: string;
 }
 
 export interface GenerationRatingUpdate {
@@ -181,10 +191,9 @@ export type GenerationRequestPayload = SDNextGenerationParams;
 export type GenerationStartResponse = SDNextGenerationResult;
 
 export interface GenerationCancelResponse {
-  success?: boolean;
-  status?: string;
+  success: boolean;
+  status: string;
   message?: string | null;
-  [key: string]: unknown;
 }
 
 export interface ProgressUpdate {
@@ -212,11 +221,7 @@ export interface GenerationComplete {
   images?: string[] | null;
   error_message?: string | null;
   total_duration?: number | null;
-  /**
-   * Backend emits engine-specific metadata here.
-   * TODO: align once generation_info gains a stable contract.
-   */
-  generation_info?: Record<string, unknown> | null;
+  generation_info?: JsonObject | null;
 }
 
 export interface GenerationProgressMessage extends ProgressUpdate {

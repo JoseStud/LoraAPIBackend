@@ -1,12 +1,12 @@
 import { onBeforeUnmount, onMounted, ref, watch, type ComputedRef } from 'vue';
 
-import type { JobQueueRecord } from '@/composables/generation';
+import type { GenerationJobStatus } from '@/types';
 
 export interface UseJobQueuePollingOptions {
   disabled: ComputedRef<boolean>;
   pollInterval: ComputedRef<number>;
-  fetchJobs: () => Promise<JobQueueRecord[] | null>;
-  onRecord: (record: JobQueueRecord) => void;
+  fetchJobs: () => Promise<GenerationJobStatus[] | null>;
+  onRecord: (record: GenerationJobStatus) => void;
 }
 
 export const useJobQueuePolling = ({
@@ -19,7 +19,7 @@ export const useJobQueuePolling = ({
   const isPolling = ref(false);
   const pollTimer = ref<ReturnType<typeof setInterval> | null>(null);
 
-  const applyRecords = (records: JobQueueRecord[] | null | undefined): void => {
+  const applyRecords = (records: GenerationJobStatus[] | null | undefined): void => {
     if (!Array.isArray(records) || records.length === 0) {
       return;
     }

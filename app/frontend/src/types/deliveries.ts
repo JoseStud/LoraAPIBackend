@@ -3,6 +3,7 @@
  */
 
 import type { ComposeDeliverySDNext } from './generation';
+import type { JsonObject } from './json';
 
 export interface ComposeDeliveryHTTP {
   host: string;
@@ -42,23 +43,15 @@ export interface ComposeRequest {
 export interface DeliveryCreate {
   prompt: string;
   mode: string;
-  /**
-   * Backend accepts arbitrary parameter dictionaries for different delivery engines.
-   * TODO: tighten this definition when concrete parameter schemas are published.
-   */
-  params?: Record<string, unknown> | null;
+  params?: JsonObject | null;
 }
 
 export interface DeliveryRead {
   id: string;
   prompt: string;
   mode: string;
-  params: Record<string, unknown>;
-  /**
-   * Delivery result varies per delivery type (image URLs, metadata, errors, ...).
-   * TODO: introduce discriminated unions once backend standardises result payloads.
-   */
-  result?: unknown;
+  params: JsonObject;
+  result?: JsonObject | null;
   status: string;
   created_at: string;
   started_at?: string | null;

@@ -115,6 +115,18 @@ Docker Compose will automatically merge the configurations, giving you a customi
 
 ### Accessing the Services
 
-- **LoRA Backend API**: `http://localhost:8000` (or your custom `BACKEND_PORT`)
-- **API Documentation**: `http://localhost:8000/docs`
+- **LoRA Backend API**: `http://localhost:8782` when using the provided Docker compose files (the container publishes port 8782
+  on the host). Local `uvicorn` development still defaults to `http://localhost:8000` unless you override `BACKEND_PORT`.
+- **API Documentation**: `http://localhost:8782/docs`
 - **SD.Next WebUI**: `http://localhost:7860`
+
+When developing the frontend against the Docker backend, point the Vite proxy at the exposed port and provide the API key that
+the containers expect:
+
+```bash
+BACKEND_URL=http://localhost:8782 \
+VITE_BACKEND_API_KEY=dev-api-key-123 \
+npm run dev
+```
+
+The frontend also honours `VITE_API_KEY` for compatibility with older `.env` files.

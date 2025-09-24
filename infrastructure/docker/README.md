@@ -138,6 +138,20 @@ Your DeepVault model structure is automatically mounted:
 
 ## 🚀 Development Workflow
 
+### ⚠️ Quick Fix for 403 API Errors
+
+If you see `HTTP/1.1 403 Forbidden` errors in the browser console, the frontend needs API authentication configured:
+
+```bash
+# Create frontend environment file with API key
+echo "VITE_API_KEY=dev-api-key-123" > app/frontend/.env.local
+
+# Restart the Vite dev server
+npm run dev
+```
+
+This matches the `API_KEY` configured in the Docker backend.
+
 ### 1. First-time Setup
 ```bash
 # Clone and prepare

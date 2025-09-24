@@ -3,6 +3,7 @@
  */
 
 import type { GeneratedNormalizedJobStatus } from '@/constants/generated/jobStatuses';
+
 import type {
   RecommendationRuntimeStatus,
   SystemImporterStatus,
@@ -10,6 +11,9 @@ import type {
   SystemThresholds,
   SystemSdNextStatus,
 } from './system';
+
+import type { JsonObject } from './json';
+
 
 export interface FrontendRuntimeSettings {
   backendUrl: string;
@@ -65,12 +69,9 @@ export interface GenerationJob {
   steps?: number;
   cfg_scale?: number;
   seed?: number | null;
-  params?: Record<string, unknown> & {
-    width?: number;
-    height?: number;
-    steps?: number;
-  };
-  [key: string]: unknown;
+  params?: JsonObject | null;
+  result?: JsonObject | null;
+  error?: string | null;
 }
 
 export interface GenerationResult {
@@ -87,7 +88,9 @@ export interface GenerationResult {
   cfg_scale?: number;
   seed?: number | null;
   created_at?: string;
-  [key: string]: unknown;
+  finished_at?: string | null;
+  status?: JobStatus | string;
+  generation_info?: JsonObject | null;
 }
 
 export type NotificationType = 'info' | 'success' | 'error' | 'warning';

@@ -1,22 +1,15 @@
 import { ref, type Ref } from 'vue';
 
 import { ensureData, getJson, postJson } from '@/utils/api';
+import type { BackupHistoryItem } from '@/types';
 import type { NotifyFn } from './useExportWorkflow';
-
-export interface BackupEntry {
-  id: string;
-  type: string;
-  size?: number;
-  status: string;
-  created_at: string;
-}
 
 interface UseBackupWorkflowOptions {
   notify: NotifyFn;
 }
 
 export interface UseBackupWorkflow {
-  backupHistory: Ref<BackupEntry[]>;
+  backupHistory: Ref<BackupHistoryItem[]>;
   initialize: () => Promise<void>;
   createFullBackup: () => Promise<void>;
   createQuickBackup: () => Promise<void>;
@@ -28,7 +21,7 @@ export interface UseBackupWorkflow {
 
 export function useBackupWorkflow(options: UseBackupWorkflowOptions): UseBackupWorkflow {
   const { notify } = options;
-  const history = ref<BackupEntry[]>([]);
+  const history = ref<BackupHistoryItem[]>([]);
 
   const loadHistory = async () => {
     try {
@@ -36,9 +29,13 @@ export function useBackupWorkflow(options: UseBackupWorkflowOptions): UseBackupW
       const data = response?.data;
 
       if (Array.isArray(data)) {
-        history.value = data as BackupEntry[];
-      } else if (data && typeof data === 'object' && Array.isArray((data as Record<string, unknown>).history)) {
-        history.value = (data as { history: BackupEntry[] }).history;
+        history.value = data as BackupHistoryItem[];
+      } else if (
+        data &&
+        typeof data === 'object' &&
+        Array.isArray((data as { history?: BackupHistoryItem[] }).history)
+      ) {
+        history.value = (data as { history: BackupHistoryItem[] }).history;
       } else {
         history.value = [];
       }
@@ -52,9 +49,9 @@ export function useBackupWorkflow(options: UseBackupWorkflowOptions): UseBackupW
 
   const createBackup = async (backupType: 'full' | 'quick', successMessage: string) => {
     try {
-      const result = ensureData(
-        await postJson('/api/v1/backup/create', { backup_type: backupType })
-      ) as Record<string, unknown> | null;
+      const result =
+        ensureData(await postJson<{ backup_id?: string }>('/api/v1/backup/create', { backup_type: backupType }))
+        ?? null;
       const backupId = typeof result?.backup_id === 'string' ? result.backup_id : null;
       notify(backupId ? `${successMessage}: ${backupId}` : successMessage, 'success');
       await loadHistory();

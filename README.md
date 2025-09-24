@@ -78,7 +78,10 @@ experience comes from enabling the optional dependencies:
 
    By default the SPA proxies requests to the backend on the same origin. Set
    the `BACKEND_URL` environment variable when the API runs on a different
-   host. The backend surfaces this value through `/frontend/settings`, so no
+   host (for example `http://localhost:8782` when hitting the Docker backend).
+   Provide the API key through `VITE_BACKEND_API_KEY` (or the legacy
+   `VITE_API_KEY`) so every request carries the required `X-API-Key` header.
+   The backend surfaces these values through `/frontend/settings`, so no
    additional Python-side frontend configuration is required.
 
 Useful combined workflows live in `package.json`, including `npm run dev:full`

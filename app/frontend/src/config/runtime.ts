@@ -80,7 +80,9 @@ if (envBackendBase !== undefined && !envBackendBase.trim()) {
   );
 }
 
-const envBackendApiKey = readEnvString(import.meta.env.VITE_BACKEND_API_KEY);
+const envBackendApiKey =
+  readEnvString(import.meta.env.VITE_BACKEND_API_KEY)
+  ?? readEnvString(import.meta.env.VITE_API_KEY);
 const windowSettings = readWindowSettings();
 
 const backendBasePath = sanitizeBasePath(
