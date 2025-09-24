@@ -7,27 +7,42 @@ import { useGenerationQueueStore } from '@/stores/generation';
 
 const serviceMocks = vi.hoisted(() => ({
   fetchActiveGenerationJobs: vi.fn(),
+  cancelGenerationJob: vi.fn(),
 }));
 
-vi.mock('@/services', () => serviceMocks);
+vi.mock('@/services', () => ({
+  fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
+  cancelGenerationJob: serviceMocks.cancelGenerationJob,
+  buildAdapterListQuery: vi.fn(),
+  useAdapterListApi: vi.fn(),
+}));
 
-const notificationMocks = vi.hoisted(() => ({
-  notifications: { value: [] as unknown[] },
+const toastMocks = vi.hoisted(() => ({
+  isVisible: { value: false },
+  message: { value: '' },
+  type: { value: 'info' },
+  duration: { value: 3000 },
+  showToast: vi.fn(),
+  hideToast: vi.fn(),
   showSuccess: vi.fn(),
   showError: vi.fn(),
   showInfo: vi.fn(),
   showWarning: vi.fn(),
-  addNotification: vi.fn(),
-  removeNotification: vi.fn(),
-  clearAll: vi.fn(),
+  clearTimer: vi.fn(),
 }));
 
-vi.mock('@/composables/shared', () => ({
-  useNotifications: () => notificationMocks,
-}));
+vi.mock('@/composables/shared', async () => {
+  const actual = await vi.importActual('@/composables/shared');
+  return {
+    ...actual,
+    useToast: () => toastMocks,
+  };
+});
 
 vi.mock('@/utils/backend', () => ({
+  DEFAULT_BACKEND_BASE: '/api/v1',
   useBackendBase: () => computed(() => '/api/v1'),
+  resolveBackendUrl: (path: string) => `/api/v1${path}`,
 }));
 
 const withQueue = async (
@@ -53,7 +68,9 @@ const withQueue = async (
 describe('useJobQueue', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    notificationMocks.notifications.value = [];
+    toastMocks.showSuccess.mockClear();
+    toastMocks.showError.mockClear();
+    toastMocks.showInfo.mockClear();
   });
 
   it('continues polling after transient failures', async () => {
@@ -109,7 +126,7 @@ describe('useJobQueue', () => {
       await queue.refresh();
       await Promise.resolve();
 
-      expect(notificationMocks.showSuccess).toHaveBeenCalledWith('Generation completed!');
+      expect(toastMocks.showSuccess).toHaveBeenCalledWith('Generation completed!');
       expect(queue.jobs.value).toHaveLength(0);
     }, () => ({
       disabled: computed(() => disabled.value),
@@ -129,7 +146,7 @@ describe('useJobQueue', () => {
       await queue.refresh();
       await Promise.resolve();
 
-      expect(notificationMocks.showError).toHaveBeenCalledWith('Generation failed: Boom');
+      expect(toastMocks.showError).toHaveBeenCalledWith('Generation failed: Boom');
     }, () => ({
       disabled: computed(() => nextDisabled.value),
     }));

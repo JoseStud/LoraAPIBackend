@@ -23,6 +23,8 @@ import {
   type RatingFilterOption,
   type DimensionFilterOption,
 } from '@/composables/history';
+import { usePersistence } from '@/composables/shared';
+import { PERSISTENCE_KEYS } from '@/constants/persistence';
 import { useBackendBase } from '@/utils/backend';
 import { formatHistoryDate } from '@/utils/format';
 import type { GenerationHistoryResult } from '@/types';
@@ -39,6 +41,7 @@ const isInitialized = ref(false);
 
 const apiBaseUrl = useBackendBase();
 const router = useRouter();
+const persistence = usePersistence();
 
 const {
   data,
@@ -138,9 +141,9 @@ const { unregister: unregisterShortcuts } = useHistoryShortcuts({
 });
 
 onMounted(async () => {
-  const savedViewMode = localStorage.getItem('history-view-mode');
+  const savedViewMode = persistence.getItem(PERSISTENCE_KEYS.historyViewMode);
   if (savedViewMode === 'grid' || savedViewMode === 'list') {
-    viewMode.value = savedViewMode;
+    viewMode.value = savedViewMode as HistoryViewMode;
   }
 
   await loadInitialResults();
@@ -153,7 +156,7 @@ onUnmounted(() => {
 });
 
 watch(viewMode, (newMode: HistoryViewMode) => {
-  localStorage.setItem('history-view-mode', newMode);
+  persistence.setItem(PERSISTENCE_KEYS.historyViewMode, newMode);
 });
 
 const updateViewMode = (mode: HistoryViewMode): void => {

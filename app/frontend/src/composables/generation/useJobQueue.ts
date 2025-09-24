@@ -5,7 +5,7 @@ import { useGenerationQueueStore, useGenerationResultsStore } from '@/stores/gen
 import { useBackendBase } from '@/utils/backend';
 import type { GenerationJob, GenerationResult } from '@/types';
 import { normalizeJobStatus } from '@/utils/status';
-import { useNotifications } from '@/composables/shared';
+import { useToast } from '@/composables/shared';
 
 import { useJobQueueTransport, type JobQueueRecord } from '@/composables/generation';
 import { useJobQueuePolling } from '@/composables/generation';
@@ -93,7 +93,7 @@ const applyJobRecord = (
   getActiveJobs: () => ReadonlyArray<GenerationJob>,
   queueStore: ReturnType<typeof useGenerationQueueStore>,
   resultsStore: ReturnType<typeof useGenerationResultsStore>,
-  notifications: ReturnType<typeof useNotifications>,
+  toast: ReturnType<typeof useToast>,
 ): void => {
   const jobId = pickJobId(record);
   if (!jobId) {
@@ -112,7 +112,7 @@ const applyJobRecord = (
     }
     if (wasTracked && existing) {
       queueStore.removeJob(existing.id);
-      notifications.showSuccess('Generation completed!');
+      toast.showSuccess('Generation completed!');
     }
     return;
   }
@@ -122,9 +122,9 @@ const applyJobRecord = (
       queueStore.removeJob(existing.id);
       const errorMessage = extractErrorMessage(record);
       if (rawStatus?.toLowerCase() === 'cancelled') {
-        notifications.showInfo('Generation cancelled');
+        toast.showInfo('Generation cancelled');
       } else {
-        notifications.showError(`Generation failed: ${errorMessage}`);
+        toast.showError(`Generation failed: ${errorMessage}`);
       }
     }
     return;
@@ -176,7 +176,7 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
   const resultsStore = useGenerationResultsStore();
   const { activeJobs } = storeToRefs(queueStore);
   const backendBase = useBackendBase();
-  const notifications = useNotifications();
+  const toast = useToast();
 
   const transport = useJobQueueTransport({ backendBase });
 
@@ -190,7 +190,7 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
         () => activeJobs.value,
         queueStore,
         resultsStore,
-        notifications,
+        toast,
       ),
   });
 

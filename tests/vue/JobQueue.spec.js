@@ -5,6 +5,7 @@ import JobQueue from '../../app/frontend/src/components/shared/JobQueue.vue';
 import { useAppStore } from '../../app/frontend/src/stores/app';
 import { useGenerationQueueStore } from '../../app/frontend/src/stores/generation';
 import { useSettingsStore } from '../../app/frontend/src/stores/settings';
+import { useToastStore } from '../../app/frontend/src/stores/toast';
 
 const serviceMocks = vi.hoisted(() => ({
   cancelGenerationJob: vi.fn(),
@@ -27,7 +28,8 @@ let appStore;
 let queueStore;
 let removeJobSpy;
 let updateJobSpy;
-let addNotificationSpy;
+let toastStore;
+let toastInfoSpy;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -42,7 +44,9 @@ beforeEach(() => {
   settingsStore.setSettings({ backendUrl: '/api/v1' });
   removeJobSpy = vi.spyOn(queueStore, 'removeJob');
   updateJobSpy = vi.spyOn(queueStore, 'updateJob');
-  addNotificationSpy = vi.spyOn(appStore, 'addNotification');
+  toastStore = useToastStore();
+  toastStore.$reset();
+  toastInfoSpy = vi.spyOn(toastStore, 'showInfo');
 
   global.window = {
     ...global.window,
@@ -202,7 +206,7 @@ describe('JobQueue.vue', () => {
     // Should try generation endpoint first
     expect(serviceMocks.cancelGenerationJob).toHaveBeenCalledWith('backend-job-1', '/api/v1');
     expect(removeJobSpy).toHaveBeenCalledWith('job1');
-    expect(addNotificationSpy).toHaveBeenCalledWith('Job cancelled', 'info', expect.any(Number));
+    expect(toastInfoSpy).toHaveBeenCalledWith('Job cancelled');
 
     wrapper.unmount();
   });

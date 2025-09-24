@@ -3,7 +3,7 @@ import { storeToRefs } from 'pinia';
 
 import { cancelGenerationJob } from '@/services';
 import { useGenerationQueueStore } from '@/stores/generation';
-import { useNotifications } from '@/composables/shared';
+import { useToast } from '@/composables/shared';
 import { useBackendBase } from '@/utils/backend';
 
 export interface UseJobQueueActionsOptions {
@@ -12,7 +12,7 @@ export interface UseJobQueueActionsOptions {
 
 export const useJobQueueActions = (options: UseJobQueueActionsOptions = {}) => {
   const queueStore = useGenerationQueueStore();
-  const notifications = useNotifications();
+  const toast = useToast();
   const backendBase = options.backendBase ?? useBackendBase();
   const { activeJobs } = storeToRefs(queueStore);
 
@@ -37,13 +37,13 @@ export const useJobQueueActions = (options: UseJobQueueActionsOptions = {}) => {
 
     const job = activeJobs.value.find((item) => item.id === jobId);
     if (!job) {
-      notifications.showError('Job not found');
+      toast.showError('Job not found');
       return false;
     }
 
     const backendJobId = job.jobId ?? job.id;
     if (!backendJobId) {
-      notifications.showError('Job not found');
+      toast.showError('Job not found');
       return false;
     }
 
@@ -55,15 +55,15 @@ export const useJobQueueActions = (options: UseJobQueueActionsOptions = {}) => {
         const response = await cancelGenerationJob(backendJobId, backendBaseUrl);
         const cancelled = response?.success !== false;
         if (!cancelled) {
-          notifications.showError('Failed to cancel job');
+          toast.showError('Failed to cancel job');
           return false;
         }
 
         queueStore.removeJob(jobId);
-        notifications.showInfo('Job cancelled');
+        toast.showInfo('Job cancelled');
         return true;
       } catch (error) {
-        notifications.showError('Failed to cancel job');
+        toast.showError('Failed to cancel job');
         return false;
       }
     } finally {

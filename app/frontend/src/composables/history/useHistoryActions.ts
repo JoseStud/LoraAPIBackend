@@ -1,6 +1,8 @@
 import type { Ref } from 'vue';
 import type { Router } from 'vue-router';
 
+import { usePersistence } from '@/composables/shared';
+import { PERSISTENCE_KEYS } from '@/constants/persistence';
 import { downloadFile } from '@/utils/browser';
 import {
   deleteResult as deleteHistoryResult,
@@ -11,16 +13,14 @@ import {
   favoriteResults as favoriteHistoryResults,
   rateResult as rateHistoryResult,
 } from '@/services';
-import type { GenerationHistoryResult } from '@/types';
-
-import type { HistoryToastType } from './useHistoryToast';
+import type { GenerationHistoryResult, NotificationType } from '@/types';
 
 export interface UseHistoryActionsOptions {
   apiBaseUrl: Ref<string>;
   data: Ref<GenerationHistoryResult[]>;
   applyFilters: () => void;
   router: Router;
-  showToast: (message: string, type?: HistoryToastType) => void;
+  showToast: (message: string, type?: NotificationType) => void;
   selectedIds: Ref<GenerationHistoryResult['id'][]>;
   selectedCount: Ref<number>;
   clearSelection: () => void;
@@ -44,6 +44,7 @@ export const useHistoryActions = ({
   withUpdatedSelection,
   confirm: confirmOverride,
 }: UseHistoryActionsOptions) => {
+  const persistence = usePersistence();
   const confirmAction = confirmOverride ?? defaultConfirm;
 
   const setRating = async (
@@ -107,7 +108,7 @@ export const useHistoryActions = ({
         loras: result.loras ?? [],
       } as const;
 
-      localStorage.setItem('reuse-parameters', JSON.stringify(parameters));
+      persistence.setJSON(PERSISTENCE_KEYS.reuseParameters, parameters);
 
       showToast('Parameters copied to generation form');
       await router.push({ name: 'compose' });

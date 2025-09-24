@@ -1,14 +1,13 @@
 import { computed, ref } from 'vue';
 
-import type { GenerationHistoryResult } from '@/types';
-
-import { useHistoryToast, type HistoryToastType } from './useHistoryToast';
+import type { GenerationHistoryResult, NotificationType } from '@/types';
+import { useToast } from '@/composables/shared';
 
 export const useHistoryModalCoordinator = () => {
   const modalVisible = ref(false);
   const activeResult = ref<GenerationHistoryResult | null>(null);
 
-  const { toastVisible, toastMessage, toastType, showToastMessage } = useHistoryToast();
+  const toast = useToast();
 
   const isModalOpen = computed(() => modalVisible.value);
 
@@ -22,16 +21,16 @@ export const useHistoryModalCoordinator = () => {
     activeResult.value = null;
   };
 
-  const showToast = (message: string, type: HistoryToastType = 'success'): void => {
-    showToastMessage(message, type);
+  const showToast = (message: string, type: NotificationType = 'success'): void => {
+    toast.showToast(message, type);
   };
 
   return {
     modalVisible,
     activeResult,
-    toastVisible,
-    toastMessage,
-    toastType,
+    toastVisible: toast.isVisible,
+    toastMessage: toast.message,
+    toastType: toast.type,
     isModalOpen,
     openModal,
     closeModal,

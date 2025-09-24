@@ -11,15 +11,15 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-type ToastType = 'success' | 'error' | 'info' | 'warning';
+import type { NotificationType } from '@/types';
 
 const props = defineProps<{
   visible: boolean;
   message: string;
-  type?: ToastType;
+  type?: NotificationType;
 }>();
 
-const classesByType: Record<ToastType, string> = {
+const classesByType: Record<NotificationType, string> = {
   success: 'bg-green-500',
   error: 'bg-red-500',
   info: 'bg-blue-500',
