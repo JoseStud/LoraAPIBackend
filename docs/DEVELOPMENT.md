@@ -99,6 +99,10 @@ components to deliver the dashboard and admin experience.【F:app/frontend/src/c
 `npm run dev:full` runs both servers concurrently, and `npm run dev:backend`
 serves the built frontend from FastAPI.【F:package.json†L5-L31】
 
+Use `npm run prod:build` when you need an optimized bundle. The script now relies
+on `cross-env` so the production `ENVIRONMENT` flag is applied on macOS/Linux and
+Windows shells before the standard build executes.【F:package.json†L12-L24】
+
 ### External dependencies
 
 - **Database** – Defaults to SQLite; set `DATABASE_URL` for PostgreSQL or other
@@ -120,6 +124,11 @@ Some suites depend on Redis, SDNext, or browser binaries. Refer to
 `tests/README.md` for instructions on enabling or skipping those integrations.【F:package.json†L18-L30】【F:tests/README.md†L70-L140】
 
 ## Code quality automation
+
+Run `npm run ci:check` to trigger the same Ruff, pytest, ESLint, and TypeScript
+checks that execute in CI, followed by the production Vite build. The command
+is a thin wrapper around `scripts/ci_check.py`, making it easy to keep local
+changes aligned with automation.【F:package.json†L22-L31】【F:scripts/ci_check.py†L1-L38】
 
 - **Ruff formatting and linting** – Run `ruff format` and `ruff check` (or
   `pre-commit run --all-files`) before pushing changes. CI executes the same
