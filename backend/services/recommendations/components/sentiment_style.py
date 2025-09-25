@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import Any, Dict, Protocol
 
 
@@ -40,6 +41,11 @@ class SentimentStyleAnalyzer(SentimentStyleAnalyzerProtocol):
         self, *, device: str = "cuda", logger: logging.Logger | None = None
     ) -> None:
         """Initialise the analyser with device preference and logging."""
+        warnings.warn(
+            "SentimentStyleAnalyzer is deprecated and will be removed in a future release.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._device = device
         self._logger = logger or logging.getLogger(__name__)
         self._sentiment_pipeline: Any | None = None

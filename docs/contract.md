@@ -102,6 +102,10 @@ service runs without the wrapper in `app/main.py`). Routes are implemented under
 - Feedback and preference persistence requires the optional feedback storage
   configured in `RecommendationService`.
 
+> **Note:** Recommendation endpoints ignore the `lora.description` field when
+> constructing embeddings or scores. The description remains available in API
+> payloads exclusively for display by client applications.
+
 ### Analytics (`/v1/analytics`)
 
 - `GET /v1/analytics/summary` – Aggregate KPIs, error breakdown, time-series

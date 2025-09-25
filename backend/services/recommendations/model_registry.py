@@ -156,5 +156,4 @@ class RecommendationModelRegistry:
             cls._shared_semantic_embedder is not None
             and cls._shared_feature_extractor is not None
             and cls._shared_recommendation_engine is not None
-            and cls._shared_trigger_engine is not None
         )

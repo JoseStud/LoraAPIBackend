@@ -99,9 +99,9 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
 
         if weights is None:
             weights = {
-                "semantic": 0.6,
-                "artistic": 0.3,
-                "technical": 0.1,
+                "semantic": 0.5,
+                "artistic": 0.35,
+                "technical": 0.15,
             }
 
         target_embeddings = (
