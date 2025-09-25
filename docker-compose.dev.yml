@@ -1,0 +1,114 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    container_name: lora-dev-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: lora
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lora"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: lora-dev-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/containers/dev.Dockerfile
+      target: development
+      args:
+        PYTHON_VERSION: "3.11"
+        UID: ${HOST_UID:-1000}
+        GID: ${HOST_GID:-1000}
+    container_name: lora-dev-api
+    command: ["uvicorn", "backend.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
+    volumes:
+      - ./backend:/app/backend
+      - ./app:/app/app
+      - ./loras:/app/loras
+      - ./outputs:/app/outputs
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@db:5432/lora}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      FRONTEND_URL: ${FRONTEND_URL:-http://frontend:5173}
+      API_KEY: ${API_KEY:-dev-token}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: app/frontend/containers/dev.Dockerfile
+      target: development
+      args:
+        NODE_VERSION: "20"
+        UID: ${HOST_UID:-1000}
+        GID: ${HOST_GID:-1000}
+    container_name: lora-dev-frontend
+    working_dir: /usr/src/app
+    volumes:
+      - ./app/frontend:/usr/src/app
+      - node_modules:/usr/src/app/node_modules
+    environment:
+      VITE_BACKEND_URL: ${VITE_BACKEND_URL:-http://api:8000}
+      VITE_BACKEND_API_KEY: ${VITE_BACKEND_API_KEY:-dev-token}
+    ports:
+      - "5173:5173"
+    depends_on:
+      api:
+        condition: service_started
+
+  sdnext:
+    image: vladmandic/automatic:latest
+    container_name: lora-dev-sdnext
+    profiles:
+      - ml
+    ports:
+      - "7860:7860"
+    environment:
+      COMMANDLINE_ARGS: --listen --port 7860 --api --cors-allow-origins=* --enable-insecure-extension-access
+    volumes:
+      - ./loras:/app/models/lora
+      - sdnext_data:/app/repositories
+      - sdnext_outputs:/app/outputs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/sdapi/v1/options"]
+      interval: 60s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
+
+volumes:
+  postgres_data:
+  node_modules:
+  sdnext_data:
+  sdnext_outputs:

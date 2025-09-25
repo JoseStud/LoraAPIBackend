@@ -72,45 +72,44 @@ components to deliver the dashboard and admin experience.【F:app/frontend/src/c
 
 ## Local development
 
-1. Install Python dependencies:
+### Docker workflow
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+`docker-compose.dev.yml` provides the canonical developer topology: FastAPI with
+hot reload, the Vite dev server, PostgreSQL, Redis, and an optional SDNext
+profile. Bind mounts keep reload latency low while allowing editors to work
+against the host filesystem.【F:docker-compose.dev.yml†L1-L104】【F:backend/containers/dev.Dockerfile†L1-L45】【F:app/frontend/containers/dev.Dockerfile†L1-L28】
 
-   Use `requirements-amd.txt` or `requirements-ml.txt` when you need GPU-aware
-   recommendations.
+1. Copy `.env.docker.example` to `.env.docker` when you need to override API
+   keys, database URLs, or UID/GID mappings. The Makefile defaults to the
+   example file so the stack works out-of-the-box.【F:.env.docker.example†L1-L13】【F:Makefile†L1-L24】
+2. Run `make dev` to build the dev images (with caching) and start the
+   containers. The API listens on port `8000` and the frontend dev server on
+   port `5173`. `make dev-ml` enables the SDNext profile, while `make dev-down`
+   and `make dev-clean` stop the stack and optionally remove volumes.【F:Makefile†L5-L22】
+3. Inspect logs with `make dev-logs` or `docker compose logs -f`. Attach a
+   debugger via the exposed ports (e.g., VS Code remote interpreter pointing to
+   `api` on port `8000`).
 
-2. Install Node dependencies:
+Environment variables in `.env.docker` automatically flow into the containers.
+For example, set `API_KEY` to change the backend API key or `VITE_BACKEND_URL`
+to point the SPA at a different API instance.【F:docker-compose.dev.yml†L24-L104】
 
-   ```bash
-   npm install
-   ```
+### Manual workflow (fallback)
 
-3. Launch the backend with auto-reload:
+You can still run everything locally without Docker when debugging container
+issues or reproducing CI environments:
 
-   ```bash
-   uvicorn app.main:app --reload --port 8000
-   ```
+1. Install backend dependencies with `pip install -r requirements.txt` (add
+   `requirements-amd.txt` or `requirements-ml.txt` for GPU workflows).
+2. Install Node dependencies with `npm install`.
+3. Launch `uvicorn backend.main:app --reload --port 8000` for the API.
+4. Start `npm run dev` for the frontend. `npm run dev:full` and
+   `npm run dev:backend` remain available convenience scripts.【F:package.json†L5-L31】
 
-4. Start the Vite dev server:
-
-   ```bash
-   npm run dev
-   ```
-
-   `npm run dev:full` runs both servers concurrently, and `npm run dev:backend`
-   serves the built frontend from FastAPI.【F:package.json†L5-L31】
-
-   The backend owns the SPA runtime configuration. `/frontend/settings` returns
-   a payload assembled from `backend.core.config.settings`, exposing a
-   normalised `backendUrl` (relative paths default to `/api/v1`) and the
-   optional `backendApiKey`. There is no longer a Python frontend package to
-   configure separately.
-
-Use `npm run prod:build` when you need an optimized bundle. The script now relies
-on `cross-env` so the production `ENVIRONMENT` flag is applied on macOS/Linux and
-Windows shells before the standard build executes.【F:package.json†L12-L24】
+The backend still emits `/frontend/settings` so the SPA receives consistent
+configuration in both Docker and manual setups. Use `npm run prod:build` when
+you need an optimized bundle; the script relies on `cross-env` so production
+flags are applied consistently across shells.【F:package.json†L12-L24】
 
 ### External dependencies
 

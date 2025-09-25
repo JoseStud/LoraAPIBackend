@@ -57,7 +57,36 @@ experience comes from enabling the optional dependencies:
 
 ## Getting started
 
-1. **Install Python dependencies**
+### Docker-first development flow
+
+The repository now ships with a single Docker Compose file that orchestrates the
+API, frontend, PostgreSQL, Redis, and optional SDNext services. Hot reload is
+preserved through bind mounts, so file changes trigger Uvicorn and Vite reloads
+without leaving Docker.【F:docker-compose.dev.yml†L1-L104】【F:backend/containers/dev.Dockerfile†L1-L45】【F:app/frontend/containers/dev.Dockerfile†L1-L28】
+
+1. (Optional) Copy `.env.docker.example` to `.env.docker` and adjust any values.
+   The file controls Compose profiles, database URLs, API keys, and UID/GID
+   overrides to avoid root-owned files on host machines.【F:.env.docker.example†L1-L13】
+2. Start the stack with the helper target:
+
+   ```bash
+   make dev
+   ```
+
+   This command runs `docker compose up` with the development topology. The API
+   is exposed on <http://localhost:8000>, and the Vite dev server on
+   <http://localhost:5173>. Use `make dev-ml` to include the SDNext profile, and
+   `make dev-logs` to tail all service logs.【F:Makefile†L1-L24】【F:docker-compose.dev.yml†L5-L104】
+
+3. Stop the environment with `make dev-down`, or `make dev-clean` to also remove
+   named volumes when you need a fresh database state.【F:Makefile†L17-L22】
+
+### Manual (non-Docker) workflow
+
+You can still run the backend and frontend directly on the host for lightweight
+iterations or CI reproduction.
+
+1. Install backend dependencies:
 
    ```bash
    pip install -r requirements.txt
@@ -66,38 +95,29 @@ experience comes from enabling the optional dependencies:
    Add `requirements-ml.txt` if you plan to run the recommendation system with
    GPU-enabled embeddings.
 
-2. **Install Node dependencies**
+2. Install Node dependencies:
 
    ```bash
    npm install
    ```
 
-3. **Run the backend**
+3. Launch the backend with auto-reload:
 
    ```bash
    uvicorn app.main:app --reload --port 8000
    ```
 
-   The FastAPI backend is mounted at `/api/v1`, and the SPA is served from the
-   `/` mount when built.
-
-4. **Run the frontend dev server**
+4. Start the Vite dev server:
 
    ```bash
    npm run dev
    ```
 
-   By default the SPA proxies requests to the backend on the same origin. Set
-   the `BACKEND_URL` environment variable when the API runs on a different
-   host (for example `http://localhost:8782` when hitting the Docker backend).
-   Provide the API key through `VITE_BACKEND_API_KEY` (or the legacy
-   `VITE_API_KEY`) so every request carries the required `X-API-Key` header.
-   The backend surfaces these values through `/frontend/settings`, so no
-   additional Python-side frontend configuration is required.
-
-Useful combined workflows live in `package.json`, including `npm run dev:full`
-to launch both servers and `npm run dev:backend` to serve the compiled frontend
-from FastAPI.【F:package.json†L5-L31】
+   Set `BACKEND_URL` when the API listens on a different origin (for example
+   the Docker container) and provide `VITE_BACKEND_API_KEY` so requests inherit
+   the required `X-API-Key` header. The backend exposes a normalised payload via
+   `/frontend/settings`, so the SPA reads the same configuration in Docker and
+   local modes.【F:package.json†L5-L31】
 
 ## Testing
 
