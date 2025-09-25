@@ -1,0 +1,130 @@
+version: '3.9'
+
+name: ${PROJECT_NAME:-lora-manager}-dev
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lora}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-lora}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.dev.api
+      args:
+        HOST_UID: ${HOST_UID:-1000}
+        HOST_GID: ${HOST_GID:-1000}
+    env_file:
+      - ../../.env.docker
+    working_dir: /workspace
+    command: >
+      sh -c "alembic upgrade head && uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir backend --reload-dir app"
+    volumes:
+      - ../../backend:/workspace/backend
+      - ../../app:/workspace/app
+      - ../../scripts:/workspace/scripts
+      - ../../infrastructure:/workspace/infrastructure
+      - ${LORA_HOST_DIR:-../../loras}:/workspace/loras
+      - ${OUTPUT_HOST_DIR:-../../outputs}:/workspace/outputs
+    ports:
+      - "${API_PORT:-8782}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.dev.api
+      args:
+        HOST_UID: ${HOST_UID:-1000}
+        HOST_GID: ${HOST_GID:-1000}
+    env_file:
+      - ../../.env.docker
+    working_dir: /workspace
+    command: >
+      sh -c "rq worker --url $$REDIS_URL default"
+    volumes:
+      - ../../backend:/workspace/backend
+      - ../../app:/workspace/app
+      - ../../scripts:/workspace/scripts
+      - ../../infrastructure:/workspace/infrastructure
+      - ${LORA_HOST_DIR:-../../loras}:/workspace/loras
+      - ${OUTPUT_HOST_DIR:-../../outputs}:/workspace/outputs
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.dev.frontend
+      args:
+        HOST_UID: ${HOST_UID:-1000}
+        HOST_GID: ${HOST_GID:-1000}
+    env_file:
+      - ../../.env.docker
+    working_dir: /workspace
+    command: >
+      sh -c "if [ ! -d node_modules ]; then npm ci; fi && npm run dev -- --host 0.0.0.0 --port 5173"
+    volumes:
+      - ../../:/workspace
+      - frontend_node_modules:/workspace/node_modules
+      - frontend_vite_cache:/workspace/.vite
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      api:
+        condition: service_started
+
+  sdnext:
+    image: vladmandic/automatic:latest
+    profiles:
+      - sdnext
+    environment:
+      COMMANDLINE_ARGS: --listen --port 7860 --api --cors-allow-origins=* --enable-insecure-extension-access
+    ports:
+      - "${SDNEXT_PORT:-7860}:7860"
+    volumes:
+      - sdnext_data:/app/repositories
+      - ${OUTPUT_HOST_DIR:-../../outputs}:/app/outputs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/sdapi/v1/options"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+volumes:
+  postgres_data:
+  frontend_node_modules:
+  frontend_vite_cache:
+  sdnext_data:

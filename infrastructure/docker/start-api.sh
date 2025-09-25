@@ -47,7 +47,12 @@ else
     exit 1
 fi
 
-# Start the API server
+# Start the API server (optionally with reload for dev)
 echo "Starting API server..."
 cd /app
-exec uvicorn backend.main:app --host 0.0.0.0 --port 8000
+if [ "${UVICORN_RELOAD}" = "1" ] || [ "${UVICORN_RELOAD}" = "true" ]; then
+  echo "Running uvicorn with --reload"
+  exec uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir backend --reload-dir app
+else
+  exec uvicorn backend.main:app --host 0.0.0.0 --port 8000
+fi

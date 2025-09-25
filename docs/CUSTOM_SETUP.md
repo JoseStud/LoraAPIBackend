@@ -108,7 +108,10 @@ With your `.env` and `docker-compose.override.yml` files in place, you can start
 docker-compose up -d
 
 # For AMD ROCm GPU
-docker-compose -f docker-compose.yml -f docker-compose.rocm.yml up -d
+docker compose --env-file .env.docker \
+  -f infrastructure/docker/docker-compose.dev.yml \
+  -f infrastructure/docker/docker-compose.rocm.override.yml \
+  --profile sdnext up -d
 ```
 
 Docker Compose will automatically merge the configurations, giving you a customized setup that uses your own files and settings.

@@ -91,7 +91,14 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: backendTarget,
           changeOrigin: true,
-          ws: true
+          ws: true,
+          // Strip /api prefix so backend.main (mounted at /v1) works in dev
+          rewrite: (path) => path.replace(/^\/api/, ''),
+        },
+        // Forward SPA settings endpoint to backend (app.main exposes /frontend/*)
+        '/frontend': {
+          target: backendTarget,
+          changeOrigin: true,
         },
         '/ws': {
           target: websocketTarget,

@@ -17,6 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend source code
 COPY backend ./backend
 COPY app ./app
+COPY scripts ./scripts
 
 # Copy infrastructure for migrations
 COPY infrastructure ./infrastructure

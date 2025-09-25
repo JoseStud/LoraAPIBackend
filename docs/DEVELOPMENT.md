@@ -72,44 +72,66 @@ components to deliver the dashboard and admin experience.【F:app/frontend/src/c
 
 ## Local development
 
-1. Install Python dependencies:
+### Docker-first stack
+
+1. Copy the sample Docker environment:
 
    ```bash
-   pip install -r requirements.txt
+   cp .env.docker.example .env.docker
    ```
 
-   Use `requirements-amd.txt` or `requirements-ml.txt` when you need GPU-aware
-   recommendations.
+   Update host-specific paths (for example `LORA_HOST_DIR`) when your models
+   and outputs live outside the repository checkout. The defaults point at the
+   repo's `loras/` and `outputs/` directories for quick evaluations.
 
-2. Install Node dependencies:
+2. Start the containers:
 
    ```bash
-   npm install
+   make docker-dev-up
    ```
 
-3. Launch the backend with auto-reload:
+   The Makefile wraps the long-form `docker compose` invocation so you can keep
+   `.env.docker` as the single source of truth. Use `make docker-dev-up-sdnext`
+   to include the optional SDNext profile once your GPU stack is ready. For
+   local ROCm setups, run `make docker-dev-up-rocm` to reuse the same stack with
+   the ROCm override file instead of maintaining a separate compose variant.
+
+3. Inspect running services or tail logs during development:
 
    ```bash
-   uvicorn app.main:app --reload --port 8000
+   make docker-dev-ps
+   make docker-dev-logs
    ```
 
-4. Start the Vite dev server:
+4. When finished, stop and remove the containers (keeping named volumes):
 
    ```bash
-   npm run dev
+   make docker-dev-down
    ```
 
-   `npm run dev:full` runs both servers concurrently, and `npm run dev:backend`
-   serves the built frontend from FastAPI.【F:package.json†L5-L31】
+   Jump into a shell inside the API container with `make docker-dev-shell` when
+   you need direct access to the virtual environment or alembic commands. Use
+   the `docker-dev-down-rocm` and `docker-dev-logs-rocm` helpers when the ROCm
+   override is active so the same compose file set is used for teardown.
 
-   The backend owns the SPA runtime configuration. `/frontend/settings` returns
-   a payload assembled from `backend.core.config.settings`, exposing a
-   normalised `backendUrl` (relative paths default to `/api/v1`) and the
-   optional `backendApiKey`. There is no longer a Python frontend package to
-   configure separately.
+### Manual fallback (host processes)
 
-Use `npm run prod:build` when you need an optimized bundle. The script now relies
-on `cross-env` so the production `ENVIRONMENT` flag is applied on macOS/Linux and
+When Docker is not an option, install dependencies and run the services on the
+host:
+
+```bash
+pip install -r requirements.txt   # add requirements-ml.txt for GPU features
+npm install
+uvicorn app.main:app --reload --port 8000
+npm run dev
+```
+
+Set `VITE_BACKEND_URL` to `http://localhost:8782` (or the appropriate host) and
+`VITE_BACKEND_API_KEY` to the backend's API key if the SPA and API run on
+different ports.
+
+Use `npm run prod:build` when you need an optimized bundle. The script relies on
+`cross-env` so the production `ENVIRONMENT` flag is applied on macOS/Linux and
 Windows shells before the standard build executes.【F:package.json†L12-L24】
 
 ### External dependencies
@@ -162,4 +184,3 @@ commit, matching the CI environment.【F:.pre-commit-config.yaml†L1-L11】
   pipelines remain future enhancements.【F:backend/delivery/sdnext.py†L17-L138】
 - Recommendation workflows assume optional ML dependencies; expect degraded
   behaviour when those packages are missing.【F:requirements-ml.txt†L1-L24】
-

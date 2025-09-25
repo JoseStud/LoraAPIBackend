@@ -1,0 +1,39 @@
+FROM python:3.11-slim
+
+ARG HOST_UID=1000
+ARG HOST_GID=1000
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/workspace
+
+RUN apt-get update \ 
+    && apt-get install -y --no-install-recommends \ 
+       build-essential \ 
+       curl \ 
+    && rm -rf /var/lib/apt/lists/*
+
+RUN if ! getent group ${HOST_GID} >/dev/null; then \
+        groupadd --gid ${HOST_GID} appuser; \
+    fi \ 
+    && if id -u appuser >/dev/null 2>&1; then \
+        usermod --gid ${HOST_GID} appuser; \
+    elif getent passwd ${HOST_UID} >/dev/null; then \
+        useradd --gid ${HOST_GID} --create-home --shell /bin/bash appuser; \
+    else \
+        useradd --uid ${HOST_UID} --gid ${HOST_GID} --create-home --shell /bin/bash appuser; \
+    fi
+
+WORKDIR /workspace
+
+COPY requirements.txt ./requirements.txt
+COPY dev-requirements.txt ./dev-requirements.txt
+
+RUN pip install --upgrade pip \ 
+    && pip install -r requirements.txt \ 
+    && pip install -r dev-requirements.txt
+
+USER appuser
+
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

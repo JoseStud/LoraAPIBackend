@@ -193,13 +193,13 @@ if command -v rocm-smi >/dev/null 2>&1 && rocm-smi >/dev/null 2>&1; then
         echo "   RDNA1 GPU - Setting HSA_OVERRIDE_GFX_VERSION=10.1.0"
         sed -i 's/HSA_OVERRIDE_GFX_VERSION=10.3.0/HSA_OVERRIDE_GFX_VERSION=10.1.0/' .env.rocm.custom
     fi
-    echo "   🚀 Recommended: docker-compose -f docker-compose.rocm.yml up -d"
+    echo "   🚀 Recommended: make docker-dev-up-rocm"
 elif command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then
     echo "✅ NVIDIA GPU detected"
-    echo "   🚀 Recommended: docker-compose -f docker-compose.gpu.yml up -d"
+    echo "   🚀 Recommended: docker compose -f infrastructure/docker/docker-compose.gpu.yml up -d"
 else
     echo "💻 No GPU detected, using CPU mode"
-    echo "   🚀 Recommended: docker-compose -f docker-compose.cpu.yml up -d"
+    echo "   🚀 Recommended: docker compose -f infrastructure/docker/docker-compose.cpu.yml up -d"
 fi
 
 echo
@@ -220,7 +220,7 @@ echo "   • .env.rocm.custom - ROCm-optimized configuration"
 echo
 
 echo "🔧 Next steps:"
-echo "   1. Start services: docker-compose -f docker-compose.rocm.yml up -d"
+echo "   1. Start services: make docker-dev-up-rocm"
 echo "   2. Check health: ./check_health.sh"
 echo "   3. Test generation: open websocket_test_client.html"
 echo

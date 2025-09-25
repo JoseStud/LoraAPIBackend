@@ -1,0 +1,32 @@
+services:
+  sdnext:
+    image: ${ROCM_SDNEXT_IMAGE:-disty0/sdnext-rocm:latest}
+    volumes:
+      - ${ROCM_MODELS_ROOT:-/home/anxilinux/DeepVault/models}:/host/models
+      - ./sdnext_config:/host/config
+      - sdnext_data:/host/repositories
+      - ${OUTPUT_HOST_DIR:-../../outputs}:/host/outputs
+      - ./sdnext_src:/app
+    environment:
+      COMMANDLINE_ARGS: ${ROCM_SDNEXT_COMMANDLINE_ARGS:---listen --port 7860 --api --cors-origins '*' --data-dir /host/models --models-dir /host/models/Stable-diffusion}
+      HSA_OVERRIDE_GFX_VERSION: ${HSA_OVERRIDE_GFX_VERSION:-10.3.0}
+      ROC_ENABLE_PRE_VEGA: ${ROC_ENABLE_PRE_VEGA:-1}
+      HIP_VISIBLE_DEVICES: ${HIP_VISIBLE_DEVICES:-0}
+      MIOPEN_FIND_MODE: ${MIOPEN_FIND_MODE:-FAST}
+      MIOPEN_USER_DB_PATH: ${MIOPEN_USER_DB_PATH:-/tmp/.miopen}
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      - video
+    device_cgroup_rules:
+      - 'c 226:* rmw'
+      - 'c 238:* rmw'
+    security_opt:
+      - seccomp:unconfined
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        git config --global --add safe.directory /app || true;
+        exec startup.sh "$COMMANDLINE_ARGS"

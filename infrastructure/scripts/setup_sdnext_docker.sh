@@ -16,25 +16,25 @@ detect_hardware() {
     # Check for NVIDIA GPU
     if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then
         echo "✅ NVIDIA GPU detected"
-        echo "   Recommended: docker-compose -f docker-compose.gpu.yml up"
+        echo "   Recommended: docker compose -f infrastructure/docker/docker-compose.gpu.yml up"
         return 0
     fi
     
     # Check for AMD GPU with ROCm
     if command -v rocm-smi >/dev/null 2>&1 && rocm-smi >/dev/null 2>&1; then
         echo "✅ AMD GPU with ROCm detected"
-        echo "   Recommended: docker-compose -f docker-compose.rocm.yml up"
+        echo "   Recommended: make docker-dev-up-rocm"
         return 0
     elif lspci | grep -i amd | grep -i vga >/dev/null 2>&1; then
         echo "⚠️  AMD GPU detected but ROCm not found"
         echo "   Install ROCm for GPU acceleration or use CPU mode"
         echo "   ROCm installation: https://github.com/vladmandic/sdnext/wiki/AMD-ROCm"
-        echo "   Fallback: docker-compose -f docker-compose.cpu.yml up"
+        echo "   Fallback: docker compose -f infrastructure/docker/docker-compose.cpu.yml up"
         return 0
     fi
     
     echo "💻 No GPU detected, using CPU mode"
-    echo "   Recommended: docker-compose -f docker-compose.cpu.yml up"
+    echo "   Recommended: docker compose -f infrastructure/docker/docker-compose.cpu.yml up"
 }
 
 detect_hardware
@@ -242,10 +242,10 @@ This Docker setup provides a complete environment for running the LoRA Backend w
 ./setup_sdnext_docker.sh
 
 # For NVIDIA GPUs
-docker-compose -f docker-compose.gpu.yml up -d
+docker compose -f infrastructure/docker/docker-compose.gpu.yml up -d
 
 # Check logs
-docker-compose -f docker-compose.gpu.yml logs -f sdnext
+docker compose -f infrastructure/docker/docker-compose.gpu.yml logs -f sdnext
 ```
 
 ### AMD ROCm Setup (AMD GPUs)
@@ -254,10 +254,10 @@ docker-compose -f docker-compose.gpu.yml logs -f sdnext
 ./setup_sdnext_docker.sh
 
 # For AMD GPUs with ROCm
-docker-compose -f docker-compose.rocm.yml up -d
+make docker-dev-up-rocm
 
 # Check logs
-docker-compose -f docker-compose.rocm.yml logs -f sdnext
+make docker-dev-logs-rocm
 ```
 
 **ROCm Requirements:**
@@ -273,13 +273,13 @@ docker-compose -f docker-compose.rocm.yml logs -f sdnext
 ### CPU Setup (Testing/Development)
 ```bash
 # Start with CPU-only (slower but works everywhere)
-docker-compose -f docker-compose.cpu.yml up -d
+docker compose -f infrastructure/docker/docker-compose.cpu.yml up -d
 ```
 
 ### Default Setup (Auto-detect)
 ```bash
 # Uses basic configuration (may need GPU setup)
-docker-compose up -d
+docker compose -f infrastructure/docker/docker-compose.dev.yml up -d
 ```
 
 ## Services

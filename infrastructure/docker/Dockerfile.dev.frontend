@@ -1,0 +1,31 @@
+FROM node:20-bullseye
+
+ARG HOST_UID=1000
+ARG HOST_GID=1000
+
+ENV CI=1 \
+    VITE_HOST=0.0.0.0
+
+RUN if ! getent group ${HOST_GID} >/dev/null; then \
+        groupadd --gid ${HOST_GID} appuser; \
+    fi \ 
+    && if id -u appuser >/dev/null 2>&1; then \
+        usermod --gid ${HOST_GID} appuser; \
+    elif getent passwd ${HOST_UID} >/dev/null; then \
+        useradd --gid ${HOST_GID} --create-home --shell /bin/bash appuser; \
+    else \
+        useradd --uid ${HOST_UID} --gid ${HOST_GID} --create-home --shell /bin/bash appuser; \
+    fi
+
+WORKDIR /workspace
+
+COPY package.json package-lock.json ./
+
+RUN npm ci
+
+RUN mkdir -p /workspace/node_modules /workspace/.vite \
+    && chown -R ${HOST_UID}:${HOST_GID} /workspace
+
+USER appuser
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]

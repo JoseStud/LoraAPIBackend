@@ -6,18 +6,77 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+COMPOSE_DIR="$PROJECT_ROOT/infrastructure/docker"
+ENV_FILE="$PROJECT_ROOT/.env.docker"
+
+BASE_COMPOSE_ARGS=()
+if [ -f "$ENV_FILE" ]; then
+    BASE_COMPOSE_ARGS=(--env-file "$ENV_FILE")
+fi
+
+declare -a COMPOSE_FILES
+
+compose_cmd() {
+    local action=$1
+    shift
+    local -a args=("${BASE_COMPOSE_ARGS[@]}")
+    for file in "${COMPOSE_FILES[@]}"; do
+        args+=(-f "$file")
+    done
+    docker compose "${args[@]}" "$action" "$@"
+}
+
+compose_ps_q() {
+    local -a args=("${BASE_COMPOSE_ARGS[@]}")
+    for file in "${COMPOSE_FILES[@]}"; do
+        args+=(-f "$file")
+    done
+    docker compose "${args[@]}" ps -q "$@"
+}
+
+is_project_running() {
+    local -a files=("$@")
+    for file in "${files[@]}"; do
+        [ -f "$file" ] || return 1
+    done
+    local -a args=("${BASE_COMPOSE_ARGS[@]}")
+    for file in "${files[@]}"; do
+        args+=(-f "$file")
+    done
+    if docker compose "${args[@]}" ps >/dev/null 2>&1; then
+        local count
+        count=$(docker compose "${args[@]}" ps -q | wc -l)
+        [ "${count:-0}" -gt 0 ]
+    else
+        return 1
+    fi
+}
+
+# Determine active configuration by checking running compose projects
+CONFIG_NAME="Default"
+
+if is_project_running "$COMPOSE_DIR/docker-compose.gpu.yml"; then
+    COMPOSE_FILES=("$COMPOSE_DIR/docker-compose.gpu.yml")
+    CONFIG_NAME="NVIDIA GPU"
+elif is_project_running "$COMPOSE_DIR/docker-compose.dev.yml" "$COMPOSE_DIR/docker-compose.rocm.override.yml"; then
+    COMPOSE_FILES=("$COMPOSE_DIR/docker-compose.dev.yml" "$COMPOSE_DIR/docker-compose.rocm.override.yml")
+    CONFIG_NAME="AMD ROCm"
+elif is_project_running "$COMPOSE_DIR/docker-compose.cpu.yml"; then
+    COMPOSE_FILES=("$COMPOSE_DIR/docker-compose.cpu.yml")
+    CONFIG_NAME="CPU-only"
+elif is_project_running "$COMPOSE_DIR/docker-compose.dev.yml"; then
+    COMPOSE_FILES=("$COMPOSE_DIR/docker-compose.dev.yml")
+    CONFIG_NAME="Dev"
+else
+    COMPOSE_FILES=("$COMPOSE_DIR/docker-compose.yml")
+fi
+
 echo "🔍 Checking SDNext + LoRA Backend Integration Health"
 
 # Detect configuration type
-if docker-compose -f docker-compose.gpu.yml ps >/dev/null 2>&1 && [ "$(docker-compose -f docker-compose.gpu.yml ps -q | wc -l)" -gt 0 ]; then
-    echo "   Configuration: NVIDIA GPU"
-elif docker-compose -f docker-compose.rocm.yml ps >/dev/null 2>&1 && [ "$(docker-compose -f docker-compose.rocm.yml ps -q | wc -l)" -gt 0 ]; then
-    echo "   Configuration: AMD ROCm"
-elif docker-compose -f docker-compose.cpu.yml ps >/dev/null 2>&1 && [ "$(docker-compose -f docker-compose.cpu.yml ps -q | wc -l)" -gt 0 ]; then
-    echo "   Configuration: CPU-only"
-else
-    echo "   Configuration: Default"
-fi
+echo "   Configuration: $CONFIG_NAME"
 
 echo
 
@@ -93,7 +152,7 @@ echo
 
 # Check running containers
 echo "📦 Checking running containers:"
-docker-compose ps
+compose_cmd ps
 
 echo
 
@@ -122,7 +181,7 @@ echo "🔗 Integration Checks:"
 
 # Check if LoRA Backend can reach SDNext
 echo -n "Backend → SDNext connectivity... "
-if docker-compose exec -T api python -c "
+if compose_cmd exec -T api python -c "
 import asyncio
 import aiohttp
 

@@ -16,26 +16,53 @@ depends_on = None
 
 
 def upgrade():
-    """Add rating and favourite metadata columns."""
-    with op.batch_alter_table("deliveryjob", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("rating", sa.Integer(), nullable=True))
-        batch_op.add_column(
-            sa.Column(
-                "is_favorite",
-                sa.Boolean(),
-                nullable=False,
-                server_default=sa.false(),
-            ),
-        )
-        batch_op.add_column(
-            sa.Column("rating_updated_at", sa.DateTime(), nullable=True)
-        )
-        batch_op.add_column(
-            sa.Column("favorite_updated_at", sa.DateTime(), nullable=True)
-        )
+    """Add rating and favourite metadata columns (idempotent)."""
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing = {col["name"] for col in inspector.get_columns("deliveryjob")}
 
-    # Ensure the new boolean column defaults to False for existing rows.
-    op.execute("UPDATE deliveryjob SET is_favorite = 0 WHERE is_favorite IS NULL")
+    with op.batch_alter_table("deliveryjob", schema=None) as batch_op:
+        if "rating" not in existing:
+            batch_op.add_column(sa.Column("rating", sa.Integer(), nullable=True))
+
+        added_favorite = False
+        if "is_favorite" not in existing:
+            batch_op.add_column(
+                sa.Column(
+                    "is_favorite",
+                    sa.Boolean(),
+                    nullable=False,
+                    server_default=sa.false(),
+                ),
+            )
+            added_favorite = True
+
+        if "rating_updated_at" not in existing:
+            batch_op.add_column(
+                sa.Column("rating_updated_at", sa.DateTime(), nullable=True)
+            )
+
+        if "favorite_updated_at" not in existing:
+            batch_op.add_column(
+                sa.Column("favorite_updated_at", sa.DateTime(), nullable=True)
+            )
+
+        # Remove sticky default to match model behaviour
+        if added_favorite:
+            batch_op.alter_column(
+                "is_favorite",
+                server_default=None,
+                existing_type=sa.Boolean(),
+                existing_nullable=False,
+            )
+
+    # Backfill nulls only if the column exists
+    if "is_favorite" in existing:
+        dialect = bind.dialect.name if bind is not None else ""
+        if dialect == "postgresql":
+            op.execute("UPDATE deliveryjob SET is_favorite = false WHERE is_favorite IS NULL")
+        else:
+            op.execute("UPDATE deliveryjob SET is_favorite = 0 WHERE is_favorite IS NULL")
 
 
 def downgrade():

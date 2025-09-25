@@ -57,47 +57,64 @@ experience comes from enabling the optional dependencies:
 
 ## Getting started
 
-1. **Install Python dependencies**
+### Docker-first workflow (recommended)
+
+1. Copy the sample environment file and tweak host paths or ports as needed:
 
    ```bash
-   pip install -r requirements.txt
+   cp .env.docker.example .env.docker
    ```
 
-   Add `requirements-ml.txt` if you plan to run the recommendation system with
-   GPU-enabled embeddings.
+   Set `LORA_HOST_DIR` and `OUTPUT_HOST_DIR` to point at your local asset
+   directories when they live outside the repository checkout. The defaults use
+   the repo's `loras/` and `outputs/` folders for quick smoke tests.
 
-2. **Install Node dependencies**
+2. Start the full development stack (API, worker, frontend, PostgreSQL, Redis):
 
    ```bash
-   npm install
+   make docker-dev-up
    ```
 
-3. **Run the backend**
+   The helper targets wrap `docker compose -f infrastructure/docker/docker-compose.dev.yml`
+   with the `.env.docker` file, so you keep a single source of truth for
+   credentials and port mappings. Use `make docker-dev-up-sdnext` to include the
+   optional SDNext service profile. If you're running ROCm hardware locally, use
+   `make docker-dev-up-rocm` (or `make EXTRA_COMPOSE=infrastructure/docker/docker-compose.rocm.override.yml docker-dev-up-sdnext`) to layer the ROCm override file while keeping everything in a single compose project.
+
+3. Access the services:
+   - API docs: <http://localhost:8782/docs>
+   - SPA (Vite dev server): <http://localhost:5173>
+
+   The frontend automatically injects `VITE_BACKEND_URL` and
+   `VITE_BACKEND_API_KEY` from `.env.docker`, so the browser points at the
+   containerised API without extra configuration.
+
+4. When you're done developing, stop and remove the containers and volumes:
 
    ```bash
-   uvicorn app.main:app --reload --port 8000
+   make docker-dev-down
    ```
 
-   The FastAPI backend is mounted at `/api/v1`, and the SPA is served from the
-   `/` mount when built.
+   Additional helpers: `make docker-dev-logs` tails container logs, and
+   `make docker-dev-rebuild` forces image rebuilds when dependencies change.
+   For ROCm sessions use `make docker-dev-down-rocm` and
+   `make docker-dev-logs-rocm` to run the same commands with the override file.
 
-4. **Run the frontend dev server**
+### Manual fallback (without Docker)
 
-   ```bash
-   npm run dev
-   ```
+If you prefer to run everything on the host, install Python and Node
+dependencies, then start the services as before:
 
-   By default the SPA proxies requests to the backend on the same origin. Set
-   the `BACKEND_URL` environment variable when the API runs on a different
-   host (for example `http://localhost:8782` when hitting the Docker backend).
-   Provide the API key through `VITE_BACKEND_API_KEY` (or the legacy
-   `VITE_API_KEY`) so every request carries the required `X-API-Key` header.
-   The backend surfaces these values through `/frontend/settings`, so no
-   additional Python-side frontend configuration is required.
+```bash
+pip install -r requirements.txt
+npm install
+uvicorn app.main:app --reload --port 8000
+npm run dev
+```
 
-Useful combined workflows live in `package.json`, including `npm run dev:full`
-to launch both servers and `npm run dev:backend` to serve the compiled frontend
-from FastAPI.【F:package.json†L5-L31】
+Set `VITE_BACKEND_URL` to the API host (for example `http://localhost:8782`)
+and `VITE_BACKEND_API_KEY` to the backend's API key when the two processes run
+on different origins.
 
 ## Testing
 
@@ -149,4 +166,3 @@ bundle.【F:package.json†L22-L31】【F:scripts/ci_check.py†L1-L38】
   best performance.【F:requirements-ml.txt†L1-L24】
 - SDNext integration assumes an external SDNext server and does not yet cover
   ControlNet or img2img flows.【F:backend/delivery/sdnext.py†L17-L138】
-

@@ -8,17 +8,17 @@ services:
     image: redis:7
     restart: unless-stopped
     ports:
-      - '6380:6379'
+      - "${REDIS_PORT:-6380}:6379"
 
   postgres:
     image: postgres:15
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=lora
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-lora}
     ports:
-      - '5433:5432'
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -27,7 +27,7 @@ services:
     image: vladmandic/automatic:latest
     restart: unless-stopped
     ports:
-      - '7860:7860'
+      - "${SDNEXT_PORT:-7860}:7860"
     volumes:
       # Your specific model directory structure
       - /home/anxilinux/DeepVault/models/Stable-diffusion:/app/models/Stable-diffusion
@@ -62,16 +62,16 @@ services:
     build:
       context: ../../
       dockerfile: infrastructure/docker/Dockerfile
-    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+    command: ./infrastructure/docker/start-api.sh
     volumes:
       - ../../backend:/app/backend
       - ../../app:/app/app
       - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
       - sdnext_outputs:/app/outputs
     ports:
-      - '8782:8000'
+      - "${API_PORT:-8782}:8000"
     env_file:
-      - ./backend.env
+      - ../../.env.docker
     environment:
       SDNEXT_TIMEOUT: "300"            # Longer timeout for CPU generation
       SDNEXT_POLL_INTERVAL: "5"       # Less frequent polling for CPU
@@ -79,6 +79,8 @@ services:
       SDNEXT_DEFAULT_SAMPLER: "Euler"  # Faster sampler for CPU
       # Development settings
       API_KEY: "dev-api-key-123"
+      UVICORN_RELOAD: '1'
+      SKIP_APP_DB_MIGRATIONS: '1'
     depends_on:
       sdnext:
         condition: service_healthy
@@ -104,7 +106,7 @@ services:
       - /home/anxilinux/DeepVault/models/Lora:/app/loras  # Your actual LoRA directory
       - sdnext_outputs:/app/outputs
     env_file:
-      - ./backend.env
+      - ../../.env.docker
     environment:
       SDNEXT_TIMEOUT: "300"
       SDNEXT_POLL_INTERVAL: "5"

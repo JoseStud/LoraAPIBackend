@@ -85,7 +85,10 @@ This command should successfully execute `rocm-smi` from within a container, ind
 
     1.  **Check Logs**:
         ```bash
-        docker-compose -f docker-compose.rocm.yml logs sdnext
+        docker compose --env-file .env.docker \
+          -f infrastructure/docker/docker-compose.dev.yml \
+          -f infrastructure/docker/docker-compose.rocm.override.yml \
+          --profile sdnext logs sdnext
         ```
         Look for errors related to device access or missing libraries.
 
@@ -98,7 +101,10 @@ This command should successfully execute `rocm-smi` from within a container, ind
     3.  **Recreate Container**:
         If you've made changes, force Docker to recreate the container.
         ```bash
-        docker-compose -f docker-compose.rocm.yml up -d --force-recreate
+        docker compose --env-file .env.docker \
+          -f infrastructure/docker/docker-compose.dev.yml \
+          -f infrastructure/docker/docker-compose.rocm.override.yml \
+          --profile sdnext up -d --force-recreate
         ```
 
 ### Issue: Poor Performance During Generation
@@ -106,7 +112,7 @@ This command should successfully execute `rocm-smi` from within a container, ind
 -   **Symptom**: Image generation is much slower than expected.
 -   **Solution**: Ensure you are using optimized settings.
 
-    1.  **Check `docker-compose.rocm.yml`**: Ensure you are using the `rocm`-specific compose file, as it contains important device mappings and environment variables.
+    1.  **Use the ROCm override**: Ensure you're layering `docker-compose.rocm.override.yml` (or invoking `make docker-dev-up-rocm`) so the ROCm-specific devices and environment variables are applied.
     2.  **Monitor GPU Usage**: While generating an image, run `rocm-smi` on the host to see if the GPU is being utilized. If GPU usage is low, it may indicate a bottleneck elsewhere.
     3.  **Check Temperatures**: High temperatures can cause thermal throttling.
         ```bash
@@ -158,7 +164,10 @@ docker run --rm --device /dev/dri --device /dev/kfd \
 ### 2. SDNext Specific Test
 ```bash
 # Check SDNext container logs for ROCm initialization
-docker-compose -f docker-compose.rocm.yml logs -f sdnext | grep -i rocm
+docker compose --env-file .env.docker \
+  -f infrastructure/docker/docker-compose.dev.yml \
+  -f infrastructure/docker/docker-compose.rocm.override.yml \
+  --profile sdnext logs -f sdnext | grep -i rocm
 ```
 
 ### 3. Performance Benchmark
