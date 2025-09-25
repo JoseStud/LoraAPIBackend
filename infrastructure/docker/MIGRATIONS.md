@@ -114,6 +114,7 @@ infrastructure/alembic/versions/
 ├── cbab2373ecb9_add_ingestion_tracking_fields.py
 ├── d16f3e1df8bd_add_complete_civitai_fields.py
 └── e3c1f6a5c2b8_add_delivery_job_rating_and_favorites.py  # Fixes rating column
+ └── f0a1b2c3d4e5_add_loraembedding_trigger_columns.py      # Adds trigger columns
 ```
 
 ## Troubleshooting

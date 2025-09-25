@@ -76,3 +76,5 @@ playwright-report/
 
 tests/reports
 tests/results
+tmp_migration.sqlite
+tmp_infra.sqlite
