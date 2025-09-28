@@ -67,17 +67,17 @@ import { performBulkLoraAction } from '@/services';
 import { useLoraGalleryData } from '@/composables/lora-gallery';
 import { useLoraGalleryFilters } from '@/composables/lora-gallery';
 import { useLoraGallerySelection } from '@/composables/lora-gallery';
+import { useNotifications } from '@/composables/shared';
 import { useBackendBase } from '@/utils/backend';
 import type {
   LoraBulkAction,
   LoraUpdatePayload,
 } from '@/types';
-import type { WindowWithExtras } from '@/types/window';
 
 defineOptions({ name: 'LoraGallery' });
 
 const apiBaseUrl = useBackendBase();
-const windowExtras = window as WindowWithExtras;
+const { showWarning, showSuccess, showError } = useNotifications();
 
 const {
   isInitialized,
@@ -86,7 +86,7 @@ const {
   availableTags,
   loadLoras,
   initialize,
-} = useLoraGalleryData(apiBaseUrl, windowExtras);
+} = useLoraGalleryData(apiBaseUrl);
 
 const {
   searchTerm,
@@ -129,9 +129,7 @@ const closeTagModal = () => {
 
 const performBulkAction = async (action: LoraBulkAction) => {
   if (selectedCount.value === 0) {
-    windowExtras.htmx?.trigger(document.body, 'show-notification', {
-      detail: { message: 'No LoRAs selected.', type: 'warning' },
-    });
+    showWarning('No LoRAs selected.', 6000);
     return;
   }
 
@@ -151,18 +149,10 @@ const performBulkAction = async (action: LoraBulkAction) => {
     await loadLoras();
     clearSelection();
 
-    windowExtras.htmx?.trigger(document.body, 'show-notification', {
-      detail: {
-        message: `Successfully ${action}d ${count} LoRA(s).`,
-        type: 'success',
-      },
-    });
+    showSuccess(`Successfully ${action}d ${count} LoRA(s).`, 5000);
   } catch (error) {
-    windowExtras.DevLogger?.error?.(`Error performing bulk ${action}:`, error);
-
-    windowExtras.htmx?.trigger(document.body, 'show-notification', {
-      detail: { message: `Error performing bulk ${action}.`, type: 'error' },
-    });
+    console.error(`Error performing bulk ${action}:`, error);
+    showError(`Error performing bulk ${action}.`, 8000);
   }
 };
 

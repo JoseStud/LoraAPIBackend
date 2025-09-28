@@ -1,4 +1,6 @@
 import { computed, ref, watch, type Ref } from 'vue';
+
+import { useNotifications } from '@/composables/shared';
 import { useBackendBase } from '@/utils/backend';
 import {
   buildRecommendationsUrl,
@@ -9,35 +11,15 @@ import {
 } from '@/services';
 import type { LoraListItem, LoraUpdatePayload } from '@/types';
 
-type NotificationType = 'success' | 'error' | 'warning' | 'info';
-
-type WindowWithExtras = Window & {
-  htmx?: {
-    trigger: (target: Element | Document, event: string, detail?: unknown) => void;
-  };
-  DevLogger?: {
-    error?: (...args: unknown[]) => void;
-  };
-};
-
 type UseLoraCardActionsOptions = {
   lora: Ref<LoraListItem>;
   emitUpdate: (payload: LoraUpdatePayload) => void;
   emitDelete: (id: string) => void;
 };
 
-const windowExtras = window as WindowWithExtras;
-
-const showNotification = (message: string, type: NotificationType = 'info') => {
-  if (windowExtras.htmx) {
-    windowExtras.htmx.trigger(document.body, 'show-notification', {
-      detail: { message, type },
-    });
-  }
-};
-
 export const useLoraCardActions = ({ lora, emitUpdate, emitDelete }: UseLoraCardActionsOptions) => {
   const apiBaseUrl = useBackendBase();
+  const { showSuccess, showError, showInfo } = useNotifications();
 
   const weight = ref<number>(lora.value.weight ?? 1.0);
   const isActive = ref<boolean>(Boolean(lora.value.active));
@@ -68,8 +50,8 @@ export const useLoraCardActions = ({ lora, emitUpdate, emitDelete }: UseLoraCard
       isActive.value = nextState;
       emitUpdate({ id: lora.value.id, active: nextState, type: 'active' });
     } catch (error) {
-      windowExtras.DevLogger?.error?.('Failed to toggle LoRA active state:', error);
-      showNotification('Failed to toggle active state.', 'error');
+      console.error('Failed to toggle LoRA active state:', error);
+      showError('Failed to toggle active state.', 8000);
     }
   };
 
@@ -82,8 +64,8 @@ export const useLoraCardActions = ({ lora, emitUpdate, emitDelete }: UseLoraCard
       weight.value = resolvedWeight;
       emitUpdate({ id: lora.value.id, weight: resolvedWeight, type: 'weight' });
     } catch (error) {
-      windowExtras.DevLogger?.error?.('Failed to update LoRA weight:', error);
-      showNotification('Failed to update weight.', 'error');
+      console.error('Failed to update LoRA weight:', error);
+      showError('Failed to update weight.', 8000);
       weight.value = lora.value.weight ?? weight.value;
     }
   };
@@ -93,18 +75,18 @@ export const useLoraCardActions = ({ lora, emitUpdate, emitDelete }: UseLoraCard
       const targetUrl = buildRecommendationsUrl(lora.value.id);
       window.location.href = targetUrl;
     } catch (error) {
-      windowExtras.DevLogger?.error?.('Error navigating to recommendations:', error);
-      showNotification('Unable to open recommendations.', 'error');
+      console.error('Error navigating to recommendations:', error);
+      showError('Unable to open recommendations.', 8000);
     }
   };
 
   const handleGeneratePreview = async () => {
     try {
       await triggerPreviewGeneration(apiBaseUrl.value, lora.value.id);
-      showNotification('Preview generation started.', 'info');
+      showInfo('Preview generation started.', 5000);
     } catch (error) {
-      windowExtras.DevLogger?.error?.('Preview generation not available:', error);
-      showNotification('Preview generation not available yet.', 'info');
+      console.error('Preview generation not available:', error);
+      showInfo('Preview generation not available yet.', 6000);
     }
   };
 
@@ -116,10 +98,10 @@ export const useLoraCardActions = ({ lora, emitUpdate, emitDelete }: UseLoraCard
     try {
       await deleteLoraRequest(apiBaseUrl.value, lora.value.id);
       emitDelete(lora.value.id);
-      showNotification('LoRA deleted.', 'success');
+      showSuccess('LoRA deleted.', 5000);
     } catch (error) {
-      windowExtras.DevLogger?.error?.('Error deleting LoRA:', error);
-      showNotification('Error deleting LoRA.', 'error');
+      console.error('Error deleting LoRA:', error);
+      showError('Error deleting LoRA.', 8000);
     }
   };
 
