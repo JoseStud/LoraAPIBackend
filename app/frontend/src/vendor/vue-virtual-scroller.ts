@@ -2,25 +2,52 @@ import { defineComponent, h } from 'vue';
 
 // Minimal stub implementation to unblock builds without the real dependency.
 // Renders items sequentially and forwards slot content.
+type RecycleScrollerProps<T = unknown> = {
+  items: T[];
+  tag?: string;
+};
+
+type ItemSlot<T = unknown> = {
+  item: T;
+  index: number;
+  active: boolean;
+};
+
+const MAX_RENDERED_ITEMS = 50;
+
+const pickVisibleItems = <T>(items: T[]): T[] => {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items.slice(0, Math.min(MAX_RENDERED_ITEMS, items.length));
+};
+
 export const RecycleScroller = defineComponent({
   name: 'RecycleScrollerStub',
   props: {
     items: { type: Array, default: () => [] },
-    itemSize: { type: Number, default: 0 },
-    keyField: { type: String, default: 'id' },
-    buffer: { type: Number, default: 200 },
-    pageMode: { type: Boolean, default: false },
-    minItemSize: { type: Number, default: 0 },
+    tag: { type: String, default: 'div' },
   },
-  setup(props, { slots }) {
+  setup(props: RecycleScrollerProps, { slots }) {
     return () => {
-      const children = Array.isArray(props.items)
-        ? (props.items
-            .map((item: unknown, index: number) => (slots.default ? slots.default({ item, index }) : null))
-            .flat() // default slot can return arrays
-            .filter(Boolean) as any)
-        : [];
-      return h('div', { class: 'recycle-scroller-stub' }, children);
+      const visibleItems = pickVisibleItems(props.items ?? []);
+
+      return h(
+        props.tag ?? 'div',
+        { class: 'recycle-scroller-stub' },
+        visibleItems.length > 0
+          ? visibleItems.map((item, index) =>
+              slots.default
+                ? slots.default({
+                    item,
+                    index,
+                    active: true,
+                  } as ItemSlot)
+                : [],
+            )
+          : [],
+      );
     };
   },
 });
