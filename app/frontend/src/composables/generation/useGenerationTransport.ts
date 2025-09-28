@@ -1,4 +1,8 @@
-import { extractGenerationErrorMessage, type GenerationQueueClient, type GenerationWebSocketManager } from '@/services';
+import {
+  extractGenerationErrorMessage,
+  type GenerationQueueClient,
+  type GenerationWebSocketManager,
+} from '@/services/generation/updates';
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,

@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import type { Ref } from 'vue';
 
-import { fetchAdapterTags, fetchAdapters } from '@/services';
+import { fetchAdapterTags, fetchAdapters } from '@/services/lora/loraService';
 import type { GalleryLora } from '@/types';
 
 export function useLoraGalleryData(apiBaseUrl: Ref<string>) {

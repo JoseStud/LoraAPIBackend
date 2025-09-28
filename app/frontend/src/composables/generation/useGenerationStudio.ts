@@ -4,7 +4,7 @@ import { useGenerationPersistence } from '@/composables/generation'
 import { useGenerationOrchestrator } from '@/composables/generation'
 import { useGenerationUI } from '@/composables/generation'
 import { useNotifications } from '@/composables/shared'
-import { toGenerationRequestPayload } from '@/services'
+import { toGenerationRequestPayload } from '@/services/generation/generationService'
 import { useGenerationFormStore } from '@/stores/generation'
 import type { NotificationType } from '@/types'
 

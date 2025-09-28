@@ -14,7 +14,7 @@ import type {
 import type {
   GenerationQueueClient,
   GenerationWebSocketManager,
-} from '@/services';
+} from './updates';
 import type {
   GenerationJob,
   GenerationRequestPayload,

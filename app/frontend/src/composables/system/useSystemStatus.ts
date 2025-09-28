@@ -2,7 +2,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { ApiError } from '@/composables/shared';
-import { fetchSystemStatus } from '@/services';
+import { fetchSystemStatus } from '@/services/system/systemService';
 import { useGenerationConnectionStore } from '@/stores/generation';
 import { useBackendBase } from '@/utils/backend';
 

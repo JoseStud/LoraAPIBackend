@@ -9,7 +9,7 @@ import {
   toggleLoraActiveState,
   triggerPreviewGeneration,
   updateLoraWeight,
-} from '@/services';
+} from '@/services/lora/loraService';
 import type { LoraListItem, LoraUpdatePayload } from '@/types';
 
 type UseLoraCardActionsOptions = {
