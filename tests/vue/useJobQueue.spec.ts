@@ -14,7 +14,6 @@ vi.mock('@/services', () => ({
   fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
   cancelGenerationJob: serviceMocks.cancelGenerationJob,
   buildAdapterListQuery: vi.fn(),
-  useAdapterListApi: vi.fn(),
 }));
 
 const toastMocks = vi.hoisted(() => ({

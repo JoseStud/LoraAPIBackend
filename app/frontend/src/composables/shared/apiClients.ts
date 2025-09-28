@@ -1,6 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue';
 
 import { useApi } from './useApi';
+import { useAdapterListApi } from './useAdapterListApi';
 import type {
   DashboardStatsSummary,
   GenerationJob,
@@ -8,7 +9,7 @@ import type {
   RecommendationResponse,
   SystemStatusPayload,
 } from '@/types';
-import { buildAdapterListQuery, useAdapterListApi } from '@/services';
+import { buildAdapterListQuery } from '@/services/lora/loraService';
 import { resolveBackendUrl } from '@/utils/backend';
 
 export type DashboardStatsResponse = DashboardStatsSummary;

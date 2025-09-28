@@ -14,8 +14,8 @@ const fetchData = vi.fn(async () => {
   return adaptersRef.value;
 });
 
-vi.mock('@/services', async () => {
-  const actual = await vi.importActual('@/services');
+vi.mock('@/composables/shared', async () => {
+  const actual = await vi.importActual('@/composables/shared');
   return {
     ...actual,
     useAdapterListApi: vi.fn(() => ({

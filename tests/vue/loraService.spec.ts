@@ -1,6 +1,15 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 
-import { buildAdapterListQuery, fetchAdapters } from '@/services';
+import {
+  buildAdapterListQuery,
+  fetchAdapterTags,
+  fetchAdapters,
+  performBulkLoraAction,
+  updateLoraWeight,
+  toggleLoraActiveState,
+  deleteLora,
+  triggerPreviewGeneration,
+} from '@/services';
 import type { AdapterListResponse } from '@/types';
 
 const originalFetch = global.fetch;
@@ -26,7 +35,7 @@ describe('loraService', () => {
     expect(query).toBe('?page=2&per_page=25&search=anime&active=true&tags=fantasy%2Cstyle&sort=created_at_desc');
   });
 
-  it('fetches adapters using the typed API composable', async () => {
+  it('fetches adapters using the promise-based API client', async () => {
     const payload: AdapterListResponse = {
       items: [
         {
@@ -94,5 +103,155 @@ describe('loraService', () => {
     );
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ id: 'adapter-1', name: 'Adapter One', active: true, tags: ['fantasy'] });
+  });
+
+  it('fetches adapter tags via the backend API', async () => {
+    const payload = { tags: ['fantasy', 'sci-fi'] };
+    const response = {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      json: vi.fn().mockResolvedValue(payload),
+      text: vi.fn(),
+    } as unknown as Response;
+
+    const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
+    global.fetch = fetchMock;
+
+    const tags = await fetchAdapterTags('/api/v1/');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/adapters/tags',
+      expect.objectContaining({ credentials: 'same-origin' }),
+    );
+    expect(tags).toEqual(['fantasy', 'sci-fi']);
+  });
+
+  it('performs bulk LoRA actions with JSON payloads', async () => {
+    const response = {
+      ok: true,
+      status: 202,
+      statusText: 'Accepted',
+      headers: new Headers(),
+      json: vi.fn(),
+      text: vi.fn(),
+    } as unknown as Response;
+
+    const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
+    global.fetch = fetchMock;
+
+    await performBulkLoraAction('/api/v1', {
+      action: 'activate',
+      lora_ids: ['alpha', 'beta'],
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/adapters/bulk',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ action: 'activate', lora_ids: ['alpha', 'beta'] }),
+      }),
+    );
+  });
+
+  it('updates LoRA weights using PATCH requests', async () => {
+    const payload = {
+      id: 'adapter-1',
+      name: 'Adapter One',
+      weight: 0.5,
+      active: true,
+    };
+
+    const response = {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      json: vi.fn().mockResolvedValue(payload),
+      text: vi.fn(),
+    } as unknown as Response;
+
+    const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
+    global.fetch = fetchMock;
+
+    const result = await updateLoraWeight('/api/v1', 'adapter-1', 0.5);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/adapters/adapter-1',
+      expect.objectContaining({ method: 'PATCH' }),
+    );
+    expect(result).toMatchObject({ id: 'adapter-1', weight: 0.5 });
+  });
+
+  it('toggles LoRA active state via POST requests', async () => {
+    const payload = {
+      id: 'adapter-2',
+      active: true,
+    };
+
+    const response = {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      json: vi.fn().mockResolvedValue(payload),
+      text: vi.fn(),
+    } as unknown as Response;
+
+    const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
+    global.fetch = fetchMock;
+
+    const result = await toggleLoraActiveState('/api/v1', 'adapter-2', true);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/adapters/adapter-2/activate',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(result).toMatchObject({ id: 'adapter-2', active: true });
+  });
+
+  it('deletes LoRAs without returning a payload', async () => {
+    const response = {
+      ok: true,
+      status: 204,
+      statusText: 'No Content',
+      headers: new Headers(),
+      json: vi.fn(),
+      text: vi.fn(),
+    } as unknown as Response;
+
+    const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
+    global.fetch = fetchMock;
+
+    await deleteLora('/api/v1', 'adapter-3');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/adapters/adapter-3',
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+  });
+
+  it('triggers preview generation and returns parsed payloads', async () => {
+    const payload = { preview_id: 'preview-1' };
+    const response = {
+      ok: true,
+      status: 202,
+      statusText: 'Accepted',
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      json: vi.fn().mockResolvedValue(payload),
+      text: vi.fn(),
+    } as unknown as Response;
+
+    const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
+    global.fetch = fetchMock;
+
+    const result = await triggerPreviewGeneration('/api/v1', 'adapter-9');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/adapters/adapter-9/preview',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(result).toEqual(payload);
   });
 });

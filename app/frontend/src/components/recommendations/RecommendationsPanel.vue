@@ -114,8 +114,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { useRecommendationApi } from '@/composables/shared';
-import { useAdapterListApi } from '@/services';
+import { useAdapterListApi, useRecommendationApi } from '@/composables/shared';
 import type { LoraListItem, RecommendationItem, RecommendationResponse } from '@/types';
 
 const WEIGHT_KEYS = ['semantic', 'artistic', 'technical'] as const;
