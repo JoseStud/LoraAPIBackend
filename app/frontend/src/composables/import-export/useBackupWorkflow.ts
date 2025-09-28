@@ -1,6 +1,6 @@
 import { ref, type Ref } from 'vue';
 
-import { ensureData, getJson, postJson } from '@/utils/api';
+import { ensureData, getJson, postJson } from '@/services/apiClient';
 import type { BackupCreateRequest, BackupHistoryItem } from '@/types';
 import type { NotifyFn } from './useExportWorkflow';
 

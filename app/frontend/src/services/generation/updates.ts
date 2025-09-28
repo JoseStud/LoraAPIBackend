@@ -6,7 +6,7 @@ import {
   resolveGenerationRoute,
   startGeneration,
 } from './generationService';
-import { requestJson } from '@/utils/api';
+import { requestJson } from '@/services/apiClient';
 import { normalizeJobStatus } from '@/utils/status';
 import type {
   GenerationCompleteMessage,
