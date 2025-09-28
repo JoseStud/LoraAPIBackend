@@ -81,6 +81,30 @@ export default defineConfig(({ mode }) => {
     ? websocketTargetCandidate.replace(/^http/i, 'ws')
     : websocketTargetCandidate;
 
+  const alias = [
+    {
+      find: '@',
+      replacement: srcDirectory,
+    },
+  ];
+
+  if (mode === 'test') {
+    alias.unshift(
+      {
+        find: /^vue-virtual-scroller\/dist\/vue-virtual-scroller\.css$/,
+        replacement: fileURLToPath(
+          new URL('./app/frontend/src/vendor/vue-virtual-scroller.css', import.meta.url),
+        ),
+      },
+      {
+        find: /^vue-virtual-scroller$/,
+        replacement: fileURLToPath(
+          new URL('./app/frontend/src/vendor/vue-virtual-scroller.ts', import.meta.url),
+        ),
+      },
+    );
+  }
+
   return {
     plugins: [vue()],
     root: './app/frontend',
@@ -100,25 +124,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     resolve: {
-      alias: [
-        // CSS must come first to avoid path appending on the TS alias
-        {
-          find: /^vue-virtual-scroller\/dist\/vue-virtual-scroller\.css$/,
-          replacement: fileURLToPath(
-            new URL('./app/frontend/src/vendor/vue-virtual-scroller.css', import.meta.url),
-          ),
-        },
-        {
-          find: /^vue-virtual-scroller$/,
-          replacement: fileURLToPath(
-            new URL('./app/frontend/src/vendor/vue-virtual-scroller.ts', import.meta.url),
-          ),
-        },
-        {
-          find: '@',
-          replacement: srcDirectory,
-        },
-      ],
+      alias,
     },
     build: {
       outDir: '../dist',
