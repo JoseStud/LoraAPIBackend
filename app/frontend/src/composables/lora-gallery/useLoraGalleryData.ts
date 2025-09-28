@@ -3,12 +3,8 @@ import type { Ref } from 'vue';
 
 import { fetchAdapterTags, fetchAdapters } from '@/services';
 import type { GalleryLora } from '@/types';
-import type { WindowWithExtras } from '@/types/window';
 
-export function useLoraGalleryData(
-  apiBaseUrl: Ref<string>,
-  windowExtras?: WindowWithExtras
-) {
+export function useLoraGalleryData(apiBaseUrl: Ref<string>) {
   const isInitialized = ref(false);
   const isLoading = ref(false);
   const loras = ref<GalleryLora[]>([]);
@@ -19,7 +15,7 @@ export function useLoraGalleryData(
     try {
       loras.value = await fetchAdapters(apiBaseUrl.value, { perPage: 100 });
     } catch (error) {
-      windowExtras?.DevLogger?.error?.('Error loading LoRA data:', error);
+      console.error('Error loading LoRA data:', error);
       loras.value = [];
     } finally {
       isLoading.value = false;
@@ -30,7 +26,7 @@ export function useLoraGalleryData(
     try {
       availableTags.value = await fetchAdapterTags(apiBaseUrl.value);
     } catch (error) {
-      windowExtras?.DevLogger?.error?.('Error fetching tags:', error);
+      console.error('Error fetching tags:', error);
       availableTags.value = [];
     }
   };
