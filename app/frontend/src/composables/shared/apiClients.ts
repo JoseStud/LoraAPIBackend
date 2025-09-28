@@ -7,9 +7,9 @@ import type {
   GenerationJob,
   GenerationResult,
   RecommendationResponse,
-  SystemStatusPayload,
 } from '@/types';
 import { buildAdapterListQuery } from '@/services/lora/loraService';
+import { useDashboardStatsApi, useSystemStatusApi } from '@/services/system';
 import { resolveBackendUrl } from '@/utils/backend';
 
 export type DashboardStatsResponse = DashboardStatsSummary;
@@ -24,12 +24,6 @@ export const useRecommendationApi = (
   init: RequestInit = {},
 ) => useApi<RecommendationResponse>(url, withCredentials(init));
 
-export const useDashboardStatsApi = () =>
-  useApi<DashboardStatsResponse>(() => resolveBackendUrl('/dashboard/stats'));
-
-export const useSystemStatusApi = () =>
-  useApi<SystemStatusPayload>(() => resolveBackendUrl('/system/status'));
-
 export const useActiveJobsApi = () =>
   useApi<Partial<GenerationJob>[]>(() => resolveBackendUrl('/generation/jobs/active'));
 
@@ -38,4 +32,4 @@ export const useRecentResultsApi = (
   init: RequestInit = {},
 ) => useApi<GenerationResult[]>(url, withCredentials(init));
 
-export { buildAdapterListQuery, useAdapterListApi };
+export { buildAdapterListQuery, useAdapterListApi, useDashboardStatsApi, useSystemStatusApi };
