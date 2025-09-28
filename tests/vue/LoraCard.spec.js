@@ -11,6 +11,15 @@ const mocks = vi.hoisted(() => ({
   buildRecommendationsUrlMock: vi.fn(),
 }));
 
+const routerMock = vi.hoisted(() => ({
+  push: vi.fn(),
+  resolve: vi.fn(),
+}));
+
+vi.mock('vue-router', () => ({
+  useRouter: () => routerMock,
+}));
+
 vi.mock('@/services', async () => {
   const actual = await vi.importActual('@/services');
   return {
@@ -42,7 +51,21 @@ describe('LoraCard', () => {
     mocks.toggleLoraActiveStateMock.mockResolvedValue(undefined);
     mocks.triggerPreviewGenerationMock.mockResolvedValue(undefined);
     mocks.deleteLoraMock.mockResolvedValue(undefined);
-    mocks.buildRecommendationsUrlMock.mockReturnValue('/recommendations/1');
+    mocks.buildRecommendationsUrlMock.mockReturnValue('/recommendations?lora_id=1');
+    routerMock.push.mockReset();
+    routerMock.resolve.mockImplementation((url) => {
+      const [path, queryString = ''] = url.split('?');
+      const searchParams = new URLSearchParams(queryString);
+      const query = {};
+      searchParams.forEach((value, key) => {
+        query[key] = value;
+      });
+      return {
+        path,
+        query,
+        hash: '',
+      };
+    });
   });
 
   it('renders properly in grid view', () => {
@@ -196,5 +219,26 @@ describe('LoraCard', () => {
     grid.vm.$emit('generate-preview');
     await flushPromises();
     expect(mocks.triggerPreviewGenerationMock).toHaveBeenCalledWith('/api/v1', 1);
+  });
+
+  it('navigates to recommendations via the router', async () => {
+    const wrapper = mount(LoraCard, {
+      props: {
+        lora: mockLora,
+        viewMode: 'grid',
+      },
+    });
+
+    const grid = wrapper.findComponent(LoraCardGrid);
+
+    grid.vm.$emit('recommendations');
+    await flushPromises();
+
+    expect(mocks.buildRecommendationsUrlMock).toHaveBeenCalledWith(1);
+    expect(routerMock.resolve).toHaveBeenCalledWith('/recommendations?lora_id=1');
+    expect(routerMock.push).toHaveBeenCalledWith({
+      path: '/recommendations',
+      query: { lora_id: '1' },
+    });
   });
 });

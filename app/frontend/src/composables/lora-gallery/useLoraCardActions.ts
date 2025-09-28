@@ -1,4 +1,5 @@
 import { computed, ref, watch, type Ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 import { useNotifications } from '@/composables/shared';
 import { useBackendBase } from '@/utils/backend';
@@ -20,6 +21,7 @@ type UseLoraCardActionsOptions = {
 export const useLoraCardActions = ({ lora, emitUpdate, emitDelete }: UseLoraCardActionsOptions) => {
   const apiBaseUrl = useBackendBase();
   const { showSuccess, showError, showInfo } = useNotifications();
+  const router = useRouter();
 
   const weight = ref<number>(lora.value.weight ?? 1.0);
   const isActive = ref<boolean>(Boolean(lora.value.active));
@@ -73,7 +75,13 @@ export const useLoraCardActions = ({ lora, emitUpdate, emitDelete }: UseLoraCard
   const handleRecommendations = () => {
     try {
       const targetUrl = buildRecommendationsUrl(lora.value.id);
-      window.location.href = targetUrl;
+      const { query, hash } = router.resolve(targetUrl);
+      const nextLocation = {
+        path: '/recommendations',
+        query: { ...query },
+        ...(hash ? { hash } : {}),
+      };
+      router.push(nextLocation);
     } catch (error) {
       console.error('Error navigating to recommendations:', error);
       showError('Unable to open recommendations.', 8000);
