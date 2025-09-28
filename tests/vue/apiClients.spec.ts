@@ -1,11 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  useActiveJobsApi,
-  useAdapterListApi,
-  useDashboardStatsApi,
-  useSystemStatusApi,
-} from '../../app/frontend/src/composables/shared/apiClients';
+import { useActiveJobsApi, useAdapterListApi } from '../../app/frontend/src/composables/shared/apiClients';
+import { useDashboardStatsApi, useSystemStatusApi } from '../../app/frontend/src/services/system';
 import { useSettingsStore } from '../../app/frontend/src/stores/settings';
 
 const createJsonResponse = (payload: unknown): Response => ({
