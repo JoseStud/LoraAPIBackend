@@ -1,6 +1,6 @@
 import { computed, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue';
 
-import { useAdapterListApi } from '@/services';
+import { useAdapterListApi } from '@/composables/shared';
 
 import type { AdapterSummary, LoraListItem } from '@/types';
 
