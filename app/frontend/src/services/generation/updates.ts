@@ -5,7 +5,7 @@ import {
   resolveGenerationBaseUrl,
   resolveGenerationRoute,
   startGeneration,
-} from '@/services';
+} from './generationService';
 import { requestJson } from '@/utils/api';
 import { normalizeJobStatus } from '@/utils/status';
 import type {

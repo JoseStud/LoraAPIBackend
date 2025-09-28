@@ -5,7 +5,7 @@ import {
   deriveMetricsFromDashboard,
   emptyMetricsSnapshot,
   fetchDashboardStats,
-} from '@/services';
+} from '@/services/system/systemService';
 import { useBackendBase } from '@/utils/backend';
 import {
   buildResourceStats,

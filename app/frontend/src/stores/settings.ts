@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 
-import { loadFrontendSettings } from '@/services';
+import { loadFrontendSettings } from '@/services/system/systemService';
 import type { FrontendRuntimeSettings, SettingsState } from '@/types';
 
 const normalizeBackendUrl = (value?: string | null): string => {

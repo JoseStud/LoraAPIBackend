@@ -12,7 +12,7 @@ import {
   favoriteResult as favoriteHistoryResult,
   favoriteResults as favoriteHistoryResults,
   rateResult as rateHistoryResult,
-} from '@/services';
+} from '@/services/history/historyService';
 import type { GenerationHistoryResult, NotificationType } from '@/types';
 
 export interface UseHistoryActionsOptions {

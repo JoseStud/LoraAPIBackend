@@ -6,8 +6,11 @@
 
 import { ref } from 'vue';
 
-import { exportAnalyticsReport, fetchPerformanceAnalytics } from '@/services';
-import { fetchTopAdapters } from '@/services';
+import {
+  exportAnalyticsReport,
+  fetchPerformanceAnalytics,
+} from '@/services/analytics/analyticsService';
+import { fetchTopAdapters } from '@/services/lora/loraService';
 import { useBackendBase } from '@/utils/backend';
 import { formatDuration as formatDurationLabel } from '@/utils/format';
 
