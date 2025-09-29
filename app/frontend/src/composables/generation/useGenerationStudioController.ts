@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 
-import { toGenerationRequestPayload } from '@/services/generation/generationService'
-import { useGenerationOrchestrator } from '@/composables/generation/useGenerationOrchestrator'
+import { toGenerationRequestPayload } from '@/services'
+import { useGenerationOrchestrator } from '@/composables/generation'
 import { useGenerationFormStore } from '@/stores/generation'
 import type { GenerationFormState, NotificationType } from '@/types'
 

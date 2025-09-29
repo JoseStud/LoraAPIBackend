@@ -7,11 +7,11 @@ import {
   useGenerationQueueStore,
   useGenerationResultsStore,
 } from '@/stores/generation';
-import { createGenerationOrchestrator } from '@/services/generation/orchestrator';
-import type {
-  GenerationQueueClient,
-  GenerationWebSocketManager,
-} from '@/services/generation/updates';
+import {
+  createGenerationOrchestrator,
+  type GenerationQueueClient,
+  type GenerationWebSocketManager,
+} from '@/services';
 import type {
   GenerationJob,
   GenerationRequestPayload,

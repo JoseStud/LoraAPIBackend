@@ -3,7 +3,7 @@ import type { MaybeRefOrGetter } from 'vue';
 
 import { useApi } from '@/composables/shared';
 import { getFilenameFromContentDisposition, requestBlob } from '@/services/apiClient';
-import { resolveGenerationRoute } from '@/services/generation/generationService';
+import { resolveGenerationRoute } from '@/services';
 import { sanitizeBackendBaseUrl } from '@/utils/backend';
 
 import type {

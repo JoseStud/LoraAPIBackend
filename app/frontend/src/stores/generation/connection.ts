@@ -1,7 +1,7 @@
 import { reactive, ref } from 'vue';
 import { defineStore } from 'pinia';
 
-import { DEFAULT_POLL_INTERVAL } from '@/services/generation/updates';
+import { DEFAULT_POLL_INTERVAL } from '@/services';
 import type { SystemStatusPayload, SystemStatusState } from '@/types';
 
 export const DEFAULT_SYSTEM_STATUS: SystemStatusState = {

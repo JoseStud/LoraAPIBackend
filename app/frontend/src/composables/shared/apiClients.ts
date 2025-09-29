@@ -8,8 +8,11 @@ import type {
   GenerationResult,
   RecommendationResponse,
 } from '@/types';
-import { buildAdapterListQuery } from '@/services/lora/loraService';
-import { useDashboardStatsApi, useSystemStatusApi } from '@/services/system';
+import {
+  buildAdapterListQuery,
+  useDashboardStatsApi,
+  useSystemStatusApi,
+} from '@/services';
 import { resolveBackendUrl } from '@/utils/backend';
 
 export type DashboardStatsResponse = DashboardStatsSummary;

@@ -3,7 +3,7 @@ import { shallowRef } from 'vue';
 import {
   createGenerationWebSocketManager,
   type GenerationWebSocketManager,
-} from '@/services/generation/updates';
+} from '@/services';
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,

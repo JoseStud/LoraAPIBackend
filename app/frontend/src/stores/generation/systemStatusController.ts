@@ -2,8 +2,8 @@ import { computed, ref, type ComputedRef } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { ApiError } from '@/composables/shared';
-import { fetchSystemStatus } from '@/services/system/systemService';
-import { useGenerationConnectionStore } from '@/stores/generation/connection';
+import { fetchSystemStatus } from '@/services';
+import { useGenerationConnectionStore } from './connection';
 import { useBackendBase } from '@/utils/backend';
 
 const DEFAULT_POLL_INTERVAL = 10_000;

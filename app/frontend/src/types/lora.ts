@@ -2,7 +2,7 @@
  * Type definitions mirroring backend/schemas/adapters.py.
  */
 
-import type { JsonObject, JsonValue } from './json';
+import type { JsonObject } from './json';
 
 export type AdapterStatsMetric =
   | 'downloadCount'

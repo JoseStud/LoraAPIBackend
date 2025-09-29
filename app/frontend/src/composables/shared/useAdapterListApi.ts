@@ -1,7 +1,7 @@
 import { computed, reactive, unref, isRef, type MaybeRefOrGetter } from 'vue';
 
 import { useApi } from './useApi';
-import { buildAdapterListQuery } from '@/services/lora/loraService';
+import { buildAdapterListQuery } from '@/services';
 import { resolveBackendUrl, sanitizeBackendBaseUrl } from '@/utils/backend';
 import type { AdapterListQuery, AdapterListResponse, AdapterRead, LoraListItem } from '@/types';
 

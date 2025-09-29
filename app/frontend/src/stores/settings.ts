@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 
-import { loadFrontendSettings } from '@/services/system/systemService';
+import { loadFrontendSettings } from '@/services';
 import { trimTrailingSlash } from '@/utils/backend';
 import type { FrontendRuntimeSettings, SettingsState } from '@/types';
 

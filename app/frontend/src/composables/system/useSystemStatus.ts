@@ -2,7 +2,7 @@ import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { useGenerationConnectionStore } from '@/stores/generation';
-import { useSystemStatusController } from '@/stores/generation/systemStatusController';
+import { useSystemStatusController } from '@/stores/generation';
 
 const formatMemory = (used: number, total: number) => {
   if (!total) {

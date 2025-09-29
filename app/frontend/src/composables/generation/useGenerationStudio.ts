@@ -1,7 +1,7 @@
 import { computed, onMounted } from 'vue'
 
 import { useGenerationPersistence } from '@/composables/generation'
-import { useGenerationStudioController } from '@/composables/generation/useGenerationStudioController'
+import { useGenerationStudioController } from '@/composables/generation'
 import { useGenerationUI } from '@/composables/generation'
 import { useDialogService, useNotifications } from '@/composables/shared'
 import { useGenerationFormStore } from '@/stores/generation'
