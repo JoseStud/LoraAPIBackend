@@ -220,10 +220,8 @@ async def get_recommendations_for_trigger(
         seen.add(candidate.adapter_id)
 
         explanation_parts = [candidate.explanation]
-        trigger_sources = (
-            adapter_meta.get("trigger_sources", {}).get(
-                candidate.canonical_trigger or "", []
-            )
+        trigger_sources = adapter_meta.get("trigger_sources", {}).get(
+            candidate.canonical_trigger or "", []
         )
         if trigger_sources:
             explanation_parts.append(

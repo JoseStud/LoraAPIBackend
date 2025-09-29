@@ -48,7 +48,9 @@ class TriggerSearchIndex:
         """Expose the cached adapter metadata."""
         return self._adapter_metadata
 
-    def ensure(self, repository, embedder: TriggerEmbedder, resolver: TriggerResolver) -> None:
+    def ensure(
+        self, repository, embedder: TriggerEmbedder, resolver: TriggerResolver
+    ) -> None:
         """Ensure the index is populated and in sync with active adapters."""
         with self._lock:
             current_count = repository.count_active_adapters()
@@ -58,7 +60,9 @@ class TriggerSearchIndex:
             self._rebuild(repository, embedder, resolver)
             self._adapter_count = current_count
 
-    def _rebuild(self, repository, embedder: TriggerEmbedder, resolver: TriggerResolver) -> None:
+    def _rebuild(
+        self, repository, embedder: TriggerEmbedder, resolver: TriggerResolver
+    ) -> None:
         trigger_to_loras: Dict[str, set[str]] = {}
         vector_keys: List[Tuple[str, str]] = []
         vector_payload: List[np.ndarray] = []
@@ -168,7 +172,9 @@ class TriggerSearchIndex:
             query_vector = embedder.encode_single(resolution.normalized_query)
             if self._vectors is not None and len(self._vectors):
                 similarities = np.dot(self._vectors, query_vector)
-                top_indices = np.argsort(similarities)[::-1][: self._max_semantic_candidates]
+                top_indices = np.argsort(similarities)[::-1][
+                    : self._max_semantic_candidates
+                ]
                 for idx in top_indices:
                     adapter_id, trigger = self._vector_keys[idx]
                     if adapter_id in scored and scored[adapter_id].signals.get("exact"):
@@ -189,7 +195,9 @@ class TriggerSearchIndex:
                     if existing is None or result.final_score > existing.final_score:
                         scored[adapter_id] = result
 
-        ranked = sorted(scored.values(), key=lambda item: item.final_score, reverse=True)
+        ranked = sorted(
+            scored.values(), key=lambda item: item.final_score, reverse=True
+        )
         return ranked[:limit]
 
 
@@ -209,7 +217,9 @@ class TriggerRecommendationEngine:
         self._index = index
         self._logger = logger or logging.getLogger(__name__)
 
-    def search(self, repository, query: str, limit: int) -> List[TriggerCandidateResult]:
+    def search(
+        self, repository, query: str, limit: int
+    ) -> List[TriggerCandidateResult]:
         """Return trigger candidates ensuring caches are populated."""
         self._index.ensure(repository, self._embedder, self._resolver)
         return self._index.search(

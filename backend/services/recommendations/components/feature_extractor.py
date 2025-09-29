@@ -63,18 +63,16 @@ class GPULoRAFeatureExtractor(FeatureExtractorProtocol):
         trigger_resolution = self.trigger_resolver.resolve(trigger_candidates)
         if trigger_resolution.canonical:
             trigger_vectors = self.trigger_embedder.encode(trigger_resolution.canonical)
-            features.update(
-                {
-                    "normalized_triggers": trigger_resolution.canonical,
-                    "trigger_aliases": trigger_resolution.alias_map,
-                    "trigger_metadata": {
-                        "confidence": trigger_resolution.confidence,
-                        "sources": trigger_resolution.sources,
-                    },
-                    "trigger_embeddings": [
-                        vector.astype(float).tolist() for vector in trigger_vectors
-                    ],
-                }
-            )
+            features.update({
+                "normalized_triggers": trigger_resolution.canonical,
+                "trigger_aliases": trigger_resolution.alias_map,
+                "trigger_metadata": {
+                    "confidence": trigger_resolution.confidence,
+                    "sources": trigger_resolution.sources,
+                },
+                "trigger_embeddings": [
+                    vector.astype(float).tolist() for vector in trigger_vectors
+                ],
+            })
 
         return features

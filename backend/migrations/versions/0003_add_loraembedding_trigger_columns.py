@@ -49,9 +49,9 @@ def upgrade() -> None:
         if "normalized_triggers" not in existing:
             batch_op.add_column(
                 sa.Column(
-                    "normalized_triggers", 
-                    sa.JSON(), 
-                    nullable=False, 
+                    "normalized_triggers",
+                    sa.JSON(),
+                    nullable=False,
                     server_default=_json_array_default(),
                 )
             )
@@ -61,9 +61,9 @@ def upgrade() -> None:
         if "trigger_aliases" not in existing:
             batch_op.add_column(
                 sa.Column(
-                    "trigger_aliases", 
-                    sa.JSON(), 
-                    nullable=False, 
+                    "trigger_aliases",
+                    sa.JSON(),
+                    nullable=False,
                     server_default=_json_object_default(),
                 )
             )
@@ -73,9 +73,9 @@ def upgrade() -> None:
         if "trigger_embeddings" not in existing:
             batch_op.add_column(
                 sa.Column(
-                    "trigger_embeddings", 
-                    sa.JSON(), 
-                    nullable=False, 
+                    "trigger_embeddings",
+                    sa.JSON(),
+                    nullable=False,
                     server_default=_json_array_default(),
                 )
             )
@@ -85,9 +85,9 @@ def upgrade() -> None:
         if "trigger_metadata" not in existing:
             batch_op.add_column(
                 sa.Column(
-                    "trigger_metadata", 
-                    sa.JSON(), 
-                    nullable=False, 
+                    "trigger_metadata",
+                    sa.JSON(),
+                    nullable=False,
                     server_default=_json_object_default(),
                 )
             )

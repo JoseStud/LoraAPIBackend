@@ -57,7 +57,9 @@ class TriggerEmbedder:
     def encode_single(self, phrase: str) -> np.ndarray:
         """Encode a single phrase returning a 1D vector."""
         vectors = self.encode([phrase])
-        return vectors[0] if len(vectors) else np.zeros(self.dimension, dtype=np.float32)
+        return (
+            vectors[0] if len(vectors) else np.zeros(self.dimension, dtype=np.float32)
+        )
 
 
 __all__ = ["TriggerEmbedder"]

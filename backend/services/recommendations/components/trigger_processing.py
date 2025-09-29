@@ -90,15 +90,14 @@ class TriggerResolver:
             confidence[canonical] = min(1.0, confidence[canonical] + 0.2)
             source_map[canonical].append(candidate.source)
 
-        ordered_canonical = [
-            trigger
-            for trigger, _ in canonical_counter.most_common()
-        ]
+        ordered_canonical = [trigger for trigger, _ in canonical_counter.most_common()]
 
         return TriggerResolution(
             canonical=ordered_canonical,
             alias_map=alias_map,
-            confidence={key: round(value or 0.2, 2) for key, value in confidence.items()},
+            confidence={
+                key: round(value or 0.2, 2) for key, value in confidence.items()
+            },
             sources=dict(source_map),
         )
 
@@ -107,12 +106,20 @@ class TriggerResolver:
         normalized = self._filter_phrase(query)
         if not normalized:
             return TriggerResolution(
-                canonical=[], alias_map={}, confidence={}, sources={}, normalized_query=None
+                canonical=[],
+                alias_map={},
+                confidence={},
+                sources={},
+                normalized_query=None,
             )
 
         words = [normalized]
         if " " in normalized:
-            words.extend(word for word in normalized.split(" ") if len(word) >= self._minimum_length)
+            words.extend(
+                word
+                for word in normalized.split(" ")
+                if len(word) >= self._minimum_length
+            )
 
         candidates = [TriggerCandidate(phrase=word, source="query") for word in words]
         resolution = self.resolve(candidates)
@@ -129,7 +136,11 @@ class TriggerResolver:
         if not text:
             return []
         pieces = re.split(r"[\n,;/]+", text)
-        return [TriggerCandidate(phrase=piece.strip(), source="activation_text") for piece in pieces if piece.strip()]
+        return [
+            TriggerCandidate(phrase=piece.strip(), source="activation_text")
+            for piece in pieces
+            if piece.strip()
+        ]
 
     def build_candidates_from_adapter(
         self,

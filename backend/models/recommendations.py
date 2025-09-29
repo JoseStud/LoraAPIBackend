@@ -70,9 +70,7 @@ class LoRAEmbedding(SQLModel, table=True):
     popularity_score: Optional[float] = None
     recency_score: Optional[float] = None
     compatibility_score: Optional[float] = None
-    normalized_triggers: list = Field(
-        default_factory=list, sa_column=Column(JSON)
-    )
+    normalized_triggers: list = Field(default_factory=list, sa_column=Column(JSON))
     trigger_aliases: dict = Field(default_factory=dict, sa_column=Column(JSON))
     trigger_embeddings: list = Field(default_factory=list, sa_column=Column(JSON))
     trigger_metadata: dict = Field(default_factory=dict, sa_column=Column(JSON))

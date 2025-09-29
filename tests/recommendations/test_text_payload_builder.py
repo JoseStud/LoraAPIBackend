@@ -62,4 +62,3 @@ class TestMultiModalTextPayloadBuilder:
         assert payload_with_description == payload_without_description
         # Defensive assertion to ensure description text is not echoed anywhere.
         assert text not in " ".join(payload_with_description.values())
-
