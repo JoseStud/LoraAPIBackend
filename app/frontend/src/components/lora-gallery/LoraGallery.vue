@@ -63,12 +63,10 @@ import LoraGalleryFilters from './LoraGalleryFilters.vue';
 import LoraGalleryGrid from './LoraGalleryGrid.vue';
 import LoraGalleryHeader from './LoraGalleryHeader.vue';
 import LoraGalleryTagModal from './LoraGalleryTagModal.vue';
-import { performBulkLoraAction } from '@/services/lora/loraService';
 import { useLoraGalleryData } from '@/composables/lora-gallery';
 import { useLoraGalleryFilters } from '@/composables/lora-gallery';
 import { useLoraGallerySelection } from '@/composables/lora-gallery';
 import { useNotifications } from '@/composables/shared';
-import { useBackendBase } from '@/utils/backend';
 import type {
   LoraBulkAction,
   LoraUpdatePayload,
@@ -76,7 +74,6 @@ import type {
 
 defineOptions({ name: 'LoraGallery' });
 
-const apiBaseUrl = useBackendBase();
 const { showWarning, showSuccess, showError } = useNotifications();
 
 const {
@@ -84,9 +81,11 @@ const {
   isLoading,
   loras,
   availableTags,
-  loadLoras,
   initialize,
-} = useLoraGalleryData(apiBaseUrl);
+  performBulkAction: runBulkAction,
+  applyLoraUpdate,
+  removeLora,
+} = useLoraGalleryData();
 
 const {
   searchTerm,
@@ -141,12 +140,7 @@ const performBulkAction = async (action: LoraBulkAction) => {
   const count = selectedCount.value;
 
   try {
-    await performBulkLoraAction(apiBaseUrl.value, {
-      action,
-      lora_ids: selectedLoras.value,
-    });
-
-    await loadLoras();
+    await runBulkAction(action, selectedLoras.value);
     clearSelection();
 
     showSuccess(`Successfully ${action}d ${count} LoRA(s).`, 5000);
@@ -157,27 +151,11 @@ const performBulkAction = async (action: LoraBulkAction) => {
 };
 
 const handleLoraUpdate = (detail: LoraUpdatePayload) => {
-  const { id, type } = detail;
-  const lora = loras.value.find(item => item.id === id);
-
-  if (!lora) {
-    return;
-  }
-
-  if (type === 'weight' && detail.weight !== undefined) {
-    lora.weight = detail.weight;
-  }
-
-  if (type === 'active' && detail.active !== undefined) {
-    lora.active = detail.active;
-  }
+  applyLoraUpdate(detail);
 };
 
 const handleLoraDelete = (id: string) => {
-  const index = loras.value.findIndex(item => item.id === id);
-  if (index !== -1) {
-    loras.value.splice(index, 1);
-  }
+  removeLora(id);
 
   deselect(id);
 };
