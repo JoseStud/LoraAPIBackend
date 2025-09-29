@@ -1,0 +1,77 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { performRequest, requestJson } from '@/services/apiClient';
+import { ApiError } from '@/types';
+
+const originalFetch = global.fetch;
+
+const createJsonResponse = <T>(
+  payload: T,
+  init: Partial<Response> & { status?: number; statusText?: string; ok?: boolean; url?: string } = {},
+) => {
+  const headers = new Headers(init.headers as HeadersInit | undefined);
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+  return {
+    ok: init.ok ?? true,
+    status: init.status ?? 200,
+    statusText: init.statusText ?? 'OK',
+    headers,
+    url: init.url ?? '/api/test',
+    json: vi.fn().mockResolvedValue(payload),
+    text: vi.fn().mockResolvedValue(JSON.stringify(payload)),
+  } as unknown as Response;
+};
+
+afterEach(() => {
+  global.fetch = originalFetch;
+  vi.resetAllMocks();
+});
+
+describe('apiClient helpers', () => {
+  it('returns payload and metadata for successful JSON responses', async () => {
+    const payload = { message: 'ok', value: 42 };
+    const response = createJsonResponse(payload, { status: 201, statusText: 'Created', url: '/api/success' });
+
+    const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
+    global.fetch = fetchMock;
+
+    const result = await requestJson<typeof payload>('/api/success', { method: 'POST' });
+
+    expect(result.data).toEqual(payload);
+    expect(result.meta).toMatchObject({ ok: true, status: 201, statusText: 'Created', url: '/api/success' });
+    expect(fetchMock).toHaveBeenCalledWith('/api/success', expect.objectContaining({ credentials: 'same-origin' }));
+  });
+
+  it('throws ApiError with parsed payload details for failed responses', async () => {
+    const payload = { detail: 'Invalid request' };
+    const response = createJsonResponse(payload, {
+      ok: false,
+      status: 422,
+      statusText: 'Unprocessable Entity',
+      url: '/api/error',
+    });
+
+    global.fetch = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
+
+    try {
+      await requestJson('/api/error');
+      throw new Error('Expected requestJson to throw');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError);
+      expect(error).toMatchObject({
+        status: 422,
+        payload,
+      });
+      expect((error as ApiError).message).toContain('Invalid request');
+    }
+  });
+
+  it('propagates abort errors without wrapping them', async () => {
+    const abortError = new DOMException('Aborted', 'AbortError');
+    global.fetch = vi.fn().mockRejectedValue(abortError) as unknown as typeof fetch;
+
+    await expect(performRequest('/api/abort')).rejects.toBe(abortError);
+  });
+});

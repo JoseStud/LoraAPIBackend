@@ -8,8 +8,8 @@ const requestBlob = vi.fn();
 const getFilenameFromContentDisposition = vi.fn();
 const downloadFile = vi.fn();
 
-vi.mock('@/utils/api', async () => {
-  const actual = await vi.importActual<typeof import('@/utils/api')>('@/utils/api');
+vi.mock('@/services/apiClient', async () => {
+  const actual = await vi.importActual<typeof import('@/services/apiClient')>('@/services/apiClient');
   return {
     ...actual,
     postJson: (...args: unknown[]) => postJson(...args),

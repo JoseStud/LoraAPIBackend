@@ -1,4 +1,4 @@
-import type { ApiResponseMeta } from '@/types';
+import type { ApiResponseMeta, ApiResult } from '@/types';
 import { ApiError } from '@/types';
 import { buildAuthenticatedHeaders } from '@/utils/httpAuth';
 
@@ -6,7 +6,7 @@ export type RequestTarget = Parameters<typeof fetch>[0];
 
 export type ResponseParseMode = 'auto' | 'json' | 'text' | 'none';
 
-export interface FetchRequestInit extends RequestInit {
+export interface ApiRequestInit extends RequestInit {
   /**
    * Controls how the response payload should be parsed.
    *
@@ -16,6 +16,18 @@ export interface FetchRequestInit extends RequestInit {
    * - `none`: skip payload parsing entirely
    */
   parseMode?: ResponseParseMode;
+}
+
+export interface ApiRequestResult<TPayload = unknown> {
+  data: TPayload | null;
+  meta: ApiResponseMeta;
+  response: Response;
+}
+
+export interface BlobResult {
+  blob: Blob;
+  response: Response;
+  meta: ApiResponseMeta;
 }
 
 const DEFAULT_CREDENTIALS: RequestCredentials = 'same-origin';
@@ -144,7 +156,7 @@ const toResponseMeta = (response: Response): ApiResponseMeta => ({
   url: response.url,
 });
 
-const prepareRequestInit = (init: FetchRequestInit = {}): RequestInit => {
+const prepareRequestInit = ({ parseMode: _ignored, ...init }: ApiRequestInit = {}): RequestInit => {
   const { headers, credentials, ...rest } = init;
 
   return {
@@ -154,16 +166,135 @@ const prepareRequestInit = (init: FetchRequestInit = {}): RequestInit => {
   } satisfies RequestInit;
 };
 
-const executeRequest = async <TPayload = unknown>(
+export const performRequest = async <TPayload = unknown>(
   input: RequestTarget,
-  init: FetchRequestInit = {},
-): Promise<TPayload> => {
+  init: ApiRequestInit = {},
+): Promise<ApiRequestResult<TPayload>> => {
   const requestInit = prepareRequestInit(init);
   const response = await fetch(input, requestInit);
   const meta = toResponseMeta(response);
   const payload = await parseResponsePayload(response, init.parseMode ?? 'auto');
 
   if (!response.ok) {
+    throw new ApiError<TPayload>({
+      message: deriveErrorMessage(payload, response),
+      status: response.status,
+      statusText: response.statusText,
+      payload: (payload as TPayload | null) ?? null,
+      meta,
+      response,
+    });
+  }
+
+  return {
+    data: (payload as TPayload | null) ?? null,
+    meta,
+    response,
+  } satisfies ApiRequestResult<TPayload>;
+};
+
+export const fetchParsed = async <TPayload = unknown>(
+  input: RequestTarget,
+  init: ApiRequestInit = {},
+): Promise<TPayload> => {
+  const { data } = await performRequest<TPayload>(input, { ...init, parseMode: init.parseMode ?? 'auto' });
+  return (data as TPayload) ?? (null as TPayload);
+};
+
+export const fetchJson = async <TPayload = unknown>(
+  input: RequestTarget,
+  init: ApiRequestInit = {},
+): Promise<TPayload> => {
+  const { data } = await performRequest<TPayload>(input, { ...init, parseMode: 'json' });
+  return (data as TPayload) ?? (null as TPayload);
+};
+
+export const fetchText = async (
+  input: RequestTarget,
+  init: ApiRequestInit = {},
+): Promise<string | null> => {
+  const { data } = await performRequest<string | null>(input, { ...init, parseMode: 'text' });
+  return data ?? null;
+};
+
+export const fetchVoid = async (
+  input: RequestTarget,
+  init: ApiRequestInit = {},
+): Promise<void> => {
+  await performRequest(input, { ...init, parseMode: 'none' });
+};
+
+const ensureHeaders = (init?: HeadersInit): Headers => {
+  return new Headers(init ?? {});
+};
+
+const createJsonInit = (method: string, body: unknown, options: RequestInit = {}): RequestInit => {
+  const headers = ensureHeaders(options.headers);
+  if (!(body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const payload = body instanceof FormData ? body : JSON.stringify(body);
+
+  return {
+    ...options,
+    method,
+    headers,
+    body: payload,
+  } satisfies RequestInit;
+};
+
+export const requestParsed = async <TPayload = unknown>(
+  input: RequestTarget,
+  init: ApiRequestInit = {},
+): Promise<ApiRequestResult<TPayload>> => performRequest<TPayload>(input, init);
+
+export const requestJson = async <TPayload = unknown>(
+  input: RequestTarget,
+  init: ApiRequestInit = {},
+): Promise<ApiResult<TPayload>> => {
+  const result = await performRequest<TPayload>(input, { ...init, parseMode: 'json' });
+  return { data: result.data, meta: result.meta } satisfies ApiResult<TPayload>;
+};
+
+export const getJson = async <TPayload = unknown>(
+  input: RequestTarget,
+  init: ApiRequestInit = {},
+): Promise<ApiResult<TPayload>> => requestJson<TPayload>(input, { ...init, method: 'GET' });
+
+export const postJson = async <TResponse = unknown, TBody = unknown>(
+  input: RequestTarget,
+  body: TBody,
+  init: ApiRequestInit = {},
+): Promise<ApiResult<TResponse>> => requestJson<TResponse>(input, createJsonInit('POST', body, init));
+
+export const putJson = async <TResponse = unknown, TBody = unknown>(
+  input: RequestTarget,
+  body: TBody,
+  init: ApiRequestInit = {},
+): Promise<ApiResult<TResponse>> => requestJson<TResponse>(input, createJsonInit('PUT', body, init));
+
+export const patchJson = async <TResponse = unknown, TBody = unknown>(
+  input: RequestTarget,
+  body: TBody,
+  init: ApiRequestInit = {},
+): Promise<ApiResult<TResponse>> => requestJson<TResponse>(input, createJsonInit('PATCH', body, init));
+
+export const deleteRequest = async <TResponse = unknown>(
+  input: RequestTarget,
+  init: ApiRequestInit = {},
+): Promise<ApiResult<TResponse>> => requestJson<TResponse>(input, { ...init, method: 'DELETE' });
+
+export const requestBlob = async (
+  input: RequestTarget,
+  init: RequestInit = {},
+): Promise<BlobResult> => {
+  const requestInit = prepareRequestInit(init);
+  const response = await fetch(input, requestInit);
+  const meta = toResponseMeta(response);
+
+  if (!response.ok) {
+    const payload = await parseResponsePayload(response, 'auto');
     throw new ApiError({
       message: deriveErrorMessage(payload, response),
       status: response.status,
@@ -174,28 +305,36 @@ const executeRequest = async <TPayload = unknown>(
     });
   }
 
-  return (payload as TPayload) ?? (null as TPayload);
+  const blob = await response.blob();
+  return { blob, response, meta } satisfies BlobResult;
 };
 
-export const fetchParsed = async <TPayload = unknown>(
-  input: RequestTarget,
-  init: FetchRequestInit = {},
-): Promise<TPayload> => executeRequest<TPayload>(input, { ...init, parseMode: init.parseMode ?? 'auto' });
+export function ensureData<T>(result: ApiResult<T>): T {
+  if (result.data == null) {
+    throw new Error('Request did not return a response body');
+  }
+  return result.data;
+}
 
-export const fetchJson = async <TPayload = unknown>(
-  input: RequestTarget,
-  init: FetchRequestInit = {},
-): Promise<TPayload> => executeRequest<TPayload>(input, { ...init, parseMode: 'json' });
+export function getFilenameFromContentDisposition(header?: string | null): string | null {
+  if (!header) {
+    return null;
+  }
 
-export const fetchText = async (
-  input: RequestTarget,
-  init: FetchRequestInit = {},
-): Promise<string | null> => executeRequest<string | null>(input, { ...init, parseMode: 'text' });
+  const utf8Match = header.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return utf8Match[1];
+    }
+  }
 
-export const fetchVoid = async (
-  input: RequestTarget,
-  init: FetchRequestInit = {},
-): Promise<void> => {
-  await executeRequest(input, { ...init, parseMode: 'none' });
-};
+  const asciiMatch = header.match(/filename="?([^";]+)"?/i);
+  if (asciiMatch?.[1]) {
+    return asciiMatch[1];
+  }
+
+  return null;
+}
 

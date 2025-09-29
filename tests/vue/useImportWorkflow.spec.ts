@@ -4,8 +4,8 @@ import { useImportWorkflow, type ProgressCallbacks } from '../../app/frontend/sr
 
 const requestJson = vi.fn();
 
-vi.mock('@/utils/api', async () => {
-  const actual = await vi.importActual<typeof import('@/utils/api')>('@/utils/api');
+vi.mock('@/services/apiClient', async () => {
+  const actual = await vi.importActual<typeof import('@/services/apiClient')>('@/services/apiClient');
   return {
     ...actual,
     requestJson: (...args: unknown[]) => requestJson(...args),

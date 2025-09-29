@@ -25,9 +25,9 @@ const mocks = vi.hoisted(() => ({
   requestBlob: vi.fn(),
 }))
 
-vi.mock('../../app/frontend/src/utils/api.ts', async () => {
-  const actual = await vi.importActual<typeof import('../../app/frontend/src/utils/api.ts')>(
-    '../../app/frontend/src/utils/api.ts'
+vi.mock('../../app/frontend/src/services/apiClient.ts', async () => {
+  const actual = await vi.importActual<typeof import('../../app/frontend/src/services/apiClient.ts')>(
+    '../../app/frontend/src/services/apiClient.ts'
   )
   return {
     ...actual,

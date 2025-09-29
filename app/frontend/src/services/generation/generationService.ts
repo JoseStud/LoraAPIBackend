@@ -16,7 +16,7 @@ import {
   postJson,
   requestBlob,
   requestJson,
-} from '@/utils/api';
+} from '@/services/apiClient';
 import {
   resolveBackendBaseUrl,
   resolveBackendUrl as resolveBackendUrlHelper,

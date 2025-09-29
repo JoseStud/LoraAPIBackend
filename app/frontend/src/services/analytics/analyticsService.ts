@@ -1,4 +1,4 @@
-import { getFilenameFromContentDisposition, requestBlob } from '@/utils/api';
+import { getFilenameFromContentDisposition, requestBlob } from '@/services/apiClient';
 import { resolveBackendUrl } from '@/utils/backend';
 import { buildAuthenticatedHeaders } from '@/utils/httpAuth';
 

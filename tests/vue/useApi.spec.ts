@@ -149,4 +149,25 @@ describe('useApi composable', () => {
     expect(lastResponse.value).toMatchObject({ url: '/api/test?success', status: 200 });
     expect(isLoading.value).toBe(false);
   });
+
+  it('returns the last known data when an in-flight request is aborted', async () => {
+    const fetchMock = vi.fn().mockImplementation((_, init?: RequestInit) => {
+      return new Promise<Response>((_, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('Aborted', 'AbortError'));
+        });
+      });
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { fetchData, cancelActiveRequest, data, error, isLoading } = useApi('/api/test');
+
+    const requestPromise = fetchData();
+    cancelActiveRequest();
+
+    await expect(requestPromise).resolves.toBeNull();
+    expect(data.value).toBeNull();
+    expect(error.value).toBeNull();
+    expect(isLoading.value).toBe(false);
+  });
 });

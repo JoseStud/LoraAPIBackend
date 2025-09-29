@@ -5,8 +5,8 @@ import { useBackupWorkflow } from '../../app/frontend/src/composables/import-exp
 const getJson = vi.fn();
 const postJson = vi.fn();
 
-vi.mock('@/utils/api', async () => {
-  const actual = await vi.importActual<typeof import('@/utils/api')>('@/utils/api');
+vi.mock('@/services/apiClient', async () => {
+  const actual = await vi.importActual<typeof import('@/services/apiClient')>('@/services/apiClient');
   return {
     ...actual,
     getJson: (...args: unknown[]) => getJson(...args),
