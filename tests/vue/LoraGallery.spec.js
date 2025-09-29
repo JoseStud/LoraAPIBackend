@@ -9,11 +9,117 @@ const mocks = vi.hoisted(() => ({
   performBulkLoraActionMock: vi.fn(),
 }));
 
+const routerMocks = vi.hoisted(() => ({
+  push: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('vue-router', () => ({
+  useRoute: () => ({
+    path: '/',
+    query: {},
+  }),
+  useRouter: () => routerMocks,
+  isNavigationFailure: () => false,
+  NavigationFailureType: { duplicated: 'duplicated' },
+}));
+
+const dialogServiceMocks = vi.hoisted(() => ({
+  confirm: vi.fn().mockResolvedValue(true),
+  prompt: vi.fn(),
+  state: {
+    isOpen: false,
+    type: null,
+    title: '',
+    message: '',
+    description: '',
+    confirmLabel: '',
+    cancelLabel: '',
+    inputLabel: '',
+    placeholder: '',
+    inputValue: '',
+    requireValue: false,
+  },
+  confirmDialog: vi.fn(),
+  cancelDialog: vi.fn(),
+  updateInputValue: vi.fn(),
+  isConfirmDisabled: { value: false },
+}));
+
+const notificationMocks = vi.hoisted(() => ({
+  showSuccess: vi.fn(),
+  showWarning: vi.fn(),
+  showError: vi.fn(),
+}));
+
 vi.mock('@/services', async () => {
   const actual = await vi.importActual('@/services');
   return {
     ...actual,
     fetchAdapters: mocks.fetchAdaptersMock,
+    fetchAdapterTags: mocks.fetchAdapterTagsMock,
+    performBulkLoraAction: mocks.performBulkLoraActionMock,
+  };
+});
+
+vi.mock('@/composables/shared', async (importOriginal) => {
+  const actual = await importOriginal();
+  const { ref, reactive, computed } = await import('vue');
+
+  return {
+    ...actual,
+    useDialogService: () => dialogServiceMocks,
+    useNotifications: () => notificationMocks,
+    useAdapterListApi: () => {
+      const data = ref(null);
+      const error = ref(null);
+      const isLoading = ref(false);
+      const query = reactive({ page: 1, perPage: 100 });
+      const adapters = computed(() => {
+        const payload = data.value;
+        if (!payload) {
+          return [];
+        }
+        if (Array.isArray(payload)) {
+          return payload;
+        }
+        if (Array.isArray(payload.items)) {
+          return payload.items;
+        }
+        return [];
+      });
+
+      const fetchData = async (overrides = {}) => {
+        Object.assign(query, overrides);
+        isLoading.value = true;
+        try {
+          const result = await mocks.fetchAdaptersMock('/api/v1', { ...query });
+          data.value = result ?? [];
+          error.value = null;
+          return data.value;
+        } catch (err) {
+          error.value = err;
+          throw err;
+        } finally {
+          isLoading.value = false;
+        }
+      };
+
+      return {
+        data,
+        error,
+        isLoading,
+        query,
+        adapters,
+        fetchData,
+      };
+    },
+  };
+});
+
+vi.mock('@/services/lora/loraService', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
     fetchAdapterTags: mocks.fetchAdapterTagsMock,
     performBulkLoraAction: mocks.performBulkLoraActionMock,
   };
@@ -44,6 +150,9 @@ describe('LoraGallery', () => {
     ]);
     mocks.fetchAdapterTagsMock.mockResolvedValue(['test', 'lora']);
     mocks.performBulkLoraActionMock.mockResolvedValue(undefined);
+    dialogServiceMocks.confirm.mockClear();
+    dialogServiceMocks.confirm.mockResolvedValue(true);
+    routerMocks.push.mockClear();
   });
 
   const mountGallery = async () => {
@@ -118,8 +227,6 @@ describe('LoraGallery', () => {
     expect(wrapper.vm.selectedCount).toBe(1);
     expect(wrapper.vm.selectedLoras).toEqual(['1']);
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-
     await wrapper.vm.performBulkAction('activate');
     await flushPromises();
 
@@ -128,7 +235,11 @@ describe('LoraGallery', () => {
       lora_ids: ['1'],
     });
     expect(wrapper.vm.selectedCount).toBe(0);
-
-    confirmSpy.mockRestore();
+    expect(dialogServiceMocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Confirm Bulk Action',
+        message: expect.stringContaining('activate 1 LoRA'),
+      })
+    );
   });
 });

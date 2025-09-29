@@ -73,7 +73,7 @@ import LoraGalleryTagModal from './LoraGalleryTagModal.vue';
 import { useLoraGalleryData } from '@/composables/lora-gallery';
 import { useLoraGalleryFilters } from '@/composables/lora-gallery';
 import { useLoraGallerySelection } from '@/composables/lora-gallery';
-import { useNotifications } from '@/composables/shared';
+import { useDialogService, useNotifications } from '@/composables/shared';
 import type {
   LoraBulkAction,
   LoraUpdatePayload,
@@ -82,6 +82,7 @@ import type {
 defineOptions({ name: 'LoraGallery' });
 
 const { showWarning, showSuccess, showError } = useNotifications();
+const dialog = useDialogService();
 
 const route = useRoute();
 const router = useRouter();
@@ -189,12 +190,18 @@ const performBulkAction = async (action: LoraBulkAction) => {
     return;
   }
 
-  const confirmMsg = `Are you sure you want to ${action} ${selectedCount.value} LoRA(s)?`;
-  if (!confirm(confirmMsg)) {
+  const count = selectedCount.value;
+  const confirmMsg = `Are you sure you want to ${action} ${count} LoRA(s)?`;
+  const confirmed = await dialog.confirm({
+    title: 'Confirm Bulk Action',
+    message: confirmMsg,
+    confirmLabel: 'Confirm',
+    cancelLabel: 'Cancel',
+  });
+
+  if (!confirmed) {
     return;
   }
-
-  const count = selectedCount.value;
 
   try {
     await runBulkAction(action, selectedLoras.value);
