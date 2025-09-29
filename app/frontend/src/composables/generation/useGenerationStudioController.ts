@@ -1,9 +1,12 @@
-import type { Ref } from 'vue'
+import { onMounted, onUnmounted, shallowRef, type Ref } from 'vue'
 
 import { toGenerationRequestPayload } from '@/services'
-import { useGenerationOrchestrator } from '@/composables/generation'
+import {
+  useGenerationOrchestratorManager,
+  type GenerationOrchestratorBinding,
+} from '@/composables/generation/useGenerationOrchestratorManager'
 import { useGenerationFormStore } from '@/stores/generation'
-import type { GenerationFormState, NotificationType } from '@/types'
+import type { GenerationFormState, NotificationType, GenerationJob } from '@/types'
 
 export interface UseGenerationStudioControllerOptions {
   params: Ref<GenerationFormState>
@@ -19,15 +22,33 @@ export const useGenerationStudioController = ({
   onAfterStart,
 }: UseGenerationStudioControllerOptions) => {
   const formStore = useGenerationFormStore()
+  const orchestratorManager = useGenerationOrchestratorManager()
+  const orchestratorBinding = shallowRef<GenerationOrchestratorBinding | null>(null)
 
-  const orchestrator = useGenerationOrchestrator({
-    notify,
-    debug,
+  const ensureBinding = (): GenerationOrchestratorBinding => {
+    if (!orchestratorBinding.value) {
+      orchestratorBinding.value = orchestratorManager.acquire({
+        notify,
+        debug,
+      })
+    }
+
+    return orchestratorBinding.value
+  }
+
+  onMounted(() => {
+    ensureBinding()
+  })
+
+  onUnmounted(() => {
+    orchestratorBinding.value?.release()
+    orchestratorBinding.value = null
   })
 
   const initialize = async (): Promise<void> => {
     debug?.('Initializing generation controller...')
-    await orchestrator.initialize()
+    const binding = ensureBinding()
+    await binding.initialize()
   }
 
   const startGeneration = async (): Promise<boolean> => {
@@ -42,7 +63,7 @@ export const useGenerationStudioController = ({
     try {
       params.value.prompt = trimmedPrompt
       const payload = toGenerationRequestPayload({ ...params.value, prompt: trimmedPrompt })
-      await orchestrator.startGeneration(payload)
+      await ensureBinding().startGeneration(payload)
       onAfterStart?.({ ...params.value })
       return true
     } finally {
@@ -51,22 +72,37 @@ export const useGenerationStudioController = ({
   }
 
   const refreshResults = async (notifySuccess = true): Promise<void> => {
-    await orchestrator.refreshResults(notifySuccess)
+    await ensureBinding().refreshResults(notifySuccess)
   }
 
+  const cancelJob = async (jobId: string): Promise<void> => {
+    await ensureBinding().cancelJob(jobId)
+  }
+
+  const clearQueue = async (): Promise<void> => {
+    await ensureBinding().clearQueue()
+  }
+
+  const deleteResult = async (resultId: string | number): Promise<void> => {
+    await ensureBinding().deleteResult(resultId)
+  }
+
+  const canCancelJob = (job: GenerationJob): boolean =>
+    orchestratorBinding.value?.canCancelJob(job) ?? false
+
   return {
-    activeJobs: orchestrator.activeJobs,
-    sortedActiveJobs: orchestrator.sortedActiveJobs,
-    recentResults: orchestrator.recentResults,
-    systemStatus: orchestrator.systemStatus,
-    isConnected: orchestrator.isConnected,
+    activeJobs: orchestratorManager.activeJobs,
+    sortedActiveJobs: orchestratorManager.sortedActiveJobs,
+    recentResults: orchestratorManager.recentResults,
+    systemStatus: orchestratorManager.systemStatus,
+    isConnected: orchestratorManager.isConnected,
     initialize,
     startGeneration,
-    cancelJob: orchestrator.cancelJob,
-    clearQueue: orchestrator.clearQueue,
+    cancelJob,
+    clearQueue,
     refreshResults,
-    deleteResult: orchestrator.deleteResult,
-    canCancelJob: orchestrator.canCancelJob,
+    deleteResult,
+    canCancelJob,
   }
 }
 

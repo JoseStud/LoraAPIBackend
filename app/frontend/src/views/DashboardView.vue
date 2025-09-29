@@ -69,6 +69,7 @@
 
 <script setup lang="ts">
 import { defineAsyncComponent, reactive } from 'vue';
+import type { AsyncComponentLoader, Component } from 'vue';
 import { RouterLink } from 'vue-router';
 
 import DashboardGenerationSummary from '@/components/dashboard/DashboardGenerationSummary.vue';
@@ -93,7 +94,7 @@ type PanelConfig = {
   ctaLabel: string;
   placeholder: string;
   fallback: string;
-  loader: () => Promise<unknown>;
+  loader: AsyncComponentLoader<Component>;
   componentProps?: Record<string, unknown>;
 };
 
@@ -107,7 +108,7 @@ const panelConfigs = [
     placeholder:
       'Load the analytics module inline or open the dedicated analytics page for the complete dashboard.',
     fallback: 'Loading analytics…',
-    loader: () => import('@/views/analytics/PerformanceAnalyticsPage.vue'),
+    loader: () => import('@/views/analytics/PerformanceAnalyticsPage.vue').then((module) => module.default),
     componentProps: { showPageHeader: false, showSystemStatus: false },
   },
   {
@@ -119,7 +120,7 @@ const panelConfigs = [
     placeholder:
       'Activate the composer inline to reuse saved prompts or jump directly to the full composition workspace.',
     fallback: 'Loading prompt composer…',
-    loader: () => import('@/components/compose/PromptComposer.vue'),
+    loader: () => import('@/components/compose/PromptComposer.vue').then((module) => module.default),
   },
   {
     key: 'studio',
@@ -130,7 +131,7 @@ const panelConfigs = [
     placeholder:
       'Use the inline studio for quick jobs or switch to the dedicated page for the full orchestrator experience.',
     fallback: 'Loading generation studio…',
-    loader: () => import('@/components/generation/GenerationStudio.vue'),
+    loader: () => import('@/components/generation/GenerationStudio.vue').then((module) => module.default),
   },
   {
     key: 'gallery',
@@ -141,7 +142,7 @@ const panelConfigs = [
     placeholder:
       'Quickly browse the gallery inline or open the dedicated gallery for the full management toolkit.',
     fallback: 'Loading LoRA gallery…',
-    loader: () => import('@/components/lora-gallery/LoraGallery.vue'),
+    loader: () => import('@/components/lora-gallery/LoraGallery.vue').then((module) => module.default),
   },
   {
     key: 'history',
@@ -152,7 +153,7 @@ const panelConfigs = [
     placeholder:
       'Load a lightweight history viewer inline or head to the history page for advanced filtering and exports.',
     fallback: 'Loading generation history…',
-    loader: () => import('@/components/history/GenerationHistory.vue'),
+    loader: () => import('@/components/history/GenerationHistory.vue').then((module) => module.default),
   },
   {
     key: 'importExport',
@@ -163,7 +164,7 @@ const panelConfigs = [
     placeholder:
       'Bring the import/export utilities inline for quick actions or open the dedicated workspace for bulk jobs.',
     fallback: 'Loading import/export tools…',
-    loader: () => import('@/components/import-export/ImportExportContainer.vue'),
+    loader: () => import('@/components/import-export/ImportExportContainer.vue').then((module) => module.default),
   },
 ] satisfies PanelConfig[];
 

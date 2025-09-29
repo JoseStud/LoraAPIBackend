@@ -26,8 +26,8 @@ const orchestratorMocks = vi.hoisted(() => ({
   deleteResult: vi.fn(),
 }))
 
-vi.mock('@/services/generation/orchestrator', () => ({
-  createGenerationOrchestrator: vi.fn(() => ({
+const createGenerationOrchestratorMock = vi.hoisted(() =>
+  vi.fn(() => ({
     initialize: orchestratorMocks.initialize,
     cleanup: orchestratorMocks.cleanup,
     loadSystemStatusData: orchestratorMocks.loadSystemStatusData,
@@ -38,6 +38,10 @@ vi.mock('@/services/generation/orchestrator', () => ({
     clearQueue: orchestratorMocks.clearQueue,
     deleteResult: orchestratorMocks.deleteResult,
   })),
+)
+
+vi.mock('@/services/generation/orchestrator', () => ({
+  createGenerationOrchestrator: createGenerationOrchestratorMock,
 }))
 
 vi.mock('@/services', async () => {
@@ -45,17 +49,7 @@ vi.mock('@/services', async () => {
 
   return {
     ...actual,
-    createGenerationOrchestrator: vi.fn(() => ({
-      initialize: orchestratorMocks.initialize,
-      cleanup: orchestratorMocks.cleanup,
-      loadSystemStatusData: orchestratorMocks.loadSystemStatusData,
-      loadActiveJobsData: orchestratorMocks.loadActiveJobsData,
-      loadRecentResultsData: orchestratorMocks.loadRecentResultsData,
-      startGeneration: orchestratorMocks.startGeneration,
-      cancelJob: orchestratorMocks.cancelJob,
-      clearQueue: orchestratorMocks.clearQueue,
-      deleteResult: orchestratorMocks.deleteResult,
-    })),
+    createGenerationOrchestrator: createGenerationOrchestratorMock,
   }
 })
 
@@ -123,6 +117,7 @@ describe('GenerationStudio.vue', () => {
   })
 
   afterEach(() => {
+    createGenerationOrchestratorMock.mockClear()
     if (wrapper) {
       wrapper.unmount()
     }
@@ -189,6 +184,18 @@ describe('GenerationStudio.vue', () => {
 
     expect(wrapper.text()).toContain('No results yet')
     expect(wrapper.text()).toContain('Generated images will appear here')
+  })
+
+  it('reuses a single orchestrator when multiple studios mount', async () => {
+    const first = mount(GenerationStudio)
+    const second = mount(GenerationStudio)
+
+    await nextTick()
+
+    expect(createGenerationOrchestratorMock).toHaveBeenCalledTimes(1)
+
+    first.unmount()
+    second.unmount()
   })
 
   it('handles random prompt generation', async () => {

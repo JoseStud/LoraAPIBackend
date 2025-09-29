@@ -1,5 +1,5 @@
 import { fileURLToPath, URL } from 'node:url';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type Alias } from 'vite';
 import vue from '@vitejs/plugin-vue';
 
 const frontendRoot = fileURLToPath(new URL('./app/frontend', import.meta.url));
@@ -81,7 +81,7 @@ export default defineConfig(({ mode }) => {
     ? websocketTargetCandidate.replace(/^http/i, 'ws')
     : websocketTargetCandidate;
 
-  const alias = [
+  const alias: Alias[] = [
     {
       find: '@',
       replacement: srcDirectory,

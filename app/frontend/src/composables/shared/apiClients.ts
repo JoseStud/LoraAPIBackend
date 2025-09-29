@@ -6,9 +6,8 @@ import type {
   GenerationJob,
   GenerationResult,
   RecommendationResponse,
+  SystemStatusPayload,
 } from '@/types';
-
-import { useDashboardStatsApi, useSystemStatusApi } from '@/services';
 
 import { resolveBackendUrl } from '@/utils/backend';
 
@@ -32,4 +31,8 @@ export const useRecentResultsApi = (
   init: RequestInit = {},
 ) => useApi<GenerationResult[]>(url, withCredentials(init));
 
-export { useDashboardStatsApi, useSystemStatusApi };
+export const useDashboardStatsApi = (init: RequestInit = {}) =>
+  useApi<DashboardStatsSummary>(() => resolveBackendUrl('/dashboard/stats'), withCredentials(init));
+
+export const useSystemStatusApi = (init: RequestInit = {}) =>
+  useApi<SystemStatusPayload>(() => resolveBackendUrl('/system/status'), withCredentials(init));

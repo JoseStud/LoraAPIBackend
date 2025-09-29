@@ -92,12 +92,13 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
     }
 
     if (type === 'active' && payload.active !== undefined) {
+      const nextActive = payload.active;
       return updateListData((draft) => {
         const index = draft.findIndex((item) => item.id === id);
         if (index === -1) {
           return false;
         }
-        draft[index] = { ...draft[index], active: payload.active };
+        draft[index] = { ...draft[index], active: nextActive };
         return true;
       });
     }
