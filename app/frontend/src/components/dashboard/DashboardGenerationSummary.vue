@@ -100,10 +100,10 @@ import { RouterLink } from 'vue-router';
 import { listResults as listHistoryResults, useBackendClient } from '@/services';
 import { useGenerationResultsStore } from '@/stores/generation';
 import { formatFileSize, formatRelativeTime } from '@/utils/format';
+import { mapGenerationResultsToHistory, mapHistoryResultsToGeneration } from '@/utils/generationHistory';
 import type {
   GenerationHistoryResult,
   GenerationHistoryStats,
-  GenerationResult,
 } from '@/types';
 
 const SUMMARY_QUERY = Object.freeze({ page_size: 4, sort: 'created_at_desc' as const });
@@ -137,49 +137,13 @@ const errorMessage = computed(() => {
 const formattedAverage = computed(() => stats.value.avg_rating.toFixed(1));
 const formattedSize = computed(() => formatFileSize(stats.value.total_size));
 
-const toHistoryResult = (result: GenerationResult): GenerationHistoryResult => ({
-  id: result.id,
-  job_id: result.job_id,
-  prompt: result.prompt ?? null,
-  negative_prompt: result.negative_prompt ?? null,
-  status: result.status ?? null,
-  image_url: result.image_url ?? null,
-  thumbnail_url: result.thumbnail_url ?? null,
-  created_at: result.created_at ?? new Date().toISOString(),
-  finished_at: result.finished_at ?? null,
-  width: result.width ?? null,
-  height: result.height ?? null,
-  steps: result.steps ?? null,
-  cfg_scale: result.cfg_scale ?? null,
-  seed: result.seed ?? null,
-  generation_info: result.generation_info ?? null,
-});
-
-const toGenerationResult = (item: GenerationHistoryResult): GenerationResult => ({
-  id: item.id,
-  job_id: item.job_id,
-  prompt: item.prompt ?? undefined,
-  negative_prompt: item.negative_prompt ?? null,
-  image_url: item.image_url ?? null,
-  thumbnail_url: item.thumbnail_url ?? null,
-  width: item.width ?? undefined,
-  height: item.height ?? undefined,
-  steps: item.steps ?? undefined,
-  cfg_scale: item.cfg_scale ?? undefined,
-  seed: item.seed ?? null,
-  created_at: item.created_at,
-  finished_at: item.finished_at ?? null,
-  status: item.status ?? undefined,
-  generation_info: item.generation_info ?? null,
-});
-
 const recentResults = computed<GenerationHistoryResult[]>(() => {
   const limit = SUMMARY_QUERY.page_size ?? 4;
   if (fetchedResults.value.length) {
     return fetchedResults.value.slice(0, limit);
   }
   if (storeResults.value.length) {
-    return storeResults.value.slice(0, limit).map(toHistoryResult);
+    return mapGenerationResultsToHistory(storeResults.value.slice(0, limit));
   }
   return [];
 });
@@ -204,7 +168,7 @@ const refresh = async () => {
     stats.value = output.stats;
     fetchedResults.value = output.results;
     if (!storeResults.value.length && output.results.length) {
-      resultsStore.setResults(output.results.map(toGenerationResult));
+      resultsStore.setResults(mapHistoryResultsToGeneration(output.results));
     }
   } catch (err) {
     error.value = err instanceof Error ? err : new Error('Failed to load generation summary');
