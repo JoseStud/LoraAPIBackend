@@ -1,7 +1,11 @@
 import { computed, unref, type MaybeRefOrGetter } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { useGenerationQueueStore, useGenerationResultsStore } from '@/stores/generation';
+import {
+  useGenerationConnectionStore,
+  useGenerationQueueStore,
+  useGenerationResultsStore,
+} from '@/stores/generation';
 import { useBackendBase } from '@/utils/backend';
 import type { GenerationJob, GenerationJobStatus, GenerationResult } from '@/types';
 import { normalizeJobStatus } from '@/utils/status';
@@ -16,6 +20,7 @@ const DEFAULT_POLL_INTERVAL = 2000;
 export interface UseJobQueueOptions {
   pollInterval?: MaybeRefOrGetter<number>;
   disabled?: MaybeRefOrGetter<boolean>;
+  managerActive?: MaybeRefOrGetter<boolean>;
 }
 
 const resolveBoolean = (value?: MaybeRefOrGetter<boolean>): boolean => {
@@ -190,13 +195,29 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
   const { activeJobs } = storeToRefs(queueStore);
   const backendBase = useBackendBase();
   const notifications = useNotifications();
+  const connectionStore = useGenerationConnectionStore();
+  const { queueManagerActive } = storeToRefs(connectionStore);
+
+  const isManagerActive = computed(() => {
+    if (options.managerActive !== undefined) {
+      return resolveBoolean(options.managerActive);
+    }
+    return queueManagerActive.value;
+  });
+
+  const effectiveDisabled = computed(() => isDisabled.value || isManagerActive.value);
 
   const transport = useJobQueueTransport({ backendBase });
 
   const polling = useJobQueuePolling({
-    disabled: isDisabled,
+    disabled: effectiveDisabled,
     pollInterval,
-    fetchJobs: transport.fetchJobs,
+    fetchJobs: async () => {
+      if (isManagerActive.value) {
+        return null;
+      }
+      return transport.fetchJobs();
+    },
     onRecord: (record) =>
       applyJobRecord(
         record,
@@ -209,11 +230,23 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
 
   return {
     jobs: activeJobs,
-    isReady: polling.isReady,
-    isPolling: polling.isPolling,
-    refresh: polling.refresh,
-    startPolling: polling.startPolling,
-    stopPolling: polling.stopPolling,
+    isReady: computed(() => (isManagerActive.value ? true : polling.isReady.value)),
+    isPolling: computed(() => (isManagerActive.value ? false : polling.isPolling.value)),
+    refresh: async () => {
+      if (isManagerActive.value) {
+        return;
+      }
+      await polling.refresh();
+    },
+    startPolling: () => {
+      if (isManagerActive.value) {
+        return;
+      }
+      polling.startPolling();
+    },
+    stopPolling: () => {
+      polling.stopPolling();
+    },
   } as const;
 };
 

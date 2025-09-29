@@ -113,10 +113,17 @@ export const createGenerationOrchestrator = ({
   const initialize = async (): Promise<void> => {
     const nextLimit = showHistory.value ? 50 : DEFAULT_HISTORY_LIMIT;
     resultsStore.setHistoryLimit(nextLimit);
-    await transport.initializeUpdates(historyLimit.value);
+    connectionStore.setQueueManagerActive(true);
+    try {
+      await transport.initializeUpdates(historyLimit.value);
+    } catch (error) {
+      connectionStore.setQueueManagerActive(false);
+      throw error;
+    }
   };
 
   const cleanup = (): void => {
+    connectionStore.setQueueManagerActive(false);
     transport.clear();
   };
 
@@ -202,6 +209,7 @@ export const createGenerationOrchestrator = ({
 
   if (getCurrentScope()) {
     onScopeDispose(() => {
+      connectionStore.setQueueManagerActive(false);
       transport.clear();
     });
   }
