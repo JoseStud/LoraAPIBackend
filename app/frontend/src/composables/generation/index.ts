@@ -7,6 +7,7 @@ export * from './useGenerationQueueClient';
 export * from './useGenerationSocketBridge';
 export * from './useGenerationPersistence';
 export * from './useGenerationOrchestrator';
+export * from './useGenerationOrchestratorManager';
 export * from './useJobQueue';
 export * from './useJobQueueActions';
 export * from './useJobQueuePolling';

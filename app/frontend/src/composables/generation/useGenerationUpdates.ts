@@ -1,13 +1,10 @@
-import { type ComputedRef, type Ref } from 'vue';
-import { storeToRefs } from 'pinia';
+import type { ComputedRef, Ref } from 'vue';
 
-import type { GenerationNotificationAdapter } from '@/composables/generation';
+import type { GenerationNotificationAdapter } from './useGenerationTransport';
 import {
-  useGenerationConnectionStore,
-  useGenerationQueueStore,
-  useGenerationResultsStore,
-} from '@/stores/generation';
-import { createGenerationOrchestrator } from '@/services';
+  useGenerationOrchestratorManager,
+  type GenerationOrchestratorBinding,
+} from './useGenerationOrchestratorManager';
 import type {
   GenerationQueueClient,
   GenerationWebSocketManager,
@@ -20,8 +17,6 @@ import type {
 } from '@/types';
 
 interface UseGenerationUpdatesOptions {
-  showHistory: Ref<boolean>;
-  configuredBackendUrl: Ref<string | null | undefined>;
   notificationAdapter: GenerationNotificationAdapter;
   queueClient?: GenerationQueueClient;
   websocketManager?: GenerationWebSocketManager;
@@ -44,47 +39,32 @@ export interface UseGenerationUpdatesReturn {
 }
 
 export const useGenerationUpdates = ({
-  showHistory,
-  configuredBackendUrl,
   notificationAdapter,
   queueClient: injectedQueueClient,
   websocketManager: injectedWebsocketManager,
 }: UseGenerationUpdatesOptions): UseGenerationUpdatesReturn => {
-  const queueStore = useGenerationQueueStore();
-  const resultsStore = useGenerationResultsStore();
-  const connectionStore = useGenerationConnectionStore();
-
-  const { activeJobs, sortedActiveJobs } = storeToRefs(queueStore);
-  const { recentResults, historyLimit } = storeToRefs(resultsStore);
-  const { isConnected, pollIntervalMs } = storeToRefs(connectionStore);
-
-  const orchestrator = createGenerationOrchestrator({
-    showHistory,
-    configuredBackendUrl,
-    notificationAdapter,
-    queueStore,
-    resultsStore,
-    connectionStore,
-    historyLimit,
-    pollIntervalMs,
+  const manager = useGenerationOrchestratorManager();
+  const binding: GenerationOrchestratorBinding = manager.acquire({
+    notify: notificationAdapter.notify,
+    debug: notificationAdapter.debug,
     queueClient: injectedQueueClient,
     websocketManager: injectedWebsocketManager,
   });
 
   return {
-    activeJobs,
-    recentResults,
-    sortedActiveJobs,
-    isConnected,
-    initialize: orchestrator.initialize,
-    cleanup: orchestrator.cleanup,
-    loadSystemStatusData: orchestrator.loadSystemStatusData,
-    loadActiveJobsData: orchestrator.loadActiveJobsData,
-    loadRecentResultsData: orchestrator.loadRecentResultsData,
-    startGeneration: orchestrator.startGeneration,
-    cancelJob: orchestrator.cancelJob,
-    clearQueue: orchestrator.clearQueue,
-    deleteResult: orchestrator.deleteResult,
+    activeJobs: manager.activeJobs,
+    recentResults: manager.recentResults,
+    sortedActiveJobs: manager.sortedActiveJobs as ComputedRef<GenerationJob[]>,
+    isConnected: manager.isConnected,
+    initialize: binding.initialize,
+    cleanup: binding.cleanup,
+    loadSystemStatusData: binding.loadSystemStatusData,
+    loadActiveJobsData: binding.loadActiveJobsData,
+    loadRecentResultsData: binding.loadRecentResultsData,
+    startGeneration: binding.startGeneration,
+    cancelJob: binding.cancelJob,
+    clearQueue: binding.clearQueue,
+    deleteResult: binding.deleteResult,
   };
 };
 

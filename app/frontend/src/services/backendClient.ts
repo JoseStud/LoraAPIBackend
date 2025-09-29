@@ -8,9 +8,9 @@ import {
   requestBlob as requestBlobFromApi,
   requestJson as requestJsonFromApi,
   type ApiRequestInit,
-  type ApiResult,
   type BlobResult,
 } from '@/services/apiClient';
+import type { ApiResult } from '@/types';
 import { resolveBackendBaseUrl, resolveBackendUrl, useBackendBase } from '@/utils/backend';
 
 export interface BackendClient {
