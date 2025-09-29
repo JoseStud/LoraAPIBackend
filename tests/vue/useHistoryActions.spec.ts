@@ -18,7 +18,13 @@ const serviceMocks = vi.hoisted(() => ({
 
 const downloadFileMock = vi.hoisted(() => vi.fn());
 
-vi.mock('@/services', () => serviceMocks);
+vi.mock('@/services', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    ...serviceMocks,
+  };
+});
 vi.mock('@/utils/browser', () => ({
   downloadFile: downloadFileMock,
 }));
@@ -111,7 +117,11 @@ describe('useHistoryActions', () => {
     const success = await actions.setRating(result, 5);
 
     expect(success).toBe(true);
-    expect(serviceMocks.rateResult).toHaveBeenCalledWith('/api', 1, 5);
+    expect(serviceMocks.rateResult).toHaveBeenCalledWith(
+      1,
+      5,
+      expect.objectContaining({ resolve: expect.any(Function) }),
+    );
     expect(result.rating).toBe(5);
     expect(applyFilters).toHaveBeenCalled();
     expect(showToast).toHaveBeenCalledWith('Rating updated successfully');
@@ -132,7 +142,10 @@ describe('useHistoryActions', () => {
     const success = await actions.deleteResult(1);
 
     expect(success).toBe(true);
-    expect(serviceMocks.deleteResult).toHaveBeenCalledWith('/api', 1);
+    expect(serviceMocks.deleteResult).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ resolve: expect.any(Function) }),
+    );
     expect(data.value.map((item) => item.id)).toEqual([2, 3]);
     expect(selectedIds.value).toEqual([2]);
     expect(showToast).toHaveBeenCalledWith('Image deleted successfully');
@@ -145,7 +158,10 @@ describe('useHistoryActions', () => {
     const success = await actions.deleteSelected();
 
     expect(success).toBe(true);
-    expect(serviceMocks.deleteResults).toHaveBeenCalledWith('/api', { ids: [1, 2] });
+    expect(serviceMocks.deleteResults).toHaveBeenCalledWith(
+      { ids: [1, 2] },
+      expect.objectContaining({ resolve: expect.any(Function) }),
+    );
     expect(data.value.map((item) => item.id)).toEqual([3]);
     expect(clearSelection).toHaveBeenCalled();
     expect(showToast).toHaveBeenCalledWith('2 images deleted successfully');

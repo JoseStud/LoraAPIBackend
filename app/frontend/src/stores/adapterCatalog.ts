@@ -2,8 +2,7 @@ import { computed, reactive, ref } from 'vue';
 import { defineStore } from 'pinia';
 
 import { ApiError } from '@/composables/shared';
-import { fetchAdapterList, fetchAdapterTags, performBulkLoraAction } from '@/services';
-import { useBackendBase } from '@/utils/backend';
+import { fetchAdapterList, fetchAdapterTags, performBulkLoraAction, useBackendClient } from '@/services';
 
 import type {
   AdapterListQuery,
@@ -55,7 +54,7 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
   const lastError = ref<ApiError | unknown | null>(null);
   const isLoading = ref(false);
 
-  const backendBase = useBackendBase();
+  const backendClient = useBackendClient();
   const query = reactive<AdapterListQuery>({ ...DEFAULT_QUERY });
   const loras = computed<GalleryLora[]>(() => loraItems.value.map((item) => ({ ...item })));
   const adapters = computed<AdapterSummary[]>(() => loraItems.value.map(toSummary));
@@ -128,7 +127,7 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
       lastError.value = null;
 
       try {
-        const payload = await fetchAdapterList(backendBase.value, requestQuery);
+        const payload = await fetchAdapterList(requestQuery, backendClient);
         loraItems.value = extractGalleryItems(payload);
         Object.assign(query, requestQuery);
         lastFetchedAt.value = Date.now();
@@ -179,7 +178,7 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
 
     const request = (async () => {
       try {
-        const tags = await fetchAdapterTags(backendBase.value);
+        const tags = await fetchAdapterTags(backendClient);
         availableTags.value = tags;
         tagError.value = null;
         return tags;
@@ -213,10 +212,10 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
       return;
     }
 
-    await performBulkLoraAction(backendBase.value, {
+    await performBulkLoraAction({
       action,
       lora_ids: loraIds,
-    });
+    }, backendClient);
 
     await refresh();
     await fetchTags();

@@ -9,19 +9,14 @@ import type {
   SDNextGenerationParams,
   SDNextGenerationResult,
 } from '@/types';
+import { ensureData, getFilenameFromContentDisposition } from '@/services/apiClient';
 import {
-  deleteRequest,
-  ensureData,
-  getFilenameFromContentDisposition,
-  postJson,
-  requestBlob,
-  requestJson,
-} from '@/services/apiClient';
-import {
-  resolveBackendBaseUrl,
-  resolveBackendUrl as resolveBackendUrlHelper,
-  trimLeadingSlash,
-} from '@/utils/backend';
+  createBackendClient,
+  resolveBackendClient,
+  type ApiRequestInit,
+  type BackendClient,
+} from '@/services/backendClient';
+import { trimLeadingSlash } from '@/utils/backend';
 
 export type GenerationParamOverrides =
   & Pick<SDNextGenerationParams, 'prompt'>
@@ -31,13 +26,38 @@ export type GenerationRequestBody = SDNextGenerationParams & {
   loras?: CompositionEntry[];
 };
 
-export const resolveGenerationBaseUrl = (baseOverride?: string | null): string =>
-  resolveBackendBaseUrl(baseOverride);
+type GenerationClientInput = BackendClient | string | null | undefined;
 
-export { resolveBackendUrlHelper as resolveBackendUrl };
+const generationPath = (path = ''): string => {
+  const trimmed = trimLeadingSlash(path);
+  return `/generation${trimmed ? `/${trimmed}` : ''}`;
+};
 
-export const resolveGenerationRoute = (path: string, baseOverride?: string | null): string =>
-  resolveBackendUrlHelper(`/generation/${trimLeadingSlash(path)}`, baseOverride);
+const resolveClient = (input?: GenerationClientInput): BackendClient => {
+  if (typeof input === 'string') {
+    return createBackendClient(input);
+  }
+
+  if (input == null) {
+    return resolveBackendClient();
+  }
+
+  return resolveBackendClient(input);
+};
+
+const withSameOrigin = (init: ApiRequestInit = {}): ApiRequestInit => ({
+  credentials: 'same-origin',
+  ...init,
+});
+
+export const resolveGenerationBaseUrl = (input?: GenerationClientInput): string =>
+  resolveClient(input).resolve(generationPath());
+
+export const resolveBackendUrl = (path: string, input?: GenerationClientInput): string =>
+  resolveClient(input).resolve(path);
+
+export const resolveGenerationRoute = (path: string, input?: GenerationClientInput): string =>
+  resolveClient(input).resolve(generationPath(path));
 
 export const createGenerationParams = (
   overrides: GenerationParamOverrides,
@@ -57,22 +77,24 @@ export const createGenerationParams = (
 
 export const requestGeneration = async (
   payload: GenerationRequestBody,
-  baseUrl?: string | null,
+  input?: GenerationClientInput,
 ): Promise<SDNextGenerationResult | null> => {
-  const { data } = await postJson<SDNextGenerationResult, GenerationRequestBody>(
-    resolveGenerationRoute('generate', baseUrl),
+  const backend = resolveClient(input);
+  const { data } = await backend.postJson<SDNextGenerationResult, GenerationRequestBody>(
+    generationPath('generate'),
     payload,
-    { credentials: 'same-origin' },
+    withSameOrigin(),
   );
-  return data;
+  return data ?? null;
 };
 
 export const fetchActiveGenerationJobs = async (
-  baseUrl?: string | null,
+  input?: GenerationClientInput,
 ): Promise<GenerationJobStatus[]> => {
-  const result = await requestJson<GenerationJobStatus[]>(
-    resolveGenerationRoute('jobs/active', baseUrl),
-    { credentials: 'same-origin' },
+  const backend = resolveClient(input);
+  const result = await backend.requestJson<GenerationJobStatus[]>(
+    generationPath('jobs/active'),
+    withSameOrigin(),
   );
   return Array.isArray(result.data) ? result.data : [];
 };
@@ -100,47 +122,46 @@ export const toGenerationRequestPayload = (
 
 export const startGeneration = async (
   payload: GenerationRequestPayload,
-  baseUrl?: string | null,
+  input?: GenerationClientInput,
 ): Promise<GenerationStartResponse> => {
-  const result = await postJson<GenerationStartResponse, GenerationRequestPayload>(
-    resolveGenerationRoute('generate', baseUrl),
+  const backend = resolveClient(input);
+  const result = await backend.postJson<GenerationStartResponse, GenerationRequestPayload>(
+    generationPath('generate'),
     payload,
-    { credentials: 'same-origin' },
+    withSameOrigin(),
   );
   return ensureData(result);
 };
 
 export const cancelGenerationJob = async (
   jobId: string,
-  baseUrl?: string | null,
+  input?: GenerationClientInput,
 ): Promise<GenerationCancelResponse | null> => {
-  const { data } = await requestJson<GenerationCancelResponse>(
-    resolveGenerationRoute(`jobs/${encodeURIComponent(jobId)}/cancel`, baseUrl),
-    {
-      method: 'POST',
-      credentials: 'same-origin',
-    },
+  const backend = resolveClient(input);
+  const { data } = await backend.requestJson<GenerationCancelResponse>(
+    generationPath(`jobs/${encodeURIComponent(jobId)}/cancel`),
+    withSameOrigin({ method: 'POST' }),
   );
   return data ?? null;
 };
 
 export const deleteGenerationResult = async (
   resultId: string | number,
-  baseUrl?: string | null,
+  input?: GenerationClientInput,
 ): Promise<void> => {
-  await deleteRequest<unknown>(resolveGenerationRoute(`results/${resultId}`, baseUrl), {
-    credentials: 'same-origin',
-  });
+  const backend = resolveClient(input);
+  await backend.delete(generationPath(`results/${resultId}`), withSameOrigin());
 };
 
 export const downloadGenerationResult = async (
   resultId: string | number,
   fallbackName = `generation-${resultId}`,
-  baseUrl?: string | null,
+  input?: GenerationClientInput,
 ): Promise<GenerationDownloadMetadata> => {
-  const { blob, response } = await requestBlob(
-    resolveGenerationRoute(`results/${resultId}/download`, baseUrl),
-    { credentials: 'same-origin' },
+  const backend = resolveClient(input);
+  const { blob, response } = await backend.requestBlob(
+    generationPath(`results/${resultId}/download`),
+    withSameOrigin({ method: 'GET' }),
   );
   return {
     blob,
@@ -151,4 +172,3 @@ export const downloadGenerationResult = async (
     size: blob.size,
   };
 };
-

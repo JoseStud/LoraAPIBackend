@@ -10,11 +10,15 @@ const serviceMocks = vi.hoisted(() => ({
   fetchActiveGenerationJobs: vi.fn(),
 }));
 
-vi.mock('@/services', () => ({
-  cancelGenerationJob: serviceMocks.cancelGenerationJob,
-  fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
-  buildAdapterListQuery: vi.fn(),
-}));
+vi.mock('@/services', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    cancelGenerationJob: serviceMocks.cancelGenerationJob,
+    fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
+    buildAdapterListQuery: vi.fn(),
+  };
+});
 
 vi.mock('@/services/generation/generationService', () => ({
   cancelGenerationJob: serviceMocks.cancelGenerationJob,

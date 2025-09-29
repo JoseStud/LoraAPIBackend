@@ -1,14 +1,6 @@
-
-import {
-  getFilenameFromContentDisposition,
-  performConfiguredRequest,
-  requestBlob,
-  requestConfiguredJson,
-  type ApiRequestConfig,
-  type ApiRequestInit,
-} from '@/services/apiClient';
-import { resolveGenerationRoute } from '@/services';
-import { sanitizeBackendBaseUrl } from '@/utils/backend';
+import { getFilenameFromContentDisposition } from '@/services/apiClient';
+import { resolveBackendClient, type ApiRequestInit, type BackendClient } from '@/services/backendClient';
+import { trimLeadingSlash } from '@/utils/backend';
 
 import type {
   GenerationBulkDeleteRequest,
@@ -24,22 +16,17 @@ import type {
   GenerationRatingUpdate,
 } from '@/types';
 
-const resolveHistoryEndpoint = (base: string, path: string): string =>
-  resolveGenerationRoute(path, base);
-
 const withSameOrigin = (init: ApiRequestInit = {}): ApiRequestInit => ({
   credentials: 'same-origin',
   ...init,
 });
 
-const createHistoryRequestConfig = (
-  base: string,
-  path: string,
-  init: ApiRequestInit = {},
-): ApiRequestConfig => ({
-  target: resolveHistoryEndpoint(base, path),
-  init: withSameOrigin(init),
-});
+const resolveClient = (client?: BackendClient | null): BackendClient => resolveBackendClient(client ?? undefined);
+
+const historyPath = (path: string): string => {
+  const trimmed = trimLeadingSlash(path);
+  return `/generation${trimmed ? `/${trimmed}` : ''}`;
+};
 
 const toStats = (stats?: GenerationHistoryStats | null): GenerationHistoryStats => ({
   total_results: stats?.total_results ?? 0,
@@ -141,104 +128,78 @@ export const buildHistoryQuery = (query: GenerationHistoryQuery = {}): string =>
 };
 
 export const listResults = async (
-  baseUrl: string,
   query: GenerationHistoryQuery = {},
   options: ListResultsOptions = {},
+  client?: BackendClient | null,
 ): Promise<ListResultsOutput> => {
-  const base = sanitizeBackendBaseUrl(baseUrl);
+  const backend = resolveClient(client);
   const queryString = buildHistoryQuery(query);
-  const targetUrl = resolveHistoryEndpoint(base, `/results${queryString}`);
-  const result = await requestConfiguredJson<GenerationHistoryListPayload>(
-    { target: targetUrl, init: withSameOrigin() },
-    { signal: options.signal },
+  const target = historyPath(`/results${queryString}`);
+  const result = await backend.requestJson<GenerationHistoryListPayload>(
+    target,
+    withSameOrigin({ signal: options.signal }),
   );
   return toListOutput((result.data as GenerationHistoryListPayload | null) ?? null);
 };
 
 export const rateResult = async (
-  baseUrl: string,
   resultId: GenerationHistoryResult['id'],
   rating: number,
+  client?: BackendClient | null,
 ): Promise<GenerationHistoryResult | null> => {
-  const base = sanitizeBackendBaseUrl(baseUrl);
-  const config = createHistoryRequestConfig(
-    base,
-    `/results/${encodeURIComponent(String(resultId))}/rating`,
-    {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    },
+  const backend = resolveClient(client);
+  const result = await backend.putJson<GenerationHistoryResult | null, GenerationRatingUpdate>(
+    historyPath(`/results/${encodeURIComponent(String(resultId))}/rating`),
+    { rating },
+    withSameOrigin(),
   );
-  const result = await requestConfiguredJson<GenerationHistoryResult | null>(config, {
-    method: 'PUT',
-    body: JSON.stringify({ rating } satisfies GenerationRatingUpdate),
-  });
   return (result.data as GenerationHistoryResult | null) ?? null;
 };
 
 export const favoriteResult = async (
-  baseUrl: string,
   resultId: GenerationHistoryResult['id'],
   isFavorite: boolean,
+  client?: BackendClient | null,
 ): Promise<GenerationHistoryResult | null> => {
-  const base = sanitizeBackendBaseUrl(baseUrl);
-  const config = createHistoryRequestConfig(
-    base,
-    `/results/${encodeURIComponent(String(resultId))}/favorite`,
-    {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    },
+  const backend = resolveClient(client);
+  const result = await backend.putJson<GenerationHistoryResult | null, { is_favorite: boolean }>(
+    historyPath(`/results/${encodeURIComponent(String(resultId))}/favorite`),
+    { is_favorite: isFavorite },
+    withSameOrigin(),
   );
-  const result = await requestConfiguredJson<GenerationHistoryResult | null>(config, {
-    method: 'PUT',
-    body: JSON.stringify({ is_favorite: isFavorite }),
-  });
   return (result.data as GenerationHistoryResult | null) ?? null;
 };
 
 export const favoriteResults = async (
-  baseUrl: string,
   payload: GenerationBulkFavoriteRequest,
+  client?: BackendClient | null,
 ): Promise<void> => {
-  const base = sanitizeBackendBaseUrl(baseUrl);
-  const config = createHistoryRequestConfig(base, '/results/bulk-favorite', {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-  await performConfiguredRequest<void>(config, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  });
+  const backend = resolveClient(client);
+  await backend.putJson<unknown, GenerationBulkFavoriteRequest>(
+    historyPath('/results/bulk-favorite'),
+    payload,
+    withSameOrigin(),
+  );
 };
 
 export const deleteResult = async (
-  baseUrl: string,
   resultId: GenerationHistoryResult['id'],
+  client?: BackendClient | null,
 ): Promise<void> => {
-  const base = sanitizeBackendBaseUrl(baseUrl);
-  const config = createHistoryRequestConfig(
-    base,
-    `/results/${encodeURIComponent(String(resultId))}`,
-  );
-  await performConfiguredRequest<void>(config, { method: 'DELETE' });
+  const backend = resolveClient(client);
+  await backend.delete(historyPath(`/results/${encodeURIComponent(String(resultId))}`), withSameOrigin());
 };
 
 export const deleteResults = async (
-  baseUrl: string,
   payload: GenerationBulkDeleteRequest,
+  client?: BackendClient | null,
 ): Promise<void> => {
-  const base = sanitizeBackendBaseUrl(baseUrl);
-  const config = createHistoryRequestConfig(base, '/results/bulk-delete', {
+  const backend = resolveClient(client);
+  await backend.requestJson<unknown>(historyPath('/results/bulk-delete'), {
+    ...withSameOrigin({ method: 'DELETE' }),
     headers: {
       'Content-Type': 'application/json',
     },
-  });
-  await performConfiguredRequest<void>(config, {
-    method: 'DELETE',
     body: JSON.stringify(payload),
   });
 };
@@ -256,42 +217,38 @@ const toDownloadMetadata = (
 });
 
 export const exportResults = async (
-  baseUrl: string,
   payload: GenerationExportRequest,
+  client?: BackendClient | null,
 ): Promise<GenerationDownloadMetadata> => {
-  const base = sanitizeBackendBaseUrl(baseUrl);
-  const { blob, response } = await requestBlob(
-    resolveHistoryEndpoint(base, '/results/export'),
-    {
+  const backend = resolveClient(client);
+  const { blob, response } = await backend.requestBlob(
+    historyPath('/results/export'),
+    withSameOrigin({
       method: 'POST',
-      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-    },
+    }),
   );
   return toDownloadMetadata(blob, response, `generation-export-${Date.now()}.zip`);
 };
 
 export const downloadResult = async (
-  baseUrl: string,
   resultId: GenerationHistoryResult['id'],
   fallbackName = `generation-${resultId}.png`,
+  client?: BackendClient | null,
 ): Promise<GenerationDownloadMetadata> => {
-  const base = sanitizeBackendBaseUrl(baseUrl);
-  const { blob, response } = await requestBlob(
-    resolveHistoryEndpoint(base, `/results/${encodeURIComponent(String(resultId))}/download`),
-    {
-      method: 'GET',
-      credentials: 'same-origin',
-    },
+  const backend = resolveClient(client);
+  const { blob, response } = await backend.requestBlob(
+    historyPath(`/results/${encodeURIComponent(String(resultId))}/download`),
+    withSameOrigin({ method: 'GET' }),
   );
   return toDownloadMetadata(blob, response, fallbackName);
 };
 
 export const fetchGenerationHistory = async (
-  baseUrl: string,
   query: GenerationHistoryQuery = {},
+  client?: BackendClient | null,
 ): Promise<GenerationHistoryPayload | null> => {
-  const result = await listResults(baseUrl, query);
+  const result = await listResults(query, {}, client);
   return result.payload;
 };

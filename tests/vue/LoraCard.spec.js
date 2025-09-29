@@ -210,15 +210,26 @@ describe('LoraCard', () => {
 
     grid.vm.$emit('change-weight', 1.25);
     await flushPromises();
-    expect(mocks.updateLoraWeightMock).toHaveBeenCalledWith('/api/v1', 1, 1.25);
+    expect(mocks.updateLoraWeightMock).toHaveBeenCalledWith(
+      1,
+      1.25,
+      expect.objectContaining({ resolve: expect.any(Function) }),
+    );
 
     grid.vm.$emit('toggle-active');
     await flushPromises();
-    expect(mocks.toggleLoraActiveStateMock).toHaveBeenCalledWith('/api/v1', 1, false);
+    expect(mocks.toggleLoraActiveStateMock).toHaveBeenCalledWith(
+      1,
+      false,
+      expect.objectContaining({ resolve: expect.any(Function) }),
+    );
 
     grid.vm.$emit('generate-preview');
     await flushPromises();
-    expect(mocks.triggerPreviewGenerationMock).toHaveBeenCalledWith('/api/v1', 1);
+    expect(mocks.triggerPreviewGenerationMock).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ resolve: expect.any(Function) }),
+    );
   });
 
   it('navigates to recommendations via the router', async () => {

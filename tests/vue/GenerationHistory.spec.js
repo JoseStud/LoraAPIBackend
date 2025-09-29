@@ -116,15 +116,10 @@ describe('useGenerationHistory', () => {
 
     await history.loadInitialResults();
 
-    expect(serviceMocks.listResults).toHaveBeenCalledWith(
-      '/api',
-      expect.objectContaining({
-        page: 1,
-        page_size: 25,
-        sort: 'created_at',
-      }),
-      expect.anything(),
-    );
+    const [queryArg, optionsArg, clientArg] = serviceMocks.listResults.mock.calls[0];
+    expect(queryArg).toMatchObject({ page: 1, page_size: 25, sort: 'created_at' });
+    expect(optionsArg).toMatchObject({ signal: expect.any(Object) });
+    expect(clientArg.resolve('/generation/results')).toBe('/api/generation/results');
     expect(history.filteredResults.value).toHaveLength(2);
     expect(history.stats.value.total_results).toBe(2);
     expect(history.hasMore.value).toBe(true);
@@ -160,16 +155,9 @@ describe('useGenerationHistory', () => {
     await history.loadInitialResults();
     await history.loadMore();
 
-    expect(serviceMocks.listResults).toHaveBeenNthCalledWith(
-      2,
-      '/api',
-      expect.objectContaining({
-        page: 2,
-        page_size: 50,
-        sort: 'created_at',
-      }),
-      expect.anything(),
-    );
+    const secondCall = serviceMocks.listResults.mock.calls[1];
+    expect(secondCall[0]).toMatchObject({ page: 2, page_size: 50, sort: 'created_at' });
+    expect(secondCall[2].resolve('/generation/results')).toBe('/api/generation/results');
     expect(history.currentPage.value).toBe(2);
     expect(history.filteredResults.value).toHaveLength(3);
 
@@ -181,21 +169,18 @@ describe('useGenerationHistory', () => {
     history.applyFilters();
     await flush();
 
-    expect(serviceMocks.listResults).toHaveBeenNthCalledWith(
-      3,
-      '/api',
-      expect.objectContaining({
-        page: 1,
-        page_size: 50,
-        sort: 'rating',
-        search: 'cat',
-        min_rating: 5,
-        date_filter: 'week',
-        width: 512,
-        height: 512,
-      }),
-      expect.anything(),
-    );
+    const thirdCall = serviceMocks.listResults.mock.calls[2];
+    expect(thirdCall[0]).toMatchObject({
+      page: 1,
+      page_size: 50,
+      sort: 'rating',
+      search: 'cat',
+      min_rating: 5,
+      date_filter: 'week',
+      width: 512,
+      height: 512,
+    });
+    expect(thirdCall[2].resolve('/generation/results')).toBe('/api/generation/results');
     expect(history.currentPage.value).toBe(1);
     expect(history.hasMore.value).toBe(false);
     expect(history.filteredResults.value).toEqual(filteredResults);
@@ -509,10 +494,9 @@ describe('GenerationHistoryController', () => {
     expect(serviceMocks.downloadResult).toHaveBeenCalled();
 
     await slotProps.actions.handleModalDelete(sampleResults[0].id);
-    expect(serviceMocks.deleteResult).toHaveBeenCalledWith(
-      expect.any(String),
-      sampleResults[0].id,
-    );
+    const deleteCall = serviceMocks.deleteResult.mock.calls.at(-1);
+    expect(deleteCall?.[0]).toBe(sampleResults[0].id);
+    expect(deleteCall?.[1]).toEqual(expect.objectContaining({ resolve: expect.any(Function) }));
     expect(slotProps.modal.modalVisible.value).toBe(false);
 
     wrapper.unmount();

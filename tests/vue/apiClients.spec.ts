@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useActiveJobsApi } from '../../app/frontend/src/composables/shared/apiClients';
-import { useDashboardStatsApi, useSystemStatusApi } from '../../app/frontend/src/services/system';
+import {
+  fetchDashboardStats,
+  fetchSystemStatus,
+  useDashboardStatsApi,
+  useSystemStatusApi,
+} from '../../app/frontend/src/services/system';
+import { createBackendClient } from '../../app/frontend/src/services/backendClient';
 
 import { useSettingsStore } from '../../app/frontend/src/stores/settings';
 
@@ -30,7 +36,7 @@ describe('apiClients composables', () => {
     const fetchMock = vi.fn().mockResolvedValue(createJsonResponse({}));
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    await fetchDashboardStats('https://stats.example/backend/');
+    await fetchDashboardStats(createBackendClient('https://stats.example/backend/'));
 
     expect(fetchMock).toHaveBeenCalledWith(
       'https://stats.example/backend/dashboard/stats',
@@ -42,7 +48,7 @@ describe('apiClients composables', () => {
     const fetchMock = vi.fn().mockResolvedValue(createJsonResponse({}));
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    await fetchSystemStatus('https://status.example/api');
+    await fetchSystemStatus(createBackendClient('https://status.example/api'));
 
     expect(fetchMock).toHaveBeenCalledWith(
       'https://status.example/api/system/status',

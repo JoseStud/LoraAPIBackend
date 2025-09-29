@@ -1,5 +1,5 @@
-import { getFilenameFromContentDisposition, getJson, requestBlob } from '@/services/apiClient';
-import { resolveBackendUrl } from '@/utils/backend';
+import { getFilenameFromContentDisposition } from '@/services/apiClient';
+import { resolveBackendClient, type BackendClient } from '@/services/backendClient';
 
 import type {
   AnalyticsExportOptions,
@@ -22,17 +22,20 @@ const resolveFallbackFilename = (options: AnalyticsExportOptions): string => {
   return `analytics-export-${Date.now()}.${format}`;
 };
 
+const resolveClient = (client?: BackendClient | null): BackendClient => resolveBackendClient(client ?? undefined);
+
 export const exportAnalyticsReport = async (
-  baseUrl?: string | null,
   options: AnalyticsExportOptions = DEFAULT_EXPORT_OPTIONS,
+  client?: BackendClient | null,
 ): Promise<AnalyticsExportResult> => {
   const payload: AnalyticsExportOptions = {
     ...DEFAULT_EXPORT_OPTIONS,
     ...options,
   };
 
-  const { blob, response } = await requestBlob(
-    resolveBackendUrl('/export', baseUrl ?? undefined),
+  const backend = resolveClient(client);
+  const { blob, response } = await backend.requestBlob(
+    '/export',
     {
       method: 'POST',
       credentials: 'same-origin',
@@ -103,14 +106,15 @@ const normaliseChartData = (charts?: PerformanceAnalyticsChartsApi | null): Perf
 };
 
 export const fetchPerformanceAnalytics = async (
-  baseUrl?: string | null,
   timeRange: PerformanceTimeRange = '24h',
+  client?: BackendClient | null,
 ): Promise<PerformanceAnalyticsSummaryResult> => {
-  const base = resolveBackendUrl('/analytics/summary', baseUrl ?? undefined);
-  const separator = base.includes('?') ? '&' : '?';
-  const targetUrl = `${base}${separator}time_range=${encodeURIComponent(timeRange)}`;
+  const backend = resolveClient(client);
+  const baseUrl = backend.resolve('/analytics/summary');
+  const separator = baseUrl.includes('?') ? '&' : '?';
+  const targetUrl = `${baseUrl}${separator}time_range=${encodeURIComponent(timeRange)}`;
 
-  const { data } = await getJson<PerformanceAnalyticsSummaryApi>(targetUrl);
+  const data = await backend.getJson<PerformanceAnalyticsSummaryApi>(targetUrl);
   const payload = data ?? null;
 
   return {
