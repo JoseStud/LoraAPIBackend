@@ -8,12 +8,19 @@ import { useGenerationConnectionStore, useGenerationQueueStore } from '@/stores/
 const serviceMocks = vi.hoisted(() => ({
   fetchActiveGenerationJobs: vi.fn(),
   cancelGenerationJob: vi.fn(),
+  fetchSystemStatus: vi.fn(),
+  useDashboardStatsApi: vi.fn(() => ({ fetchData: vi.fn() })),
+  useSystemStatusApi: vi.fn(() => ({ fetchData: vi.fn() })),
 }));
 
 vi.mock('@/services', () => ({
   fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
   cancelGenerationJob: serviceMocks.cancelGenerationJob,
+  fetchSystemStatus: serviceMocks.fetchSystemStatus,
+  useDashboardStatsApi: serviceMocks.useDashboardStatsApi,
+  useSystemStatusApi: serviceMocks.useSystemStatusApi,
   buildAdapterListQuery: vi.fn(),
+  DEFAULT_POLL_INTERVAL: 2500,
 }));
 
 vi.mock('@/services/generation/generationService', () => ({

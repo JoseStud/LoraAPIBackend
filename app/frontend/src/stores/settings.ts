@@ -1,33 +1,9 @@
 import { defineStore } from 'pinia';
 
+import { resetBackendSettings, updateBackendSettings } from '@/config/backendSettings';
 import { loadFrontendSettings } from '@/services';
 import { trimTrailingSlash } from '@/utils/backend';
 import type { FrontendRuntimeSettings, SettingsState } from '@/types';
-
-const applyWindowGlobals = (settings: FrontendRuntimeSettings | null) => {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  const win = window as typeof window & {
-    BACKEND_URL?: string;
-    BACKEND_API_KEY?: string | null;
-    __APP_SETTINGS__?: FrontendRuntimeSettings | null;
-  };
-
-  if (settings) {
-    const backendUrl = typeof settings.backendUrl === 'string'
-      ? trimTrailingSlash(settings.backendUrl)
-      : '';
-    win.BACKEND_URL = backendUrl;
-    win.BACKEND_API_KEY = settings.backendApiKey ?? '';
-    win.__APP_SETTINGS__ = settings;
-  } else {
-    win.__APP_SETTINGS__ = null;
-    win.BACKEND_URL = '';
-    win.BACKEND_API_KEY = '';
-  }
-};
 
 export const useSettingsStore = defineStore('app-settings', {
   state: (): SettingsState => ({
@@ -62,7 +38,10 @@ export const useSettingsStore = defineStore('app-settings', {
 
       this.settings = merged;
       this.isLoaded = true;
-      applyWindowGlobals(merged);
+      updateBackendSettings({
+        backendUrl,
+        backendApiKey,
+      });
     },
 
     async loadSettings(force = false) {
@@ -95,7 +74,7 @@ export const useSettingsStore = defineStore('app-settings', {
       this.isLoaded = false;
       this.isLoading = false;
       this.error = null;
-      applyWindowGlobals(null);
+      resetBackendSettings();
     },
   },
 });

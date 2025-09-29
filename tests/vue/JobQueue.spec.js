@@ -9,11 +9,18 @@ import { useSettingsStore } from '../../app/frontend/src/stores/settings';
 const serviceMocks = vi.hoisted(() => ({
   cancelGenerationJob: vi.fn(),
   fetchActiveGenerationJobs: vi.fn(),
+  fetchSystemStatus: vi.fn(),
+  useDashboardStatsApi: vi.fn(() => ({ fetchData: vi.fn() })),
+  useSystemStatusApi: vi.fn(() => ({ fetchData: vi.fn() })),
 }));
 
 vi.mock('@/services', () => ({
   cancelGenerationJob: serviceMocks.cancelGenerationJob,
   fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
+  fetchSystemStatus: serviceMocks.fetchSystemStatus,
+  useDashboardStatsApi: serviceMocks.useDashboardStatsApi,
+  useSystemStatusApi: serviceMocks.useSystemStatusApi,
+  DEFAULT_POLL_INTERVAL: 2500,
 }));
 
 vi.mock('@/services/generation/generationService', () => ({
