@@ -101,7 +101,7 @@ async def get_recommendations_for_prompt(
 
     # Get embeddings for the prompt
     prompt_embeddings = await asyncio.to_thread(
-        embedder.compute_prompt_embeddings, prompt, device
+        embedder.compute_prompt_embeddings, prompt, device=device
     )
     prompt_embedding = prompt_embeddings["semantic"]
 

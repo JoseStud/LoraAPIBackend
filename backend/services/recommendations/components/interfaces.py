@@ -21,6 +21,11 @@ class SemanticEmbedderProtocol(Protocol):
     def batch_encode_collection(self, loras: Sequence[Any]) -> Dict[str, np.ndarray]:
         """Batch encode a collection of LoRAs."""
 
+    def compute_prompt_embeddings(
+        self, prompt: str, *, device: Optional[str] = None
+    ) -> Dict[str, np.ndarray]:
+        """Compute embeddings for a free-form prompt."""
+
 
 @runtime_checkable
 class FeatureExtractorProtocol(Protocol):
