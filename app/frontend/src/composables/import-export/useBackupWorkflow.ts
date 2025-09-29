@@ -28,8 +28,10 @@ export function useBackupWorkflow(options: UseBackupWorkflowOptions): UseBackupW
 
   const loadHistory = async () => {
     try {
-      const response = await backendClient.getJson('/api/v1/backups/history');
-      const data = response?.data;
+      const data =
+        (await backendClient.getJson<BackupHistoryItem[] | { history?: BackupHistoryItem[] }>(
+          '/api/v1/backups/history',
+        )) ?? null;
 
       if (Array.isArray(data)) {
         history.value = data as BackupHistoryItem[];
