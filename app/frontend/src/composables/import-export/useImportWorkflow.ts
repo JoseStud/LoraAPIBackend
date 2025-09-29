@@ -1,7 +1,7 @@
 import { computed, reactive, ref, type ComputedRef } from 'vue';
 
 import { ensureData, requestJson } from '@/services/apiClient';
-import type { ImportConfig, ImportMode } from '@/types';
+import type { ImportConfig } from '@/types';
 import type { NotifyFn, ProgressCallbacks } from './useExportWorkflow';
 
 export interface ImportPreviewItem {

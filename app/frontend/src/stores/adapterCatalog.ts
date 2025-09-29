@@ -2,7 +2,7 @@ import { computed, reactive, ref } from 'vue';
 import { defineStore } from 'pinia';
 
 import { ApiError } from '@/composables/shared';
-import { fetchAdapterList, fetchAdapterTags, performBulkLoraAction } from '@/services/lora/loraService';
+import { fetchAdapterList, fetchAdapterTags, performBulkLoraAction } from '@/services';
 import { useBackendBase } from '@/utils/backend';
 
 import type {

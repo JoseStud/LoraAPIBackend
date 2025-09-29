@@ -1,11 +1,11 @@
 import { storeToRefs } from 'pinia'
 
 import type { GenerationNotificationAdapter } from '@/composables/generation'
-import { createGenerationOrchestrator } from '@/services/generation/orchestrator'
+import { createGenerationOrchestrator } from '@/services'
 import type {
   GenerationQueueClient,
   GenerationWebSocketManager,
-} from '@/services/generation/updates'
+} from '@/services'
 import {
   useGenerationConnectionStore,
   useGenerationFormStore,
