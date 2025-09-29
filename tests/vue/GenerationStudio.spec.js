@@ -15,6 +15,21 @@ import {
 } from '../../app/frontend/src/stores/generation'
 import { PERSISTENCE_KEYS } from '../../app/frontend/src/constants/persistence'
 
+const mockStatusController = vi.hoisted(() => ({
+  ensureHydrated: vi.fn().mockResolvedValue(undefined),
+  refresh: vi.fn().mockResolvedValue(undefined),
+  start: vi.fn(),
+  stop: vi.fn(),
+}))
+
+vi.mock('../../app/frontend/src/stores/generation/systemStatusController', () => ({
+  acquireSystemStatusController: () => ({
+    controller: mockStatusController,
+    release: vi.fn(),
+  }),
+  useSystemStatusController: () => mockStatusController,
+}))
+
 const orchestratorMocks = vi.hoisted(() => ({
   initialize: vi.fn(),
   cleanup: vi.fn(),

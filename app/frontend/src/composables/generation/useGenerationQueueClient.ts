@@ -1,4 +1,4 @@
-import { onScopeDispose, ref, shallowRef } from 'vue';
+import { ref, shallowRef } from 'vue';
 
 import {
   createGenerationQueueClient,
@@ -14,7 +14,6 @@ import type {
   SystemStatusState,
 } from '@/types';
 import type { GenerationJobInput } from '@/stores/generation';
-import { acquireSystemStatusController } from '@/stores/generation';
 
 const ensureArray = <T>(value: unknown): T[] => (Array.isArray(value) ? value : []);
 
@@ -31,6 +30,8 @@ interface QueueClientCallbacks {
   shouldPollQueue?: () => boolean;
   onNotify?: (message: string, type?: NotificationType) => void;
   logger?: (...args: unknown[]) => void;
+  onHydrateSystemStatus?: () => Promise<void> | void;
+  onReleaseSystemStatus?: () => void;
 }
 
 export const useGenerationQueueClient = (
@@ -40,13 +41,6 @@ export const useGenerationQueueClient = (
   const queueClientRef = shallowRef<GenerationQueueClient | null>(options.queueClient ?? null);
   const pollInterval = ref(options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL);
   const pollTimer = ref<number | null>(null);
-  const { controller: statusController, release: releaseStatusController } =
-    acquireSystemStatusController();
-
-  onScopeDispose(() => {
-    releaseStatusController();
-  });
-
   const logDebug = (...args: unknown[]): void => {
     if (typeof callbacks.logger === 'function') {
       callbacks.logger(...args);
@@ -151,7 +145,9 @@ export const useGenerationQueueClient = (
   const initialize = async (historyLimit: number): Promise<void> => {
     await refreshAllData(historyLimit);
     startPolling();
-    void statusController.ensureHydrated();
+    if (callbacks.onHydrateSystemStatus) {
+      await callbacks.onHydrateSystemStatus();
+    }
   };
 
   const startGeneration = async (
@@ -171,7 +167,7 @@ export const useGenerationQueueClient = (
   const clear = (): void => {
     stopPolling();
     queueClientRef.value = null;
-    releaseStatusController();
+    callbacks.onReleaseSystemStatus?.();
   };
 
   return {

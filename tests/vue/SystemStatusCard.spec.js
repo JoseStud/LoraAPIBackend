@@ -15,6 +15,10 @@ const mockController = {
 
 vi.mock('../../app/frontend/src/stores/generation/systemStatusController', () => ({
   useSystemStatusController: () => mockController,
+  acquireSystemStatusController: () => ({
+    controller: mockController,
+    release: vi.fn(),
+  }),
 }));
 
 const flush = async () => {

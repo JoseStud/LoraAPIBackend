@@ -252,6 +252,37 @@ const apiMocks = {
         generation_info: null,
     }),
 
+    'GET /api/v1/generation/jobs/active': () => ({
+        data: [
+            {
+                id: 'job-1',
+                status: 'queued',
+                progress: 0,
+                prompt: 'Test prompt',
+                created_at: '2024-01-01T00:00:00Z',
+            },
+        ],
+    }),
+
+    'GET /api/v1/generation/results': (url) => {
+        const urlObj = new URL(url, 'http://localhost');
+        const limit = parseInt(urlObj.searchParams.get('limit')) || 10;
+
+        return {
+            data: mockData.loras.slice(0, limit).map((item, index) => ({
+                id: `result-${index + 1}`,
+                prompt: `Prompt ${index + 1}`,
+                image_url: `/images/result-${index + 1}.png`,
+                created_at: item.created_at,
+                width: 512,
+                height: 512,
+                steps: 30,
+                cfg_scale: 7,
+                seed: 1234 + index,
+            })),
+        };
+    },
+
     'POST /api/generation/jobs/:id/cancel': (url) => {
         const id = url.split('/').slice(-2)[0];
         return {
