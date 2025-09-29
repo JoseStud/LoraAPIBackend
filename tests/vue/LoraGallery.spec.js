@@ -111,6 +111,7 @@ vi.mock('@/composables/shared', async (importOriginal) => {
         query,
         adapters,
         fetchData,
+        cancelActiveRequest: vi.fn(),
       };
     },
   };
