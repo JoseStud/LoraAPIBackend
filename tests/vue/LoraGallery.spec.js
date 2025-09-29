@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
+import { reactive } from 'vue';
 import LoraGallery from '@/components/lora-gallery/LoraGallery.vue';
 import LoraCard from '@/components/lora-gallery/LoraCard.vue';
 
@@ -9,15 +10,33 @@ const mocks = vi.hoisted(() => ({
   performBulkLoraActionMock: vi.fn(),
 }));
 
-const routerMocks = vi.hoisted(() => ({
-  push: vi.fn().mockResolvedValue(undefined),
-}));
+const route = reactive({
+  path: '/',
+  /** @type {Record<string, unknown>} */
+  query: {},
+});
+
+const updateRouteFromPush = async (location = {}) => {
+  const { path, query } = location;
+
+  if (typeof path === 'string') {
+    route.path = path;
+  }
+
+  if (query && typeof query === 'object') {
+    Object.keys(route.query).forEach(key => {
+      delete route.query[key];
+    });
+    Object.assign(route.query, query);
+  }
+};
+
+const routerMocks = {
+  push: vi.fn(updateRouteFromPush),
+};
 
 vi.mock('vue-router', () => ({
-  useRoute: () => ({
-    path: '/',
-    query: {},
-  }),
+  useRoute: () => route,
   useRouter: () => routerMocks,
   isNavigationFailure: () => false,
   NavigationFailureType: { duplicated: 'duplicated' },
@@ -154,6 +173,11 @@ describe('LoraGallery', () => {
     dialogServiceMocks.confirm.mockClear();
     dialogServiceMocks.confirm.mockResolvedValue(true);
     routerMocks.push.mockClear();
+    routerMocks.push.mockImplementation(updateRouteFromPush);
+    Object.keys(route.query).forEach(key => {
+      delete route.query[key];
+    });
+    route.path = '/';
   });
 
   const mountGallery = async () => {
@@ -179,6 +203,31 @@ describe('LoraGallery', () => {
     await flushPromises();
 
     expect(wrapper.findAllComponents(LoraCard)).toHaveLength(1);
+  });
+
+  it('initializes filters from the current route query', async () => {
+    route.query.q = 'Test LoRA 1';
+
+    const wrapper = await mountGallery();
+    await flushPromises();
+
+    expect(wrapper.vm.searchTerm).toBe('Test LoRA 1');
+    expect(wrapper.findAllComponents(LoraCard)).toHaveLength(1);
+  });
+
+  it('updates filters when the route query changes', async () => {
+    const wrapper = await mountGallery();
+
+    route.query.q = 'Test LoRA 2';
+    await flushPromises();
+
+    expect(wrapper.vm.searchTerm).toBe('Test LoRA 2');
+    expect(wrapper.findAllComponents(LoraCard)).toHaveLength(1);
+
+    delete route.query.q;
+    await flushPromises();
+
+    expect(wrapper.vm.searchTerm).toBe('');
   });
 
   it('toggles view mode', async () => {

@@ -140,8 +140,6 @@ const syncSearchTermFromRoute = () => {
   }
 };
 
-syncSearchTermFromRoute();
-
 watch(
   () => route.query.q,
   () => {
@@ -225,6 +223,7 @@ const handleLoraDelete = (id: string) => {
 };
 
 onMounted(async () => {
+  syncSearchTermFromRoute();
   initializeSelection();
   await initialize();
 });
