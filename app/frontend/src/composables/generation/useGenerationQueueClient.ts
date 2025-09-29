@@ -14,6 +14,7 @@ import type {
   SystemStatusState,
 } from '@/types';
 import type { GenerationJobInput } from '@/stores/generation';
+import { useSystemStatusController } from '@/stores/generation/systemStatusController';
 
 const ensureArray = <T>(value: unknown): T[] => (Array.isArray(value) ? value : []);
 
@@ -39,6 +40,7 @@ export const useGenerationQueueClient = (
   const queueClientRef = shallowRef<GenerationQueueClient | null>(options.queueClient ?? null);
   const pollInterval = ref(options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL);
   const pollTimer = ref<number | null>(null);
+  const statusController = useSystemStatusController();
 
   const logDebug = (...args: unknown[]): void => {
     if (typeof callbacks.logger === 'function') {
@@ -115,7 +117,6 @@ export const useGenerationQueueClient = (
         if (callbacks.shouldPollQueue?.()) {
           await refreshActiveJobs();
         }
-        await refreshSystemStatus();
       } catch (error) {
         console.error('Failed to refresh generation data during polling:', error);
         logDebug('Queue polling cycle failed', error);
@@ -145,6 +146,7 @@ export const useGenerationQueueClient = (
   const initialize = async (historyLimit: number): Promise<void> => {
     await refreshAllData(historyLimit);
     startPolling();
+    void statusController.ensureHydrated();
   };
 
   const startGeneration = async (
