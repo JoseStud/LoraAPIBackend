@@ -3,5 +3,8 @@ export const normalizeGenerationProgress = (value?: number | null): number => {
     return 0
   }
 
-  return value <= 1 ? Math.round(value * 100) : Math.round(value)
+  const normalized = value <= 1 ? value * 100 : value
+  const rounded = Math.round(normalized)
+
+  return Math.min(100, Math.max(0, rounded))
 }
