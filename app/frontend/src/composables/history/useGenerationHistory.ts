@@ -2,7 +2,7 @@ import { computed, ref, unref, type ComputedRef } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
 
 import { debounce, type DebouncedFunction } from '@/utils/async';
-import { listResults as listHistoryResults } from '@/services/history/historyService';
+import { listResults as listHistoryResults } from '@/services';
 import type {
   GenerationHistoryQuery,
   GenerationHistoryResult,

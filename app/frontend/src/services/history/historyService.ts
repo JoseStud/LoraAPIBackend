@@ -7,7 +7,7 @@ import {
   type ApiRequestConfig,
   type ApiRequestInit,
 } from '@/services/apiClient';
-import { resolveGenerationRoute } from '@/services/generation/generationService';
+import { resolveGenerationRoute } from '@/services';
 import { sanitizeBackendBaseUrl } from '@/utils/backend';
 
 import type {

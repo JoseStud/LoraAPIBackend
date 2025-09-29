@@ -8,7 +8,7 @@ import type {
   RecommendationResponse,
 } from '@/types';
 
-import { useDashboardStatsApi, useSystemStatusApi } from '@/services/system';
+import { useDashboardStatsApi, useSystemStatusApi } from '@/services';
 
 import { resolveBackendUrl } from '@/utils/backend';
 

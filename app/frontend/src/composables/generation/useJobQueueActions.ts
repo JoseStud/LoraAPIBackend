@@ -1,7 +1,7 @@
 import { ref, unref, type MaybeRefOrGetter } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { cancelGenerationJob } from '@/services/generation/generationService';
+import { cancelGenerationJob } from '@/services';
 import { useGenerationQueueStore } from '@/stores/generation';
 import { useNotifications } from '@/composables/shared';
 import { useBackendBase } from '@/utils/backend';
@@ -63,6 +63,9 @@ export const useJobQueueActions = (options: UseJobQueueActionsOptions = {}) => {
         notifications.showToastInfo('Job cancelled');
         return true;
       } catch (error) {
+        if (import.meta.env.DEV) {
+          console.error('[JobQueue] Failed to cancel generation job', error);
+        }
         notifications.showToastError('Failed to cancel job');
         return false;
       }

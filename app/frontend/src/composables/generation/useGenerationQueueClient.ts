@@ -4,7 +4,7 @@ import {
   createGenerationQueueClient,
   DEFAULT_POLL_INTERVAL,
   type GenerationQueueClient,
-} from '@/services/generation/updates';
+} from '@/services';
 import type {
   GenerationRequestPayload,
   GenerationResult,
@@ -14,7 +14,7 @@ import type {
   SystemStatusState,
 } from '@/types';
 import type { GenerationJobInput } from '@/stores/generation';
-import { useSystemStatusController } from '@/stores/generation/systemStatusController';
+import { useSystemStatusController } from '@/stores/generation';
 
 const ensureArray = <T>(value: unknown): T[] => (Array.isArray(value) ? value : []);
 
