@@ -8,7 +8,11 @@ import { useGenerationQueueStore } from '@/stores/generation';
 const serviceMocks = vi.hoisted(() => ({
   cancelGenerationJob: vi.fn(),
   fetchActiveGenerationJobs: vi.fn(),
+  fetchSystemStatus: vi.fn(),
+  useDashboardStatsApi: vi.fn(() => ({ fetchData: vi.fn() })),
+  useSystemStatusApi: vi.fn(() => ({ fetchData: vi.fn() })),
 }));
+
 
 vi.mock('@/services', async (importOriginal) => {
   const actual = await importOriginal();
@@ -19,6 +23,7 @@ vi.mock('@/services', async (importOriginal) => {
     buildAdapterListQuery: vi.fn(),
   };
 });
+
 
 vi.mock('@/services/generation/generationService', () => ({
   cancelGenerationJob: serviceMocks.cancelGenerationJob,

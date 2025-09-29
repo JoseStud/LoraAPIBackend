@@ -56,14 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
-import {
-  NavigationFailureType,
-  isNavigationFailure,
-  useRoute,
-  useRouter,
-} from 'vue-router';
-import type { LocationQueryRaw } from 'vue-router';
+import { onMounted, ref } from 'vue';
 
 import LoraGalleryBulkActions from './LoraGalleryBulkActions.vue';
 import LoraGalleryFilters from './LoraGalleryFilters.vue';
@@ -73,7 +66,7 @@ import LoraGalleryTagModal from './LoraGalleryTagModal.vue';
 import { useLoraGalleryData } from '@/composables/lora-gallery';
 import { useLoraGalleryFilters } from '@/composables/lora-gallery';
 import { useLoraGallerySelection } from '@/composables/lora-gallery';
-import { useDialogService, useNotifications } from '@/composables/shared';
+import { useDialogService, useNotifications, useSyncedQueryParam } from '@/composables/shared';
 import type {
   LoraBulkAction,
   LoraUpdatePayload,
@@ -83,9 +76,6 @@ defineOptions({ name: 'LoraGallery' });
 
 const { showWarning, showSuccess, showError } = useNotifications();
 const dialog = useDialogService();
-
-const route = useRoute();
-const router = useRouter();
 
 const {
   isInitialized,
@@ -98,6 +88,8 @@ const {
   removeLora,
 } = useLoraGalleryData();
 
+const searchQuery = useSyncedQueryParam();
+
 const {
   searchTerm,
   activeOnly,
@@ -105,7 +97,7 @@ const {
   sortBy,
   filteredLoras,
   clearFilters,
-} = useLoraGalleryFilters(loras);
+} = useLoraGalleryFilters(loras, searchQuery);
 
 const {
   selectedLoras,
@@ -123,51 +115,6 @@ const {
 } = useLoraGallerySelection(filteredLoras);
 
 const isTagModalOpen = ref(false);
-
-const normalizeQueryValue = (value: unknown): string => {
-  if (Array.isArray(value)) {
-    return value[0] ?? '';
-  }
-
-  return typeof value === 'string' ? value : '';
-};
-
-const syncSearchTermFromRoute = () => {
-  const queryValue = normalizeQueryValue(route.query.q);
-
-  if (queryValue !== searchTerm.value) {
-    searchTerm.value = queryValue;
-  }
-};
-
-watch(
-  () => route.query.q,
-  () => {
-    syncSearchTermFromRoute();
-  }
-);
-
-watch(searchTerm, newValue => {
-  const currentQueryValue = normalizeQueryValue(route.query.q);
-
-  if (newValue === currentQueryValue) {
-    return;
-  }
-
-  const nextQuery = { ...route.query } as LocationQueryRaw;
-
-  if (newValue) {
-    nextQuery.q = newValue;
-  } else {
-    delete nextQuery.q;
-  }
-
-  router.push({ path: route.path, query: nextQuery }).catch(error => {
-    if (!isNavigationFailure(error, NavigationFailureType.duplicated)) {
-      console.error('Failed to update search query parameter', error);
-    }
-  });
-});
 
 const handleClearFilters = () => {
   clearFilters();
@@ -223,7 +170,6 @@ const handleLoraDelete = (id: string) => {
 };
 
 onMounted(async () => {
-  syncSearchTermFromRoute();
   initializeSelection();
   await initialize();
 });
