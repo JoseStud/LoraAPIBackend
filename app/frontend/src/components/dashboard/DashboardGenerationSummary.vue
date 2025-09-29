@@ -97,7 +97,7 @@ import { computed, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { RouterLink } from 'vue-router';
 
-import { useGenerationHistoryApi } from '@/services';
+import { listResults as listHistoryResults } from '@/services/history/historyService';
 import { useGenerationResultsStore } from '@/stores/generation';
 import { useBackendBase } from '@/utils/backend';
 import { formatFileSize, formatRelativeTime } from '@/utils/format';
@@ -106,7 +106,6 @@ import type { GenerationHistoryResult, GenerationHistoryStats } from '@/types';
 const SUMMARY_QUERY = Object.freeze({ page_size: 4, sort: 'created_at_desc' as const });
 
 const backendBase = useBackendBase();
-const historyApi = useGenerationHistoryApi(backendBase, { ...SUMMARY_QUERY });
 const resultsStore = useGenerationResultsStore();
 const { recentResults: storeResults } = storeToRefs(resultsStore);
 
@@ -119,14 +118,23 @@ const stats = ref<GenerationHistoryStats>({
 
 const fetchedResults = ref<GenerationHistoryResult[]>([]);
 
-const isLoading = computed(() => historyApi.isLoading.value);
-const error = computed(() => historyApi.error.value);
-const errorMessage = computed(() => (error.value instanceof Error ? error.value.message : 'Please try again.'));
+const isLoading = ref(false);
+const error = ref<unknown>(null);
+const errorMessage = computed(() => {
+  const value = error.value;
+  if (value instanceof Error) {
+    return value.message;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return value;
+  }
+  return 'Please try again.';
+});
 
 const formattedAverage = computed(() => stats.value.avg_rating.toFixed(1));
 const formattedSize = computed(() => formatFileSize(stats.value.total_size));
 
-const recentResults = computed(() => {
+const recentResults = computed<GenerationHistoryResult[]>(() => {
   const limit = SUMMARY_QUERY.page_size ?? 4;
   if (fetchedResults.value.length) {
     return fetchedResults.value.slice(0, limit);
@@ -134,7 +142,7 @@ const recentResults = computed(() => {
   if (storeResults.value.length) {
     return storeResults.value.slice(0, limit);
   }
-  return historyApi.results.value.slice(0, limit);
+  return [];
 });
 
 const truncate = (value: string, maxLength: number) => {
@@ -145,15 +153,25 @@ const truncate = (value: string, maxLength: number) => {
 };
 
 const refresh = async () => {
+  if (isLoading.value) {
+    return;
+  }
+
+  isLoading.value = true;
+  error.value = null;
+
   try {
-    const output = await historyApi.fetchPage({ ...SUMMARY_QUERY });
+    const output = await listHistoryResults(backendBase.value, { ...SUMMARY_QUERY });
     stats.value = output.stats;
     fetchedResults.value = output.results;
     if (!storeResults.value.length && output.results.length) {
       resultsStore.setResults(output.results);
     }
   } catch (err) {
+    error.value = err instanceof Error ? err : new Error('Failed to load generation summary');
     console.error('Failed to refresh generation summary', err);
+  } finally {
+    isLoading.value = false;
   }
 };
 

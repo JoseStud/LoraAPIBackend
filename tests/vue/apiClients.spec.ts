@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useActiveJobsApi, useAdapterListApi } from '../../app/frontend/src/composables/shared/apiClients';
-import { useDashboardStatsApi, useSystemStatusApi } from '../../app/frontend/src/services/system';
+import { fetchDashboardStats, fetchSystemStatus } from '../../app/frontend/src/services/system/systemService';
 import { useSettingsStore } from '../../app/frontend/src/stores/settings';
 
 const createJsonResponse = (payload: unknown): Response => ({
@@ -42,14 +42,10 @@ describe('apiClients composables', () => {
   });
 
   it('resolves dashboard stats requests against the configured backend URL', async () => {
-    const settingsStore = useSettingsStore();
-    settingsStore.setSettings({ backendUrl: 'https://stats.example/backend' });
-
     const fetchMock = vi.fn().mockResolvedValue(createJsonResponse({}));
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const { fetchData } = useDashboardStatsApi();
-    await fetchData();
+    await fetchDashboardStats('https://stats.example/backend/');
 
     expect(fetchMock).toHaveBeenCalledWith(
       'https://stats.example/backend/dashboard/stats',
@@ -58,14 +54,10 @@ describe('apiClients composables', () => {
   });
 
   it('resolves system status requests against the configured backend URL', async () => {
-    const settingsStore = useSettingsStore();
-    settingsStore.setSettings({ backendUrl: 'https://status.example/api' });
-
     const fetchMock = vi.fn().mockResolvedValue(createJsonResponse({}));
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const { fetchData } = useSystemStatusApi();
-    await fetchData();
+    await fetchSystemStatus('https://status.example/api');
 
     expect(fetchMock).toHaveBeenCalledWith(
       'https://status.example/api/system/status',
