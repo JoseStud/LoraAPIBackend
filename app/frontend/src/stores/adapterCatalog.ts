@@ -1,8 +1,8 @@
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { defineStore } from 'pinia';
 
-import { ApiError, useAdapterListApi } from '@/composables/shared';
-import { fetchAdapterTags, performBulkLoraAction } from '@/services/lora/loraService';
+import { ApiError } from '@/composables/shared';
+import { fetchAdapterList, fetchAdapterTags, performBulkLoraAction } from '@/services/lora/loraService';
 import { useBackendBase } from '@/utils/backend';
 
 import type {
@@ -18,13 +18,13 @@ import type {
 const DEFAULT_QUERY: AdapterListQuery = { page: 1, perPage: 200 };
 
 const extractGalleryItems = (
-  payload: AdapterListResponse | LoraListItem[] | null | undefined,
+  payload: AdapterListResponse | null | undefined,
 ): GalleryLora[] => {
   if (!payload) {
     return [];
   }
 
-  const items = Array.isArray(payload) ? payload : payload.items ?? [];
+  const items = Array.isArray(payload.items) ? payload.items : [];
   return items.map((item) => ({ ...item }));
 };
 
@@ -55,10 +55,8 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
   const lastError = ref<ApiError | unknown | null>(null);
   const isLoading = ref(false);
 
-  const api = useAdapterListApi({ ...DEFAULT_QUERY });
   const backendBase = useBackendBase();
-
-  const query = api.query;
+  const query = reactive<AdapterListQuery>({ ...DEFAULT_QUERY });
   const loras = computed<GalleryLora[]>(() => loraItems.value.map((item) => ({ ...item })));
   const adapters = computed<AdapterSummary[]>(() => loraItems.value.map(toSummary));
   const error = computed(() => lastError.value);
@@ -123,13 +121,16 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
       return pendingFetch.value;
     }
 
+    const requestQuery: AdapterListQuery = { ...query, ...overrides };
+
     const request = (async () => {
       isLoading.value = true;
       lastError.value = null;
 
       try {
-        const payload = (await api.fetchData(overrides)) as AdapterListResponse | LoraListItem[] | null;
+        const payload = await fetchAdapterList(backendBase.value, requestQuery);
         loraItems.value = extractGalleryItems(payload);
+        Object.assign(query, requestQuery);
         lastFetchedAt.value = Date.now();
         return adapters.value;
       } catch (err) {
@@ -222,7 +223,6 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
   };
 
   const reset = () => {
-    api.cancelActiveRequest();
     pendingFetch.value = null;
     lastFetchedAt.value = null;
     pendingTagFetch.value = null;
@@ -232,6 +232,7 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
     isLoading.value = false;
     availableTags.value = [];
     tagError.value = null;
+    Object.assign(query, { ...DEFAULT_QUERY });
   };
 
   return {

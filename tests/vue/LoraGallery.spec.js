@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { reactive } from 'vue';
+import { createPinia, setActivePinia } from 'pinia';
 import LoraGallery from '@/components/lora-gallery/LoraGallery.vue';
 import LoraCard from '@/components/lora-gallery/LoraCard.vue';
+import { useSettingsStore } from '@/stores/settings';
 
 const mocks = vi.hoisted(() => ({
-  fetchAdaptersMock: vi.fn(),
+  fetchAdapterListMock: vi.fn(),
   fetchAdapterTagsMock: vi.fn(),
   performBulkLoraActionMock: vi.fn(),
 }));
@@ -70,69 +72,12 @@ const notificationMocks = vi.hoisted(() => ({
   showError: vi.fn(),
 }));
 
-vi.mock('@/services', async () => {
-  const actual = await vi.importActual('@/services');
-  return {
-    ...actual,
-    fetchAdapters: mocks.fetchAdaptersMock,
-    fetchAdapterTags: mocks.fetchAdapterTagsMock,
-    performBulkLoraAction: mocks.performBulkLoraActionMock,
-  };
-});
-
 vi.mock('@/composables/shared', async (importOriginal) => {
   const actual = await importOriginal();
-  const { ref, reactive, computed } = await import('vue');
-
   return {
     ...actual,
     useDialogService: () => dialogServiceMocks,
     useNotifications: () => notificationMocks,
-    useAdapterListApi: () => {
-      const data = ref(null);
-      const error = ref(null);
-      const isLoading = ref(false);
-      const query = reactive({ page: 1, perPage: 100 });
-      const adapters = computed(() => {
-        const payload = data.value;
-        if (!payload) {
-          return [];
-        }
-        if (Array.isArray(payload)) {
-          return payload;
-        }
-        if (Array.isArray(payload.items)) {
-          return payload.items;
-        }
-        return [];
-      });
-
-      const fetchData = async (overrides = {}) => {
-        Object.assign(query, overrides);
-        isLoading.value = true;
-        try {
-          const result = await mocks.fetchAdaptersMock('/api/v1', { ...query });
-          data.value = result ?? [];
-          error.value = null;
-          return data.value;
-        } catch (err) {
-          error.value = err;
-          throw err;
-        } finally {
-          isLoading.value = false;
-        }
-      };
-
-      return {
-        data,
-        error,
-        isLoading,
-        query,
-        adapters,
-        fetchData,
-        cancelActiveRequest: vi.fn(),
-      };
-    },
   };
 });
 
@@ -140,34 +85,51 @@ vi.mock('@/services/lora/loraService', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
+    fetchAdapterList: mocks.fetchAdapterListMock,
     fetchAdapterTags: mocks.fetchAdapterTagsMock,
     performBulkLoraAction: mocks.performBulkLoraActionMock,
   };
 });
 
 describe('LoraGallery', () => {
+  let pinia;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.fetchAdaptersMock.mockResolvedValue([
-      {
-        id: '1',
-        name: 'Test LoRA 1',
-        description: 'Test description',
-        active: true,
-        weight: 1.0,
-        tags: ['test', 'lora'],
-        created_at: '2023-01-01T00:00:00Z',
-      },
-      {
-        id: '2',
-        name: 'Test LoRA 2',
-        description: 'Another test description',
-        active: false,
-        weight: 0.8,
-        tags: ['test'],
-        created_at: '2023-01-02T00:00:00Z',
-      },
-    ]);
+    pinia = createPinia();
+    setActivePinia(pinia);
+
+    const settingsStore = useSettingsStore();
+    settingsStore.reset();
+    settingsStore.setSettings({ backendUrl: '/api/v1' });
+
+    mocks.fetchAdapterListMock.mockImplementation(async (_baseUrl, query = {}) => ({
+      items: [
+        {
+          id: '1',
+          name: 'Test LoRA 1',
+          description: 'Test description',
+          active: true,
+          weight: 1.0,
+          tags: ['test', 'lora'],
+          created_at: '2023-01-01T00:00:00Z',
+        },
+        {
+          id: '2',
+          name: 'Test LoRA 2',
+          description: 'Another test description',
+          active: false,
+          weight: 0.8,
+          tags: ['test'],
+          created_at: '2023-01-02T00:00:00Z',
+        },
+      ],
+      total: 2,
+      filtered: 2,
+      page: (query && query.page) || 1,
+      pages: 1,
+      per_page: (query && query.perPage) || 200,
+    }));
     mocks.fetchAdapterTagsMock.mockResolvedValue(['test', 'lora']);
     mocks.performBulkLoraActionMock.mockResolvedValue(undefined);
     dialogServiceMocks.confirm.mockClear();
@@ -181,7 +143,7 @@ describe('LoraGallery', () => {
   });
 
   const mountGallery = async () => {
-    const wrapper = mount(LoraGallery);
+    const wrapper = mount(LoraGallery, { global: { plugins: [pinia] } });
     await flushPromises();
     return wrapper;
   };
@@ -193,7 +155,10 @@ describe('LoraGallery', () => {
 
   it('loads LoRAs on mount', async () => {
     await mountGallery();
-    expect(mocks.fetchAdaptersMock).toHaveBeenCalledWith('/api/v1', expect.objectContaining({ perPage: 100 }));
+    expect(mocks.fetchAdapterListMock).toHaveBeenCalledWith(
+      '/api/v1',
+      expect.objectContaining({ perPage: 200 }),
+    );
   });
 
   it('filters LoRAs by search term', async () => {
@@ -262,7 +227,10 @@ describe('LoraGallery', () => {
   it('uses correct API URL composition', async () => {
     await mountGallery();
 
-    expect(mocks.fetchAdaptersMock).toHaveBeenCalledWith('/api/v1', expect.objectContaining({ perPage: 100 }));
+    expect(mocks.fetchAdapterListMock).toHaveBeenCalledWith(
+      '/api/v1',
+      expect.objectContaining({ perPage: 200 }),
+    );
     expect(mocks.fetchAdapterTagsMock).toHaveBeenCalledWith('/api/v1');
   });
 
@@ -279,7 +247,6 @@ describe('LoraGallery', () => {
 
     await wrapper.vm.performBulkAction('activate');
     await flushPromises();
-
     expect(mocks.performBulkLoraActionMock).toHaveBeenCalledWith('/api/v1', {
       action: 'activate',
       lora_ids: ['1'],

@@ -102,38 +102,105 @@ export const fetchAdapterTags = async (baseUrl: string): Promise<string[]> => {
   return payload?.tags ?? [];
 };
 
+const getFallbackPerPage = (query: AdapterListQuery, items: AdapterRead[]): number => {
+  if (typeof query.perPage === 'number' && Number.isFinite(query.perPage)) {
+    return query.perPage;
+  }
+
+  if (items.length > 0) {
+    return items.length;
+  }
+
+  return 0;
+};
+
+const normalizeAdapterListResponse = (
+  payload: AdapterListResponse | AdapterRead[] | null | undefined,
+  query: AdapterListQuery,
+): AdapterListResponse => {
+  const fallbackPage = typeof query.page === 'number' ? query.page : 1;
+
+  if (!payload) {
+    const perPage = typeof query.perPage === 'number' ? query.perPage : 0;
+    return {
+      items: [],
+      total: 0,
+      filtered: 0,
+      page: fallbackPage,
+      pages: 0,
+      per_page: perPage,
+    } satisfies AdapterListResponse;
+  }
+
+  if (Array.isArray(payload)) {
+    const items = payload ?? [];
+    const perPage = getFallbackPerPage(query, items);
+    const total = items.length;
+    const pages = perPage > 0 ? Math.max(1, Math.ceil(total / perPage)) : total > 0 ? 1 : 0;
+
+    return {
+      items,
+      total,
+      filtered: total,
+      page: fallbackPage,
+      pages,
+      per_page: perPage,
+    } satisfies AdapterListResponse;
+  }
+
+  const items = Array.isArray(payload.items) ? payload.items : [];
+  const total = typeof payload.total === 'number' ? payload.total : items.length;
+  const filtered = typeof payload.filtered === 'number' ? payload.filtered : total;
+  const perPage = typeof payload.per_page === 'number' ? payload.per_page : getFallbackPerPage(query, items);
+  const page = typeof payload.page === 'number' ? payload.page : fallbackPage;
+  const pages = typeof payload.pages === 'number'
+    ? payload.pages
+    : perPage > 0
+      ? Math.max(1, Math.ceil(filtered / perPage))
+      : filtered > 0
+        ? 1
+        : 0;
+
+  return {
+    items,
+    total,
+    filtered,
+    page,
+    pages,
+    per_page: perPage,
+  } satisfies AdapterListResponse;
+};
+
+export const fetchAdapterList = async (
+  baseUrl: string,
+  query: AdapterListQuery = {},
+): Promise<AdapterListResponse> => {
+  const base = sanitizeBackendBaseUrl(baseUrl);
+  const targetUrl = `${base}/adapters${buildAdapterListQuery(query)}`;
+  const payload = await fetchJson<AdapterListResponse | AdapterRead[]>(targetUrl);
+  const normalised = normalizeAdapterListResponse(payload, query);
+
+  return {
+    ...normalised,
+    items: normalised.items.map((item) => ({ ...item })),
+  } satisfies AdapterListResponse;
+};
+
 export const fetchAdapters = async (
   baseUrl: string,
   query: AdapterListQuery = {},
 ): Promise<LoraListItem[]> => {
-  const base = sanitizeBackendBaseUrl(baseUrl);
-  const targetUrl = `${base}/adapters${buildAdapterListQuery(query)}`;
-  const payload = await fetchJson<AdapterListResponse | AdapterRead[]>(targetUrl);
-
-  if (!payload) {
-    return [];
-  }
-
-  const adapters = Array.isArray(payload) ? payload : payload.items ?? [];
-  return adapters.map((item) => ({ ...item })) as LoraListItem[];
+  const response = await fetchAdapterList(baseUrl, query);
+  return response.items.map((item) => ({ ...item })) as LoraListItem[];
 };
 
 export const fetchTopAdapters = async (
   baseUrl: string,
   limit = 10,
 ): Promise<TopLoraPerformance[]> => {
-  const base = sanitizeBackendBaseUrl(baseUrl);
-  const payload = await fetchJson<AdapterListResponse | AdapterRead[]>(
-    `${base}/adapters${buildAdapterListQuery({ perPage: limit })}`,
-  );
+  const { items } = await fetchAdapterList(baseUrl, { perPage: limit });
 
-  if (!payload) {
-    return [];
-  }
-
-  const list = Array.isArray(payload) ? payload : payload.items ?? [];
-
-  return list.slice(0, limit).map((item) => {
+  return items.slice(0, limit).map((item) => {
     const stats = normalizeAdapterStats(item.stats);
 
     return {

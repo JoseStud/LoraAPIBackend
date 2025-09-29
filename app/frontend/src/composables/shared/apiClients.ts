@@ -1,14 +1,15 @@
 import type { MaybeRefOrGetter } from 'vue';
 
 import { useApi } from './useApi';
-import { useAdapterListApi } from './useAdapterListApi';
 import type {
   DashboardStatsSummary,
   GenerationJob,
   GenerationResult,
   RecommendationResponse,
 } from '@/types';
-import { buildAdapterListQuery } from '@/services/lora/loraService';
+
+import { useDashboardStatsApi, useSystemStatusApi } from '@/services/system';
+
 import { resolveBackendUrl } from '@/utils/backend';
 
 export type DashboardStatsResponse = DashboardStatsSummary;
@@ -31,4 +32,4 @@ export const useRecentResultsApi = (
   init: RequestInit = {},
 ) => useApi<GenerationResult[]>(url, withCredentials(init));
 
-export { buildAdapterListQuery, useAdapterListApi };
+export { useDashboardStatsApi, useSystemStatusApi };
