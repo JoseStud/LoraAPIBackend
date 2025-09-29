@@ -2,9 +2,9 @@ import { computed, reactive, unref } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
 
 import { useApi } from '@/composables/shared';
-import { DEFAULT_BACKEND_BASE } from '@/config/runtime';
 import { getFilenameFromContentDisposition, requestBlob } from '@/services/apiClient';
 import { resolveGenerationRoute } from '@/services/generation/generationService';
+import { sanitizeBackendBaseUrl } from '@/utils/backend';
 
 import type {
   GenerationBulkDeleteRequest,
@@ -20,16 +20,9 @@ import type {
   GenerationRatingUpdate,
 } from '@/types';
 
-const sanitizeBaseUrl = (value?: string): string => {
-  if (!value) {
-    return DEFAULT_BACKEND_BASE;
-  }
-  return value.replace(/\/+$/, '') || DEFAULT_BACKEND_BASE;
-};
-
 const resolveBaseUrl = (value: MaybeRefOrGetter<string>): string => {
   const raw = typeof value === 'function' ? (value as () => string)() : unref(value);
-  return sanitizeBaseUrl(raw);
+  return sanitizeBackendBaseUrl(raw);
 };
 
 const resolveHistoryEndpoint = (base: string, path: string): string =>
@@ -178,7 +171,7 @@ export const listResults = async (
   query: GenerationHistoryQuery = {},
   options: ListResultsOptions = {},
 ): Promise<ListResultsOutput> => {
-  const base = sanitizeBaseUrl(baseUrl);
+  const base = sanitizeBackendBaseUrl(baseUrl);
   const queryString = buildHistoryQuery(query);
   const targetUrl = resolveHistoryEndpoint(base, `/results${queryString}`);
   const api = useApi<GenerationHistoryListPayload>(() => targetUrl, {
@@ -193,7 +186,7 @@ export const rateResult = async (
   resultId: GenerationHistoryResult['id'],
   rating: number,
 ): Promise<GenerationHistoryResult | null> => {
-  const base = sanitizeBaseUrl(baseUrl);
+  const base = sanitizeBackendBaseUrl(baseUrl);
   const api = useApi<GenerationHistoryResult | null>(
     () => resolveHistoryEndpoint(base, `/results/${encodeURIComponent(String(resultId))}/rating`),
     {
@@ -215,7 +208,7 @@ export const favoriteResult = async (
   resultId: GenerationHistoryResult['id'],
   isFavorite: boolean,
 ): Promise<GenerationHistoryResult | null> => {
-  const base = sanitizeBaseUrl(baseUrl);
+  const base = sanitizeBackendBaseUrl(baseUrl);
   const api = useApi<GenerationHistoryResult | null>(
     () => resolveHistoryEndpoint(base, `/results/${encodeURIComponent(String(resultId))}/favorite`),
     {
@@ -236,7 +229,7 @@ export const favoriteResults = async (
   baseUrl: string,
   payload: GenerationBulkFavoriteRequest,
 ): Promise<void> => {
-  const base = sanitizeBaseUrl(baseUrl);
+  const base = sanitizeBackendBaseUrl(baseUrl);
   const api = useApi<void>(
     () => resolveHistoryEndpoint(base, '/results/bulk-favorite'),
     {
@@ -256,7 +249,7 @@ export const deleteResult = async (
   baseUrl: string,
   resultId: GenerationHistoryResult['id'],
 ): Promise<void> => {
-  const base = sanitizeBaseUrl(baseUrl);
+  const base = sanitizeBackendBaseUrl(baseUrl);
   const api = useApi<void>(
     () => resolveHistoryEndpoint(base, `/results/${encodeURIComponent(String(resultId))}`),
     {
@@ -270,7 +263,7 @@ export const deleteResults = async (
   baseUrl: string,
   payload: GenerationBulkDeleteRequest,
 ): Promise<void> => {
-  const base = sanitizeBaseUrl(baseUrl);
+  const base = sanitizeBackendBaseUrl(baseUrl);
   const api = useApi<void>(
     () => resolveHistoryEndpoint(base, '/results/bulk-delete'),
     {
@@ -302,7 +295,7 @@ export const exportResults = async (
   baseUrl: string,
   payload: GenerationExportRequest,
 ): Promise<GenerationDownloadMetadata> => {
-  const base = sanitizeBaseUrl(baseUrl);
+  const base = sanitizeBackendBaseUrl(baseUrl);
   const { blob, response } = await requestBlob(
     resolveHistoryEndpoint(base, '/results/export'),
     {
@@ -320,7 +313,7 @@ export const downloadResult = async (
   resultId: GenerationHistoryResult['id'],
   fallbackName = `generation-${resultId}.png`,
 ): Promise<GenerationDownloadMetadata> => {
-  const base = sanitizeBaseUrl(baseUrl);
+  const base = sanitizeBackendBaseUrl(baseUrl);
   const { blob, response } = await requestBlob(
     resolveHistoryEndpoint(base, `/results/${encodeURIComponent(String(resultId))}/download`),
     {

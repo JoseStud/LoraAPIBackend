@@ -1,9 +1,8 @@
 import { computed, reactive, unref, isRef, type MaybeRefOrGetter } from 'vue';
 
 import { useApi } from './useApi';
-import { DEFAULT_BACKEND_BASE } from '@/config/runtime';
 import { buildAdapterListQuery } from '@/services/lora/loraService';
-import { resolveBackendUrl } from '@/utils/backend';
+import { resolveBackendUrl, sanitizeBackendBaseUrl } from '@/utils/backend';
 import type { AdapterListQuery, AdapterListResponse, AdapterRead, LoraListItem } from '@/types';
 
 const DEFAULT_ADAPTER_LIST_QUERY: AdapterListQuery = { page: 1, perPage: 100 };
@@ -16,16 +15,9 @@ const isBaseUrlInput = (value: unknown): value is MaybeRefOrGetter<string> => {
   return isRef(value);
 };
 
-const sanitizeBaseUrl = (value?: string): string => {
-  if (!value) {
-    return DEFAULT_BACKEND_BASE;
-  }
-  return value.replace(/\/+$/, '') || DEFAULT_BACKEND_BASE;
-};
-
 const resolveBase = (baseUrl: MaybeRefOrGetter<string>) => {
   const raw = typeof baseUrl === 'function' ? (baseUrl as () => string)() : unref(baseUrl);
-  return sanitizeBaseUrl(raw);
+  return sanitizeBackendBaseUrl(raw);
 };
 
 export const useAdapterListApi = (
