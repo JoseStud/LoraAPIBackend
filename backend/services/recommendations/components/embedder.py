@@ -91,13 +91,25 @@ class LoRASemanticEmbedder(SemanticEmbedderProtocol):
     def _get_technical_dim(self) -> int:
         return self._provider.get_dimension("technical")
 
-    def _encode_single(self, model_key: str, text: str) -> np.ndarray:
+    def _encode_single(
+        self, model_key: str, text: str, *, device: Optional[str] = None
+    ) -> np.ndarray:
         if text.strip():
-            embedding = self._provider.encode(
-                model_key,
-                text,
-                show_progress_bar=False,
-            )
+            restore_device = False
+            original_device: Optional[str] = None
+            if device is not None and device != self._provider.device:
+                original_device = self._provider.device
+                self._provider.device = device
+                restore_device = True
+            try:
+                embedding = self._provider.encode(
+                    model_key,
+                    text,
+                    show_progress_bar=False,
+                )
+            finally:
+                if restore_device and original_device is not None:
+                    self._provider.device = original_device
             return np.asarray(embedding, dtype=np.float32)
 
         dim_lookup = {
@@ -169,6 +181,16 @@ class LoRASemanticEmbedder(SemanticEmbedderProtocol):
             "semantic": np.asarray(semantic_embeddings, dtype=np.float32),
             "artistic": np.asarray(artistic_embeddings, dtype=np.float32),
             "technical": np.asarray(technical_embeddings, dtype=np.float32),
+        }
+
+    def compute_prompt_embeddings(
+        self, prompt: str, *, device: Optional[str] = None
+    ) -> Dict[str, np.ndarray]:
+        """Compute semantic, artistic, and technical embeddings for ``prompt``."""
+        return {
+            "semantic": self._encode_single("semantic", prompt, device=device),
+            "artistic": self._encode_single("artistic", prompt, device=device),
+            "technical": self._encode_single("technical", prompt, device=device),
         }
 
 
