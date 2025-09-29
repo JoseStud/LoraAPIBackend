@@ -7,7 +7,7 @@ import { useGenerationStudio } from '@/composables/generation/useGenerationStudi
 import { useGenerationFormStore } from '@/stores/generation'
 import type { UseGenerationStudioReturn } from '@/composables/generation'
 
-const orchestratorMocks = vi.hoisted(() => {
+const orchestratorBindingMocks = vi.hoisted(() => {
   const { ref } = require('vue')
 
   return {
@@ -17,14 +17,28 @@ const orchestratorMocks = vi.hoisted(() => {
     systemStatus: ref({ status: 'healthy' }),
     isConnected: ref(true),
     initialize: vi.fn().mockResolvedValue(undefined),
+    cleanup: vi.fn(),
+    loadSystemStatusData: vi.fn(),
+    loadActiveJobsData: vi.fn(),
+    loadRecentResultsData: vi.fn(),
     startGeneration: vi.fn().mockResolvedValue(undefined),
     cancelJob: vi.fn().mockResolvedValue(undefined),
     clearQueue: vi.fn().mockResolvedValue(undefined),
-    refreshResults: vi.fn().mockResolvedValue(undefined),
     deleteResult: vi.fn().mockResolvedValue(undefined),
+    refreshResults: vi.fn().mockResolvedValue(undefined),
     canCancelJob: vi.fn().mockReturnValue(true),
+    release: vi.fn(),
   }
 })
+
+const orchestratorManagerMocks = vi.hoisted(() => ({
+  activeJobs: orchestratorBindingMocks.activeJobs,
+  sortedActiveJobs: orchestratorBindingMocks.sortedActiveJobs,
+  recentResults: orchestratorBindingMocks.recentResults,
+  systemStatus: orchestratorBindingMocks.systemStatus,
+  isConnected: orchestratorBindingMocks.isConnected,
+  acquire: vi.fn(() => orchestratorBindingMocks),
+}))
 
 const dialogServiceMocks = vi.hoisted(() => {
   return {
@@ -50,8 +64,8 @@ const dialogServiceMocks = vi.hoisted(() => {
   }
 })
 
-vi.mock('@/composables/generation/useGenerationOrchestrator', () => ({
-  useGenerationOrchestrator: vi.fn(() => orchestratorMocks),
+vi.mock('@/composables/generation/useGenerationOrchestratorManager', () => ({
+  useGenerationOrchestratorManager: () => orchestratorManagerMocks,
 }))
 
 vi.mock('@/composables/shared/useDialogService', () => ({
@@ -103,7 +117,8 @@ describe('useGenerationStudio integration', () => {
   })
 
   it('initializes the controller on mount', () => {
-    expect(orchestratorMocks.initialize).toHaveBeenCalled()
+    expect(orchestratorManagerMocks.acquire).toHaveBeenCalled()
+    expect(orchestratorBindingMocks.initialize).toHaveBeenCalled()
   })
 
   it('starts a generation job and persists parameters', async () => {
@@ -112,8 +127,8 @@ describe('useGenerationStudio integration', () => {
 
     await wrapper.vm.studio.startGeneration()
 
-    expect(orchestratorMocks.startGeneration).toHaveBeenCalledTimes(1)
-    const payload = orchestratorMocks.startGeneration.mock.calls[0][0]
+    expect(orchestratorBindingMocks.startGeneration).toHaveBeenCalledTimes(1)
+    const payload = orchestratorBindingMocks.startGeneration.mock.calls[0][0]
     expect(payload.prompt).toBe('integration test prompt')
     expect(localStorageMock.setItem).toHaveBeenCalledWith(
       'generation_params',
@@ -125,7 +140,7 @@ describe('useGenerationStudio integration', () => {
   it('forwards cancel actions to the controller', async () => {
     await wrapper.vm.studio.cancelJob('job-456')
 
-    expect(orchestratorMocks.cancelJob).toHaveBeenCalledWith('job-456')
+    expect(orchestratorBindingMocks.cancelJob).toHaveBeenCalledWith('job-456')
   })
 
   it('confirms before deleting results and forwards the action', async () => {
@@ -134,6 +149,6 @@ describe('useGenerationStudio integration', () => {
     await wrapper.vm.studio.deleteResult('result-789')
 
     expect(dialogServiceMocks.confirm).toHaveBeenCalled()
-    expect(orchestratorMocks.deleteResult).toHaveBeenCalledWith('result-789')
+    expect(orchestratorBindingMocks.deleteResult).toHaveBeenCalledWith('result-789')
   })
 })
