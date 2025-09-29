@@ -1,5 +1,5 @@
-import { DEFAULT_BACKEND_BASE } from '@/config/runtime';
 import { fetchJson, fetchParsed, fetchVoid } from '@/services/apiClient';
+import { sanitizeBackendBaseUrl } from '@/utils/backend';
 
 import type {
   AdapterListQuery,
@@ -65,13 +65,6 @@ const normalizeAdapterStats = (stats: AdapterRead['stats']): AdapterStats => {
   return normalized;
 };
 
-const sanitizeBaseUrl = (value?: string): string => {
-  if (!value) {
-    return DEFAULT_BACKEND_BASE;
-  }
-  return value.replace(/\/+$/, '') || DEFAULT_BACKEND_BASE;
-};
-
 export const buildAdapterListQuery = (query: AdapterListQuery = {}): string => {
   const params = new URLSearchParams();
 
@@ -104,7 +97,7 @@ export const buildAdapterListQuery = (query: AdapterListQuery = {}): string => {
 };
 
 export const fetchAdapterTags = async (baseUrl: string): Promise<string[]> => {
-  const base = sanitizeBaseUrl(baseUrl);
+  const base = sanitizeBackendBaseUrl(baseUrl);
   const payload = await fetchJson<LoraTagListResponse>(`${base}/adapters/tags`);
   return payload?.tags ?? [];
 };
@@ -113,7 +106,7 @@ export const fetchAdapters = async (
   baseUrl: string,
   query: AdapterListQuery = {},
 ): Promise<LoraListItem[]> => {
-  const base = sanitizeBaseUrl(baseUrl);
+  const base = sanitizeBackendBaseUrl(baseUrl);
   const targetUrl = `${base}/adapters${buildAdapterListQuery(query)}`;
   const payload = await fetchJson<AdapterListResponse | AdapterRead[]>(targetUrl);
 
@@ -129,7 +122,7 @@ export const fetchTopAdapters = async (
   baseUrl: string,
   limit = 10,
 ): Promise<TopLoraPerformance[]> => {
-  const base = sanitizeBaseUrl(baseUrl);
+  const base = sanitizeBackendBaseUrl(baseUrl);
   const payload = await fetchJson<AdapterListResponse | AdapterRead[]>(
     `${base}/adapters${buildAdapterListQuery({ perPage: limit })}`,
   );
@@ -158,7 +151,7 @@ export const performBulkLoraAction = async (
   baseUrl: string,
   payload: LoraBulkActionRequest,
 ): Promise<void> => {
-  const base = sanitizeBaseUrl(baseUrl);
+  const base = sanitizeBackendBaseUrl(baseUrl);
   await fetchVoid(`${base}/adapters/bulk`, {
     method: 'POST',
     headers: {
@@ -173,7 +166,7 @@ export const updateLoraWeight = async (
   loraId: string,
   weight: number,
 ): Promise<GalleryLora | null> => {
-  const base = sanitizeBaseUrl(baseUrl);
+  const base = sanitizeBackendBaseUrl(baseUrl);
   const payload = await fetchJson<AdapterRead>(`${base}/adapters/${encodeURIComponent(loraId)}`, {
     method: 'PATCH',
     headers: {
@@ -189,7 +182,7 @@ export const toggleLoraActiveState = async (
   loraId: string,
   activate: boolean,
 ): Promise<GalleryLora | null> => {
-  const base = sanitizeBaseUrl(baseUrl);
+  const base = sanitizeBackendBaseUrl(baseUrl);
   const endpoint = activate ? 'activate' : 'deactivate';
   const payload = await fetchJson<AdapterRead>(
     `${base}/adapters/${encodeURIComponent(loraId)}/${endpoint}`,
@@ -204,7 +197,7 @@ export const toggleLoraActiveState = async (
 };
 
 export const deleteLora = async (baseUrl: string, loraId: string): Promise<void> => {
-  const base = sanitizeBaseUrl(baseUrl);
+  const base = sanitizeBackendBaseUrl(baseUrl);
   await fetchVoid(`${base}/adapters/${encodeURIComponent(loraId)}`, {
     method: 'DELETE',
     headers: {
@@ -221,7 +214,7 @@ export const triggerPreviewGeneration = async (
   baseUrl: string,
   loraId: string,
 ): Promise<unknown> => {
-  const base = sanitizeBaseUrl(baseUrl);
+  const base = sanitizeBackendBaseUrl(baseUrl);
   return fetchParsed(
     `${base}/adapters/${encodeURIComponent(loraId)}/preview`,
     {

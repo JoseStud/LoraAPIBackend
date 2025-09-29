@@ -45,6 +45,15 @@ const normaliseBackendBase = (base: string): string => {
   return withoutTrailing.startsWith('/') ? withoutTrailing : `/${withoutTrailing}`;
 };
 
+export const sanitizeBackendBaseUrl = (value?: string | null): string => {
+  if (typeof value !== 'string') {
+    return DEFAULT_BACKEND_BASE;
+  }
+
+  const trimmed = value.trim();
+  return normaliseBackendBase(trimmed);
+};
+
 const joinBackendPath = (base: string, path: string): string => {
   const { pathname, suffix } = splitPathSuffix(path);
   const normalisedBase = trimTrailingSlash(base);
@@ -156,6 +165,7 @@ export const backendUtils = {
   DEFAULT_BACKEND_BASE,
   trimLeadingSlash,
   trimTrailingSlash,
+  sanitizeBackendBaseUrl,
   resolveBackendBaseUrl,
   resolveBackendUrl,
   useBackendBase,

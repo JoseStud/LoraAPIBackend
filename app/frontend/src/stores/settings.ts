@@ -1,14 +1,8 @@
 import { defineStore } from 'pinia';
 
 import { loadFrontendSettings } from '@/services/system/systemService';
+import { trimTrailingSlash } from '@/utils/backend';
 import type { FrontendRuntimeSettings, SettingsState } from '@/types';
-
-const normalizeBackendUrl = (value?: string | null): string => {
-  if (!value) {
-    return '';
-  }
-  return value.replace(/\/+$/, '');
-};
 
 const applyWindowGlobals = (settings: FrontendRuntimeSettings | null) => {
   if (typeof window === 'undefined') {
@@ -22,7 +16,10 @@ const applyWindowGlobals = (settings: FrontendRuntimeSettings | null) => {
   };
 
   if (settings) {
-    win.BACKEND_URL = normalizeBackendUrl(settings.backendUrl);
+    const backendUrl = typeof settings.backendUrl === 'string'
+      ? trimTrailingSlash(settings.backendUrl)
+      : '';
+    win.BACKEND_URL = backendUrl;
     win.BACKEND_API_KEY = settings.backendApiKey ?? '';
     win.__APP_SETTINGS__ = settings;
   } else {
@@ -41,16 +38,18 @@ export const useSettingsStore = defineStore('app-settings', {
   }),
 
   getters: {
-    backendUrl: (state): string => normalizeBackendUrl(state.settings?.backendUrl),
+    backendUrl: (state): string => (typeof state.settings?.backendUrl === 'string'
+      ? trimTrailingSlash(state.settings.backendUrl)
+      : ''
+    ),
     backendApiKey: (state): string | null => state.settings?.backendApiKey ?? null,
     rawSettings: (state): FrontendRuntimeSettings | null => state.settings,
   },
 
   actions: {
     setSettings(partial: Partial<FrontendRuntimeSettings> = {}) {
-      const backendUrl = normalizeBackendUrl(
-        partial.backendUrl ?? (this.settings?.backendUrl ?? '')
-      );
+      const backendUrlSource = partial.backendUrl ?? this.settings?.backendUrl ?? '';
+      const backendUrl = trimTrailingSlash(backendUrlSource);
       const backendApiKey =
         partial.backendApiKey ?? (this.settings?.backendApiKey ?? null);
 
