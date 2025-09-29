@@ -1,4 +1,4 @@
-import type { MaybeRefOrGetter } from 'vue';
+import { computed, unref, type MaybeRefOrGetter } from 'vue';
 
 import { useApi } from './useApi';
 import type {
@@ -18,10 +18,33 @@ const withCredentials = (init: RequestInit = {}): RequestInit => ({
   ...init,
 });
 
+const resolveRecommendationUrl = (input: MaybeRefOrGetter<string>) =>
+  computed(() => {
+    try {
+      const resolved = typeof input === 'function' ? (input as () => string)() : unref(input);
+      const target = typeof resolved === 'string' ? resolved.trim() : '';
+      if (!target) {
+        return '';
+      }
+      if (/^https?:\/\//i.test(target)) {
+        return target;
+      }
+      return resolveBackendUrl(target);
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn('Failed to resolve recommendation API URL', error);
+      }
+      return '';
+    }
+  });
+
 export const useRecommendationApi = (
-  url: MaybeRefOrGetter<string>,
+  path: MaybeRefOrGetter<string>,
   init: RequestInit = {},
-) => useApi<RecommendationResponse>(url, withCredentials(init));
+) => {
+  const url = resolveRecommendationUrl(path);
+  return useApi<RecommendationResponse>(() => url.value, withCredentials(init));
+};
 
 export const useActiveJobsApi = () =>
   useApi<Partial<GenerationJob>[]>(() => resolveBackendUrl('/generation/jobs/active'));
