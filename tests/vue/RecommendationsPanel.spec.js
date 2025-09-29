@@ -3,6 +3,7 @@ import { nextTick } from 'vue';
 
 import RecommendationsPanel from '../../app/frontend/src/components/recommendations/RecommendationsPanel.vue';
 import { useAppStore } from '../../app/frontend/src/stores/app';
+import { useAdapterCatalogStore } from '../../app/frontend/src/stores/adapterCatalog';
 
 const flush = async () => {
   await Promise.resolve();
@@ -14,6 +15,7 @@ const flush = async () => {
 describe('RecommendationsPanel.vue', () => {
   beforeEach(() => {
     useAppStore().$reset();
+    useAdapterCatalogStore().reset();
     const jsonResponse = (payload) => ({
       ok: true,
       status: 200,

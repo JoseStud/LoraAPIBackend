@@ -3,6 +3,7 @@ import { nextTick } from 'vue';
 
 import PromptComposer from '../../app/frontend/src/components/compose/PromptComposer.vue';
 import { useAppStore } from '../../app/frontend/src/stores/app';
+import { useAdapterCatalogStore } from '../../app/frontend/src/stores/adapterCatalog';
 
 const flush = async () => {
   await Promise.resolve();
@@ -14,6 +15,7 @@ const flush = async () => {
 describe('PromptComposer.vue', () => {
   beforeEach(() => {
     useAppStore().$reset();
+    useAdapterCatalogStore().reset();
     const jsonResponse = (payload) => ({
       ok: true,
       status: 200,

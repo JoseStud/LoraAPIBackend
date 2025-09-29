@@ -114,8 +114,11 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { useAdapterListApi, useRecommendationApi } from '@/composables/shared';
-import type { LoraListItem, RecommendationItem, RecommendationResponse } from '@/types';
+import { storeToRefs } from 'pinia';
+
+import { useRecommendationApi } from '@/composables/shared';
+import { useAdapterCatalogStore } from '@/stores';
+import type { AdapterSummary, RecommendationItem, RecommendationResponse } from '@/types';
 
 const WEIGHT_KEYS = ['semantic', 'artistic', 'technical'] as const;
 type WeightKey = (typeof WEIGHT_KEYS)[number];
@@ -137,18 +140,18 @@ const toErrorMessage = (error: unknown, fallback: string): string => {
   return fallback;
 };
 
-const {
-  error: lorasErr,
-  isLoading: lorasLoading,
-  fetchData: loadLoras,
-  adapters: adapterResults,
-} = useAdapterListApi({ page: 1, perPage: 100 });
+const adapterCatalog = useAdapterCatalogStore();
+const { adapters: catalogAdapters, error: lorasErr, isLoading: lorasLoading } = storeToRefs(adapterCatalog);
 
-const loras = computed<LoraListItem[]>(() => adapterResults.value);
-const lorasError = ref<string>('');
+void adapterCatalog.ensureLoaded({ perPage: 200 });
 
-const selectedLoraId = ref<LoraListItem['id'] | ''>('');
-const selectedLora = computed<LoraListItem | null>(() => {
+const loras = computed<AdapterSummary[]>(() => catalogAdapters.value);
+const lorasError = computed<string>(() =>
+  lorasErr.value ? toErrorMessage(lorasErr.value, 'Unable to load available LoRAs') : '',
+);
+
+const selectedLoraId = ref<AdapterSummary['id'] | ''>('');
+const selectedLora = computed<AdapterSummary | null>(() => {
   if (!selectedLoraId.value) {
     return null;
   }
@@ -202,15 +205,6 @@ const resetSettings = (): void => {
   weights.value = { ...DEFAULT_WEIGHTS };
 };
 
-const fetchLoras = async (): Promise<void> => {
-  lorasError.value = '';
-  try {
-    await loadLoras();
-  } catch (error) {
-    lorasError.value = toErrorMessage(error, 'Failed to load LoRAs');
-  }
-};
-
 const fetchRecommendations = async (): Promise<void> => {
   recsError.value = '';
   recommendations.value = [];
@@ -236,12 +230,6 @@ const fetchRecommendations = async (): Promise<void> => {
   }
 };
 
-watch(lorasErr, (error) => {
-  if (error) {
-    lorasError.value = toErrorMessage(error, 'Failed to load LoRAs');
-  }
-});
-
 watch(recsErrObj, (error) => {
   if (error) {
     recsError.value = toErrorMessage(error, 'Failed to fetch recommendations');
@@ -256,7 +244,7 @@ watch(selectedLoraId, (nextId) => {
 });
 
 onMounted(async () => {
-  await fetchLoras();
+  await adapterCatalog.ensureLoaded({ perPage: 200 });
 });
 
 watch([selectedLoraId, limit, similarityThreshold], () => {

@@ -1,8 +1,9 @@
-import { computed, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue';
+import { computed, ref, type ComputedRef, type Ref } from 'vue';
+import { storeToRefs } from 'pinia';
 
-import { useAdapterListApi } from '@/composables/shared';
+import { useAdapterCatalogStore } from '@/stores';
 
-import type { AdapterSummary, LoraListItem } from '@/types';
+import type { AdapterSummary } from '@/types';
 
 type AdapterCatalogQuery = {
   page?: number;
@@ -26,32 +27,23 @@ export interface AdapterCatalogActions {
 
 export type AdapterCatalogApi = AdapterCatalogState & AdapterCatalogActions;
 
-const toSummary = (item: LoraListItem): AdapterSummary => ({
-  id: item.id,
-  name: item.name,
-  description: item.description,
-  active: item.active ?? true,
-});
-
 export const useAdapterCatalog = (query: AdapterCatalogQuery = {}): AdapterCatalogApi => {
   const searchTerm = ref('');
   const activeOnly = ref(false);
-  const summaries = ref<AdapterSummary[]>([]);
 
-  const { adapters, error, isLoading, fetchData } = useAdapterListApi({
-    page: query.page ?? 1,
-    perPage: query.perPage ?? 200,
+  const store = useAdapterCatalogStore();
+  const { adapters: storeAdapters, error, isLoading } = storeToRefs(store);
+
+  void store.ensureLoaded({
+    page: query.page ?? store.query.page,
+    perPage: query.perPage ?? store.query.perPage,
   });
 
-  const refresh = async () => {
-    await fetchData();
-  };
-
-  const items = computed<AdapterSummary[]>(() => summaries.value);
+  const adapters = computed<AdapterSummary[]>(() => storeAdapters.value);
 
   const filteredAdapters = computed<AdapterSummary[]>(() => {
     const term = searchTerm.value.trim().toLowerCase();
-    let result = items.value;
+    let result = adapters.value;
 
     if (activeOnly.value) {
       result = result.filter((item) => item.active);
@@ -62,19 +54,6 @@ export const useAdapterCatalog = (query: AdapterCatalogQuery = {}): AdapterCatal
     }
 
     return result;
-  });
-
-  watch(
-    adapters,
-    (next) => {
-      const payload = Array.isArray(next) ? next : [];
-      summaries.value = payload.map(toSummary);
-    },
-    { immediate: true },
-  );
-
-  onMounted(async () => {
-    await refresh();
   });
 
   const setSearchTerm = (value: string) => {
@@ -88,12 +67,17 @@ export const useAdapterCatalog = (query: AdapterCatalogQuery = {}): AdapterCatal
   return {
     searchTerm,
     activeOnly,
-    adapters: items,
+    adapters,
     filteredAdapters,
     isLoading,
     error,
     setSearchTerm,
     setActiveOnly,
-    refresh,
+    refresh: async () => {
+      await store.refresh({
+        page: query.page ?? store.query.page,
+        perPage: query.perPage ?? store.query.perPage,
+      });
+    },
   };
 };
