@@ -1,4 +1,4 @@
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 
 import { useGenerationPersistence } from '@/composables/generation'
 import { useGenerationOrchestrator } from '@/composables/generation'
@@ -6,7 +6,7 @@ import { useGenerationUI } from '@/composables/generation'
 import { useNotifications } from '@/composables/shared'
 import { toGenerationRequestPayload } from '@/services/generation/generationService'
 import { useGenerationFormStore } from '@/stores/generation'
-import type { NotificationType } from '@/types'
+import type { GenerationFormState, NotificationType } from '@/types'
 
 export const useGenerationStudio = () => {
   const formStore = useGenerationFormStore()
@@ -26,11 +26,11 @@ export const useGenerationStudio = () => {
 
   const {
     params: uiParams,
-    isGenerating,
-    showHistory,
-    showModal,
-    selectedResult,
-    recentResults,
+    isGenerating: isGeneratingRef,
+    showHistory: showHistoryRef,
+    showModal: showModalRef,
+    selectedResult: selectedResultRef,
+    recentResults: recentResultsRef,
     showImageModal,
     hideImageModal,
     reuseParameters,
@@ -52,10 +52,10 @@ export const useGenerationStudio = () => {
   })
 
   const {
-    activeJobs,
-    sortedActiveJobs,
-    systemStatus,
-    isConnected,
+    activeJobs: activeJobsRef,
+    sortedActiveJobs: sortedActiveJobsRef,
+    systemStatus: systemStatusRef,
+    isConnected: isConnectedRef,
     initialize,
     startGeneration: orchestrateStart,
     cancelJob,
@@ -67,6 +67,17 @@ export const useGenerationStudio = () => {
     notify,
     debug: logDebug,
   })
+
+  const params = computed(() => uiParams.value)
+  const isGenerating = computed(() => isGeneratingRef.value)
+  const showHistory = computed(() => showHistoryRef.value)
+  const showModal = computed(() => showModalRef.value)
+  const selectedResult = computed(() => selectedResultRef.value)
+  const recentResults = computed(() => recentResultsRef.value)
+  const activeJobs = computed(() => activeJobsRef.value)
+  const sortedActiveJobs = computed(() => sortedActiveJobsRef.value)
+  const systemStatus = computed(() => systemStatusRef.value)
+  const isConnected = computed(() => isConnectedRef.value)
 
   const startGeneration = async (): Promise<void> => {
     const trimmedPrompt = uiParams.value.prompt.trim()
@@ -88,7 +99,7 @@ export const useGenerationStudio = () => {
   }
 
   const clearQueueWithConfirmation = async (): Promise<void> => {
-    if (activeJobs.value.length === 0) {
+    if (activeJobsRef.value.length === 0) {
       return
     }
 
@@ -111,6 +122,14 @@ export const useGenerationStudio = () => {
     await refreshRecentResults(true)
   }
 
+  const updateParams = (value: GenerationFormState): void => {
+    formStore.updateParams(value)
+  }
+
+  const toggleHistory = (): void => {
+    formStore.toggleHistory()
+  }
+
   onMounted(async () => {
     logDebug('Initializing Generation Studio composable...')
     await initialize()
@@ -118,7 +137,7 @@ export const useGenerationStudio = () => {
   })
 
   return {
-    params: uiParams,
+    params,
     systemStatus,
     isGenerating,
     showHistory,
@@ -144,6 +163,8 @@ export const useGenerationStudio = () => {
     getJobStatusText,
     canCancelJob,
     getSystemStatusClasses,
+    updateParams,
+    toggleHistory,
   }
 }
 

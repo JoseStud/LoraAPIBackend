@@ -67,14 +67,14 @@
 </template>
 
 <script setup lang="ts">
-import type { ComputedRef, Ref } from 'vue'
+import { toRefs } from 'vue'
 
 import type { UseGenerationStudioReturn } from '@/composables/generation'
 import type { GenerationJob } from '@/types'
 
 const props = defineProps<{
-  activeJobs: Ref<GenerationJob[]>
-  sortedActiveJobs: ComputedRef<GenerationJob[]>
+  activeJobs: GenerationJob[]
+  sortedActiveJobs: GenerationJob[]
   formatTime: UseGenerationStudioReturn['formatTime']
   getJobStatusClasses: UseGenerationStudioReturn['getJobStatusClasses']
   getJobStatusText: UseGenerationStudioReturn['getJobStatusText']
@@ -85,8 +85,7 @@ const emit = defineEmits<{
   (event: 'cancel-job', jobId: string): void
 }>()
 
-const activeJobs = props.activeJobs
-const sortedActiveJobs = props.sortedActiveJobs
+const { activeJobs, sortedActiveJobs } = toRefs(props)
 const formatTime = props.formatTime
 const getJobStatusClasses = props.getJobStatusClasses
 const getJobStatusText = props.getJobStatusText
