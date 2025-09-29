@@ -1,9 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { reactive } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import LoraGallery from '@/components/lora-gallery/LoraGallery.vue';
-import LoraCard from '@/components/lora-gallery/LoraCard.vue';
 import { useSettingsStore } from '@/stores/settings';
 
 const mocks = vi.hoisted(() => ({
@@ -93,6 +92,37 @@ vi.mock('@/services/lora/loraService', async (importOriginal) => {
 
 describe('LoraGallery', () => {
   let pinia;
+  const originalResizeObserver = global.ResizeObserver;
+  const originalIntersectionObserver = global.IntersectionObserver;
+
+  beforeAll(() => {
+    class ResizeObserverMock {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+
+    // @ts-expect-error jsdom environment mock
+    global.ResizeObserver = ResizeObserverMock;
+
+    class IntersectionObserverMock {
+      constructor(_callback, _options) {}
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+      takeRecords() {
+        return [];
+      }
+    }
+
+    // @ts-expect-error jsdom environment mock
+    global.IntersectionObserver = IntersectionObserverMock;
+  });
+
+  afterAll(() => {
+    global.ResizeObserver = originalResizeObserver;
+    global.IntersectionObserver = originalIntersectionObserver;
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -167,7 +197,7 @@ describe('LoraGallery', () => {
     await wrapper.find('.search-input').setValue('Test LoRA 1');
     await flushPromises();
 
-    expect(wrapper.findAllComponents(LoraCard)).toHaveLength(1);
+    expect(wrapper.vm.filteredLoras).toHaveLength(1);
   });
 
   it('initializes filters from the current route query', async () => {
@@ -177,7 +207,7 @@ describe('LoraGallery', () => {
     await flushPromises();
 
     expect(wrapper.vm.searchTerm).toBe('Test LoRA 1');
-    expect(wrapper.findAllComponents(LoraCard)).toHaveLength(1);
+    expect(wrapper.vm.filteredLoras).toHaveLength(1);
   });
 
   it('updates filters when the route query changes', async () => {
@@ -187,7 +217,7 @@ describe('LoraGallery', () => {
     await flushPromises();
 
     expect(wrapper.vm.searchTerm).toBe('Test LoRA 2');
-    expect(wrapper.findAllComponents(LoraCard)).toHaveLength(1);
+    expect(wrapper.vm.filteredLoras).toHaveLength(1);
 
     delete route.query.q;
     await flushPromises();

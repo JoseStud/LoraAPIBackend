@@ -145,6 +145,13 @@ flags are applied consistently across shells.【F:package.json†L12-L24】
 Some suites depend on Redis, SDNext, or browser binaries. Refer to
 `tests/README.md` for instructions on enabling or skipping those integrations.【F:package.json†L18-L30】【F:tests/README.md†L70-L140】
 
+### Manual QA checklist
+
+- **LoRA gallery virtualization smoke test** – Seed the gallery with at least 200 adapters (either via the admin import workflow
+  or by posting synthetic entries to the API), load the LoRA management page, and scroll through both the grid and list layouts.
+  Confirm that scrolling stays smooth without perceptible lag, selection toggles still latch immediately, and bulk
+  activate/deactivate/delete actions operate on the items chosen in the virtualized viewport.
+
 ## Code quality automation
 
 Run `npm run ci:check` to trigger the same Ruff, pytest, ESLint, and TypeScript
