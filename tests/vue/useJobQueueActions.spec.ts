@@ -13,21 +13,17 @@ const serviceMocks = vi.hoisted(() => ({
   useSystemStatusApi: vi.fn(() => ({ fetchData: vi.fn() })),
 }));
 
-vi.mock('@/services', () => ({
-  cancelGenerationJob: serviceMocks.cancelGenerationJob,
-  fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
-  fetchSystemStatus: serviceMocks.fetchSystemStatus,
-  useDashboardStatsApi: serviceMocks.useDashboardStatsApi,
-  useSystemStatusApi: serviceMocks.useSystemStatusApi,
-  buildAdapterListQuery: vi.fn(),
 
-  useDashboardStatsApi: vi.fn(() => ({ get: vi.fn() })),
-  useSystemStatusApi: vi.fn(() => ({ get: vi.fn() })),
-  DEFAULT_POLL_INTERVAL: 1000,
+vi.mock('@/services', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    cancelGenerationJob: serviceMocks.cancelGenerationJob,
+    fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
+    buildAdapterListQuery: vi.fn(),
+  };
+});
 
-  DEFAULT_POLL_INTERVAL: 2500,
-
-}));
 
 vi.mock('@/services/generation/generationService', () => ({
   cancelGenerationJob: serviceMocks.cancelGenerationJob,

@@ -7,10 +7,14 @@ const serviceMocks = vi.hoisted(() => ({
   fetchActiveGenerationJobs: vi.fn(),
 }));
 
-vi.mock('@/services', () => ({
-  fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
-  cancelGenerationJob: vi.fn(),
-}));
+vi.mock('@/services', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
+    cancelGenerationJob: vi.fn(),
+  };
+});
 
 const createTransport = () => {
   const scope = effectScope();

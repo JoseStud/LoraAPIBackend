@@ -2,9 +2,8 @@ import { computed, ref, type ComputedRef } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { ApiError } from '@/composables/shared';
-import { fetchSystemStatus } from '@/services';
+import { fetchSystemStatus, useBackendClient } from '@/services';
 import { useGenerationConnectionStore } from '@/stores/generation';
-import { useBackendBase } from '@/utils/backend';
 
 const DEFAULT_POLL_INTERVAL = 10_000;
 
@@ -25,7 +24,7 @@ export const useSystemStatusController = (): SystemStatusController => {
 
   const connectionStore = useGenerationConnectionStore();
   const { systemStatusReady } = storeToRefs(connectionStore);
-  const backendBase = useBackendBase();
+  const backendClient = useBackendClient();
   const pollHandle = ref<ReturnType<typeof setInterval> | null>(null);
   const inFlight = ref<Promise<void> | null>(null);
 
@@ -43,7 +42,7 @@ export const useSystemStatusController = (): SystemStatusController => {
 
     const run = (async () => {
       try {
-        const payload = await fetchSystemStatus(backendBase.value);
+        const payload = await fetchSystemStatus(backendClient);
         connectionStore.resetSystemStatus();
 
         if (payload) {

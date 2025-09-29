@@ -1,8 +1,8 @@
-import { computed, ref, unref, type ComputedRef } from 'vue';
+import { computed, ref, type ComputedRef } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
 
 import { debounce, type DebouncedFunction } from '@/utils/async';
-import { listResults as listHistoryResults } from '@/services';
+import { listResults as listHistoryResults, useBackendClient } from '@/services';
 import type {
   GenerationHistoryQuery,
   GenerationHistoryResult,
@@ -29,17 +29,11 @@ export interface UseGenerationHistoryOptions {
   pageSize?: number;
 }
 
-const resolveApiBase = (source: MaybeRefOrGetter<string> | ComputedRef<string>): string => {
-  if (typeof source === 'function') {
-    return source() ?? '';
-  }
-  return unref(source) ?? '';
-};
-
 export const useGenerationHistory = ({
   apiBase,
   pageSize: initialPageSize = 50,
 }: UseGenerationHistoryOptions) => {
+  const backendClient = useBackendClient(apiBase);
   const data = ref<GenerationHistoryResult[]>([]);
 
   const isLoading = ref(false);
@@ -253,9 +247,7 @@ export const useGenerationHistory = ({
     const filters = appliedFilters.value ?? createFilterSnapshot();
 
     try {
-      const response = await listHistoryResults(resolveApiBase(apiBase), buildQuery(filters, page), {
-        signal: controller.signal,
-      });
+      const response = await listHistoryResults(buildQuery(filters, page), { signal: controller.signal }, backendClient);
 
       if (requestId !== activeRequestKey.value) {
         return;

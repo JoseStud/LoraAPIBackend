@@ -5,8 +5,8 @@ import {
   deriveMetricsFromDashboard,
   emptyMetricsSnapshot,
   fetchDashboardStats,
+  useBackendClient,
 } from '@/services';
-import { useBackendBase } from '@/utils/backend';
 import {
   buildResourceStats,
   defaultResourceStats,
@@ -28,7 +28,7 @@ interface RefreshOptions {
 }
 
 export const useAdminMetricsStore = defineStore('adminMetrics', () => {
-  const backendBase = useBackendBase();
+  const backendClient = useBackendClient();
 
   const summary = ref<DashboardStatsSummary | null>(null);
   const metrics = ref<SystemMetricsSnapshot>(emptyMetricsSnapshot());
@@ -76,7 +76,7 @@ export const useAdminMetricsStore = defineStore('adminMetrics', () => {
     }
 
     try {
-      const payload = await fetchDashboardStats(backendBase.value);
+      const payload = await fetchDashboardStats(backendClient);
       applySummary(payload);
     } catch (err) {
       if (import.meta.env.DEV) {

@@ -2,13 +2,13 @@ import { computed, ref, watch, type Ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { useNotifications } from '@/composables/shared';
-import { useBackendBase } from '@/utils/backend';
 import {
   buildRecommendationsUrl,
   deleteLora as deleteLoraRequest,
   toggleLoraActiveState,
   triggerPreviewGeneration,
   updateLoraWeight,
+  useBackendClient,
 } from '@/services';
 import type { LoraListItem, LoraUpdatePayload } from '@/types';
 
@@ -19,7 +19,7 @@ type UseLoraCardActionsOptions = {
 };
 
 export const useLoraCardActions = ({ lora, emitUpdate, emitDelete }: UseLoraCardActionsOptions) => {
-  const apiBaseUrl = useBackendBase();
+  const backendClient = useBackendClient();
   const { showSuccess, showError, showInfo } = useNotifications();
   const router = useRouter();
 
@@ -48,7 +48,7 @@ export const useLoraCardActions = ({ lora, emitUpdate, emitDelete }: UseLoraCard
   const handleToggleActive = async () => {
     try {
       const nextState = !isActive.value;
-      await toggleLoraActiveState(apiBaseUrl.value, lora.value.id, nextState);
+      await toggleLoraActiveState(lora.value.id, nextState, backendClient);
       isActive.value = nextState;
       emitUpdate({ id: lora.value.id, active: nextState, type: 'active' });
     } catch (error) {
@@ -61,7 +61,7 @@ export const useLoraCardActions = ({ lora, emitUpdate, emitDelete }: UseLoraCard
     weight.value = nextWeight;
 
     try {
-      const updated = await updateLoraWeight(apiBaseUrl.value, lora.value.id, nextWeight);
+      const updated = await updateLoraWeight(lora.value.id, nextWeight, backendClient);
       const resolvedWeight = updated?.weight ?? nextWeight;
       weight.value = resolvedWeight;
       emitUpdate({ id: lora.value.id, weight: resolvedWeight, type: 'weight' });
@@ -90,7 +90,7 @@ export const useLoraCardActions = ({ lora, emitUpdate, emitDelete }: UseLoraCard
 
   const handleGeneratePreview = async () => {
     try {
-      await triggerPreviewGeneration(apiBaseUrl.value, lora.value.id);
+      await triggerPreviewGeneration(lora.value.id, backendClient);
       showInfo('Preview generation started.', 5000);
     } catch (error) {
       console.error('Preview generation not available:', error);
@@ -104,7 +104,7 @@ export const useLoraCardActions = ({ lora, emitUpdate, emitDelete }: UseLoraCard
     }
 
     try {
-      await deleteLoraRequest(apiBaseUrl.value, lora.value.id);
+      await deleteLoraRequest(lora.value.id, backendClient);
       emitDelete(lora.value.id);
       showSuccess('LoRA deleted.', 5000);
     } catch (error) {

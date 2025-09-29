@@ -1,4 +1,4 @@
-import { resolveBackendUrl } from '@/utils/backend';
+import { resolveBackendClient, type ApiRequestInit, type BackendClient } from '@/services/backendClient';
 
 import type {
   DashboardStatsSummary,
@@ -8,34 +8,37 @@ import type {
 } from '@/types';
 import { requestConfiguredJson, type ApiRequestConfig } from '@/services/apiClient';
 
-const sameOriginRequest = (target: string): ApiRequestConfig => ({
-  target,
-  init: { credentials: 'same-origin' },
+const withSameOrigin = (init: ApiRequestInit = {}): ApiRequestInit => ({
+  credentials: 'same-origin',
+  ...init,
 });
-const buildSystemConfig = (path: string, baseUrl?: string | null): ApiRequestConfig =>
-  sameOriginRequest(resolveBackendUrl(path, baseUrl ?? undefined));
+
+const resolveClient = (client?: BackendClient | null): BackendClient => resolveBackendClient(client ?? undefined);
+
+const createRequestConfig = (path: string, client?: BackendClient | null): ApiRequestConfig => ({
+  target: resolveClient(client).resolve(path),
+  init: withSameOrigin(),
+});
 
 export const loadFrontendSettings = async (): Promise<FrontendRuntimeSettings | null> => {
-  const result = await requestConfiguredJson<FrontendRuntimeSettings>(
-    sameOriginRequest(resolveBackendUrl('/frontend/settings')),
-  );
+  const result = await requestConfiguredJson<FrontendRuntimeSettings>(createRequestConfig('/frontend/settings'));
   return (result.data as FrontendRuntimeSettings | null) ?? null;
 };
 
 export const fetchDashboardStats = async (
-  baseUrl?: string | null,
+  client?: BackendClient | null,
 ): Promise<DashboardStatsSummary | null> => {
   const result = await requestConfiguredJson<DashboardStatsSummary>(
-    buildSystemConfig('/dashboard/stats', baseUrl ?? undefined),
+    createRequestConfig('/dashboard/stats', client),
   );
   return (result.data as DashboardStatsSummary | null) ?? null;
 };
 
 export const fetchSystemStatus = async (
-  baseUrl?: string | null,
+  client?: BackendClient | null,
 ): Promise<SystemStatusPayload | null> => {
   const result = await requestConfiguredJson<SystemStatusPayload>(
-    buildSystemConfig('/system/status', baseUrl ?? undefined),
+    createRequestConfig('/system/status', client),
   );
   return (result.data as SystemStatusPayload | null) ?? null;
 };

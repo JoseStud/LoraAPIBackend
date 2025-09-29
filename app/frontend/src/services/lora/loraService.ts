@@ -1,5 +1,4 @@
-import { fetchJson, fetchParsed, fetchVoid } from '@/services/apiClient';
-import { sanitizeBackendBaseUrl } from '@/utils/backend';
+import { resolveBackendClient, type BackendClient } from '@/services/backendClient';
 
 import type {
   AdapterListQuery,
@@ -96,9 +95,13 @@ export const buildAdapterListQuery = (query: AdapterListQuery = {}): string => {
   return suffix ? `?${suffix}` : '';
 };
 
-export const fetchAdapterTags = async (baseUrl: string): Promise<string[]> => {
-  const base = sanitizeBackendBaseUrl(baseUrl);
-  const payload = await fetchJson<LoraTagListResponse>(`${base}/adapters/tags`);
+const resolveClient = (client?: BackendClient | null): BackendClient => resolveBackendClient(client ?? undefined);
+
+const adaptersPath = (suffix = ''): string => `/adapters${suffix}`;
+
+export const fetchAdapterTags = async (client?: BackendClient | null): Promise<string[]> => {
+  const backend = resolveClient(client);
+  const payload = await backend.getJson<LoraTagListResponse>(adaptersPath('/tags'));
   return payload?.tags ?? [];
 };
 
@@ -172,12 +175,13 @@ const normalizeAdapterListResponse = (
 };
 
 export const fetchAdapterList = async (
-  baseUrl: string,
   query: AdapterListQuery = {},
+  client?: BackendClient | null,
 ): Promise<AdapterListResponse> => {
-  const base = sanitizeBackendBaseUrl(baseUrl);
-  const targetUrl = `${base}/adapters${buildAdapterListQuery(query)}`;
-  const payload = await fetchJson<AdapterListResponse | AdapterRead[]>(targetUrl);
+  const backend = resolveClient(client);
+  const payload = await backend.getJson<AdapterListResponse | AdapterRead[]>(
+    adaptersPath(buildAdapterListQuery(query)),
+  );
   const normalised = normalizeAdapterListResponse(payload, query);
 
   return {
@@ -187,18 +191,18 @@ export const fetchAdapterList = async (
 };
 
 export const fetchAdapters = async (
-  baseUrl: string,
   query: AdapterListQuery = {},
+  client?: BackendClient | null,
 ): Promise<LoraListItem[]> => {
-  const response = await fetchAdapterList(baseUrl, query);
+  const response = await fetchAdapterList(query, client);
   return response.items.map((item) => ({ ...item })) as LoraListItem[];
 };
 
 export const fetchTopAdapters = async (
-  baseUrl: string,
   limit = 10,
+  client?: BackendClient | null,
 ): Promise<TopLoraPerformance[]> => {
-  const { items } = await fetchAdapterList(baseUrl, { perPage: limit });
+  const { items } = await fetchAdapterList({ perPage: limit }, client);
 
   return items.slice(0, limit).map((item) => {
     const stats = normalizeAdapterStats(item.stats);
@@ -215,62 +219,46 @@ export const fetchTopAdapters = async (
 };
 
 export const performBulkLoraAction = async (
-  baseUrl: string,
   payload: LoraBulkActionRequest,
+  client?: BackendClient | null,
 ): Promise<void> => {
-  const base = sanitizeBackendBaseUrl(baseUrl);
-  await fetchVoid(`${base}/adapters/bulk`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
+  const backend = resolveClient(client);
+  await backend.postJson<unknown, LoraBulkActionRequest>(adaptersPath('/bulk'), payload);
 };
 
 export const updateLoraWeight = async (
-  baseUrl: string,
   loraId: string,
   weight: number,
+  client?: BackendClient | null,
 ): Promise<GalleryLora | null> => {
-  const base = sanitizeBackendBaseUrl(baseUrl);
-  const payload = await fetchJson<AdapterRead>(`${base}/adapters/${encodeURIComponent(loraId)}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ weight }),
-  });
-  return (payload ? { ...payload } : null) as GalleryLora | null;
+  const backend = resolveClient(client);
+  const { data } = await backend.patchJson<AdapterRead, { weight: number }>(
+    adaptersPath(`/${encodeURIComponent(loraId)}`),
+    { weight },
+  );
+  return (data ? { ...data } : null) as GalleryLora | null;
 };
 
 export const toggleLoraActiveState = async (
-  baseUrl: string,
   loraId: string,
   activate: boolean,
+  client?: BackendClient | null,
 ): Promise<GalleryLora | null> => {
-  const base = sanitizeBackendBaseUrl(baseUrl);
+  const backend = resolveClient(client);
   const endpoint = activate ? 'activate' : 'deactivate';
-  const payload = await fetchJson<AdapterRead>(
-    `${base}/adapters/${encodeURIComponent(loraId)}/${endpoint}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    },
+  const { data } = await backend.requestJson<AdapterRead>(
+    adaptersPath(`/${encodeURIComponent(loraId)}/${endpoint}`),
+    { method: 'POST' },
   );
-  return (payload ? { ...payload } : null) as GalleryLora | null;
+  return (data ? { ...data } : null) as GalleryLora | null;
 };
 
-export const deleteLora = async (baseUrl: string, loraId: string): Promise<void> => {
-  const base = sanitizeBackendBaseUrl(baseUrl);
-  await fetchVoid(`${base}/adapters/${encodeURIComponent(loraId)}`, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+export const deleteLora = async (
+  loraId: string,
+  client?: BackendClient | null,
+): Promise<void> => {
+  const backend = resolveClient(client);
+  await backend.delete(adaptersPath(`/${encodeURIComponent(loraId)}`));
 };
 
 export const buildRecommendationsUrl = (loraId: string): string => {
@@ -278,19 +266,15 @@ export const buildRecommendationsUrl = (loraId: string): string => {
 };
 
 export const triggerPreviewGeneration = async (
-  baseUrl: string,
   loraId: string,
+  client?: BackendClient | null,
 ): Promise<unknown> => {
-  const base = sanitizeBackendBaseUrl(baseUrl);
-  return fetchParsed(
-    `${base}/adapters/${encodeURIComponent(loraId)}/preview`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    },
+  const backend = resolveClient(client);
+  const { data } = await backend.requestJson<unknown>(
+    adaptersPath(`/${encodeURIComponent(loraId)}/preview`),
+    { method: 'POST' },
   );
+  return data ?? null;
 };
 
 export const createDefaultGalleryState = (): LoraGalleryState => {

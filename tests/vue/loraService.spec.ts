@@ -11,6 +11,7 @@ import {
   deleteLora,
   triggerPreviewGeneration,
 } from '@/services';
+import { createBackendClient } from '@/services/backendClient';
 import type { AdapterListResponse } from '@/types';
 
 const originalFetch = global.fetch;
@@ -96,13 +97,14 @@ describe('loraService', () => {
     const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
     global.fetch = fetchMock;
 
-    const result = await fetchAdapterList('/api/v1', {
+    const client = createBackendClient('/api/v1');
+    const result = await fetchAdapterList({
       page: 1,
       perPage: 10,
       search: 'Adapter',
       active: true,
       tags: ['fantasy'],
-    });
+    }, client);
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/adapters?page=1&per_page=10&search=Adapter&active=true&tags=fantasy',
@@ -174,7 +176,8 @@ describe('loraService', () => {
     const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
     global.fetch = fetchMock;
 
-    const result = await fetchAdapters('/api/v1', { perPage: 25 });
+    const client = createBackendClient('/api/v1');
+    const result = await fetchAdapters({ perPage: 25 }, client);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(result).toHaveLength(1);
@@ -195,7 +198,8 @@ describe('loraService', () => {
     const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
     global.fetch = fetchMock;
 
-    const tags = await fetchAdapterTags('/api/v1/');
+    const client = createBackendClient('/api/v1/');
+    const tags = await fetchAdapterTags(client);
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/adapters/tags',
@@ -217,10 +221,11 @@ describe('loraService', () => {
     const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
     global.fetch = fetchMock;
 
-    await performBulkLoraAction('/api/v1', {
+    const client = createBackendClient('/api/v1');
+    await performBulkLoraAction({
       action: 'activate',
       lora_ids: ['alpha', 'beta'],
-    });
+    }, client);
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/adapters/bulk',
@@ -251,7 +256,8 @@ describe('loraService', () => {
     const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
     global.fetch = fetchMock;
 
-    const result = await updateLoraWeight('/api/v1', 'adapter-1', 0.5);
+    const client = createBackendClient('/api/v1');
+    const result = await updateLoraWeight('adapter-1', 0.5, client);
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/adapters/adapter-1',
@@ -278,7 +284,8 @@ describe('loraService', () => {
     const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
     global.fetch = fetchMock;
 
-    const result = await toggleLoraActiveState('/api/v1', 'adapter-2', true);
+    const client = createBackendClient('/api/v1');
+    const result = await toggleLoraActiveState('adapter-2', true, client);
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/adapters/adapter-2/activate',
@@ -300,7 +307,8 @@ describe('loraService', () => {
     const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
     global.fetch = fetchMock;
 
-    await deleteLora('/api/v1', 'adapter-3');
+    const client = createBackendClient('/api/v1');
+    await deleteLora('adapter-3', client);
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/adapters/adapter-3',
@@ -322,7 +330,8 @@ describe('loraService', () => {
     const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
     global.fetch = fetchMock;
 
-    const result = await triggerPreviewGeneration('/api/v1', 'adapter-9');
+    const client = createBackendClient('/api/v1');
+    const result = await triggerPreviewGeneration('adapter-9', client);
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/adapters/adapter-9/preview',

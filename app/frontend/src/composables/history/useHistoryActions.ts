@@ -12,6 +12,7 @@ import {
   favoriteResult as favoriteHistoryResult,
   favoriteResults as favoriteHistoryResults,
   rateResult as rateHistoryResult,
+  useBackendClient,
 } from '@/services';
 import type { GenerationHistoryResult, NotificationType } from '@/types';
 
@@ -46,13 +47,14 @@ export const useHistoryActions = ({
 }: UseHistoryActionsOptions) => {
   const persistence = usePersistence();
   const confirmAction = confirmOverride ?? defaultConfirm;
+  const backendClient = useBackendClient(apiBaseUrl);
 
   const setRating = async (
     result: GenerationHistoryResult,
     rating: number,
   ): Promise<boolean> => {
     try {
-      await rateHistoryResult(apiBaseUrl.value, result.id, rating);
+      await rateHistoryResult(result.id, rating, backendClient);
       result.rating = rating;
       applyFilters();
       showToast('Rating updated successfully');
@@ -68,11 +70,7 @@ export const useHistoryActions = ({
     result: GenerationHistoryResult,
   ): Promise<boolean> => {
     try {
-      const updatedResult = await favoriteHistoryResult(
-        apiBaseUrl.value,
-        result.id,
-        !result.is_favorite,
-      );
+      const updatedResult = await favoriteHistoryResult(result.id, !result.is_favorite, backendClient);
 
       if (updatedResult) {
         result.is_favorite = updatedResult.is_favorite;
@@ -124,7 +122,7 @@ export const useHistoryActions = ({
     result: GenerationHistoryResult,
   ): Promise<boolean> => {
     try {
-      const download = await downloadHistoryResult(apiBaseUrl.value, result.id);
+      const download = await downloadHistoryResult(result.id, undefined, backendClient);
       downloadFile(download.blob, download.filename);
       showToast('Download started');
       return true;
@@ -143,7 +141,7 @@ export const useHistoryActions = ({
     }
 
     try {
-      await deleteHistoryResult(apiBaseUrl.value, resultId);
+      await deleteHistoryResult(resultId, backendClient);
 
       data.value = data.value.filter((item) => item.id !== resultId);
       withUpdatedSelection((next) => {
@@ -173,7 +171,7 @@ export const useHistoryActions = ({
     }
 
     try {
-      await deleteHistoryResults(apiBaseUrl.value, { ids });
+      await deleteHistoryResults({ ids }, backendClient);
 
       const idsToRemove = new Set(ids);
       data.value = data.value.filter((item) => !idsToRemove.has(item.id));
@@ -197,10 +195,10 @@ export const useHistoryActions = ({
     const ids = selectedIds.value;
 
     try {
-      await favoriteHistoryResults(apiBaseUrl.value, {
+      await favoriteHistoryResults({
         ids,
         is_favorite: true,
-      });
+      }, backendClient);
 
       const selectedSnapshot = new Set(ids);
       data.value.forEach((result) => {
@@ -225,9 +223,9 @@ export const useHistoryActions = ({
     }
 
     try {
-      const download = await exportHistoryResults(apiBaseUrl.value, {
+      const download = await exportHistoryResults({
         ids: selectedIds.value,
-      });
+      }, backendClient);
 
       downloadFile(download.blob, download.filename);
       showToast('Export started');

@@ -97,15 +97,14 @@ import { computed, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { RouterLink } from 'vue-router';
 
-import { listResults as listHistoryResults } from '@/services';
+import { listResults as listHistoryResults, useBackendClient } from '@/services';
 import { useGenerationResultsStore } from '@/stores/generation';
-import { useBackendBase } from '@/utils/backend';
 import { formatFileSize, formatRelativeTime } from '@/utils/format';
 import type { GenerationHistoryResult, GenerationHistoryStats } from '@/types';
 
 const SUMMARY_QUERY = Object.freeze({ page_size: 4, sort: 'created_at_desc' as const });
 
-const backendBase = useBackendBase();
+const backendClient = useBackendClient();
 const resultsStore = useGenerationResultsStore();
 const { recentResults: storeResults } = storeToRefs(resultsStore);
 
@@ -161,7 +160,7 @@ const refresh = async () => {
   error.value = null;
 
   try {
-    const output = await listHistoryResults(backendBase.value, { ...SUMMARY_QUERY });
+    const output = await listHistoryResults({ ...SUMMARY_QUERY }, {}, backendClient);
     stats.value = output.stats;
     fetchedResults.value = output.results;
     if (!storeResults.value.length && output.results.length) {

@@ -10,8 +10,8 @@ import {
   exportAnalyticsReport,
   fetchPerformanceAnalytics,
   fetchTopAdapters,
+  useBackendClient,
 } from '@/services';
-import { useBackendBase } from '@/utils/backend';
 import { formatDuration as formatDurationLabel } from '@/utils/format';
 
 import type {
@@ -86,7 +86,7 @@ const createDevTopLoras = (): TopLoraPerformance[] => [
 ];
 
 export function usePerformanceAnalytics() {
-  const backendBase = useBackendBase();
+  const backendClient = useBackendClient();
 
   const timeRange = ref<PerformanceTimeRange>('24h');
   const autoRefresh = ref<boolean>(false);
@@ -101,7 +101,7 @@ export function usePerformanceAnalytics() {
 
   const loadTopLoras = async (): Promise<void> => {
     try {
-      const adapters = await fetchTopAdapters(backendBase.value, 10);
+      const adapters = await fetchTopAdapters(10, backendClient);
       topLoras.value = adapters;
 
       if (!topLoras.value.length && import.meta.env.DEV) {
@@ -129,7 +129,7 @@ export function usePerformanceAnalytics() {
 
   const loadAnalyticsSummary = async (): Promise<void> => {
     try {
-      const summary = await fetchPerformanceAnalytics(backendBase.value, timeRange.value);
+      const summary = await fetchPerformanceAnalytics(timeRange.value, backendClient);
 
       kpis.value = {
         ...DEFAULT_KPIS,
@@ -187,7 +187,7 @@ export function usePerformanceAnalytics() {
     format: string,
     overrides: Partial<AnalyticsExportOptions> = {},
   ): Promise<AnalyticsExportResult> =>
-    exportAnalyticsReport(backendBase.value, { format, ...overrides });
+    exportAnalyticsReport({ format, ...overrides }, backendClient);
 
   return {
     timeRange,

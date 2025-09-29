@@ -103,7 +103,7 @@ describe('LoraGallery', () => {
     settingsStore.reset();
     settingsStore.setSettings({ backendUrl: '/api/v1' });
 
-    mocks.fetchAdapterListMock.mockImplementation(async (_baseUrl, query = {}) => ({
+    mocks.fetchAdapterListMock.mockImplementation(async (query = {}) => ({
       items: [
         {
           id: '1',
@@ -156,8 +156,8 @@ describe('LoraGallery', () => {
   it('loads LoRAs on mount', async () => {
     await mountGallery();
     expect(mocks.fetchAdapterListMock).toHaveBeenCalledWith(
-      '/api/v1',
       expect.objectContaining({ perPage: 200 }),
+      expect.objectContaining({ resolve: expect.any(Function) }),
     );
   });
 
@@ -228,10 +228,12 @@ describe('LoraGallery', () => {
     await mountGallery();
 
     expect(mocks.fetchAdapterListMock).toHaveBeenCalledWith(
-      '/api/v1',
       expect.objectContaining({ perPage: 200 }),
+      expect.objectContaining({ resolve: expect.any(Function) }),
     );
-    expect(mocks.fetchAdapterTagsMock).toHaveBeenCalledWith('/api/v1');
+    expect(mocks.fetchAdapterTagsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ resolve: expect.any(Function) }),
+    );
   });
 
   it('performs bulk actions using shared selection state', async () => {
@@ -247,10 +249,10 @@ describe('LoraGallery', () => {
 
     await wrapper.vm.performBulkAction('activate');
     await flushPromises();
-    expect(mocks.performBulkLoraActionMock).toHaveBeenCalledWith('/api/v1', {
-      action: 'activate',
-      lora_ids: ['1'],
-    });
+    expect(mocks.performBulkLoraActionMock).toHaveBeenCalledWith(
+      { action: 'activate', lora_ids: ['1'] },
+      expect.objectContaining({ resolve: expect.any(Function) }),
+    );
     expect(wrapper.vm.selectedCount).toBe(0);
     expect(dialogServiceMocks.confirm).toHaveBeenCalledWith(
       expect.objectContaining({

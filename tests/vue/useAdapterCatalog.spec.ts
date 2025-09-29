@@ -53,7 +53,7 @@ describe('useAdapterCatalog', () => {
     settingsStore.setSettings({ backendUrl: '/api/v1' });
 
     mocks.fetchAdapterListMock.mockReset();
-    mocks.fetchAdapterListMock.mockImplementation(async (_baseUrl, query = {}) => ({
+    mocks.fetchAdapterListMock.mockImplementation(async (query = {}, _client) => ({
       items: [
         { id: 'alpha', name: 'Alpha', description: 'First adapter', active: true },
         { id: 'beta', name: 'Beta', description: 'Second adapter', active: false },
