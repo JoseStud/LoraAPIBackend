@@ -223,31 +223,37 @@ class DeliveryJobRepository:
 
     def count_active_jobs(self) -> int:
         """Return the number of jobs considered active."""
-        result = self._session.exec(
-            select(func.count(DeliveryJob.id)).where(
-                DeliveryJob.status.in_(_ACTIVE_STATUSES)
-            ),
-        ).one()
-        return int(result or 0)
+        result = (
+            self._session.execute(
+                select(func.count(DeliveryJob.id)).where(
+                    DeliveryJob.status.in_(_ACTIVE_STATUSES)
+                )
+            ).scalar_one_or_none()
+            or 0
+        )
+        return int(result)
 
     def get_queue_statistics(self) -> Dict[str, int]:
         """Summarise queue-oriented counts for dashboards."""
-        total_jobs = self._session.exec(select(func.count(DeliveryJob.id))).one() or 0
+        total_jobs = (
+            self._session.execute(select(func.count(DeliveryJob.id))).scalar_one_or_none()
+            or 0
+        )
         active_jobs = self.count_active_jobs()
         running_jobs = (
-            self._session.exec(
+            self._session.execute(
                 select(func.count(DeliveryJob.id)).where(
                     DeliveryJob.status == "running"
-                ),
-            ).one()
+                )
+            ).scalar_one_or_none()
             or 0
         )
         failed_jobs = (
-            self._session.exec(
+            self._session.execute(
                 select(func.count(DeliveryJob.id)).where(
                     DeliveryJob.status == "failed"
-                ),
-            ).one()
+                )
+            ).scalar_one_or_none()
             or 0
         )
 
