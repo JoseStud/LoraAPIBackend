@@ -15,13 +15,22 @@ export interface SystemStatusController {
   stop: () => void;
 }
 
-let singleton: SystemStatusController | null = null;
+export interface SystemStatusControllerHandle {
+  controller: SystemStatusController;
+  release: () => void;
+}
 
-export const useSystemStatusController = (): SystemStatusController => {
-  if (singleton) {
-    return singleton;
-  }
+interface ControllerState {
+  instance: SystemStatusController | null;
+  consumers: number;
+}
 
+const controllerState: ControllerState = {
+  instance: null,
+  consumers: 0,
+};
+
+const createController = (): SystemStatusController => {
   const connectionStore = useGenerationConnectionStore();
   const { systemStatusReady } = storeToRefs(connectionStore);
   const backendClient = useBackendClient();
@@ -95,15 +104,49 @@ export const useSystemStatusController = (): SystemStatusController => {
 
   const isPolling = computed(() => pollHandle.value != null);
 
-  singleton = {
+  return {
     isPolling,
     ensureHydrated,
     refresh,
     start,
     stop,
   };
+};
 
-  return singleton;
+const getController = (): SystemStatusController => {
+  if (!controllerState.instance) {
+    controllerState.instance = createController();
+  }
+
+  return controllerState.instance;
+};
+
+export const useSystemStatusController = (): SystemStatusController => getController();
+
+export const acquireSystemStatusController = (): SystemStatusControllerHandle => {
+  const controller = getController();
+  controllerState.consumers += 1;
+
+  if (controllerState.consumers === 1) {
+    controller.start();
+  }
+
+  let released = false;
+
+  const release = (): void => {
+    if (released) {
+      return;
+    }
+
+    released = true;
+    controllerState.consumers = Math.max(0, controllerState.consumers - 1);
+
+    if (controllerState.consumers === 0) {
+      controller.stop();
+    }
+  };
+
+  return { controller, release };
 };
 
 export default useSystemStatusController;

@@ -1,7 +1,10 @@
-import { computed } from 'vue';
+import { computed, onScopeDispose } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { useGenerationConnectionStore, useSystemStatusController } from '@/stores/generation';
+import {
+  acquireSystemStatusController,
+  useGenerationConnectionStore,
+} from '@/stores/generation';
 
 const formatMemory = (used: number, total: number) => {
   if (!total) {
@@ -74,7 +77,11 @@ export const useSystemStatus = () => {
     systemStatusLastUpdated: lastUpdate,
   } = storeToRefs(connectionStore);
 
-  const controller = useSystemStatusController();
+  const { controller, release } = acquireSystemStatusController();
+
+  onScopeDispose(() => {
+    release();
+  });
 
   void controller.ensureHydrated();
 
