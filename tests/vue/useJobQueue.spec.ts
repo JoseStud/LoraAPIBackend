@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { mount } from '@vue/test-utils';
 
 import { useJobQueue } from '@/composables/generation/useJobQueue';
-import { useGenerationQueueStore } from '@/stores/generation';
+import { useGenerationConnectionStore, useGenerationQueueStore } from '@/stores/generation';
 
 const serviceMocks = vi.hoisted(() => ({
   fetchActiveGenerationJobs: vi.fn(),
@@ -84,6 +84,10 @@ describe('useJobQueue', () => {
     notificationMocks.showToastSuccess.mockClear();
     notificationMocks.showToastError.mockClear();
     notificationMocks.showToastInfo.mockClear();
+
+    const connectionStore = useGenerationConnectionStore();
+    connectionStore.reset();
+    connectionStore.setQueueManagerActive(false);
   });
 
   it('continues polling after transient failures', async () => {
@@ -105,12 +109,14 @@ describe('useJobQueue', () => {
 
       await queue.refresh();
       await Promise.resolve();
+      await nextTick();
 
       expect(serviceMocks.fetchActiveGenerationJobs).toHaveBeenCalledTimes(1);
       expect(queue.jobs.value).toHaveLength(0);
 
       await queue.refresh();
       await Promise.resolve();
+      await nextTick();
 
       expect(serviceMocks.fetchActiveGenerationJobs).toHaveBeenCalledTimes(2);
       expect(queue.jobs.value).toHaveLength(1);
@@ -163,6 +169,45 @@ describe('useJobQueue', () => {
     }, () => ({
       disabled: computed(() => nextDisabled.value),
     }));
+  });
+
+  it('does not poll when a manager is active', async () => {
+    const connectionStore = useGenerationConnectionStore();
+    connectionStore.setQueueManagerActive(true);
+
+    await withQueue(async (queue) => {
+      await queue.refresh();
+      await Promise.resolve();
+
+      expect(serviceMocks.fetchActiveGenerationJobs).not.toHaveBeenCalled();
+      expect(queue.isPolling.value).toBe(false);
+      expect(queue.isReady.value).toBe(true);
+    });
+  });
+
+  it('resumes polling when the manager becomes inactive', async () => {
+    const connectionStore = useGenerationConnectionStore();
+    connectionStore.setQueueManagerActive(true);
+    serviceMocks.fetchActiveGenerationJobs.mockResolvedValueOnce([
+      { id: 'job-1', status: 'processing', progress: 10 },
+    ]);
+
+    await withQueue(async (queue) => {
+      await queue.refresh();
+      await Promise.resolve();
+      expect(serviceMocks.fetchActiveGenerationJobs).not.toHaveBeenCalled();
+
+      connectionStore.setQueueManagerActive(false);
+      await nextTick();
+
+      await queue.refresh();
+      await Promise.resolve();
+
+      await vi.waitFor(() => {
+        expect(serviceMocks.fetchActiveGenerationJobs).toHaveBeenCalledTimes(1);
+        expect(queue.jobs.value).toHaveLength(1);
+      });
+    });
   });
 });
 

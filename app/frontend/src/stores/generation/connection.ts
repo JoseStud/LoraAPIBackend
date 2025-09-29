@@ -24,6 +24,7 @@ export const useGenerationConnectionStore = defineStore('generation-connection',
   const systemStatusReady = ref(false);
   const systemStatusLastUpdated = ref<Date | null>(null);
   const systemStatusApiAvailable = ref(true);
+  const queueManagerActive = ref(false);
 
   function setConnectionState(connected: boolean): void {
     isConnected.value = connected;
@@ -78,6 +79,11 @@ export const useGenerationConnectionStore = defineStore('generation-connection',
     resetSystemStatus();
     isConnected.value = false;
     pollIntervalMs.value = DEFAULT_POLL_INTERVAL;
+    queueManagerActive.value = false;
+  }
+
+  function setQueueManagerActive(active: boolean): void {
+    queueManagerActive.value = active;
   }
 
   return {
@@ -87,6 +93,7 @@ export const useGenerationConnectionStore = defineStore('generation-connection',
     systemStatusReady,
     systemStatusLastUpdated,
     systemStatusApiAvailable,
+    queueManagerActive,
     setConnectionState,
     setPollInterval,
     updateSystemStatus,
@@ -95,6 +102,7 @@ export const useGenerationConnectionStore = defineStore('generation-connection',
     markSystemStatusHydrated,
     markSystemStatusUnavailable,
     reset,
+    setQueueManagerActive,
   };
 });
 

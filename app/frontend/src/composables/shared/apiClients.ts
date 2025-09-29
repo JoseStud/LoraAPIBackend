@@ -8,11 +8,8 @@ import type {
   GenerationResult,
   RecommendationResponse,
 } from '@/types';
-import {
-  buildAdapterListQuery,
-  useDashboardStatsApi,
-  useSystemStatusApi,
-} from '@/services';
+
+import { buildAdapterListQuery } from '@/services/lora/loraService';
 import { resolveBackendUrl } from '@/utils/backend';
 
 export type DashboardStatsResponse = DashboardStatsSummary;
@@ -35,4 +32,4 @@ export const useRecentResultsApi = (
   init: RequestInit = {},
 ) => useApi<GenerationResult[]>(url, withCredentials(init));
 
-export { buildAdapterListQuery, useAdapterListApi, useDashboardStatsApi, useSystemStatusApi };
+export { buildAdapterListQuery, useAdapterListApi };

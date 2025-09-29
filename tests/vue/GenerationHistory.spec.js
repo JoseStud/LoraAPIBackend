@@ -29,7 +29,7 @@ const serviceMocks = vi.hoisted(() => ({
   deleteResults: vi.fn(),
 }));
 
-vi.mock('../../app/frontend/src/services/historyService', () => ({
+vi.mock('../../app/frontend/src/services/history/historyService', () => ({
   listResults: serviceMocks.listResults,
   rateResult: serviceMocks.rateResult,
   favoriteResult: serviceMocks.favoriteResult,

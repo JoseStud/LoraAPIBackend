@@ -1,9 +1,17 @@
-import { computed, reactive, unref } from 'vue';
-import type { MaybeRefOrGetter } from 'vue';
 
 import { useApi } from '@/composables/shared';
 import { getFilenameFromContentDisposition, requestBlob } from '@/services/apiClient';
-import { resolveGenerationRoute } from '@/services';
+
+import {
+  getFilenameFromContentDisposition,
+  performConfiguredRequest,
+  requestBlob,
+  requestConfiguredJson,
+  type ApiRequestConfig,
+  type ApiRequestInit,
+} from '@/services/apiClient';
+import { resolveGenerationRoute } from '@/services/generation/generationService';
+
 import { sanitizeBackendBaseUrl } from '@/utils/backend';
 
 import type {
@@ -20,13 +28,22 @@ import type {
   GenerationRatingUpdate,
 } from '@/types';
 
-const resolveBaseUrl = (value: MaybeRefOrGetter<string>): string => {
-  const raw = typeof value === 'function' ? (value as () => string)() : unref(value);
-  return sanitizeBackendBaseUrl(raw);
-};
-
 const resolveHistoryEndpoint = (base: string, path: string): string =>
   resolveGenerationRoute(path, base);
+
+const withSameOrigin = (init: ApiRequestInit = {}): ApiRequestInit => ({
+  credentials: 'same-origin',
+  ...init,
+});
+
+const createHistoryRequestConfig = (
+  base: string,
+  path: string,
+  init: ApiRequestInit = {},
+): ApiRequestConfig => ({
+  target: resolveHistoryEndpoint(base, path),
+  init: withSameOrigin(init),
+});
 
 const toStats = (stats?: GenerationHistoryStats | null): GenerationHistoryStats => ({
   total_results: stats?.total_results ?? 0,
@@ -127,45 +144,6 @@ export const buildHistoryQuery = (query: GenerationHistoryQuery = {}): string =>
   return search ? `?${search}` : '';
 };
 
-export const useGenerationHistoryApi = (
-  baseUrl: MaybeRefOrGetter<string>,
-  initialQuery: GenerationHistoryQuery = {},
-) => {
-  const query = reactive<GenerationHistoryQuery>({ ...initialQuery });
-  const api = useApi<GenerationHistoryListPayload>(
-    () => {
-      const base = resolveBaseUrl(baseUrl);
-      const suffix = buildHistoryQuery(query);
-      return resolveHistoryEndpoint(base, `/results${suffix}`);
-    },
-    { credentials: 'same-origin' },
-  );
-
-  const fetchPage = async (overrides: GenerationHistoryQuery = {}) => {
-    Object.assign(query, overrides);
-    await api.fetchData();
-    return toListOutput(api.data.value);
-  };
-
-  const results = computed<GenerationHistoryResult[]>(() => toListOutput(api.data.value).results);
-
-  const pageInfo = computed<GenerationHistoryListResponse | null>(() => {
-    const payload = api.data.value;
-    if (!payload || Array.isArray(payload)) {
-      return null;
-    }
-    return payload;
-  });
-
-  return {
-    ...api,
-    query,
-    fetchPage,
-    results,
-    pageInfo,
-  };
-};
-
 export const listResults = async (
   baseUrl: string,
   query: GenerationHistoryQuery = {},
@@ -174,11 +152,11 @@ export const listResults = async (
   const base = sanitizeBackendBaseUrl(baseUrl);
   const queryString = buildHistoryQuery(query);
   const targetUrl = resolveHistoryEndpoint(base, `/results${queryString}`);
-  const api = useApi<GenerationHistoryListPayload>(() => targetUrl, {
-    credentials: 'same-origin',
-  });
-  const payload = await api.fetchData({ signal: options.signal });
-  return toListOutput(payload ?? null);
+  const result = await requestConfiguredJson<GenerationHistoryListPayload>(
+    { target: targetUrl, init: withSameOrigin() },
+    { signal: options.signal },
+  );
+  return toListOutput((result.data as GenerationHistoryListPayload | null) ?? null);
 };
 
 export const rateResult = async (
@@ -187,20 +165,20 @@ export const rateResult = async (
   rating: number,
 ): Promise<GenerationHistoryResult | null> => {
   const base = sanitizeBackendBaseUrl(baseUrl);
-  const api = useApi<GenerationHistoryResult | null>(
-    () => resolveHistoryEndpoint(base, `/results/${encodeURIComponent(String(resultId))}/rating`),
+  const config = createHistoryRequestConfig(
+    base,
+    `/results/${encodeURIComponent(String(resultId))}/rating`,
     {
-      credentials: 'same-origin',
       headers: {
         'Content-Type': 'application/json',
       },
     },
   );
-  const payload = await api.fetchData({
+  const result = await requestConfiguredJson<GenerationHistoryResult | null>(config, {
     method: 'PUT',
     body: JSON.stringify({ rating } satisfies GenerationRatingUpdate),
   });
-  return payload ?? null;
+  return (result.data as GenerationHistoryResult | null) ?? null;
 };
 
 export const favoriteResult = async (
@@ -209,20 +187,20 @@ export const favoriteResult = async (
   isFavorite: boolean,
 ): Promise<GenerationHistoryResult | null> => {
   const base = sanitizeBackendBaseUrl(baseUrl);
-  const api = useApi<GenerationHistoryResult | null>(
-    () => resolveHistoryEndpoint(base, `/results/${encodeURIComponent(String(resultId))}/favorite`),
+  const config = createHistoryRequestConfig(
+    base,
+    `/results/${encodeURIComponent(String(resultId))}/favorite`,
     {
-      credentials: 'same-origin',
       headers: {
         'Content-Type': 'application/json',
       },
     },
   );
-  const payload = await api.fetchData({
+  const result = await requestConfiguredJson<GenerationHistoryResult | null>(config, {
     method: 'PUT',
     body: JSON.stringify({ is_favorite: isFavorite }),
   });
-  return payload ?? null;
+  return (result.data as GenerationHistoryResult | null) ?? null;
 };
 
 export const favoriteResults = async (
@@ -230,16 +208,12 @@ export const favoriteResults = async (
   payload: GenerationBulkFavoriteRequest,
 ): Promise<void> => {
   const base = sanitizeBackendBaseUrl(baseUrl);
-  const api = useApi<void>(
-    () => resolveHistoryEndpoint(base, '/results/bulk-favorite'),
-    {
-      credentials: 'same-origin',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+  const config = createHistoryRequestConfig(base, '/results/bulk-favorite', {
+    headers: {
+      'Content-Type': 'application/json',
     },
-  );
-  await api.fetchData({
+  });
+  await performConfiguredRequest<void>(config, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
@@ -250,13 +224,11 @@ export const deleteResult = async (
   resultId: GenerationHistoryResult['id'],
 ): Promise<void> => {
   const base = sanitizeBackendBaseUrl(baseUrl);
-  const api = useApi<void>(
-    () => resolveHistoryEndpoint(base, `/results/${encodeURIComponent(String(resultId))}`),
-    {
-      credentials: 'same-origin',
-    },
+  const config = createHistoryRequestConfig(
+    base,
+    `/results/${encodeURIComponent(String(resultId))}`,
   );
-  await api.fetchData({ method: 'DELETE' });
+  await performConfiguredRequest<void>(config, { method: 'DELETE' });
 };
 
 export const deleteResults = async (
@@ -264,16 +236,12 @@ export const deleteResults = async (
   payload: GenerationBulkDeleteRequest,
 ): Promise<void> => {
   const base = sanitizeBackendBaseUrl(baseUrl);
-  const api = useApi<void>(
-    () => resolveHistoryEndpoint(base, '/results/bulk-delete'),
-    {
-      credentials: 'same-origin',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+  const config = createHistoryRequestConfig(base, '/results/bulk-delete', {
+    headers: {
+      'Content-Type': 'application/json',
     },
-  );
-  await api.fetchData({
+  });
+  await performConfiguredRequest<void>(config, {
     method: 'DELETE',
     body: JSON.stringify(payload),
   });

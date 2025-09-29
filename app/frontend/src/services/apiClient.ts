@@ -285,6 +285,89 @@ export const deleteRequest = async <TResponse = unknown>(
   init: ApiRequestInit = {},
 ): Promise<ApiResult<TResponse>> => requestJson<TResponse>(input, { ...init, method: 'DELETE' });
 
+export type RequestTargetResolver =
+  | RequestTarget
+  | (() => RequestTarget | null | undefined);
+
+export interface ApiRequestConfig {
+  target: RequestTargetResolver;
+  init?: ApiRequestInit;
+}
+
+const resolveRequestTarget = (resolver: RequestTargetResolver): RequestTarget => {
+  try {
+    const resolved = typeof resolver === 'function' ? resolver() : resolver;
+
+    if (resolved == null) {
+      throw new Error('Invalid API URL');
+    }
+
+    if (typeof resolved === 'string') {
+      const trimmed = resolved.trim();
+      if (!trimmed) {
+        throw new Error('Invalid API URL');
+      }
+      return trimmed;
+    }
+
+    return resolved;
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('[apiClient] Failed to resolve request target', error);
+    }
+    throw new Error('Invalid API URL');
+  }
+};
+
+const mergeRequestInit = (
+  baseInit: ApiRequestInit = {},
+  overrideInit: ApiRequestInit = {},
+): ApiRequestInit => {
+  const headers = buildAuthenticatedHeaders(baseInit.headers, overrideInit.headers);
+  const parseMode = overrideInit.parseMode ?? baseInit.parseMode;
+  const credentials = overrideInit.credentials ?? baseInit.credentials ?? DEFAULT_CREDENTIALS;
+  const signal = overrideInit.signal ?? baseInit.signal;
+
+  const merged: ApiRequestInit = {
+    ...baseInit,
+    ...overrideInit,
+    headers,
+    credentials,
+  } satisfies ApiRequestInit;
+
+  if (parseMode !== undefined) {
+    merged.parseMode = parseMode;
+  } else {
+    delete merged.parseMode;
+  }
+
+  if (signal) {
+    merged.signal = signal;
+  } else {
+    delete merged.signal;
+  }
+
+  return merged;
+};
+
+export const performConfiguredRequest = async <TPayload = unknown>(
+  config: ApiRequestConfig,
+  overrides: ApiRequestInit = {},
+): Promise<ApiRequestResult<TPayload>> => {
+  const target = resolveRequestTarget(config.target);
+  const init = mergeRequestInit(config.init, overrides);
+  return performRequest<TPayload>(target, init);
+};
+
+export const requestConfiguredJson = async <TPayload = unknown>(
+  config: ApiRequestConfig,
+  overrides: ApiRequestInit = {},
+): Promise<ApiResult<TPayload>> => {
+  const target = resolveRequestTarget(config.target);
+  const init = mergeRequestInit(config.init, overrides);
+  return requestJson<TPayload>(target, init);
+};
+
 export const requestBlob = async (
   input: RequestTarget,
   init: RequestInit = {},
