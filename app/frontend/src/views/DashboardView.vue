@@ -45,16 +45,21 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
 
+import { defineAsyncComponent } from 'vue';
+
 import GenerationHistory from '@/components/history/GenerationHistory.vue';
 import GenerationStudio from '@/components/generation/GenerationStudio.vue';
 import ImportExportContainer from '@/components/import-export/ImportExportContainer.vue';
 import JobQueue from '@/components/shared/JobQueue.vue';
 import LoraGallery from '@/components/lora-gallery/LoraGallery.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PerformanceAnalytics from '@/views/analytics/PerformanceAnalyticsPage.vue';
 import PromptComposer from '@/components/compose/PromptComposer.vue';
 import RecommendationsPanel from '@/components/recommendations/RecommendationsPanel.vue';
 import SystemAdminStatusCard from '@/components/system/SystemAdminStatusCard.vue';
 import SystemStatusCard from '@/components/system/SystemStatusCard.vue';
 import SystemStatusPanel from '@/components/system/SystemStatusPanel.vue';
+
+const PerformanceAnalytics = defineAsyncComponent(
+  () => import('@/views/analytics/PerformanceAnalyticsPage.vue'),
+);
 </script>
