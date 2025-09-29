@@ -42,6 +42,8 @@ export interface GenerationTransportCallbacks {
   shouldPollQueue?: () => boolean;
   onNotify?: (message: string, type?: NotificationType) => void;
   logger?: (...args: unknown[]) => void;
+  onHydrateSystemStatus?: () => Promise<void> | void;
+  onReleaseSystemStatus?: () => void;
 }
 
 export const useGenerationTransport = (
@@ -80,6 +82,8 @@ export const useGenerationTransport = (
       logger: (...args: unknown[]) => {
         logDebug(...args);
       },
+      onHydrateSystemStatus: callbacks.onHydrateSystemStatus,
+      onReleaseSystemStatus: callbacks.onReleaseSystemStatus,
     },
   );
 

@@ -9,7 +9,7 @@ import type {
   GenerationQueueClient,
   GenerationWebSocketManager,
 } from '@/services/generation/updates';
-import { DEFAULT_HISTORY_LIMIT } from '@/stores/generation';
+import { acquireSystemStatusController, DEFAULT_HISTORY_LIMIT } from '@/stores/generation';
 import type {
   GenerationConnectionStore,
   GenerationQueueStore,
@@ -60,6 +60,9 @@ export const createGenerationOrchestratorFactory = ({
 }: GenerationOrchestratorOptions): GenerationOrchestrator => {
   const { hasActiveJobs } = storeToRefs(queueStore);
 
+  const { controller: systemStatusController, release: releaseSystemStatusController } =
+    acquireSystemStatusController();
+
   const transport = useGenerationTransport(
     {
       getBackendUrl: () => configuredBackendUrl.value,
@@ -101,6 +104,10 @@ export const createGenerationOrchestratorFactory = ({
       logger: (...args: unknown[]) => {
         notificationAdapter.debug?.(...args);
       },
+      onHydrateSystemStatus: () => systemStatusController.ensureHydrated(),
+      onReleaseSystemStatus: () => {
+        releaseSystemStatusController();
+      },
     },
   );
 
@@ -125,6 +132,7 @@ export const createGenerationOrchestratorFactory = ({
   const cleanup = (): void => {
     connectionStore.setQueueManagerActive(false);
     transport.clear();
+    releaseSystemStatusController();
   };
 
   const startGeneration = async (
@@ -211,6 +219,7 @@ export const createGenerationOrchestratorFactory = ({
     onScopeDispose(() => {
       connectionStore.setQueueManagerActive(false);
       transport.clear();
+      releaseSystemStatusController();
     });
   }
 
