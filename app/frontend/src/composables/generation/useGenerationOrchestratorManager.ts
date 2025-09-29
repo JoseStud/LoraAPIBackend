@@ -1,12 +1,15 @@
 import { effectScope, type EffectScope, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 
+import {
+  createGenerationOrchestratorFactory,
+  type GenerationOrchestrator,
+} from './createGenerationOrchestrator'
 import type { GenerationNotificationAdapter } from './useGenerationTransport'
-import { createGenerationOrchestrator } from '@/services'
 import type {
   GenerationQueueClient,
   GenerationWebSocketManager,
-} from '@/services'
+} from '@/services/generation/updates'
 import {
   useGenerationConnectionStore,
   useGenerationFormStore,
@@ -21,7 +24,6 @@ import type {
   GenerationStartResponse,
   SystemStatusState,
 } from '@/types'
-import type { GenerationOrchestrator } from '@/services'
 
 export interface GenerationOrchestratorAcquireOptions {
   notify: GenerationNotificationAdapter['notify']
@@ -80,7 +82,7 @@ const ensureOrchestrator = (
     orchestratorState.scope = effectScope(true)
 
     const createdOrchestrator = orchestratorState.scope.run(() =>
-      createGenerationOrchestrator({
+      createGenerationOrchestratorFactory({
         showHistory: context.showHistory,
         configuredBackendUrl: context.configuredBackendUrl,
         notificationAdapter: {

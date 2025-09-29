@@ -28,6 +28,7 @@ export function useBackupWorkflow(options: UseBackupWorkflowOptions): UseBackupW
 
   const loadHistory = async () => {
     try {
+
       const response = await backendClient.getJson<
         BackupHistoryItem[] | { history?: BackupHistoryItem[] | null } | null
       >('/api/v1/backups/history');

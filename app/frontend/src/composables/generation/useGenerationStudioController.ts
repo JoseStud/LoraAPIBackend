@@ -1,6 +1,6 @@
 import { onMounted, onUnmounted, shallowRef, type Ref } from 'vue'
 
-import { toGenerationRequestPayload } from '@/services'
+import { toGenerationRequestPayload } from '@/services/generation/generationService'
 import {
   useGenerationOrchestratorManager,
   type GenerationOrchestratorBinding,

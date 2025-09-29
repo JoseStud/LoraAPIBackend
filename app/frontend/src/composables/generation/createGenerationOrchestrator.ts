@@ -4,17 +4,17 @@ import { storeToRefs } from 'pinia';
 import {
   useGenerationTransport,
   type GenerationNotificationAdapter,
-} from '@/composables/generation';
+} from './useGenerationTransport';
+import type {
+  GenerationQueueClient,
+  GenerationWebSocketManager,
+} from '@/services/generation/updates';
 import { DEFAULT_HISTORY_LIMIT } from '@/stores/generation';
 import type {
   GenerationConnectionStore,
   GenerationQueueStore,
   GenerationResultsStore,
 } from '@/stores/generation';
-import type {
-  GenerationQueueClient,
-  GenerationWebSocketManager,
-} from './updates';
 import type {
   GenerationJob,
   GenerationRequestPayload,
@@ -46,7 +46,7 @@ export interface GenerationOrchestrator {
   deleteResult: (resultId: string | number) => Promise<void>;
 }
 
-export const createGenerationOrchestrator = ({
+export const createGenerationOrchestratorFactory = ({
   showHistory,
   configuredBackendUrl,
   notificationAdapter,
@@ -226,3 +226,7 @@ export const createGenerationOrchestrator = ({
     deleteResult,
   };
 };
+
+export type CreateGenerationOrchestratorFactoryReturn = ReturnType<
+  typeof createGenerationOrchestratorFactory
+>;

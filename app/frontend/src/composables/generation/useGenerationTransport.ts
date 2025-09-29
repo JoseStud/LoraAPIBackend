@@ -2,7 +2,7 @@ import {
   extractGenerationErrorMessage,
   type GenerationQueueClient,
   type GenerationWebSocketManager,
-} from '@/services';
+} from '@/services/generation/updates';
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,
