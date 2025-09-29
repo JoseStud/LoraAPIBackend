@@ -34,7 +34,6 @@
     <section class="grid gap-6 xl:grid-cols-2">
       <template v-for="panel in panels" :key="panel.key">
         <DashboardLazyModuleCard
-          :key="panel.key"
           :title="panel.title"
           :description="panel.description"
           :route="panel.route"
