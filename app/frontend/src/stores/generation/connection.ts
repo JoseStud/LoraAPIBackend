@@ -21,6 +21,9 @@ export const useGenerationConnectionStore = defineStore('generation-connection',
   const systemStatus = reactive<SystemStatusState>(createDefaultSystemStatus());
   const isConnected = ref(false);
   const pollIntervalMs = ref(DEFAULT_POLL_INTERVAL);
+  const systemStatusReady = ref(false);
+  const systemStatusLastUpdated = ref<Date | null>(null);
+  const systemStatusApiAvailable = ref(true);
 
   function setConnectionState(connected: boolean): void {
     isConnected.value = connected;
@@ -37,6 +40,9 @@ export const useGenerationConnectionStore = defineStore('generation-connection',
 
   function resetSystemStatus(): void {
     Object.assign(systemStatus, createDefaultSystemStatus());
+    systemStatusReady.value = false;
+    systemStatusLastUpdated.value = null;
+    systemStatusApiAvailable.value = true;
   }
 
   function applySystemStatusPayload(payload: SystemStatusPayload | Partial<SystemStatusState>): void {
@@ -48,6 +54,24 @@ export const useGenerationConnectionStore = defineStore('generation-connection',
       ...status
     } = payload as Record<string, unknown>;
     updateSystemStatus(status as Partial<SystemStatusState>);
+    const timestamp =
+      (payload as SystemStatusPayload).updated_at || (payload as SystemStatusPayload).last_updated || null;
+    const resolvedTimestamp = timestamp ? new Date(timestamp) : new Date();
+    systemStatusReady.value = true;
+    systemStatusApiAvailable.value = true;
+    systemStatusLastUpdated.value = resolvedTimestamp;
+  }
+
+  function markSystemStatusHydrated(date: Date | null = null): void {
+    systemStatusReady.value = true;
+    systemStatusApiAvailable.value = true;
+    systemStatusLastUpdated.value = date ?? new Date();
+  }
+
+  function markSystemStatusUnavailable(date: Date | null = null): void {
+    systemStatusReady.value = true;
+    systemStatusApiAvailable.value = false;
+    systemStatusLastUpdated.value = date ?? new Date();
   }
 
   function reset(): void {
@@ -60,11 +84,16 @@ export const useGenerationConnectionStore = defineStore('generation-connection',
     systemStatus,
     isConnected,
     pollIntervalMs,
+    systemStatusReady,
+    systemStatusLastUpdated,
+    systemStatusApiAvailable,
     setConnectionState,
     setPollInterval,
     updateSystemStatus,
     resetSystemStatus,
     applySystemStatusPayload,
+    markSystemStatusHydrated,
+    markSystemStatusUnavailable,
     reset,
   };
 });

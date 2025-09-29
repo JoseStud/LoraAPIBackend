@@ -1,14 +1,8 @@
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { ApiError } from '@/composables/shared';
-import { fetchSystemStatus } from '@/services/system/systemService';
 import { useGenerationConnectionStore } from '@/stores/generation';
-import { useBackendBase } from '@/utils/backend';
-
-import type { SystemStatusState } from '@/types';
-
-const DEFAULT_POLL_INTERVAL = 10_000;
+import { useSystemStatusController } from '@/stores/generation/systemStatusController';
 
 const formatMemory = (used: number, total: number) => {
   if (!total) {
@@ -72,20 +66,18 @@ const getGpuStatusClass = (gpuStatus: string) => {
   return 'text-red-600';
 };
 
-interface UseSystemStatusOptions {
-  pollInterval?: number;
-}
-
-export const useSystemStatus = (options: UseSystemStatusOptions = {}) => {
-  const pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
-
+export const useSystemStatus = () => {
   const connectionStore = useGenerationConnectionStore();
-  const { systemStatus } = storeToRefs(connectionStore);
-  const backendBase = useBackendBase();
+  const {
+    systemStatus,
+    systemStatusApiAvailable: apiAvailable,
+    systemStatusReady: isReady,
+    systemStatusLastUpdated: lastUpdate,
+  } = storeToRefs(connectionStore);
 
-  const apiAvailable = ref<boolean>(true);
-  const isReady = ref<boolean>(false);
-  const lastUpdate = ref<Date | null>(null);
+  const controller = useSystemStatusController();
+
+  void controller.ensureHydrated();
 
   const queueLength = computed<number>(() => systemStatus.value.queue_length ?? 0);
   const queueJobsLabel = computed<string>(() => `${queueLength.value} jobs`);
@@ -108,89 +100,9 @@ export const useSystemStatus = (options: UseSystemStatusOptions = {}) => {
   const statusLabel = computed<string>(() => systemStatus.value.status || 'Unknown');
   const lastUpdatedLabel = computed<string>(() => formatLastUpdateLabel(lastUpdate.value));
 
-  const pollHandle = ref<ReturnType<typeof setInterval> | null>(null);
-
-  const resetStatus = (): void => {
-    connectionStore.resetSystemStatus();
-  };
-
-  const applyStatus = (next: Partial<SystemStatusState> = {}): void => {
-    connectionStore.updateSystemStatus(next);
-  };
-
-  const stopPolling = (): void => {
-    if (pollHandle.value) {
-      clearInterval(pollHandle.value);
-      pollHandle.value = null;
-    }
-  };
-
-  const fetchStatus = async (): Promise<void> => {
-    try {
-      const payload = await fetchSystemStatus(backendBase.value);
-      if (payload) {
-        resetStatus();
-        connectionStore.applySystemStatusPayload(payload);
-
-        const updatedAt = payload.updated_at ?? payload.last_updated ?? null;
-        lastUpdate.value = updatedAt ? new Date(updatedAt) : new Date();
-        apiAvailable.value = true;
-        return;
-      }
-
-      apiAvailable.value = true;
-      resetStatus();
-      lastUpdate.value = new Date();
-    } catch (error: unknown) {
-      if (error instanceof ApiError && error.status === 404) {
-        apiAvailable.value = false;
-        resetStatus();
-        lastUpdate.value = new Date();
-        stopPolling();
-        return;
-      }
-
-      apiAvailable.value = true;
-      resetStatus();
-      applyStatus({ status: 'error', gpu_status: 'Unknown' });
-
-      if (import.meta.env.DEV) {
-        console.error('Failed to load system status', error);
-      }
-    } finally {
-      if (!isReady.value) {
-        isReady.value = true;
-      }
-    }
-  };
-
-  const startPolling = (): void => {
-    stopPolling();
-
-    if (!apiAvailable.value) {
-      return;
-    }
-
-    pollHandle.value = setInterval(() => {
-      if (!apiAvailable.value) {
-        stopPolling();
-        return;
-      }
-
-      void fetchStatus();
-    }, pollInterval);
-  };
-
-  const refresh = () => fetchStatus();
-
-  onMounted(async () => {
-    await refresh();
-    startPolling();
-  });
-
-  onBeforeUnmount(() => {
-    stopPolling();
-  });
+  const refresh = () => controller.refresh();
+  const startPolling = () => controller.start();
+  const stopPolling = () => controller.stop();
 
   return {
     statusState: systemStatus,
