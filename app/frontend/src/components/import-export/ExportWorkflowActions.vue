@@ -1,17 +1,17 @@
 <template>
   <div class="flex justify-between items-center pt-6 border-t">
     <div class="flex items-center space-x-4">
-      <button class="btn btn-secondary" @click="$emit('validate')">
+      <button class="btn btn-secondary" @click="validateExport">
         Validate Selection
       </button>
-      <button class="btn btn-secondary" @click="$emit('preview')">
+      <button class="btn btn-secondary" @click="previewExport">
         Preview Contents
       </button>
     </div>
     <button
       class="btn btn-primary"
       :disabled="!canExport || isExporting"
-      @click="$emit('start')"
+      @click="startExport"
     >
       <template v-if="!isExporting">
         <span>Start Export</span>
@@ -30,14 +30,10 @@
 </template>
 
 <script setup lang="ts">
-import { toRefs } from 'vue';
+import { useImportExportContext } from '@/composables/import-export';
 
-const props = defineProps<{
-  canExport: boolean;
-  isExporting: boolean;
-}>();
-
-const { canExport, isExporting } = toRefs(props);
-
-defineEmits<{ (e: 'validate'): void; (e: 'preview'): void; (e: 'start'): void }>();
+const {
+  exportWorkflow: { canExport, isExporting },
+  actions: { validateExport, previewExport, startExport }
+} = useImportExportContext();
 </script>

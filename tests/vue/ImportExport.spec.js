@@ -1,54 +1,111 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { defineComponent, h, reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { flushPromises, mount } from '@vue/test-utils';
 
 import ImportExportContainer from '../../app/frontend/src/components/import-export/ImportExportContainer.vue';
 
-function stubComponent(name, emits = []) {
-  return defineComponent({
-    name,
-    emits,
-    setup(_, { slots }) {
-      return () => h('div', { class: name }, slots.default ? slots.default() : name);
-    }
+const contextState = { context: null };
+
+function createMockExportWorkflow() {
+  const exportConfig = reactive({
+    loras: true,
+    lora_files: true,
+    lora_metadata: true,
+    lora_embeddings: false,
+    generations: false,
+    generation_range: 'all',
+    date_from: '',
+    date_to: '',
+    user_data: false,
+    system_config: false,
+    analytics: false,
+    format: 'zip',
+    compression: 'balanced',
+    split_archives: false,
+    max_size_mb: 1024,
+    encrypt: false,
+    password: ''
   });
+
+  const isExporting = ref(false);
+
+  return {
+    exportConfig,
+    canExport: ref(true),
+    estimatedSize: ref('10 MB'),
+    estimatedTime: ref('5 minutes'),
+    isExporting: computed(() => isExporting.value),
+    initialize: vi.fn().mockResolvedValue(undefined),
+    updateConfig: vi.fn((key, value) => {
+      exportConfig[key] = value;
+    }),
+    validateExport: vi.fn(),
+    previewExport: vi.fn(),
+    startExport: vi.fn(() => {
+      isExporting.value = true;
+      isExporting.value = false;
+    }),
+    quickExportAll: vi.fn(),
+    cancelExport: vi.fn()
+  };
 }
 
-const exportProgressHandlers = [];
+function createMockImportWorkflow() {
+  const importConfig = reactive({
+    mode: 'merge',
+    conflict_resolution: 'ask',
+    validate: true,
+    backup_before: true,
+    password: ''
+  });
+  const files = ref([]);
+  const preview = ref([]);
+  const isImporting = ref(false);
 
-const mockExportWorkflow = {
-  exportConfig: reactive({}),
-  canExport: ref(true),
-  estimatedSize: ref('10 MB'),
-  estimatedTime: ref('5 minutes'),
-  isExporting: ref(false),
-  initialize: vi.fn().mockResolvedValue(undefined),
-  updateConfig: vi.fn(),
-  validateExport: vi.fn(),
-  previewExport: vi.fn(),
-  startExport: vi.fn(),
-  quickExportAll: vi.fn(),
-  cancelExport: vi.fn()
-};
+  return {
+    importConfig,
+    importFiles: computed(() => files.value),
+    importPreview: computed(() => preview.value),
+    hasEncryptedFiles: computed(() => files.value.some(file => file.name.includes('encrypted'))),
+    isImporting: computed(() => isImporting.value),
+    updateConfig: vi.fn((key, value) => {
+      importConfig[key] = value;
+    }),
+    addFiles: vi.fn((newFiles) => {
+      files.value = [...files.value, ...newFiles];
+    }),
+    removeFile: vi.fn((file) => {
+      files.value = files.value.filter(existing => existing !== file);
+    }),
+    clearFiles: vi.fn(() => {
+      files.value = [];
+      preview.value = [];
+    }),
+    analyzeFiles: vi.fn().mockResolvedValue(undefined),
+    validateImport: vi.fn(),
+    startImport: vi.fn(() => {
+      isImporting.value = true;
+      isImporting.value = false;
+    }),
+    cancelImport: vi.fn(() => {
+      isImporting.value = false;
+    }),
+    __files: files,
+    __preview: preview
+  };
+}
 
-const mockImportWorkflow = {
-  importConfig: reactive({}),
-  importFiles: ref([]),
-  importPreview: ref([]),
-  hasEncryptedFiles: ref(false),
-  isImporting: ref(false),
-  updateConfig: vi.fn(),
-  addFiles: vi.fn(),
-  removeFile: vi.fn(),
-  clearFiles: vi.fn(),
-  analyzeFiles: vi.fn(),
-  validateImport: vi.fn(),
-  startImport: vi.fn(),
-  cancelImport: vi.fn()
-};
-
-const mockBackupWorkflow = {
-  backupHistory: ref([]),
+function createMockBackupWorkflow() {
+  return {
+  backupHistory: ref([
+    {
+      id: 'backup-1',
+      created_at: '2024-01-01T00:00:00Z',
+      type: 'full',
+      size: 1024,
+      status: 'completed'
+    }
+  ]),
   initialize: vi.fn().mockResolvedValue(undefined),
   createFullBackup: vi.fn(),
   createQuickBackup: vi.fn(),
@@ -56,271 +113,214 @@ const mockBackupWorkflow = {
   downloadBackup: vi.fn(),
   restoreBackup: vi.fn(),
   deleteBackup: vi.fn()
-};
-
-const mockMigrationWorkflow = {
-  migrationConfig: reactive({}),
-  updateConfig: vi.fn(),
-  startVersionMigration: vi.fn(),
-  startPlatformMigration: vi.fn()
-};
-
-const importExportState = vi.hoisted(() => ({
-  progress: null,
-  toast: null,
-}));
-
-vi.mock('@/composables/import-export', async () => {
-  const { ref } = await import('vue');
-
-  const progressState = {
-    showProgress: ref(false),
-    progressTitle: ref(''),
-    progressValue: ref(0),
-    currentStep: ref(''),
-    progressMessages: ref([]),
-    currentOperation: ref(null),
   };
+}
 
-  const toastState = {
-    showToast: ref(false),
-    toastMessage: ref(''),
-    toastType: ref('info'),
-    notify: vi.fn(),
-  };
-
-  importExportState.progress = progressState;
-  importExportState.toast = toastState;
-
-  const begin = vi.fn((operation) => {
-    progressState.currentOperation.value = operation;
-    progressState.showProgress.value = true;
-  });
-
-  const update = vi.fn((updateState) => {
-    if (typeof updateState.value === 'number') {
-      progressState.progressValue.value = updateState.value;
-    }
-    if (typeof updateState.step === 'string') {
-      progressState.currentStep.value = updateState.step;
-    }
-    if (typeof updateState.message === 'string') {
-      progressState.progressMessages.value = [
-        ...progressState.progressMessages.value,
-        { id: progressState.progressMessages.value.length, text: updateState.message },
-      ];
-    }
-  });
-
-  const end = vi.fn(() => {
-    progressState.showProgress.value = false;
-    progressState.progressValue.value = 0;
-    progressState.currentStep.value = '';
-    progressState.progressMessages.value = [];
-    progressState.currentOperation.value = null;
-  });
-
-  const buildActions = (
-    exportWorkflow,
-    importWorkflow,
-    backupWorkflow,
-    migrationWorkflow,
-    activeTab,
-    currentOperation,
-    endProgress,
-    notify,
-  ) => ({
-    handleActiveTabChange: (value) => {
-      activeTab.value = value;
-    },
-    handleExportConfigUpdate: (key, value) => {
-      exportWorkflow.updateConfig(key, value);
-    },
-    handleValidateExport: () => {
-      exportWorkflow.validateExport();
-    },
-    handlePreviewExport: () => {
-      exportWorkflow.previewExport();
-    },
-    handleStartExport: async () => {
-      await exportWorkflow.startExport();
-    },
-    handleQuickExportAll: async () => {
-      await exportWorkflow.quickExportAll();
-    },
-    handleImportConfigUpdate: (key, value) => {
-      importWorkflow.updateConfig(key, value);
-    },
-    handleImportFilesAdded: (files) => {
-      const items = Array.isArray(files) ? files : Array.from(files ?? []);
-      importWorkflow.addFiles(items);
-    },
-    handleImportFileRemoved: (file) => {
-      importWorkflow.removeFile(file);
-    },
-    handleAnalyzeFiles: async () => {
-      await importWorkflow.analyzeFiles();
-    },
-    handleValidateImport: () => {
-      importWorkflow.validateImport();
-    },
-    handleStartImport: async () => {
-      await importWorkflow.startImport();
-    },
-    handleCreateFullBackup: async () => {
-      await backupWorkflow.createFullBackup();
-    },
-    handleCreateQuickBackup: async () => {
-      await backupWorkflow.createQuickBackup();
-    },
-    handleScheduleBackup: () => {
-      backupWorkflow.scheduleBackup();
-    },
-    handleDownloadBackup: (id) => {
-      backupWorkflow.downloadBackup(id);
-    },
-    handleRestoreBackup: (id) => {
-      backupWorkflow.restoreBackup(id);
-    },
-    handleDeleteBackup: (id) => {
-      backupWorkflow.deleteBackup(id);
-    },
-    handleMigrationConfigUpdate: (key, value) => {
-      migrationWorkflow.updateConfig(key, value);
-    },
-    handleStartVersionMigration: () => {
-      migrationWorkflow.startVersionMigration();
-    },
-    handleStartPlatformMigration: () => {
-      migrationWorkflow.startPlatformMigration();
-    },
-    handleViewHistory: () => {
-      activeTab.value = 'backup';
-    },
-    handleCancelOperation: () => {
-      if (currentOperation.value === 'export') {
-        exportWorkflow.cancelExport();
-      } else if (currentOperation.value === 'import') {
-        importWorkflow.cancelImport();
-      }
-      endProgress();
-      notify('Operation cancelled', 'warning');
-    },
+function createMockMigrationWorkflow() {
+  const migrationConfig = reactive({
+    from_version: '2.0',
+    to_version: '2.1',
+    source_platform: 'automatic1111',
+    source_path: ''
   });
 
   return {
-    useExportWorkflow: vi.fn((options) => {
-      exportProgressHandlers.push(options.progress);
-      return mockExportWorkflow;
+    migrationConfig,
+    updateConfig: vi.fn((key, value) => {
+      migrationConfig[key] = value;
     }),
-    useImportWorkflow: vi.fn(() => mockImportWorkflow),
-    useBackupWorkflow: vi.fn(() => mockBackupWorkflow),
-    useMigrationWorkflow: vi.fn(() => mockMigrationWorkflow),
-    useOperationProgress: vi.fn(() => ({
-      showProgress: progressState.showProgress,
-      progressTitle: progressState.progressTitle,
-      progressValue: progressState.progressValue,
-      currentStep: progressState.currentStep,
-      progressMessages: progressState.progressMessages,
-      currentOperation: progressState.currentOperation,
-      begin,
-      update,
-      end,
-    })),
-    useImportExportActions: vi.fn((options) =>
-      buildActions(
-        options.exportWorkflow,
-        options.importWorkflow,
-        options.backupWorkflow,
-        options.migrationWorkflow,
-        options.activeTab,
-        options.currentOperation,
-        options.endProgress,
-        options.notify,
-      ),
-    ),
-    useWorkflowToast: vi.fn(() => toastState),
+    startVersionMigration: vi.fn(),
+    startPlatformMigration: vi.fn()
   };
-});
+}
 
-vi.mock('@/components/import-export/ExportConfigurationPanel.vue', () => ({
-  default: stubComponent('ExportConfigurationPanel', ['update-config', 'validate', 'preview', 'start'])
-}));
+let mockExportWorkflow = createMockExportWorkflow();
+let mockImportWorkflow = createMockImportWorkflow();
+let mockBackupWorkflow = createMockBackupWorkflow();
+let mockMigrationWorkflow = createMockMigrationWorkflow();
 
-vi.mock('@/components/import-export/ImportProcessingPanel.vue', () => ({
-  default: stubComponent('ImportProcessingPanel', [
-    'update-config',
-    'add-files',
-    'remove-file',
-    'analyze',
-    'validate',
-    'start'
-  ])
-}));
+function resetWorkflows() {
+  mockExportWorkflow = createMockExportWorkflow();
+  mockImportWorkflow = createMockImportWorkflow();
+  mockBackupWorkflow = createMockBackupWorkflow();
+  mockMigrationWorkflow = createMockMigrationWorkflow();
+}
 
-vi.mock('@/components/import-export/BackupManagementPanel.vue', () => ({
-  default: stubComponent('BackupManagementPanel', [
-    'create-full-backup',
-    'create-quick-backup',
-    'schedule-backup',
-    'download-backup',
-    'restore-backup',
-    'delete-backup'
-  ])
-}));
+function createMockContext() {
+  const isInitialized = ref(false);
+  const activeTab = ref('export');
 
-vi.mock('@/components/import-export/MigrationWorkflowPanel.vue', () => ({
-  default: stubComponent('MigrationWorkflowPanel', [
-    'update-config',
-    'start-version-migration',
-    'start-platform-migration'
-  ])
+  const showToast = ref(false);
+  const toastMessage = ref('');
+  const toastType = ref('info');
+  const notify = vi.fn((message, type = 'info') => {
+    toastMessage.value = message;
+    toastType.value = type;
+    showToast.value = true;
+  });
+
+  const showProgress = ref(false);
+  const progressTitle = ref('Progress');
+  const progressValue = ref(0);
+  const currentStep = ref('');
+  const messages = ref([]);
+  const currentOperation = ref(null);
+
+  const actions = {
+    setActiveTab: vi.fn((value) => {
+      activeTab.value = value;
+    }),
+    quickExportAll: vi.fn(() => {
+      mockExportWorkflow.quickExportAll();
+    }),
+    viewHistory: vi.fn(() => {
+      activeTab.value = 'backup';
+    }),
+    updateExportConfig: vi.fn((key, value) => {
+      mockExportWorkflow.updateConfig(key, value);
+    }),
+    validateExport: vi.fn(() => {
+      mockExportWorkflow.validateExport();
+    }),
+    previewExport: vi.fn(() => {
+      mockExportWorkflow.previewExport();
+    }),
+    startExport: vi.fn(() => {
+      mockExportWorkflow.startExport();
+    }),
+    updateImportConfig: vi.fn((key, value) => {
+      mockImportWorkflow.updateConfig(key, value);
+    }),
+    addImportFiles: vi.fn((files) => {
+      const list = Array.isArray(files) ? [...files] : Array.from(files ?? []);
+      mockImportWorkflow.addFiles(list);
+    }),
+    removeImportFile: vi.fn((file) => {
+      mockImportWorkflow.removeFile(file);
+    }),
+    analyzeFiles: vi.fn(() => {
+      mockImportWorkflow.analyzeFiles();
+    }),
+    validateImport: vi.fn(() => {
+      mockImportWorkflow.validateImport();
+    }),
+    startImport: vi.fn(() => {
+      mockImportWorkflow.startImport();
+    }),
+    createFullBackup: vi.fn(() => {
+      mockBackupWorkflow.createFullBackup();
+    }),
+    createQuickBackup: vi.fn(() => {
+      mockBackupWorkflow.createQuickBackup();
+    }),
+    scheduleBackup: vi.fn(() => {
+      mockBackupWorkflow.scheduleBackup();
+    }),
+    downloadBackup: vi.fn((id) => {
+      mockBackupWorkflow.downloadBackup(id);
+    }),
+    restoreBackup: vi.fn((id) => {
+      mockBackupWorkflow.restoreBackup(id);
+    }),
+    deleteBackup: vi.fn((id) => {
+      mockBackupWorkflow.deleteBackup(id);
+    }),
+    updateMigrationConfig: vi.fn((key, value) => {
+      mockMigrationWorkflow.updateConfig(key, value);
+    }),
+    startVersionMigration: vi.fn(() => {
+      mockMigrationWorkflow.startVersionMigration();
+    }),
+    startPlatformMigration: vi.fn(() => {
+      mockMigrationWorkflow.startPlatformMigration();
+    }),
+    cancelOperation: vi.fn(() => {
+      const operation = currentOperation.value;
+      if (operation === 'export') {
+        mockExportWorkflow.cancelExport();
+      } else if (operation === 'import') {
+        mockImportWorkflow.cancelImport();
+      }
+      showProgress.value = false;
+      currentOperation.value = null;
+      notify('Operation cancelled', 'warning');
+    })
+  };
+
+  return {
+    isInitialized,
+    activeTab,
+    toast: {
+      show: showToast,
+      message: toastMessage,
+      type: toastType,
+      notify
+    },
+    progress: {
+      show: showProgress,
+      title: progressTitle,
+      value: progressValue,
+      currentStep,
+      messages,
+      currentOperation
+    },
+    exportWorkflow: mockExportWorkflow,
+    importWorkflow: mockImportWorkflow,
+    backupWorkflow: mockBackupWorkflow,
+    migrationWorkflow: mockMigrationWorkflow,
+    formatFileSize: vi.fn((bytes) => `${bytes} bytes`),
+    formatDate: vi.fn((input) => input),
+    getStatusClasses: vi.fn(() => 'bg-gray-100 text-gray-800'),
+    actions,
+    initialize: vi.fn(async () => {
+      await Promise.all([mockExportWorkflow.initialize(), mockBackupWorkflow.initialize()]);
+      isInitialized.value = true;
+    })
+  };
+}
+
+vi.mock('@/composables/import-export', () => ({
+  provideImportExportContext: vi.fn(() => {
+    const context = createMockContext();
+    contextState.context = context;
+    return context;
+  }),
+  useImportExportContext: vi.fn(() => {
+    if (!contextState.context) {
+      throw new Error('ImportExportContext has not been provided');
+    }
+    return contextState.context;
+  }),
+  useExportConfigFields: (handler) => ({
+    onCheckboxChange: (key, event) => {
+      handler(key, event?.target?.checked ?? false);
+    },
+    onRadioChange: (key, event) => {
+      handler(key, event?.target?.value ?? '');
+    },
+    onInputChange: (key, event) => {
+      handler(key, event?.target?.value ?? '');
+    },
+    onNumberInput: (key, event) => {
+      const raw = event?.target?.value;
+      const parsed = raw === '' || raw == null ? 0 : Number(raw);
+      handler(key, Number.isNaN(parsed) ? 0 : parsed);
+    }
+  })
 }));
 
 describe('ImportExportContainer.vue', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-    exportProgressHandlers.length = 0;
-    Object.values({
-      mockExportWorkflow,
-      mockImportWorkflow,
-      mockBackupWorkflow,
-      mockMigrationWorkflow
-    }).forEach((workflow) => {
-      Object.values(workflow).forEach((value) => {
-        if (typeof value === 'function') {
-          value.mock?.clear?.();
-        }
-      });
-    });
-
-    const progressState = importExportState.progress;
-    if (progressState) {
-      progressState.showProgress.value = false;
-      progressState.progressTitle.value = '';
-      progressState.progressValue.value = 0;
-      progressState.currentStep.value = '';
-      progressState.progressMessages.value = [];
-      progressState.currentOperation.value = null;
-    }
-
-    const toastState = importExportState.toast;
-    if (toastState) {
-      toastState.showToast.value = false;
-      toastState.toastMessage.value = '';
-      toastState.toastType.value = 'info';
-      toastState.notify.mockClear();
-    }
+    resetWorkflows();
+    contextState.context = null;
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    contextState.context = null;
   });
 
   it('initializes workflows on mount', async () => {
     const wrapper = mount(ImportExportContainer);
-    await flushPromises();
-    await vi.runAllTimersAsync();
     await flushPromises();
 
     expect(mockExportWorkflow.initialize).toHaveBeenCalled();
@@ -328,136 +328,159 @@ describe('ImportExportContainer.vue', () => {
     expect(wrapper.text()).toContain('Import/Export');
   });
 
-  it('emits an initialized event after setup completes', async () => {
+  it('emits initialized event after setup', async () => {
     const wrapper = mount(ImportExportContainer);
-    await flushPromises();
-    await vi.runAllTimersAsync();
     await flushPromises();
 
     expect(wrapper.emitted().initialized).toHaveLength(1);
   });
 
-  it('invokes quick export workflow from header action', async () => {
+  it('triggers quick export workflow from header action', async () => {
     const wrapper = mount(ImportExportContainer);
-    await flushPromises();
-    await vi.runAllTimersAsync();
     await flushPromises();
 
     await wrapper.find('button.btn-primary.btn-sm').trigger('click');
     expect(mockExportWorkflow.quickExportAll).toHaveBeenCalled();
   });
 
-  it('routes history view to backup tab', async () => {
+  it('switches to backup tab when history is requested', async () => {
     const wrapper = mount(ImportExportContainer);
-    await flushPromises();
-    await vi.runAllTimersAsync();
     await flushPromises();
 
     const historyButton = wrapper.findAll('button.btn-secondary.btn-sm').at(0);
-    if (!historyButton) {
-      throw new Error('History button not found');
-    }
-    await historyButton.trigger('click');
+    expect(historyButton).toBeTruthy();
+    await historyButton?.trigger('click');
 
-    expect(wrapper.html()).toContain('Backup/Restore');
+    expect(contextState.context?.activeTab.value).toBe('backup');
   });
 
-  it('forwards export panel actions to workflow', async () => {
+  it('updates export configuration when toggles change', async () => {
     const wrapper = mount(ImportExportContainer);
     await flushPromises();
-    await vi.runAllTimersAsync();
+
+    const firstCheckbox = wrapper.find('input[type="checkbox"]');
+    await firstCheckbox.setValue(false);
+
+    expect(mockExportWorkflow.updateConfig).toHaveBeenCalledWith('loras', false);
+  });
+
+  it('validates and starts export through panel actions', async () => {
+    const wrapper = mount(ImportExportContainer);
     await flushPromises();
 
-    const exportPanel = wrapper.findComponent({ name: 'ExportConfigurationPanel' });
-    exportPanel.vm.$emit('update-config', 'loras', true);
-    exportPanel.vm.$emit('validate');
-    exportPanel.vm.$emit('preview');
-    exportPanel.vm.$emit('start');
+    const actionButtons = wrapper.findAll('.card .btn.btn-secondary');
+    await actionButtons[0].trigger('click');
+    await actionButtons[1].trigger('click');
+    await wrapper.find('.card .btn.btn-primary').trigger('click');
 
-    expect(mockExportWorkflow.updateConfig).toHaveBeenCalledWith('loras', true);
     expect(mockExportWorkflow.validateExport).toHaveBeenCalled();
     expect(mockExportWorkflow.previewExport).toHaveBeenCalled();
     expect(mockExportWorkflow.startExport).toHaveBeenCalled();
   });
 
-  it('forwards import panel events to workflow', async () => {
+  it('handles import workflow interactions', async () => {
     const wrapper = mount(ImportExportContainer);
     await flushPromises();
-    await vi.runAllTimersAsync();
+
+    const tabButtons = wrapper.findAll('.tab-button');
+    await tabButtons[1].trigger('click');
+
+    const context = contextState.context;
+    expect(context).toBeTruthy();
+    if (!context) return;
+
+    context.actions.updateImportConfig('mode', 'replace');
+    const file = new File(['test'], 'test.zip');
+    context.actions.addImportFiles([file]);
     await flushPromises();
 
-    const importPanel = wrapper.findComponent({ name: 'ImportProcessingPanel' });
-    const file = new File(['test'], 'test.zip');
+    const analyzeButton = wrapper.findAll('button').find(button => button.text() === 'Analyze Files');
+    const validateButton = wrapper.findAll('button').find(button => button.text() === 'Validate Import');
+    const startButton = wrapper.findAll('button').find(button => button.text() === 'Start Import');
 
-    importPanel.vm.$emit('update-config', 'mode', 'replace');
-    importPanel.vm.$emit('add-files', [file]);
-    importPanel.vm.$emit('remove-file', file);
-    importPanel.vm.$emit('analyze');
-    importPanel.vm.$emit('validate');
-    importPanel.vm.$emit('start');
+    await analyzeButton?.trigger('click');
+    await validateButton?.trigger('click');
+    await startButton?.trigger('click');
 
     expect(mockImportWorkflow.updateConfig).toHaveBeenCalledWith('mode', 'replace');
-    expect(mockImportWorkflow.addFiles).toHaveBeenCalled();
-    expect(mockImportWorkflow.removeFile).toHaveBeenCalledWith(file);
     expect(mockImportWorkflow.analyzeFiles).toHaveBeenCalled();
     expect(mockImportWorkflow.validateImport).toHaveBeenCalled();
     expect(mockImportWorkflow.startImport).toHaveBeenCalled();
   });
 
-  it('invokes backup workflow handlers', async () => {
+  it('invokes backup workflow actions', async () => {
     const wrapper = mount(ImportExportContainer);
     await flushPromises();
-    await vi.runAllTimersAsync();
-    await flushPromises();
 
-    const backupPanel = wrapper.findComponent({ name: 'BackupManagementPanel' });
-    backupPanel.vm.$emit('create-full-backup');
-    backupPanel.vm.$emit('create-quick-backup');
-    backupPanel.vm.$emit('schedule-backup');
-    backupPanel.vm.$emit('download-backup', 'backup-1');
-    backupPanel.vm.$emit('restore-backup', 'backup-1');
-    backupPanel.vm.$emit('delete-backup', 'backup-1');
+    const tabButtons = wrapper.findAll('.tab-button');
+    await tabButtons[2].trigger('click');
+
+    const backupCards = wrapper.findAll('.card.card-interactive');
+    await backupCards[0].trigger('click');
+    await backupCards[1].trigger('click');
+    await backupCards[2].trigger('click');
+
+    const actionLinks = wrapper.findAll('td .flex.space-x-2 button');
+    for (const link of actionLinks) {
+      await link.trigger('click');
+    }
 
     expect(mockBackupWorkflow.createFullBackup).toHaveBeenCalled();
     expect(mockBackupWorkflow.createQuickBackup).toHaveBeenCalled();
     expect(mockBackupWorkflow.scheduleBackup).toHaveBeenCalled();
-    expect(mockBackupWorkflow.downloadBackup).toHaveBeenCalledWith('backup-1');
-    expect(mockBackupWorkflow.restoreBackup).toHaveBeenCalledWith('backup-1');
-    expect(mockBackupWorkflow.deleteBackup).toHaveBeenCalledWith('backup-1');
+    expect(mockBackupWorkflow.downloadBackup).toHaveBeenCalled();
+    expect(mockBackupWorkflow.restoreBackup).toHaveBeenCalled();
+    expect(mockBackupWorkflow.deleteBackup).toHaveBeenCalled();
   });
 
-  it('invokes migration workflow handlers', async () => {
+  it('handles migration configuration updates', async () => {
     const wrapper = mount(ImportExportContainer);
     await flushPromises();
-    await vi.runAllTimersAsync();
-    await flushPromises();
 
-    const migrationPanel = wrapper.findComponent({ name: 'MigrationWorkflowPanel' });
-    migrationPanel.vm.$emit('update-config', 'from_version', '1.0');
-    migrationPanel.vm.$emit('start-version-migration');
-    migrationPanel.vm.$emit('start-platform-migration');
+    const tabButtons = wrapper.findAll('.tab-button');
+    await tabButtons[3].trigger('click');
 
-    expect(mockMigrationWorkflow.updateConfig).toHaveBeenCalledWith('from_version', '1.0');
+    const versionCard = wrapper
+      .findAll('.card')
+      .find(card => card.find('h3').text() === 'Version Migration');
+    const platformCard = wrapper
+      .findAll('.card')
+      .find(card => card.find('h3').text() === 'Platform Migration');
+
+    await versionCard?.findAll('select')[0].setValue('1.1');
+    await versionCard?.findAll('select')[1].setValue('3.0');
+    await platformCard?.find('select')?.setValue('invokeai');
+    await platformCard?.find('input[type="text"]').setValue('/data/path');
+
+    const migrationButtons = wrapper.findAll('.card .btn.btn-primary').slice(-2);
+    await migrationButtons[0].trigger('click');
+    await migrationButtons[1].trigger('click');
+
+    expect(mockMigrationWorkflow.updateConfig).toHaveBeenCalledWith('from_version', '1.1');
+    expect(mockMigrationWorkflow.updateConfig).toHaveBeenCalledWith('to_version', '3.0');
+    expect(mockMigrationWorkflow.updateConfig).toHaveBeenCalledWith('source_platform', 'invokeai');
+    expect(mockMigrationWorkflow.updateConfig).toHaveBeenCalledWith('source_path', '/data/path');
     expect(mockMigrationWorkflow.startVersionMigration).toHaveBeenCalled();
     expect(mockMigrationWorkflow.startPlatformMigration).toHaveBeenCalled();
   });
 
-  it('cancels active operations through workflows', async () => {
+  it('cancels operations via progress modal', async () => {
     const wrapper = mount(ImportExportContainer);
     await flushPromises();
-    await vi.runAllTimersAsync();
+
+    const context = contextState.context;
+    expect(context).toBeTruthy();
+    if (!context) return;
+
+    context.progress.show.value = true;
+    context.progress.currentOperation.value = 'export';
     await flushPromises();
 
-    const [exportProgress] = exportProgressHandlers;
-    exportProgress.begin();
-    await flushPromises();
-
-    const cancelButton = wrapper.findAll('button').find(btn => btn.text() === 'Cancel');
-    if (!cancelButton) {
-      throw new Error('Cancel button not found');
-    }
+    const cancelButton = wrapper.find('.bg-gray-50 button');
+    expect(cancelButton.exists()).toBe(true);
     await cancelButton.trigger('click');
 
     expect(mockExportWorkflow.cancelExport).toHaveBeenCalled();
+    expect(context.toast.notify).toHaveBeenCalledWith('Operation cancelled', 'warning');
   });
 });

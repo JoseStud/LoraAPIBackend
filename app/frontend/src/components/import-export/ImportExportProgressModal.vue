@@ -34,7 +34,7 @@
         </div>
         <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
           <button
-            @click="$emit('cancel')"
+            @click="cancelOperation"
             type="button"
             class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:ml-3 sm:w-auto sm:text-sm"
           >
@@ -47,20 +47,10 @@
 </template>
 
 <script setup lang="ts">
-interface ProgressMessage {
-  id: number | string;
-  text: string;
-}
+import { useImportExportContext } from '@/composables/import-export';
 
-defineProps<{
-  show: boolean;
-  title: string;
-  value: number;
-  currentStep: string;
-  messages: readonly ProgressMessage[];
-}>();
-
-defineEmits<{
-  (e: 'cancel'): void;
-}>();
+const {
+  progress: { show, title, value, currentStep, messages },
+  actions: { cancelOperation }
+} = useImportExportContext();
 </script>

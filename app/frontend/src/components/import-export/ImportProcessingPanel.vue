@@ -60,7 +60,7 @@
                 </div>
                 <div class="flex items-center space-x-2">
                   <span class="text-xs text-gray-500">{{ formatFileSize(file.size ?? 0) }}</span>
-                  <button class="text-red-500 hover:text-red-700" @click="$emit('remove-file', file)">
+                  <button class="text-red-500 hover:text-red-700" @click="removeFile(file)">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
@@ -176,18 +176,14 @@
 
     <div class="flex justify-between items-center pt-6 border-t">
       <div class="flex items-center space-x-4">
-        <button class="btn btn-secondary" :disabled="files.length === 0" @click="$emit('analyze')">
+        <button class="btn btn-secondary" :disabled="files.length === 0" @click="analyzeFiles">
           Analyze Files
         </button>
-        <button class="btn btn-secondary" :disabled="files.length === 0" @click="$emit('validate')">
+        <button class="btn btn-secondary" :disabled="files.length === 0" @click="validateImport">
           Validate Import
         </button>
       </div>
-      <button
-        class="btn btn-primary"
-        :disabled="files.length === 0 || isImporting"
-        @click="$emit('start')"
-      >
+      <button class="btn btn-primary" :disabled="files.length === 0 || isImporting" @click="startImport">
         <template v-if="!isImporting">
           <span>Start Import</span>
         </template>
@@ -206,72 +202,52 @@
 </template>
 
 <script setup lang="ts">
-import type { ImportPreviewItem } from '@/composables/import-export';
 import type { ImportConfig } from '@/types';
+
+import { useImportExportContext } from '@/composables/import-export';
 
 type ImportConfigKey = keyof ImportConfig;
 
-defineProps<{
-  config: ImportConfig;
-  files: readonly File[];
-  preview: readonly ImportPreviewItem[];
-  hasEncryptedFiles: boolean;
-  isImporting: boolean;
-  formatFileSize: (bytes: number) => string;
-  getStatusClasses: (status: string) => string;
-}>();
-
-type UpdateConfigEmitter<TConfig> = {
-  <K extends keyof TConfig>(event: 'update-config', key: K, value: TConfig[K]): void;
-};
-
-const emit = defineEmits<
-  UpdateConfigEmitter<ImportConfig> & {
-    (e: 'add-files', payload: readonly File[]): void;
-    (e: 'remove-file', payload: File): void;
-    (e: 'analyze'): void;
-    (e: 'validate'): void;
-    (e: 'start'): void;
-  }
->();
-
-const updateConfig = <K extends ImportConfigKey>(key: K, value: ImportConfig[K]) => {
-  emit('update-config', key, value);
-};
+const {
+  importWorkflow: { importConfig: config, importFiles: files, importPreview: preview, hasEncryptedFiles, isImporting },
+  formatFileSize,
+  getStatusClasses,
+  actions: { updateImportConfig, addImportFiles, removeImportFile: removeFile, analyzeFiles, validateImport, startImport }
+} = useImportExportContext();
 
 const onCheckboxChange = <K extends ImportConfigKey>(key: K, event: Event) => {
   const target = event.target as HTMLInputElement | null;
   if (target) {
-    updateConfig(key, target.checked as ImportConfig[K]);
+    updateImportConfig(key, target.checked as ImportConfig[K]);
   }
 };
 
 const onSelectChange = <K extends ImportConfigKey>(key: K, event: Event) => {
   const target = event.target as HTMLSelectElement | null;
   if (target) {
-    updateConfig(key, target.value as ImportConfig[K]);
+    updateImportConfig(key, target.value as ImportConfig[K]);
   }
 };
 
 const onInputChange = <K extends ImportConfigKey>(key: K, event: Event) => {
   const target = event.target as HTMLInputElement | null;
   if (target) {
-    updateConfig(key, target.value as ImportConfig[K]);
+    updateImportConfig(key, target.value as ImportConfig[K]);
   }
 };
 
 const onFileSelect = (event: Event) => {
   const target = event.target as HTMLInputElement | null;
   if (target && target.files) {
-    emit('add-files', Array.from(target.files));
+    addImportFiles(Array.from(target.files));
     target.value = '';
   }
 };
 
 const onDrop = (event: DragEvent) => {
-  const files = event.dataTransfer?.files ? Array.from(event.dataTransfer.files) : [];
-  if (files.length > 0) {
-    emit('add-files', files);
+  const droppedFiles = event.dataTransfer?.files ? Array.from(event.dataTransfer.files) : [];
+  if (droppedFiles.length > 0) {
+    addImportFiles(droppedFiles);
   }
   onDragLeave(event);
 };
