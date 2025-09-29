@@ -20,7 +20,13 @@ vi.mock('@/services', () => ({
   useDashboardStatsApi: serviceMocks.useDashboardStatsApi,
   useSystemStatusApi: serviceMocks.useSystemStatusApi,
   buildAdapterListQuery: vi.fn(),
+
+  useDashboardStatsApi: vi.fn(() => ({ get: vi.fn() })),
+  useSystemStatusApi: vi.fn(() => ({ get: vi.fn() })),
+  DEFAULT_POLL_INTERVAL: 1000,
+
   DEFAULT_POLL_INTERVAL: 2500,
+
 }));
 
 vi.mock('@/services/generation/generationService', () => ({

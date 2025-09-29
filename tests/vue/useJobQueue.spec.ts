@@ -20,8 +20,11 @@ vi.mock('@/services', () => ({
   useDashboardStatsApi: serviceMocks.useDashboardStatsApi,
   useSystemStatusApi: serviceMocks.useSystemStatusApi,
   buildAdapterListQuery: vi.fn(),
-  DEFAULT_POLL_INTERVAL: 2500,
-}));
+
+  useDashboardStatsApi: vi.fn(() => ({ get: vi.fn() })),
+  useSystemStatusApi: vi.fn(() => ({ get: vi.fn() })),
+  DEFAULT_POLL_INTERVAL: 1000,
+
 
 vi.mock('@/services/generation/generationService', () => ({
   fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
