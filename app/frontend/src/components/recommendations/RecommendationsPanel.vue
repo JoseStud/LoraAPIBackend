@@ -119,6 +119,7 @@ import { storeToRefs } from 'pinia';
 import { useRecommendationApi } from '@/composables/shared';
 import { useAdapterCatalogStore } from '@/stores';
 import type { AdapterSummary, RecommendationItem, RecommendationResponse } from '@/types';
+import { useBackendUrl } from '@/utils/backend';
 
 const WEIGHT_KEYS = ['semantic', 'artistic', 'technical'] as const;
 type WeightKey = (typeof WEIGHT_KEYS)[number];
@@ -168,11 +169,11 @@ const recsError = ref<string>('');
 const fmtScore = (value: number | null | undefined): string =>
   value == null ? '-' : Number(value).toFixed(3);
 
-const recommendationUrl = computed<string>(() => {
+const recommendationPath = computed<string>(() => {
   if (!selectedLoraId.value) {
     return '';
   }
-  const base = `/api/v1/recommendations/similar/${encodeURIComponent(selectedLoraId.value)}`;
+  const base = `recommendations/similar/${encodeURIComponent(selectedLoraId.value)}`;
   const params = new URLSearchParams();
   params.set('limit', String(limit.value));
   params.set('similarity_threshold', String(similarityThreshold.value));
@@ -182,12 +183,14 @@ const recommendationUrl = computed<string>(() => {
   return `${base}?${params.toString()}`;
 });
 
+const recommendationUrl = useBackendUrl(recommendationPath);
+
 const {
   data: recsData,
   error: recsErrObj,
   isLoading: recsLoading,
   fetchData: loadRecs,
-} = useRecommendationApi(() => recommendationUrl.value);
+} = useRecommendationApi(recommendationPath);
 
 const isLoadingLoras = computed<boolean>(() => lorasLoading.value);
 const isLoadingRecs = computed<boolean>(() => recsLoading.value);
