@@ -1,7 +1,11 @@
 import { computed, unref, type ComputedRef, type MaybeRefOrGetter } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { useSettingsStore } from '@/stores';
+import {
+  getResolvedBackendUrl,
+  tryGetSettingsStore,
+  type SettingsStore,
+} from '@/stores/settings';
 
 import {
   DEFAULT_BACKEND_BASE,
@@ -64,14 +68,27 @@ const resolveMaybeRef = (
   }
 };
 
-export const resolveBackendBaseUrl = (baseOverride?: string | null): string => {
-  const settingsStore = useSettingsStore();
-  const base = pickBackendBase(baseOverride, settingsStore.backendUrl);
+const resolveConfiguredBackendBase = (settingsStore?: SettingsStore | null): string => {
+  if (settingsStore) {
+    return settingsStore.backendUrl;
+  }
+  return getResolvedBackendUrl();
+};
+
+export const resolveBackendBaseUrl = (
+  baseOverride?: string | null,
+  settingsStore?: SettingsStore | null,
+): string => {
+  const base = pickBackendBase(baseOverride, resolveConfiguredBackendBase(settingsStore));
   return normaliseBackendBase(base);
 };
 
-export const resolveBackendUrl = (path = '', baseOverride?: string | null): string => {
-  const base = resolveBackendBaseUrl(baseOverride);
+export const resolveBackendUrl = (
+  path = '',
+  baseOverride?: string | null,
+  settingsStore?: SettingsStore | null,
+): string => {
+  const base = resolveBackendBaseUrl(baseOverride, settingsStore);
   if (!path) {
     return base;
   }
@@ -81,12 +98,14 @@ export const resolveBackendUrl = (path = '', baseOverride?: string | null): stri
 export const useBackendBase = (
   baseOverride?: MaybeRefOrGetter<string | null>,
 ): ComputedRef<string> => {
-  const settingsStore = useSettingsStore();
-  const { backendUrl } = storeToRefs(settingsStore);
+  const settingsStore = tryGetSettingsStore();
+  const backendUrl = settingsStore ? storeToRefs(settingsStore).backendUrl : null;
+  const fallbackBase = settingsStore ? null : resolveConfiguredBackendBase(null);
 
   return computed(() => {
     const override = resolveMaybeRef(baseOverride);
-    const base = pickBackendBase(override, backendUrl.value);
+    const configuredBase = backendUrl ? backendUrl.value : fallbackBase ?? getResolvedBackendUrl();
+    const base = pickBackendBase(override, configuredBase);
     return normaliseBackendBase(base);
   });
 };
