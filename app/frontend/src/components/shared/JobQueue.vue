@@ -76,10 +76,12 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { storeToRefs } from 'pinia';
 
 import { useJobQueue } from '@/composables/generation';
 import { useJobQueueActions } from '@/composables/generation';
 import { formatElapsedTime } from '@/utils/format';
+import { useGenerationConnectionStore } from '@/stores/generation';
 
 import type { GenerationJob } from '@/types';
 
@@ -100,14 +102,24 @@ const props = withDefaults(defineProps<Props>(), {
   emptyStateMessage: 'Start a generation to see progress here',
   cardClass: '',
   pollingInterval: 2000,
-  disabled: false,
   showJobCount: true,
   showClearCompleted: false,
 });
 
+const connectionStore = useGenerationConnectionStore();
+const { queueManagerActive } = storeToRefs(connectionStore);
+
+const resolvedDisabled = computed(() => {
+  if (props.disabled === undefined) {
+    return queueManagerActive.value;
+  }
+  return props.disabled;
+});
+
 const { jobs, isReady } = useJobQueue({
   pollInterval: computed(() => props.pollingInterval),
-  disabled: computed(() => props.disabled),
+  disabled: resolvedDisabled,
+  managerActive: queueManagerActive,
 });
 
 const { isCancelling, clearCompletedJobs, cancelJob: cancelQueueJob } = useJobQueueActions();
