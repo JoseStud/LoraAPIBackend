@@ -1,7 +1,4 @@
-import type { MaybeRefOrGetter } from 'vue';
-
-import { useApi } from '@/composables/shared';
-import { createBackendUrlGetter } from '@/utils/backend';
+import { resolveBackendUrl } from '@/utils/backend';
 
 import type {
   DashboardStatsSummary,
@@ -9,46 +6,38 @@ import type {
   SystemMetricsSnapshot,
   SystemStatusPayload,
 } from '@/types';
+import { requestConfiguredJson, type ApiRequestConfig } from '@/services/apiClient';
 
-export const useSystemStatusApi = (
-  baseUrl?: MaybeRefOrGetter<string | null>,
-) =>
-  useApi<SystemStatusPayload>(
-    createBackendUrlGetter('/system/status', baseUrl),
-    { credentials: 'same-origin' },
-  );
-
-export const useDashboardStatsApi = (
-  baseUrl?: MaybeRefOrGetter<string | null>,
-) =>
-  useApi<DashboardStatsSummary>(
-    createBackendUrlGetter('/dashboard/stats', baseUrl),
-    { credentials: 'same-origin' },
-  );
-
-export const useFrontendSettingsApi = () =>
-  useApi<FrontendRuntimeSettings>(
-    () => '/frontend/settings',
-    { credentials: 'same-origin' },
-  );
+const sameOriginRequest = (target: string): ApiRequestConfig => ({
+  target,
+  init: { credentials: 'same-origin' },
+});
+const buildSystemConfig = (path: string, baseUrl?: string | null): ApiRequestConfig =>
+  sameOriginRequest(resolveBackendUrl(path, baseUrl ?? undefined));
 
 export const loadFrontendSettings = async (): Promise<FrontendRuntimeSettings | null> => {
-  const api = useFrontendSettingsApi();
-  return api.fetchData();
+  const result = await requestConfiguredJson<FrontendRuntimeSettings>(
+    sameOriginRequest(resolveBackendUrl('/frontend/settings')),
+  );
+  return (result.data as FrontendRuntimeSettings | null) ?? null;
 };
 
 export const fetchDashboardStats = async (
   baseUrl?: string | null,
 ): Promise<DashboardStatsSummary | null> => {
-  const api = useDashboardStatsApi(baseUrl);
-  return api.fetchData();
+  const result = await requestConfiguredJson<DashboardStatsSummary>(
+    buildSystemConfig('/dashboard/stats', baseUrl ?? undefined),
+  );
+  return (result.data as DashboardStatsSummary | null) ?? null;
 };
 
 export const fetchSystemStatus = async (
   baseUrl?: string | null,
 ): Promise<SystemStatusPayload | null> => {
-  const api = useSystemStatusApi(baseUrl);
-  return api.fetchData();
+  const result = await requestConfiguredJson<SystemStatusPayload>(
+    buildSystemConfig('/system/status', baseUrl ?? undefined),
+  );
+  return (result.data as SystemStatusPayload | null) ?? null;
 };
 
 export const emptyMetricsSnapshot = (): SystemMetricsSnapshot => ({

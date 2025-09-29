@@ -3,7 +3,7 @@ import { nextTick } from 'vue';
 
 import JobQueue from '../../app/frontend/src/components/shared/JobQueue.vue';
 import { useAppStore } from '../../app/frontend/src/stores/app';
-import { useGenerationQueueStore } from '../../app/frontend/src/stores/generation';
+import { useGenerationConnectionStore, useGenerationQueueStore } from '../../app/frontend/src/stores/generation';
 import { useSettingsStore } from '../../app/frontend/src/stores/settings';
 
 const serviceMocks = vi.hoisted(() => ({
@@ -30,6 +30,7 @@ const flush = async () => {
 
 let appStore;
 let queueStore;
+let connectionStore;
 let removeJobSpy;
 let updateJobSpy;
 
@@ -42,6 +43,9 @@ beforeEach(() => {
   appStore.$reset();
   queueStore = useGenerationQueueStore();
   queueStore.reset();
+  connectionStore = useGenerationConnectionStore();
+  connectionStore.reset();
+  connectionStore.setQueueManagerActive(false);
   const settingsStore = useSettingsStore();
   settingsStore.setSettings({ backendUrl: '/api/v1' });
   removeJobSpy = vi.spyOn(queueStore, 'removeJob');
@@ -207,6 +211,24 @@ describe('JobQueue.vue', () => {
     expect(appStore.toastMessage).toBe('Job cancelled');
     expect(appStore.toastType).toBe('info');
     expect(appStore.toastVisible).toBe(true);
+
+    wrapper.unmount();
+  });
+
+  it('derives disabled state from the manager flag when not provided', async () => {
+    connectionStore.setQueueManagerActive(true);
+
+    const wrapper = mount(JobQueue);
+    await flush();
+
+    expect(serviceMocks.fetchActiveGenerationJobs).not.toHaveBeenCalled();
+
+    connectionStore.setQueueManagerActive(false);
+    await flush();
+
+    await flush();
+
+    expect(serviceMocks.fetchActiveGenerationJobs).toHaveBeenCalled();
 
     wrapper.unmount();
   });

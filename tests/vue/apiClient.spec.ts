@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { performRequest, requestJson } from '@/services/apiClient';
+import {
+  performConfiguredRequest,
+  performRequest,
+  requestConfiguredJson,
+  requestJson,
+} from '@/services/apiClient';
 import { ApiError } from '@/types';
 
 const originalFetch = global.fetch;
@@ -73,5 +78,55 @@ describe('apiClient helpers', () => {
     global.fetch = vi.fn().mockRejectedValue(abortError) as unknown as typeof fetch;
 
     await expect(performRequest('/api/abort')).rejects.toBe(abortError);
+  });
+
+  it('merges default and override options for configured requests', async () => {
+    const response = createJsonResponse({ ok: true });
+    const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
+    global.fetch = fetchMock;
+
+    const controller = new AbortController();
+    await performConfiguredRequest(
+      {
+        target: () => '/api/configured',
+        init: {
+          headers: { 'X-Test': 'base' },
+          credentials: 'include',
+        },
+      },
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+      },
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    expect(init?.method).toBe('POST');
+    expect(init?.credentials).toBe('include');
+    expect(init?.signal).toBe(controller.signal);
+
+    const headers = new Headers(init?.headers as HeadersInit);
+    expect(headers.get('X-Test')).toBe('base');
+    expect(headers.get('Content-Type')).toBe('application/json');
+  });
+
+  it('returns parsed data for configured JSON requests', async () => {
+    const payload = { message: 'configured' };
+    const response = createJsonResponse(payload);
+    const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
+    global.fetch = fetchMock;
+
+    const result = await requestConfiguredJson<typeof payload>({
+      target: '/api/configured-json',
+      init: { headers: { 'X-Trace': 'value' } },
+    });
+
+    expect(result.data).toEqual(payload);
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/configured-json',
+      expect.objectContaining({ credentials: 'same-origin' }),
+    );
   });
 });
