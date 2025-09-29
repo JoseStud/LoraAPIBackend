@@ -78,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 
 import { useAppStore } from '@/stores';
@@ -102,13 +102,37 @@ const themeToggleLabel = computed(() =>
   currentTheme.value === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'
 );
 
+const normalizeQueryValue = (value: unknown): string => {
+  if (Array.isArray(value)) {
+    return value[0] ?? '';
+  }
+
+  return typeof value === 'string' ? value : '';
+};
+
+const syncSearchQueryFromRoute = (value: unknown) => {
+  const normalized = normalizeQueryValue(value);
+
+  if (normalized !== searchQuery.value) {
+    searchQuery.value = normalized;
+  }
+};
+
+syncSearchQueryFromRoute(route.query.q);
+
+watch(
+  () => route.query.q,
+  newValue => {
+    syncSearchQueryFromRoute(newValue);
+  }
+);
+
 const handleSearch = () => {
   if (!canSearch.value) {
     return;
   }
 
   const query = searchQuery.value.trim();
-  searchQuery.value = '';
 
   router.push({ name: 'loras', query: { q: query } }).catch(() => {
     router.push('/loras');

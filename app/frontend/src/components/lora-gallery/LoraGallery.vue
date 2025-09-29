@@ -56,7 +56,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
+import {
+  NavigationFailureType,
+  isNavigationFailure,
+  useRoute,
+  useRouter,
+} from 'vue-router';
+import type { LocationQueryRaw } from 'vue-router';
 
 import LoraGalleryBulkActions from './LoraGalleryBulkActions.vue';
 import LoraGalleryFilters from './LoraGalleryFilters.vue';
@@ -75,6 +82,9 @@ import type {
 defineOptions({ name: 'LoraGallery' });
 
 const { showWarning, showSuccess, showError } = useNotifications();
+
+const route = useRoute();
+const router = useRouter();
 
 const {
   isInitialized,
@@ -112,6 +122,53 @@ const {
 } = useLoraGallerySelection(filteredLoras);
 
 const isTagModalOpen = ref(false);
+
+const normalizeQueryValue = (value: unknown): string => {
+  if (Array.isArray(value)) {
+    return value[0] ?? '';
+  }
+
+  return typeof value === 'string' ? value : '';
+};
+
+const syncSearchTermFromRoute = () => {
+  const queryValue = normalizeQueryValue(route.query.q);
+
+  if (queryValue !== searchTerm.value) {
+    searchTerm.value = queryValue;
+  }
+};
+
+syncSearchTermFromRoute();
+
+watch(
+  () => route.query.q,
+  () => {
+    syncSearchTermFromRoute();
+  }
+);
+
+watch(searchTerm, newValue => {
+  const currentQueryValue = normalizeQueryValue(route.query.q);
+
+  if (newValue === currentQueryValue) {
+    return;
+  }
+
+  const nextQuery = { ...route.query } as LocationQueryRaw;
+
+  if (newValue) {
+    nextQuery.q = newValue;
+  } else {
+    delete nextQuery.q;
+  }
+
+  router.push({ path: route.path, query: nextQuery }).catch(error => {
+    if (!isNavigationFailure(error, NavigationFailureType.duplicated)) {
+      console.error('Failed to update search query parameter', error);
+    }
+  });
+});
 
 const handleClearFilters = () => {
   clearFilters();
