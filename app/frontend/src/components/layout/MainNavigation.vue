@@ -56,11 +56,6 @@
             <span class="sr-only">Toggle theme</span>
           </button>
 
-          <RouterLink to="/account" class="btn btn-icon" aria-label="Account">
-            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 20a8 8 0 0 1 16 0" />
-            </svg>
-          </RouterLink>
         </div>
       </div>
 
