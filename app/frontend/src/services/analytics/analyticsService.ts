@@ -1,6 +1,5 @@
-import { getFilenameFromContentDisposition, requestBlob } from '@/services/apiClient';
+import { getFilenameFromContentDisposition, getJson, requestBlob } from '@/services/apiClient';
 import { resolveBackendUrl } from '@/utils/backend';
-import { buildAuthenticatedHeaders } from '@/utils/httpAuth';
 
 import type {
   AnalyticsExportOptions,
@@ -111,16 +110,8 @@ export const fetchPerformanceAnalytics = async (
   const separator = base.includes('?') ? '&' : '?';
   const targetUrl = `${base}${separator}time_range=${encodeURIComponent(timeRange)}`;
 
-  const response = await fetch(targetUrl, {
-    credentials: 'same-origin',
-    headers: buildAuthenticatedHeaders(),
-  });
-  if (!response.ok) {
-    const error = await response.text().catch(() => response.statusText);
-    throw new Error(error || 'Failed to fetch analytics summary');
-  }
-
-  const payload = (await response.json()) as PerformanceAnalyticsSummaryApi | null;
+  const { data } = await getJson<PerformanceAnalyticsSummaryApi>(targetUrl);
+  const payload = data ?? null;
 
   return {
     timeRange: payload?.time_range ?? timeRange,
