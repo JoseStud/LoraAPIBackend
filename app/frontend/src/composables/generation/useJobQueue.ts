@@ -5,7 +5,8 @@ import { useGenerationQueueStore, useGenerationResultsStore } from '@/stores/gen
 import { useBackendBase } from '@/utils/backend';
 import type { GenerationJob, GenerationJobStatus, GenerationResult } from '@/types';
 import { normalizeJobStatus } from '@/utils/status';
-import { useToast } from '@/composables/shared';
+import { useNotifications } from '@/composables/shared';
+import type { UseNotificationsReturn } from '@/composables/shared';
 
 import { useJobQueueTransport } from '@/composables/generation';
 import { useJobQueuePolling } from '@/composables/generation';
@@ -102,7 +103,10 @@ const applyJobRecord = (
   getActiveJobs: () => ReadonlyArray<GenerationJob>,
   queueStore: ReturnType<typeof useGenerationQueueStore>,
   resultsStore: ReturnType<typeof useGenerationResultsStore>,
-  toast: ReturnType<typeof useToast>,
+  notifications: Pick<
+    UseNotificationsReturn,
+    'showToastSuccess' | 'showToastError' | 'showToastInfo'
+  >,
 ): void => {
   const jobId = pickJobId(record);
   if (!jobId) {
@@ -121,7 +125,7 @@ const applyJobRecord = (
     }
     if (wasTracked && existing) {
       queueStore.removeJob(existing.id);
-      toast.showSuccess('Generation completed!');
+      notifications.showToastSuccess('Generation completed!');
     }
     return;
   }
@@ -131,9 +135,9 @@ const applyJobRecord = (
       queueStore.removeJob(existing.id);
       const errorMessage = extractErrorMessage(record);
       if (rawStatus?.toLowerCase() === 'cancelled') {
-        toast.showInfo('Generation cancelled');
+        notifications.showToastInfo('Generation cancelled');
       } else {
-        toast.showError(`Generation failed: ${errorMessage}`);
+        notifications.showToastError(`Generation failed: ${errorMessage}`);
       }
     }
     return;
@@ -185,7 +189,7 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
   const resultsStore = useGenerationResultsStore();
   const { activeJobs } = storeToRefs(queueStore);
   const backendBase = useBackendBase();
-  const toast = useToast();
+  const notifications = useNotifications();
 
   const transport = useJobQueueTransport({ backendBase });
 
@@ -199,7 +203,7 @@ export const useJobQueue = (options: UseJobQueueOptions = {}) => {
         () => activeJobs.value,
         queueStore,
         resultsStore,
-        toast,
+        notifications,
       ),
   });
 

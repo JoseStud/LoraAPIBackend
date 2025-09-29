@@ -11,7 +11,7 @@ import type { NotificationType } from '@/types'
 export const useGenerationStudio = () => {
   const formStore = useGenerationFormStore()
 
-  const { addNotification } = useNotifications()
+  const { notify: pushNotification } = useNotifications()
 
   const logDebug = (...args: unknown[]): void => {
     if (import.meta.env.DEV) {
@@ -21,7 +21,7 @@ export const useGenerationStudio = () => {
 
   const notify = (message: string, type: NotificationType = 'success') => {
     logDebug(`[${type.toUpperCase()}] ${message}`)
-    addNotification(message, type)
+    pushNotification(message, type)
   }
 
   const {

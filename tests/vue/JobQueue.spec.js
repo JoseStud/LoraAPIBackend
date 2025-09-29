@@ -5,7 +5,6 @@ import JobQueue from '../../app/frontend/src/components/shared/JobQueue.vue';
 import { useAppStore } from '../../app/frontend/src/stores/app';
 import { useGenerationQueueStore } from '../../app/frontend/src/stores/generation';
 import { useSettingsStore } from '../../app/frontend/src/stores/settings';
-import { useToastStore } from '../../app/frontend/src/stores/toast';
 
 const serviceMocks = vi.hoisted(() => ({
   cancelGenerationJob: vi.fn(),
@@ -13,6 +12,11 @@ const serviceMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/services', () => ({
+  cancelGenerationJob: serviceMocks.cancelGenerationJob,
+  fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
+}));
+
+vi.mock('@/services/generation/generationService', () => ({
   cancelGenerationJob: serviceMocks.cancelGenerationJob,
   fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
 }));
@@ -28,8 +32,6 @@ let appStore;
 let queueStore;
 let removeJobSpy;
 let updateJobSpy;
-let toastStore;
-let toastInfoSpy;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -44,10 +46,6 @@ beforeEach(() => {
   settingsStore.setSettings({ backendUrl: '/api/v1' });
   removeJobSpy = vi.spyOn(queueStore, 'removeJob');
   updateJobSpy = vi.spyOn(queueStore, 'updateJob');
-  toastStore = useToastStore();
-  toastStore.$reset();
-  toastInfoSpy = vi.spyOn(toastStore, 'showInfo');
-
   global.window = {
     ...global.window,
     BACKEND_URL: ''
@@ -206,7 +204,9 @@ describe('JobQueue.vue', () => {
     // Should try generation endpoint first
     expect(serviceMocks.cancelGenerationJob).toHaveBeenCalledWith('backend-job-1', '/api/v1');
     expect(removeJobSpy).toHaveBeenCalledWith('job1');
-    expect(toastInfoSpy).toHaveBeenCalledWith('Job cancelled');
+    expect(appStore.toastMessage).toBe('Job cancelled');
+    expect(appStore.toastType).toBe('info');
+    expect(appStore.toastVisible).toBe(true);
 
     wrapper.unmount();
   });
