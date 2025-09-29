@@ -1,4 +1,4 @@
-import type { Ref } from 'vue'
+import { effectScope, type EffectScope, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 
 import type { GenerationNotificationAdapter } from './useGenerationTransport'
@@ -41,6 +41,7 @@ interface GenerationOrchestratorState {
   initializationPromise: Promise<void> | null
   isInitialized: boolean
   consumers: Map<symbol, GenerationOrchestratorConsumer>
+  scope: EffectScope | null
 }
 
 const orchestratorState: GenerationOrchestratorState = {
@@ -48,6 +49,7 @@ const orchestratorState: GenerationOrchestratorState = {
   initializationPromise: null,
   isInitialized: false,
   consumers: new Map(),
+  scope: null,
 }
 
 const notifyAll = (message: string, type: Parameters<GenerationNotificationAdapter['notify']>[1] = 'info') => {
@@ -75,21 +77,33 @@ const ensureOrchestrator = (
   },
 ): GenerationOrchestrator => {
   if (!orchestratorState.orchestrator) {
-    orchestratorState.orchestrator = createGenerationOrchestrator({
-      showHistory: context.showHistory,
-      configuredBackendUrl: context.configuredBackendUrl,
-      notificationAdapter: {
-        notify: notifyAll,
-        debug: debugAll,
-      },
-      queueStore: context.queueStoreReturn,
-      resultsStore: context.resultsStoreReturn,
-      connectionStore: context.connectionStoreReturn,
-      historyLimit: context.historyLimit,
-      pollIntervalMs: context.pollIntervalMs,
-      queueClient: options.queueClient,
-      websocketManager: options.websocketManager,
-    })
+    orchestratorState.scope = effectScope(true)
+
+    const createdOrchestrator = orchestratorState.scope.run(() =>
+      createGenerationOrchestrator({
+        showHistory: context.showHistory,
+        configuredBackendUrl: context.configuredBackendUrl,
+        notificationAdapter: {
+          notify: notifyAll,
+          debug: debugAll,
+        },
+        queueStore: context.queueStoreReturn,
+        resultsStore: context.resultsStoreReturn,
+        connectionStore: context.connectionStoreReturn,
+        historyLimit: context.historyLimit,
+        pollIntervalMs: context.pollIntervalMs,
+        queueClient: options.queueClient,
+        websocketManager: options.websocketManager,
+      }),
+    )
+
+    if (!createdOrchestrator) {
+      orchestratorState.scope.stop()
+      orchestratorState.scope = null
+      throw new Error('Failed to create generation orchestrator')
+    }
+
+    orchestratorState.orchestrator = createdOrchestrator
   }
 
   return orchestratorState.orchestrator
@@ -132,6 +146,10 @@ const releaseConsumer = (id: symbol) => {
   if (orchestratorState.consumers.size === 0 && orchestratorState.orchestrator) {
     orchestratorState.orchestrator.cleanup()
     orchestratorState.isInitialized = false
+    orchestratorState.initializationPromise = null
+    orchestratorState.scope?.stop()
+    orchestratorState.scope = null
+    orchestratorState.orchestrator = null
   }
 }
 
