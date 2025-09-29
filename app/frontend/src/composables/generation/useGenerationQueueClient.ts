@@ -1,4 +1,4 @@
-import { ref, shallowRef } from 'vue';
+import { onScopeDispose, ref, shallowRef } from 'vue';
 
 import {
   createGenerationQueueClient,
@@ -14,7 +14,7 @@ import type {
   SystemStatusState,
 } from '@/types';
 import type { GenerationJobInput } from '@/stores/generation';
-import { useSystemStatusController } from '@/stores/generation';
+import { acquireSystemStatusController } from '@/stores/generation';
 
 const ensureArray = <T>(value: unknown): T[] => (Array.isArray(value) ? value : []);
 
@@ -40,7 +40,12 @@ export const useGenerationQueueClient = (
   const queueClientRef = shallowRef<GenerationQueueClient | null>(options.queueClient ?? null);
   const pollInterval = ref(options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL);
   const pollTimer = ref<number | null>(null);
-  const statusController = useSystemStatusController();
+  const { controller: statusController, release: releaseStatusController } =
+    acquireSystemStatusController();
+
+  onScopeDispose(() => {
+    releaseStatusController();
+  });
 
   const logDebug = (...args: unknown[]): void => {
     if (typeof callbacks.logger === 'function') {
@@ -166,6 +171,7 @@ export const useGenerationQueueClient = (
   const clear = (): void => {
     stopPolling();
     queueClientRef.value = null;
+    releaseStatusController();
   };
 
   return {
