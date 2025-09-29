@@ -6,6 +6,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useGenerationStudio } from '@/composables/generation/useGenerationStudio'
 import { useGenerationFormStore } from '@/stores/generation'
 import type { UseGenerationStudioReturn } from '@/composables/generation'
+import { PERSISTENCE_KEYS } from '@/constants/persistence'
 
 const orchestratorBindingMocks = vi.hoisted(() => {
   const { ref } = require('vue')
@@ -131,7 +132,7 @@ describe('useGenerationStudio integration', () => {
     const payload = orchestratorBindingMocks.startGeneration.mock.calls[0][0]
     expect(payload.prompt).toBe('integration test prompt')
     expect(localStorageMock.setItem).toHaveBeenCalledWith(
-      'generation_params',
+      PERSISTENCE_KEYS.generationParams,
       expect.stringContaining('"integration test prompt"'),
     )
     expect(formStore.isGenerating).toBe(false)
