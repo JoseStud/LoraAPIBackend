@@ -2,6 +2,7 @@
  * Unit tests for GenerationStudio Vue component
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 
 import GenerationStudio from '../../app/frontend/src/components/generation/GenerationStudio.vue'
@@ -23,6 +24,20 @@ const orchestratorMocks = vi.hoisted(() => ({
   cancelJob: vi.fn(),
   clearQueue: vi.fn(),
   deleteResult: vi.fn(),
+}))
+
+vi.mock('@/services/generation/orchestrator', () => ({
+  createGenerationOrchestrator: vi.fn(() => ({
+    initialize: orchestratorMocks.initialize,
+    cleanup: orchestratorMocks.cleanup,
+    loadSystemStatusData: orchestratorMocks.loadSystemStatusData,
+    loadActiveJobsData: orchestratorMocks.loadActiveJobsData,
+    loadRecentResultsData: orchestratorMocks.loadRecentResultsData,
+    startGeneration: orchestratorMocks.startGeneration,
+    cancelJob: orchestratorMocks.cancelJob,
+    clearQueue: orchestratorMocks.clearQueue,
+    deleteResult: orchestratorMocks.deleteResult,
+  })),
 }))
 
 vi.mock('@/services', async () => {
@@ -142,6 +157,7 @@ describe('GenerationStudio.vue', () => {
     await promptInput.setValue('test prompt')
 
     expect(promptInput.element.value).toBe('test prompt')
+    expect(formStore.params.prompt).toBe('test prompt')
   })
 
   it('disables generate button when prompt is empty', () => {
@@ -178,16 +194,17 @@ describe('GenerationStudio.vue', () => {
   it('handles random prompt generation', async () => {
     wrapper = mount(GenerationStudio)
 
-    const randomButton = wrapper.findAll('.btn-secondary').find(btn => 
+    const randomButton = wrapper.findAll('.btn-secondary').find(btn =>
       btn.text().includes('Random Prompt')
     )
-    
+
     await randomButton.trigger('click')
 
     // Should have updated the prompt input
     const promptInput = wrapper.find('textarea[placeholder="Enter your prompt..."]')
     expect(promptInput.element.value).not.toBe('')
     expect(promptInput.element.value.length).toBeGreaterThan(0)
+    expect(formStore.params.prompt).toBe(promptInput.element.value)
   })
 
   it('reflects random seed updates in the input field', async () => {
@@ -195,12 +212,14 @@ describe('GenerationStudio.vue', () => {
 
     const seedInput = wrapper.find('input[type="number"][placeholder="-1 for random"]')
     await seedInput.setValue('12345')
-    await wrapper.vm.$nextTick()
+    await nextTick()
 
-    wrapper.vm.params.seed = -1
-    await wrapper.vm.$nextTick()
+    expect(formStore.params.seed).toBe(12345)
 
-    expect(wrapper.vm.params.seed).toBe(-1)
+    formStore.updateParams({ seed: -1 })
+    await nextTick()
+
+    expect(formStore.params.seed).toBe(-1)
     expect(seedInput.element.value).toBe('-1')
   })
 
@@ -259,9 +278,9 @@ describe('GenerationStudio.vue', () => {
     const promptInput = wrapper.find('textarea[placeholder="Enter your prompt..."]')
     await promptInput.setValue('test prompt for saving')
 
-    await wrapper.vm.$nextTick()
+    await nextTick()
     vi.runOnlyPendingTimers()
-    await wrapper.vm.$nextTick()
+    await nextTick()
 
     expect(localStorageMock.setItem).toHaveBeenCalledWith(
       'generation_params',
@@ -302,13 +321,13 @@ describe('GenerationStudio.vue', () => {
     const generateButton = wrapper.find('.btn-primary')
 
     await generateButton.trigger('click')
-    await wrapper.vm.$nextTick()
+    await nextTick()
 
     expect(generateButton.text()).toContain('Generating...')
 
     expect(resolveGeneration).toBeTruthy()
     resolveGeneration?.({ job_id: 'test123', status: 'queued', progress: 0 })
-    await wrapper.vm.$nextTick()
+    await nextTick()
   })
 
   it('shows clear queue button as disabled when no jobs', () => {

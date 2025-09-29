@@ -8,7 +8,8 @@
       <div>
         <label class="form-label">Prompt</label>
         <textarea
-          v-model="params.prompt"
+          :value="params.prompt"
+          @input="onPromptInput"
           placeholder="Enter your prompt..."
           class="form-input h-24 resize-none"
         ></textarea>
@@ -18,7 +19,8 @@
       <div>
         <label class="form-label">Negative Prompt</label>
         <textarea
-          v-model="params.negative_prompt"
+          :value="params.negative_prompt"
+          @input="onNegativePromptInput"
           placeholder="Enter negative prompt..."
           class="form-input h-16 resize-none"
         ></textarea>
@@ -28,7 +30,11 @@
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="form-label">Width</label>
-          <select v-model="params.width" class="form-input">
+          <select
+            :value="params.width"
+            @change="onWidthChange"
+            class="form-input"
+          >
             <option value="512">512px</option>
             <option value="768">768px</option>
             <option value="1024">1024px</option>
@@ -36,7 +42,11 @@
         </div>
         <div>
           <label class="form-label">Height</label>
-          <select v-model="params.height" class="form-input">
+          <select
+            :value="params.height"
+            @change="onHeightChange"
+            class="form-input"
+          >
             <option value="512">512px</option>
             <option value="768">768px</option>
             <option value="1024">1024px</option>
@@ -52,7 +62,8 @@
           </label>
           <input
             type="range"
-            v-model.number="params.steps"
+            :value="params.steps"
+            @input="onStepsInput"
             min="10"
             max="100"
             step="5"
@@ -71,7 +82,8 @@
           </label>
           <input
             type="range"
-            v-model.number="params.cfg_scale"
+            :value="params.cfg_scale"
+            @input="onCfgScaleInput"
             min="1"
             max="20"
             step="0.5"
@@ -89,7 +101,8 @@
           <div class="flex space-x-2">
             <input
               type="number"
-              v-model.number="params.seed"
+              :value="params.seed"
+              @input="onSeedInput"
               placeholder="-1 for random"
               class="form-input flex-1"
             >
@@ -112,7 +125,8 @@
             <label class="form-label">Batch Count</label>
             <input
               type="number"
-              v-model.number="params.batch_count"
+              :value="params.batch_count"
+              @input="onBatchCountInput"
               min="1"
               max="10"
               class="form-input"
@@ -122,7 +136,8 @@
             <label class="form-label">Batch Size</label>
             <input
               type="number"
-              v-model.number="params.batch_size"
+              :value="params.batch_size"
+              @input="onBatchSizeInput"
               min="1"
               max="4"
               class="form-input"
@@ -185,27 +200,86 @@
 </template>
 
 <script setup lang="ts">
-import { toRef } from 'vue'
-import type { Ref } from 'vue'
+import { computed } from 'vue'
 
 import type { GenerationFormState } from '@/types'
 
 const props = defineProps<{
-  params: Ref<GenerationFormState>
+  params: GenerationFormState
   isGenerating: boolean
 }>()
 
 const emit = defineEmits<{
+  (event: 'update:params', value: GenerationFormState): void
   (event: 'start-generation'): void
   (event: 'load-from-composer'): void
   (event: 'use-random-prompt'): void
   (event: 'save-preset'): void
 }>()
 
-const params = props.params
-const isGenerating = toRef(props, 'isGenerating')
+const params = computed(() => props.params)
+const isGenerating = computed(() => props.isGenerating)
+
+const emitUpdate = (changes: Partial<GenerationFormState>): void => {
+  emit('update:params', {
+    ...params.value,
+    ...changes,
+  })
+}
+
+const onPromptInput = (event: Event): void => {
+  const target = event.target as HTMLTextAreaElement
+  emitUpdate({ prompt: target.value })
+}
+
+const onNegativePromptInput = (event: Event): void => {
+  const target = event.target as HTMLTextAreaElement
+  emitUpdate({ negative_prompt: target.value })
+}
+
+const onWidthChange = (event: Event): void => {
+  const target = event.target as HTMLSelectElement
+  const width = Number(target.value)
+  emitUpdate({ width: Number.isNaN(width) ? params.value.width : width })
+}
+
+const onHeightChange = (event: Event): void => {
+  const target = event.target as HTMLSelectElement
+  const height = Number(target.value)
+  emitUpdate({ height: Number.isNaN(height) ? params.value.height : height })
+}
+
+const onStepsInput = (event: Event): void => {
+  const target = event.target as HTMLInputElement
+  const steps = Number(target.value)
+  emitUpdate({ steps: Number.isNaN(steps) ? params.value.steps : steps })
+}
+
+const onCfgScaleInput = (event: Event): void => {
+  const target = event.target as HTMLInputElement
+  const cfgScale = Number(target.value)
+  emitUpdate({ cfg_scale: Number.isNaN(cfgScale) ? params.value.cfg_scale : cfgScale })
+}
+
+const onSeedInput = (event: Event): void => {
+  const target = event.target as HTMLInputElement
+  const seed = Number(target.value)
+  emitUpdate({ seed: Number.isNaN(seed) ? params.value.seed : seed })
+}
+
+const onBatchCountInput = (event: Event): void => {
+  const target = event.target as HTMLInputElement
+  const batchCount = Number(target.value)
+  emitUpdate({ batch_count: Number.isNaN(batchCount) ? params.value.batch_count : batchCount })
+}
+
+const onBatchSizeInput = (event: Event): void => {
+  const target = event.target as HTMLInputElement
+  const batchSize = Number(target.value)
+  emitUpdate({ batch_size: Number.isNaN(batchSize) ? params.value.batch_size : batchSize })
+}
 
 const setRandomSeed = (): void => {
-  params.value.seed = -1
+  emitUpdate({ seed: -1 })
 }
 </script>

@@ -32,16 +32,16 @@
 </template>
 
 <script setup lang="ts">
-import type { Ref } from 'vue'
+import { toRefs } from 'vue'
 
 import type { UseGenerationStudioReturn } from '@/composables/generation'
 import type { SystemStatusState } from '@/types'
 
 const props = defineProps<{
-  systemStatus: Ref<SystemStatusState>
+  systemStatus: SystemStatusState
   getSystemStatusClasses: UseGenerationStudioReturn['getSystemStatusClasses']
 }>()
 
-const systemStatus = props.systemStatus
+const { systemStatus } = toRefs(props)
 const getSystemStatusClasses = props.getSystemStatusClasses
 </script>
