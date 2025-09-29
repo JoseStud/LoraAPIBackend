@@ -1,11 +1,13 @@
 import { ref, type Ref } from 'vue';
 
-import { ensureData, getJson, postJson } from '@/services/apiClient';
+import { ensureData } from '@/services/apiClient';
+import { useBackendClient, type BackendClient } from '@/services';
 import type { BackupCreateRequest, BackupHistoryItem } from '@/types';
 import type { NotifyFn } from './useExportWorkflow';
 
 interface UseBackupWorkflowOptions {
   notify: NotifyFn;
+  backendClient?: BackendClient | null;
 }
 
 export interface UseBackupWorkflow {
@@ -21,11 +23,12 @@ export interface UseBackupWorkflow {
 
 export function useBackupWorkflow(options: UseBackupWorkflowOptions): UseBackupWorkflow {
   const { notify } = options;
+  const backendClient = options.backendClient ?? useBackendClient();
   const history = ref<BackupHistoryItem[]>([]);
 
   const loadHistory = async () => {
     try {
-      const response = await getJson('/api/v1/backups/history');
+      const response = await backendClient.getJson('/api/v1/backups/history');
       const data = response?.data;
 
       if (Array.isArray(data)) {
@@ -51,7 +54,7 @@ export function useBackupWorkflow(options: UseBackupWorkflowOptions): UseBackupW
     try {
       const result =
         ensureData(
-          await postJson<{ backup_id?: string }, BackupCreateRequest>(
+          await backendClient.postJson<{ backup_id?: string }, BackupCreateRequest>(
             '/api/v1/backup/create',
             { backup_type: backupType },
           ),
