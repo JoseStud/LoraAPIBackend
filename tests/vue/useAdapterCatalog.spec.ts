@@ -1,34 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { computed, nextTick, reactive, ref } from 'vue';
+import { nextTick, reactive, ref } from 'vue';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 
 const adaptersRef = ref([] as any[]);
-const errorRef = ref<unknown>(null);
-const loadingRef = ref(false);
 const queryState = reactive({ page: 1, perPage: 200 });
 
 const fetchData = vi.fn(async (overrides: Record<string, unknown> = {}) => {
-  loadingRef.value = true;
   Object.assign(queryState, overrides);
   adaptersRef.value = [
     { id: 'alpha', name: 'Alpha', description: 'First adapter', active: true },
     { id: 'beta', name: 'Beta', description: 'Second adapter', active: false },
   ];
-  loadingRef.value = false;
   return adaptersRef.value;
 });
+
+const cancelActiveRequest = vi.fn();
 
 vi.mock('@/composables/shared', async () => {
   const actual = await vi.importActual('@/composables/shared');
   return {
     ...actual,
     useAdapterListApi: vi.fn(() => ({
-      adapters: computed(() => adaptersRef.value),
-      error: errorRef,
-      isLoading: computed(() => loadingRef.value),
       fetchData,
       query: queryState,
+      cancelActiveRequest,
     })),
   };
 });
@@ -59,11 +55,10 @@ describe('useAdapterCatalog', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     adaptersRef.value = [];
-    errorRef.value = null;
-    loadingRef.value = false;
     queryState.page = 1;
     queryState.perPage = 200;
     fetchData.mockClear();
+    cancelActiveRequest.mockClear();
   });
 
   it('fetches adapters and filters them', async () => {
