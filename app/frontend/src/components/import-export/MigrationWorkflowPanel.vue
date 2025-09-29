@@ -22,7 +22,7 @@
               <option value="3.0">Version 3.0 (Beta)</option>
             </select>
           </div>
-          <button class="btn btn-primary w-full" @click="$emit('start-version-migration')">
+          <button class="btn btn-primary w-full" @click="startVersionMigration">
             Start Version Migration
           </button>
         </div>
@@ -58,7 +58,7 @@
               @input="onInputChange('source_path', $event)"
             >
           </div>
-          <button class="btn btn-primary w-full" @click="$emit('start-platform-migration')">
+          <button class="btn btn-primary w-full" @click="startPlatformMigration">
             Start Platform Migration
           </button>
         </div>
@@ -70,38 +70,26 @@
 <script setup lang="ts">
 import type { MigrationConfig } from '@/composables/import-export';
 
+import { useImportExportContext } from '@/composables/import-export';
+
 type MigrationConfigKey = keyof MigrationConfig;
 
-defineProps<{
-  config: MigrationConfig;
-}>();
-
-type UpdateConfigEmitter<TConfig> = {
-  <K extends keyof TConfig>(event: 'update-config', key: K, value: TConfig[K]): void;
-};
-
-const emit = defineEmits<
-  UpdateConfigEmitter<MigrationConfig> & {
-    (e: 'start-version-migration'): void;
-    (e: 'start-platform-migration'): void;
-  }
->();
-
-const updateConfig = <K extends MigrationConfigKey>(key: K, value: MigrationConfig[K]) => {
-  emit('update-config', key, value);
-};
+const {
+  migrationWorkflow: { migrationConfig: config },
+  actions: { updateMigrationConfig, startVersionMigration, startPlatformMigration }
+} = useImportExportContext();
 
 const onSelectChange = <K extends MigrationConfigKey>(key: K, event: Event) => {
   const target = event.target as HTMLSelectElement | null;
   if (target) {
-    updateConfig(key, target.value as MigrationConfig[K]);
+    updateMigrationConfig(key, target.value as MigrationConfig[K]);
   }
 };
 
 const onInputChange = <K extends MigrationConfigKey>(key: K, event: Event) => {
   const target = event.target as HTMLInputElement | null;
   if (target) {
-    updateConfig(key, target.value as MigrationConfig[K]);
+    updateMigrationConfig(key, target.value as MigrationConfig[K]);
   }
 };
 </script>

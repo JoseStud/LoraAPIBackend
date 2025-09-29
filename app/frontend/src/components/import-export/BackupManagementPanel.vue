@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-6">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <button class="card card-interactive text-center p-6" @click="$emit('create-full-backup')">
+      <button class="card card-interactive text-center p-6" @click="createFullBackup">
         <svg class="w-12 h-12 mx-auto mb-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12"></path>
         </svg>
@@ -9,7 +9,7 @@
         <p class="text-sm text-gray-600">Complete backup of all data and settings</p>
       </button>
 
-      <button class="card card-interactive text-center p-6" @click="$emit('create-quick-backup')">
+      <button class="card card-interactive text-center p-6" @click="createQuickBackup">
         <svg class="w-12 h-12 mx-auto mb-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
         </svg>
@@ -17,7 +17,7 @@
         <p class="text-sm text-gray-600">Essential data only for fast backup</p>
       </button>
 
-      <button class="card card-interactive text-center p-6" @click="$emit('schedule-backup')">
+      <button class="card card-interactive text-center p-6" @click="scheduleBackup">
         <svg class="w-12 h-12 mx-auto mb-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
         </svg>
@@ -66,13 +66,13 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div class="flex space-x-2">
-                    <button class="text-blue-600 hover:text-blue-900" @click="$emit('download-backup', backup.id)">
+                    <button class="text-blue-600 hover:text-blue-900" @click="downloadBackup(backup.id)">
                       Download
                     </button>
-                    <button class="text-green-600 hover:text-green-900" @click="$emit('restore-backup', backup.id)">
+                    <button class="text-green-600 hover:text-green-900" @click="restoreBackup(backup.id)">
                       Restore
                     </button>
-                    <button class="text-red-600 hover:text-red-900" @click="$emit('delete-backup', backup.id)">
+                    <button class="text-red-600 hover:text-red-900" @click="deleteBackup(backup.id)">
                       Delete
                     </button>
                   </div>
@@ -92,20 +92,12 @@
 </template>
 
 <script setup lang="ts">
-import type { BackupHistoryItem } from '@/types';
+import { useImportExportContext } from '@/composables/import-export';
 
-defineProps<{
-  history: readonly BackupHistoryItem[];
-  formatFileSize: (bytes: number) => string;
-  formatDate: (input: string) => string;
-}>();
-
-defineEmits<{
-  (e: 'create-full-backup'): void;
-  (e: 'create-quick-backup'): void;
-  (e: 'schedule-backup'): void;
-  (e: 'download-backup', backupId: string): void;
-  (e: 'restore-backup', backupId: string): void;
-  (e: 'delete-backup', backupId: string): void;
-}>();
+const {
+  backupWorkflow: { backupHistory: history },
+  formatFileSize,
+  formatDate,
+  actions: { createFullBackup, createQuickBackup, scheduleBackup, downloadBackup, restoreBackup, deleteBackup }
+} = useImportExportContext();
 </script>

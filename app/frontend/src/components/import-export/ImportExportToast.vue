@@ -13,17 +13,15 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-type ToastType = 'success' | 'error' | 'warning' | 'info';
+import { useImportExportContext } from '@/composables/import-export';
 
-const props = defineProps<{
-  show: boolean;
-  message: string;
-  type: ToastType;
-}>();
+const {
+  toast: { show, message, type }
+} = useImportExportContext();
 
 const toastClass = computed(() => {
   const baseClasses = 'text-white';
-  switch (props.type) {
+  switch (type.value) {
     case 'success':
       return `${baseClasses} bg-green-500`;
     case 'error':
