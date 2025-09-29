@@ -68,58 +68,7 @@
           :class="{ active: currentPath === item.path }"
         >
           <span class="inline-flex items-center gap-2">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path
-                v-if="item.icon === 'dashboard'"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M3 12V7a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2v5"
-              />
-              <path
-                v-else-if="item.icon === 'grid'"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 6h7v7H4zM13 6h7v7h-7zM4 15h7v7H4zM13 15h7v7h-7z"
-              />
-              <path
-                v-else-if="item.icon === 'spark'"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="m5 3 7 7-7 7m8-12 6 6-6 6"
-              />
-              <path
-                v-else-if="item.icon === 'compose'"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5M15 3l6 6M8 13h4"
-              />
-              <path
-                v-else-if="item.icon === 'wand'"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="m15 7-1 4-4 1 1-4 4-1ZM3 21l6-6"
-              />
-              <path
-                v-else-if="item.icon === 'admin'"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-8 8a8 8 0 0 1 16 0"
-              />
-              <path
-                v-else-if="item.icon === 'bars'"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 19v-6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6m8 0V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v10"
-              />
-              <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+            <NavigationIcon class="h-4 w-4" :icon="item.icon" />
             {{ item.label }}
           </span>
         </RouterLink>
@@ -135,6 +84,8 @@ import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { useAppStore } from '@/stores';
 import { useTheme } from '@/composables/shared';
 import { NAVIGATION_ITEMS } from '@/config/navigation';
+
+import NavigationIcon from './NavigationIcon.vue';
 
 const appStore = useAppStore();
 const router = useRouter();
