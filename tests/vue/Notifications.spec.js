@@ -96,4 +96,20 @@ describe('Notifications.vue', () => {
     
     wrapper.unmount();
   });
+
+  it('renders toast notifications via the shared store', async () => {
+    const wrapper = mount(Notifications);
+    await nextTick();
+
+    const store = useAppStore();
+    store.showToast('Toast message', 'warning', 0);
+    await nextTick();
+
+    const toast = wrapper.find('[role="status"]');
+    expect(toast.exists()).toBe(true);
+    expect(toast.text()).toContain('Toast message');
+    expect(toast.text()).toContain('⚠️');
+
+    wrapper.unmount();
+  });
 });

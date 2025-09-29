@@ -16,25 +16,39 @@ vi.mock('@/services', () => ({
   buildAdapterListQuery: vi.fn(),
 }));
 
-const toastMocks = vi.hoisted(() => ({
-  isVisible: { value: false },
-  message: { value: '' },
-  type: { value: 'info' },
-  duration: { value: 3000 },
+vi.mock('@/services/generation/generationService', () => ({
+  cancelGenerationJob: serviceMocks.cancelGenerationJob,
+  fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
+}));
+
+const notificationMocks = vi.hoisted(() => ({
+  notifications: { value: [] },
+  toastVisible: { value: false },
+  toastMessage: { value: '' },
+  toastType: { value: 'info' },
+  toastDuration: { value: 0 },
   showToast: vi.fn(),
-  hideToast: vi.fn(),
+  showToastSuccess: vi.fn(),
+  showToastError: vi.fn(),
+  showToastInfo: vi.fn(),
+  showToastWarning: vi.fn(),
   showSuccess: vi.fn(),
   showError: vi.fn(),
   showInfo: vi.fn(),
   showWarning: vi.fn(),
-  clearTimer: vi.fn(),
+  addNotification: vi.fn(),
+  notify: vi.fn(),
+  removeNotification: vi.fn(),
+  clearAll: vi.fn(),
+  hideToast: vi.fn(),
+  clearToastTimer: vi.fn(),
 }));
 
 vi.mock('@/composables/shared', async () => {
   const actual = await vi.importActual('@/composables/shared');
   return {
     ...actual,
-    useToast: () => toastMocks,
+    useNotifications: () => notificationMocks,
   };
 });
 
@@ -64,8 +78,8 @@ const withActions = async (
 describe('useJobQueueActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    toastMocks.showInfo.mockClear();
-    toastMocks.showError.mockClear();
+    notificationMocks.showToastInfo.mockClear();
+    notificationMocks.showToastError.mockClear();
   });
 
   it('cancels a job via the primary endpoint', async () => {
@@ -79,7 +93,7 @@ describe('useJobQueueActions', () => {
       const result = await actions.cancelJob('job-1');
 
       expect(result).toBe(true);
-      expect(toastMocks.showInfo).toHaveBeenCalledWith('Job cancelled');
+      expect(notificationMocks.showToastInfo).toHaveBeenCalledWith('Job cancelled');
       expect(jobs.value).toHaveLength(0);
     });
   });
@@ -95,7 +109,7 @@ describe('useJobQueueActions', () => {
       const result = await actions.cancelJob('job-3');
 
       expect(result).toBe(false);
-      expect(toastMocks.showError).toHaveBeenCalledWith('Failed to cancel job');
+      expect(notificationMocks.showToastError).toHaveBeenCalledWith('Failed to cancel job');
       expect(jobs.value).toHaveLength(1);
     });
   });
@@ -111,7 +125,7 @@ describe('useJobQueueActions', () => {
       const result = await actions.cancelJob('job-4');
 
       expect(result).toBe(false);
-      expect(toastMocks.showError).toHaveBeenCalledWith('Failed to cancel job');
+      expect(notificationMocks.showToastError).toHaveBeenCalledWith('Failed to cancel job');
       expect(jobs.value).toHaveLength(1);
     });
   });

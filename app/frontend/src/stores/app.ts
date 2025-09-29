@@ -5,6 +5,11 @@ import type { NotificationEntry, NotificationType, UserPreferences } from '@/typ
 interface AppState {
   notifications: NotificationEntry[];
   preferences: UserPreferences;
+  toastVisible: boolean;
+  toastMessage: string;
+  toastType: NotificationType;
+  toastDuration: number;
+  toastTimer: ReturnType<typeof setTimeout> | null;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
@@ -13,17 +18,29 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   theme: 'light',
 };
 
+const DEFAULT_NOTIFICATION_DURATION = 5000;
+const DEFAULT_TOAST_DURATION = 3000;
+
 export const useAppStore = defineStore('app', {
   state: (): AppState => ({
     notifications: [],
     preferences: { ...DEFAULT_PREFERENCES },
+    toastVisible: false,
+    toastMessage: '',
+    toastType: 'info',
+    toastDuration: DEFAULT_TOAST_DURATION,
+    toastTimer: null,
   }),
 
   getters: {
   },
 
   actions: {
-    addNotification(message: string, type: NotificationType = 'info', duration = 5000): number {
+    addNotification(
+      message: string,
+      type: NotificationType = 'info',
+      duration: number = DEFAULT_NOTIFICATION_DURATION,
+    ): number {
       if (!this.preferences.notifications) {
         return -1;
       }
@@ -56,6 +73,39 @@ export const useAppStore = defineStore('app', {
 
     setPreferences(preferences: Partial<UserPreferences>): void {
       this.preferences = { ...this.preferences, ...preferences };
+    },
+
+    showToast(
+      message: string,
+      type: NotificationType = 'info',
+      duration: number = DEFAULT_TOAST_DURATION,
+    ): void {
+      this.clearToastTimer();
+
+      this.toastMessage = message;
+      this.toastType = type;
+      this.toastDuration = duration;
+      this.toastVisible = true;
+
+      if (duration > 0) {
+        this.toastTimer = setTimeout(() => {
+          this.hideToast();
+        }, duration);
+      }
+    },
+
+    hideToast(): void {
+      this.toastVisible = false;
+      this.toastMessage = '';
+      this.toastDuration = DEFAULT_TOAST_DURATION;
+      this.clearToastTimer();
+    },
+
+    clearToastTimer(): void {
+      if (this.toastTimer) {
+        clearTimeout(this.toastTimer);
+        this.toastTimer = null;
+      }
     },
   },
 });

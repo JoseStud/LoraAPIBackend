@@ -3,7 +3,7 @@ import { storeToRefs } from 'pinia';
 
 import { cancelGenerationJob } from '@/services/generation/generationService';
 import { useGenerationQueueStore } from '@/stores/generation';
-import { useToast } from '@/composables/shared';
+import { useNotifications } from '@/composables/shared';
 import { useBackendBase } from '@/utils/backend';
 
 export interface UseJobQueueActionsOptions {
@@ -12,7 +12,7 @@ export interface UseJobQueueActionsOptions {
 
 export const useJobQueueActions = (options: UseJobQueueActionsOptions = {}) => {
   const queueStore = useGenerationQueueStore();
-  const toast = useToast();
+  const notifications = useNotifications();
   const backendBase = options.backendBase ?? useBackendBase();
   const { activeJobs } = storeToRefs(queueStore);
 
@@ -37,13 +37,13 @@ export const useJobQueueActions = (options: UseJobQueueActionsOptions = {}) => {
 
     const job = activeJobs.value.find((item) => item.id === jobId);
     if (!job) {
-      toast.showError('Job not found');
+      notifications.showToastError('Job not found');
       return false;
     }
 
     const backendJobId = job.jobId ?? job.id;
     if (!backendJobId) {
-      toast.showError('Job not found');
+      notifications.showToastError('Job not found');
       return false;
     }
 
@@ -55,15 +55,15 @@ export const useJobQueueActions = (options: UseJobQueueActionsOptions = {}) => {
         const response = await cancelGenerationJob(backendJobId, backendBaseUrl);
         const cancelled = response?.success !== false;
         if (!cancelled) {
-          toast.showError('Failed to cancel job');
+          notifications.showToastError('Failed to cancel job');
           return false;
         }
 
         queueStore.removeJob(jobId);
-        toast.showInfo('Job cancelled');
+        notifications.showToastInfo('Job cancelled');
         return true;
       } catch (error) {
-        toast.showError('Failed to cancel job');
+        notifications.showToastError('Failed to cancel job');
         return false;
       }
     } finally {

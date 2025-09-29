@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed top-4 right-4 z-50 max-w-sm">
+  <div class="fixed top-4 right-4 z-50 max-w-sm space-y-2">
     <div
       ref="liveRegion"
       aria-live="polite"
@@ -7,52 +7,82 @@
       class="sr-only"
     />
 
-    <div class="space-y-2">
-      <transition-group name="notification" tag="div">
-        <div
-          v-for="notification in notifications"
-          :key="notification.id"
-          :class="getNotificationClasses(notification.type)"
-          role="alert"
-          :aria-label="`${notification.type} notification: ${notification.message}`"
-        >
-          <div class="flex items-center">
-            <span
-              aria-hidden="true"
-              class="mr-2"
-              v-text="getNotificationIcon(notification.type)"
-            />
-            <span class="flex-1" v-text="notification.message" />
-            <button
-              type="button"
-              class="ml-2 text-lg leading-none hover:opacity-70 focus:opacity-70 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded"
-              :aria-label="`Dismiss ${notification.type} notification`"
-              @click="dismissNotification(notification.id)"
-            >
-              ×
-            </button>
-          </div>
+    <transition name="toast">
+      <div
+        v-if="toastVisible"
+        :class="getNotificationClasses(toastType)"
+        role="status"
+        :aria-label="`Toast ${toastType} notification: ${toastMessage}`"
+      >
+        <div class="flex items-center">
+          <span
+            aria-hidden="true"
+            class="mr-2"
+            v-text="getNotificationIcon(toastType)"
+          />
+          <span class="flex-1" v-text="toastMessage" />
+          <button
+            type="button"
+            class="ml-2 text-lg leading-none hover:opacity-70 focus:opacity-70 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded"
+            :aria-label="`Dismiss ${toastType} toast notification`"
+            @click="dismissToast"
+          >
+            ×
+          </button>
         </div>
-      </transition-group>
-    </div>
+      </div>
+    </transition>
+
+    <transition-group name="notification" tag="div">
+      <div
+        v-for="notification in notifications"
+        :key="notification.id"
+        :class="getNotificationClasses(notification.type)"
+        role="alert"
+        :aria-label="`${notification.type} notification: ${notification.message}`"
+      >
+        <div class="flex items-center">
+          <span
+            aria-hidden="true"
+            class="mr-2"
+            v-text="getNotificationIcon(notification.type)"
+          />
+          <span class="flex-1" v-text="notification.message" />
+          <button
+            type="button"
+            class="ml-2 text-lg leading-none hover:opacity-70 focus:opacity-70 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded"
+            :aria-label="`Dismiss ${notification.type} notification`"
+            @click="dismissNotification(notification.id)"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+    </transition-group>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { storeToRefs } from 'pinia';
 
-import { useAppStore } from '@/stores';
+import { useNotifications } from '@/composables/shared';
 
 import type { NotificationType } from '@/types';
 
-const appStore = useAppStore();
-const { notifications } = storeToRefs(appStore);
+const notificationApi = useNotifications();
+const notifications = notificationApi.notifications;
+const toastVisible = notificationApi.toastVisible;
+const toastMessage = notificationApi.toastMessage;
+const toastType = notificationApi.toastType;
 
 const liveRegion = ref<HTMLElement | null>(null);
 
 const dismissNotification = (id: number) => {
-  appStore.removeNotification(id);
+  notificationApi.removeNotification(id);
+};
+
+const dismissToast = () => {
+  notificationApi.hideToast();
 };
 
 const getNotificationIcon = (type: NotificationType) => {
@@ -94,7 +124,17 @@ watch(
       liveRegion.value.textContent = `${added.type} notification: ${added.message}`;
     }
   },
-  { deep: true }
+  { deep: true },
+);
+
+watch(
+  toastVisible,
+  (visible) => {
+    if (!visible || !liveRegion.value) {
+      return;
+    }
+    liveRegion.value.textContent = `${toastType.value} notification: ${toastMessage.value}`;
+  },
 );
 </script>
 
@@ -120,6 +160,17 @@ watch(
 
 .notification-move {
   transition: transform 0.3s ease;
+}
+
+.toast-enter-active,
+.toast-leave-active {
+  transition: all 0.2s ease;
+}
+
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 
 /* Screen reader only class */
