@@ -1,10 +1,9 @@
 import { computed, onMounted } from 'vue'
 
 import { useGenerationPersistence } from '@/composables/generation'
-import { useGenerationOrchestrator } from '@/composables/generation'
+import { useGenerationStudioController } from '@/composables/generation/useGenerationStudioController'
 import { useGenerationUI } from '@/composables/generation'
 import { useNotifications } from '@/composables/shared'
-import { toGenerationRequestPayload } from '@/services/generation/generationService'
 import { useGenerationFormStore } from '@/stores/generation'
 import type { GenerationFormState, NotificationType } from '@/types'
 
@@ -41,8 +40,8 @@ export const useGenerationStudio = () => {
   } = useGenerationUI({ notify })
 
   const {
-    loadSavedParams,
-    saveParams,
+    load: loadParams,
+    save: persistParams,
     savePreset,
     loadFromComposer,
     useRandomPrompt,
@@ -51,21 +50,11 @@ export const useGenerationStudio = () => {
     showToast: notify,
   })
 
-  const {
-    activeJobs: activeJobsRef,
-    sortedActiveJobs: sortedActiveJobsRef,
-    systemStatus: systemStatusRef,
-    isConnected: isConnectedRef,
-    initialize,
-    startGeneration: orchestrateStart,
-    cancelJob,
-    clearQueue,
-    refreshResults: refreshRecentResults,
-    deleteResult: orchestrateDelete,
-    canCancelJob,
-  } = useGenerationOrchestrator({
+  const controller = useGenerationStudioController({
+    params: uiParams,
     notify,
     debug: logDebug,
+    onAfterStart: persistParams,
   })
 
   const params = computed(() => uiParams.value)
@@ -74,32 +63,17 @@ export const useGenerationStudio = () => {
   const showModal = computed(() => showModalRef.value)
   const selectedResult = computed(() => selectedResultRef.value)
   const recentResults = computed(() => recentResultsRef.value)
-  const activeJobs = computed(() => activeJobsRef.value)
-  const sortedActiveJobs = computed(() => sortedActiveJobsRef.value)
-  const systemStatus = computed(() => systemStatusRef.value)
-  const isConnected = computed(() => isConnectedRef.value)
+  const activeJobs = computed(() => controller.activeJobs.value)
+  const sortedActiveJobs = computed(() => controller.sortedActiveJobs.value)
+  const systemStatus = computed(() => controller.systemStatus.value)
+  const isConnected = computed(() => controller.isConnected.value)
 
   const startGeneration = async (): Promise<void> => {
-    const trimmedPrompt = uiParams.value.prompt.trim()
-    if (!trimmedPrompt) {
-      notify('Please enter a prompt', 'error')
-      return
-    }
-
-    formStore.setGenerating(true)
-
-    try {
-      uiParams.value.prompt = trimmedPrompt
-      const payload = toGenerationRequestPayload({ ...uiParams.value, prompt: trimmedPrompt })
-      await orchestrateStart(payload)
-      saveParams(uiParams.value)
-    } finally {
-      formStore.setGenerating(false)
-    }
+    await controller.startGeneration()
   }
 
   const clearQueueWithConfirmation = async (): Promise<void> => {
-    if (activeJobsRef.value.length === 0) {
+    if (controller.activeJobs.value.length === 0) {
       return
     }
 
@@ -107,7 +81,7 @@ export const useGenerationStudio = () => {
       return
     }
 
-    await clearQueue()
+    await controller.clearQueue()
   }
 
   const deleteResult = async (resultId: string | number): Promise<void> => {
@@ -115,11 +89,11 @@ export const useGenerationStudio = () => {
       return
     }
 
-    await orchestrateDelete(resultId)
+    await controller.deleteResult(resultId)
   }
 
   const refreshResults = async (): Promise<void> => {
-    await refreshRecentResults(true)
+    await controller.refreshResults(true)
   }
 
   const updateParams = (value: GenerationFormState): void => {
@@ -132,8 +106,8 @@ export const useGenerationStudio = () => {
 
   onMounted(async () => {
     logDebug('Initializing Generation Studio composable...')
-    await initialize()
-    loadSavedParams()
+    await controller.initialize()
+    loadParams()
   })
 
   return {
@@ -148,7 +122,7 @@ export const useGenerationStudio = () => {
     sortedActiveJobs,
     isConnected,
     startGeneration,
-    cancelJob,
+    cancelJob: controller.cancelJob,
     clearQueue: clearQueueWithConfirmation,
     refreshResults,
     loadFromComposer,
@@ -161,7 +135,7 @@ export const useGenerationStudio = () => {
     formatTime,
     getJobStatusClasses,
     getJobStatusText,
-    canCancelJob,
+    canCancelJob: controller.canCancelJob,
     getSystemStatusClasses,
     updateParams,
     toggleHistory,

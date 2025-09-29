@@ -19,8 +19,8 @@ interface UseGenerationPersistenceOptions {
 }
 
 export interface UseGenerationPersistenceReturn {
-  loadSavedParams: () => void
-  saveParams: (value?: GenerationFormState) => void
+  load: () => void
+  save: (value?: GenerationFormState) => void
   savePreset: () => void
   loadFromComposer: () => void
   useRandomPrompt: () => void
@@ -30,7 +30,7 @@ export const useGenerationPersistence = ({
   params,
   showToast,
 }: UseGenerationPersistenceOptions): UseGenerationPersistenceReturn => {
-  const loadSavedParams = (): void => {
+  const load = (): void => {
     try {
       const urlParams = new URLSearchParams(window.location.search)
       const prompt = urlParams.get('prompt')
@@ -58,7 +58,7 @@ export const useGenerationPersistence = ({
 
   let saveDebounceTimeout: ReturnType<typeof setTimeout> | null = null
 
-  const scheduleSaveParams = (value: GenerationFormState = params.value): void => {
+  const scheduleSave = (value: GenerationFormState = params.value): void => {
     if (saveDebounceTimeout) {
       clearTimeout(saveDebounceTimeout)
     }
@@ -69,7 +69,7 @@ export const useGenerationPersistence = ({
     }, 200)
   }
 
-  const saveParams = (value: GenerationFormState = params.value): void => {
+  const save = (value: GenerationFormState = params.value): void => {
     if (saveDebounceTimeout) {
       clearTimeout(saveDebounceTimeout)
       saveDebounceTimeout = null
@@ -121,9 +121,13 @@ export const useGenerationPersistence = ({
     showToast('Random prompt generated', 'success')
   }
 
-  const stopWatching = watch(params, (newParams) => {
-    scheduleSaveParams(newParams)
-  }, { deep: true })
+  const stopWatching = watch(
+    params,
+    (newParams) => {
+      scheduleSave(newParams)
+    },
+    { deep: true },
+  )
 
   onUnmounted(() => {
     if (saveDebounceTimeout) {
@@ -135,8 +139,8 @@ export const useGenerationPersistence = ({
   })
 
   return {
-    loadSavedParams,
-    saveParams,
+    load,
+    save,
     savePreset,
     loadFromComposer,
     useRandomPrompt,
