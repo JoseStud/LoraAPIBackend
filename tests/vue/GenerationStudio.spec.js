@@ -13,6 +13,7 @@ import {
   useGenerationQueueStore,
   useGenerationResultsStore,
 } from '../../app/frontend/src/stores/generation'
+import { PERSISTENCE_KEYS } from '../../app/frontend/src/constants/persistence'
 
 const orchestratorMocks = vi.hoisted(() => ({
   initialize: vi.fn(),
@@ -290,7 +291,7 @@ describe('GenerationStudio.vue', () => {
     await nextTick()
 
     expect(localStorageMock.setItem).toHaveBeenCalledWith(
-      'generation_params',
+      PERSISTENCE_KEYS.generationParams,
       expect.stringContaining('test prompt for saving')
     )
 

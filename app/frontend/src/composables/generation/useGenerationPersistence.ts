@@ -1,6 +1,7 @@
 import { onUnmounted, watch, type Ref } from 'vue'
 
-import { useDialogService } from '@/composables/shared'
+import { useDialogService, usePersistence } from '@/composables/shared'
+import { PERSISTENCE_KEYS } from '@/constants/persistence'
 import type { GenerationFormState, NotificationType } from '@/types'
 
 const RANDOM_PROMPTS: readonly string[] = [
@@ -31,18 +32,25 @@ export const useGenerationPersistence = ({
   params,
   showToast,
 }: UseGenerationPersistenceOptions): UseGenerationPersistenceReturn => {
+  const persistence = usePersistence()
+
   const load = (): void => {
     try {
-      const urlParams = new URLSearchParams(window.location.search)
-      const prompt = urlParams.get('prompt')
-      if (typeof prompt === 'string') {
-        params.value.prompt = prompt
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search)
+        const prompt = urlParams.get('prompt')
+        if (typeof prompt === 'string') {
+          params.value.prompt = prompt
+        }
       }
 
-      const saved = localStorage.getItem('generation_params')
+      const saved = persistence.getJSON<Partial<GenerationFormState> | null>(
+        PERSISTENCE_KEYS.generationParams,
+        null,
+      )
+
       if (saved) {
-        const parsed = JSON.parse(saved) as Partial<GenerationFormState>
-        Object.assign(params.value, parsed)
+        Object.assign(params.value, saved)
       }
     } catch (error) {
       console.error('Error loading saved parameters:', error)
@@ -50,11 +58,7 @@ export const useGenerationPersistence = ({
   }
 
   const persistParams = (value: GenerationFormState = params.value): void => {
-    try {
-      localStorage.setItem('generation_params', JSON.stringify(value))
-    } catch (error) {
-      console.error('Error saving parameters:', error)
-    }
+    persistence.setJSON(PERSISTENCE_KEYS.generationParams, value)
   }
 
   let saveDebounceTimeout: ReturnType<typeof setTimeout> | null = null
@@ -104,9 +108,13 @@ export const useGenerationPersistence = ({
     }
 
     try {
-      const savedPresets = JSON.parse(localStorage.getItem('generationPresets') ?? '[]') as unknown[]
-      savedPresets.push(preset)
-      localStorage.setItem('generationPresets', JSON.stringify(savedPresets))
+      const savedPresets = persistence.getJSON<unknown[]>(
+        PERSISTENCE_KEYS.generationPresets,
+        [],
+      )
+      const nextPresets = [...savedPresets, preset]
+
+      persistence.setJSON(PERSISTENCE_KEYS.generationPresets, nextPresets)
       showToast(`Preset "${trimmedName}" saved`, 'success')
     } catch (error) {
       console.error('Failed to save preset:', error)
@@ -116,7 +124,12 @@ export const useGenerationPersistence = ({
 
   const loadFromComposer = (): void => {
     try {
-      const composerData = localStorage.getItem('composerPrompt')
+      const composerData =
+        persistence.getJSON<string | null>(
+          PERSISTENCE_KEYS.composerPrompt,
+          null,
+        ) ?? persistence.getItem(PERSISTENCE_KEYS.composerPrompt)
+
       if (composerData) {
         params.value.prompt = composerData
         showToast('Loaded prompt from composer', 'success')
