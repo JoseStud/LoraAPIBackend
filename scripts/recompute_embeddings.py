@@ -14,29 +14,49 @@ import asyncio
 import logging
 import os
 import sys
-from typing import Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict
 
 from sqlmodel import select
 
 # Ensure the project root is on the import path when the script is executed
 # directly (e.g. ``python scripts/recompute_embeddings.py``).
 PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
 
-from backend.core.database import get_session_context, init_db
-from backend.models import Adapter
-from backend.services import create_service_container
+if TYPE_CHECKING:  # pragma: no cover - typing support only
+    from backend.models import Adapter
 
 LOGGER = logging.getLogger("lora.migrations.recompute_embeddings")
 
 
+def _load_backend_dependencies():
+    """Import backend modules lazily after patching ``sys.path`` if required."""
+    if PROJECT_ROOT not in sys.path:
+        sys.path.insert(0, PROJECT_ROOT)
+
+    from backend.core.database import get_session_context, init_db
+    from backend.models import Adapter
+    from backend.services import create_service_container
+
+    return {
+        "get_session_context": get_session_context,
+        "init_db": init_db,
+        "Adapter": Adapter,
+        "create_service_container": create_service_container,
+    }
+
+
 async def _recompute_embeddings(*, batch_size: int) -> Dict[str, Any]:
     """Recompute embeddings for every adapter and rebuild the similarity index."""
+    deps = _load_backend_dependencies()
+    init_db = deps["init_db"]
+    get_session_context = deps["get_session_context"]
+    adapter_model = deps["Adapter"]
+    create_service_container = deps["create_service_container"]
+
     init_db()
 
     with get_session_context() as session:
-        adapters: List[Adapter] = list(session.exec(select(Adapter)).all())
+        adapters: list["Adapter"] = list(session.exec(select(adapter_model)).all())
         adapter_ids = [adapter.id for adapter in adapters]
         LOGGER.info("Discovered %s adapters for recompute", len(adapter_ids))
 
@@ -100,6 +120,7 @@ def _parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Script entry point for triggering the embedding recomputation flow."""
     args = _parse_args()
     _configure_logging(args.verbose)
 

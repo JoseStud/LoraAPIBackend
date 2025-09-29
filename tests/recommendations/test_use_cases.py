@@ -1,7 +1,7 @@
 """Tests for recommendation use cases."""
 
-from dataclasses import dataclass
 import pickle
+from dataclasses import dataclass
 from typing import List, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 

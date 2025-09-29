@@ -42,7 +42,10 @@ class SentimentStyleAnalyzer(SentimentStyleAnalyzerProtocol):
     ) -> None:
         """Initialise the analyser with device preference and logging."""
         warnings.warn(
-            "SentimentStyleAnalyzer is deprecated and will be removed in a future release.",
+            (
+                "SentimentStyleAnalyzer is deprecated and will be removed in a "
+                "future release."
+            ),
             DeprecationWarning,
             stacklevel=2,
         )

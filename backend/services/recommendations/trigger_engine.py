@@ -34,6 +34,7 @@ class TriggerSearchIndex:
         logger: Optional[logging.Logger] = None,
         max_semantic_candidates: int = 100,
     ) -> None:
+        """Configure cache limits and logging for the search index."""
         self._logger = logger or logging.getLogger(__name__)
         self._max_semantic_candidates = max_semantic_candidates
         self._trigger_to_loras: Dict[str, set[str]] = {}
@@ -100,7 +101,7 @@ class TriggerSearchIndex:
                 computed = embedder.encode(triggers)
                 trigger_vectors = [vector for vector in computed]
 
-            for trigger, vector in zip(triggers, trigger_vectors):
+            for trigger, vector in zip(triggers, trigger_vectors, strict=False):
                 vector = vector.astype(np.float32)
                 norm = np.linalg.norm(vector)
                 if norm:
@@ -212,6 +213,7 @@ class TriggerRecommendationEngine:
         index: TriggerSearchIndex,
         logger: Optional[logging.Logger] = None,
     ) -> None:
+        """Store dependencies used to service trigger recommendation queries."""
         self._resolver = resolver
         self._embedder = embedder
         self._index = index

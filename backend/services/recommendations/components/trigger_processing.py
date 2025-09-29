@@ -49,6 +49,7 @@ class TriggerResolver:
         alias_overrides: Optional[Mapping[str, str]] = None,
         minimum_length: int = 2,
     ) -> None:
+        """Prepare the resolver with optional alias overrides and minimum length."""
         self._minimum_length = minimum_length
         self._alias_map: Dict[str, str] = {}
         self._alias_map.update(DEFAULT_TRIGGER_ALIASES)
