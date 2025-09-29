@@ -196,12 +196,13 @@ onMounted(() => {
     }
   });
 
-  resizeObserver.observe(element);
+  resizeObserver.observe(element as unknown as Element);
 });
 
 onBeforeUnmount(() => {
-  if (resizeObserver && containerRef.value) {
-    resizeObserver.unobserve(containerRef.value);
+  const element = containerRef.value;
+  if (resizeObserver && element) {
+    resizeObserver.unobserve(element as unknown as Element);
   }
   resizeObserver?.disconnect();
   resizeObserver = null;
