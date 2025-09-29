@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { defineComponent } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
@@ -26,8 +26,36 @@ const orchestratorMocks = vi.hoisted(() => {
   }
 })
 
+const dialogServiceMocks = vi.hoisted(() => {
+  return {
+    confirm: vi.fn().mockResolvedValue(true),
+    prompt: vi.fn(),
+    state: {
+      isOpen: false,
+      type: null,
+      title: '',
+      message: '',
+      description: '',
+      confirmLabel: '',
+      cancelLabel: '',
+      inputLabel: '',
+      placeholder: '',
+      inputValue: '',
+      requireValue: false,
+    },
+    confirmDialog: vi.fn(),
+    cancelDialog: vi.fn(),
+    updateInputValue: vi.fn(),
+    isConfirmDisabled: { value: false },
+  }
+})
+
 vi.mock('@/composables/generation/useGenerationOrchestrator', () => ({
   useGenerationOrchestrator: vi.fn(() => orchestratorMocks),
+}))
+
+vi.mock('@/composables/shared/useDialogService', () => ({
+  useDialogService: () => dialogServiceMocks,
 }))
 
 const localStorageMock = {
@@ -62,11 +90,9 @@ describe('useGenerationStudio integration', () => {
       value: localStorageMock,
       configurable: true,
     })
-    Object.defineProperty(window, 'confirm', {
-      value: vi.fn().mockReturnValue(true),
-      configurable: true,
-    })
     localStorageMock.getItem.mockReturnValue(null)
+    dialogServiceMocks.confirm.mockClear()
+    dialogServiceMocks.confirm.mockResolvedValue(true)
     wrapper = await mountComposable()
   })
 
@@ -103,12 +129,11 @@ describe('useGenerationStudio integration', () => {
   })
 
   it('confirms before deleting results and forwards the action', async () => {
-    const confirmSpy = window.confirm as unknown as Mock
-    confirmSpy.mockReturnValueOnce(true)
+    dialogServiceMocks.confirm.mockResolvedValueOnce(true)
 
     await wrapper.vm.studio.deleteResult('result-789')
 
-    expect(confirmSpy).toHaveBeenCalled()
+    expect(dialogServiceMocks.confirm).toHaveBeenCalled()
     expect(orchestratorMocks.deleteResult).toHaveBeenCalledWith('result-789')
   })
 })

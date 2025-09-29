@@ -1,5 +1,6 @@
 import { onUnmounted, watch, type Ref } from 'vue'
 
+import { useDialogService } from '@/composables/shared'
 import type { GenerationFormState, NotificationType } from '@/types'
 
 const RANDOM_PROMPTS: readonly string[] = [
@@ -21,7 +22,7 @@ interface UseGenerationPersistenceOptions {
 export interface UseGenerationPersistenceReturn {
   load: () => void
   save: (value?: GenerationFormState) => void
-  savePreset: () => void
+  savePreset: () => Promise<void>
   loadFromComposer: () => void
   useRandomPrompt: () => void
 }
@@ -78,14 +79,26 @@ export const useGenerationPersistence = ({
     persistParams(value)
   }
 
-  const savePreset = (): void => {
-    const presetName = window.prompt('Enter a name for this preset:')
-    if (!presetName) {
+  const { prompt: requestPrompt } = useDialogService()
+
+  const savePreset = async (): Promise<void> => {
+    const presetName = await requestPrompt({
+      title: 'Save preset',
+      message: 'Enter a name for this preset:',
+      confirmLabel: 'Save preset',
+      cancelLabel: 'Cancel',
+      placeholder: 'Preset name',
+      inputLabel: 'Preset name',
+      requireValue: true,
+    })
+
+    const trimmedName = presetName?.trim()
+    if (!trimmedName) {
       return
     }
 
     const preset = {
-      name: presetName,
+      name: trimmedName,
       params: { ...params.value },
       created_at: new Date().toISOString(),
     }
@@ -94,7 +107,7 @@ export const useGenerationPersistence = ({
       const savedPresets = JSON.parse(localStorage.getItem('generationPresets') ?? '[]') as unknown[]
       savedPresets.push(preset)
       localStorage.setItem('generationPresets', JSON.stringify(savedPresets))
-      showToast(`Preset "${presetName}" saved`, 'success')
+      showToast(`Preset "${trimmedName}" saved`, 'success')
     } catch (error) {
       console.error('Failed to save preset:', error)
       showToast('Failed to save preset', 'error')
