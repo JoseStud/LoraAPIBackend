@@ -1,6 +1,7 @@
 import { computed, reactive, ref, watch, type ComputedRef } from 'vue';
 
-import { ensureData, getFilenameFromContentDisposition, postJson, requestBlob } from '@/services/apiClient';
+import { ensureData, getFilenameFromContentDisposition } from '@/services/apiClient';
+import { useBackendClient, type BackendClient } from '@/services';
 import { downloadFile } from '@/utils/browser';
 import { formatFileSize as formatBytes } from '@/utils/format';
 import type { ExportConfig, ExportEstimate } from '@/types';
@@ -23,6 +24,7 @@ export interface ProgressCallbacks {
 interface UseExportWorkflowOptions {
   notify: NotifyFn;
   progress: ProgressCallbacks;
+  backendClient?: BackendClient | null;
 }
 
 export interface UseExportWorkflow {
@@ -42,6 +44,7 @@ export interface UseExportWorkflow {
 
 export function useExportWorkflow(options: UseExportWorkflowOptions): UseExportWorkflow {
   const { notify, progress } = options;
+  const backendClient = options.backendClient ?? useBackendClient();
 
   const exportConfig = reactive<ExportConfig>({
     loras: true,
@@ -139,7 +142,7 @@ export function useExportWorkflow(options: UseExportWorkflowOptions): UseExportW
   const updateEstimates = async () => {
     try {
       const estimates = ensureData(
-        await postJson<ExportEstimate, ExportConfig>('/api/v1/export/estimate', { ...exportConfig })
+        await backendClient.postJson<ExportEstimate, ExportConfig>('/api/v1/export/estimate', { ...exportConfig })
       );
 
       if (estimates && typeof estimates === 'object') {
@@ -200,7 +203,7 @@ export function useExportWorkflow(options: UseExportWorkflowOptions): UseExportW
       progress.update({ value: 10, step: 'Preparing export...', message: 'Validating configuration' });
       progress.update({ value: 50, step: 'Generating export...', message: 'Creating archive' });
 
-      const { blob, response } = await requestBlob('/api/v1/export', {
+      const { blob, response } = await backendClient.requestBlob('/api/v1/export', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

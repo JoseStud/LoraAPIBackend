@@ -1,6 +1,7 @@
 import { computed, reactive, ref, type ComputedRef } from 'vue';
 
-import { ensureData, requestJson } from '@/services/apiClient';
+import { ensureData } from '@/services/apiClient';
+import { useBackendClient, type BackendClient } from '@/services';
 import type { ImportConfig } from '@/types';
 import type { NotifyFn, ProgressCallbacks } from './useExportWorkflow';
 
@@ -15,6 +16,7 @@ export interface ImportPreviewItem {
 interface UseImportWorkflowOptions {
   notify: NotifyFn;
   progress: ProgressCallbacks;
+  backendClient?: BackendClient | null;
 }
 
 export interface UseImportWorkflow {
@@ -35,6 +37,7 @@ export interface UseImportWorkflow {
 
 export function useImportWorkflow(options: UseImportWorkflowOptions): UseImportWorkflow {
   const { notify, progress } = options;
+  const backendClient = options.backendClient ?? useBackendClient();
 
   const importConfig = reactive<ImportConfig>({
     mode: 'merge',
@@ -160,7 +163,7 @@ export function useImportWorkflow(options: UseImportWorkflowOptions): UseImportW
       progress.update({ value: 30, step: 'Uploading files...', message: 'Sending files to server' });
 
       const result = ensureData(
-        await requestJson('/api/v1/import', {
+        await backendClient.requestJson('/api/v1/import', {
           method: 'POST',
           body: formData
         })
