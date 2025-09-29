@@ -116,27 +116,10 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 
-type NavIcon = 'dashboard' | 'grid' | 'spark' | 'compose' | 'wand' | 'admin' | 'bars';
-
-interface NavItem {
-  path: string;
-  label: string;
-  icon: NavIcon;
-}
-
-const NAV_ITEMS: readonly NavItem[] = [
-  { path: '/', label: 'Dashboard', icon: 'dashboard' },
-  { path: '/loras', label: 'LoRAs', icon: 'grid' },
-  { path: '/recommendations', label: 'Recommendations', icon: 'spark' },
-  { path: '/compose', label: 'Compose', icon: 'compose' },
-  { path: '/generate', label: 'Generate', icon: 'wand' },
-  { path: '/admin', label: 'Admin', icon: 'admin' },
-  { path: '/analytics', label: 'Analytics', icon: 'bars' },
-  { path: '/import-export', label: 'Import/Export', icon: 'grid' },
-];
+import { NAVIGATION_ITEMS } from '@/config/navigation';
 
 const isOpen = ref(false);
-const items = NAV_ITEMS;
+const items = NAVIGATION_ITEMS;
 const route = useRoute();
 
 const currentPath = computed(() => route.path.replace(/\/+$/, '') || '/');
