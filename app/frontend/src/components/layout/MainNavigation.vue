@@ -78,11 +78,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 
 import { useAppStore } from '@/stores';
-import { useTheme } from '@/composables/shared';
+import { useSyncedQueryParam, useTheme } from '@/composables/shared';
 import { NAVIGATION_ITEMS } from '@/config/navigation';
 
 import NavigationIcon from './NavigationIcon.vue';
@@ -92,7 +92,7 @@ const router = useRouter();
 const route = useRoute();
 const { currentTheme, toggleTheme } = useTheme();
 
-const searchQuery = ref('');
+const searchQuery = useSyncedQueryParam();
 const items = NAVIGATION_ITEMS;
 
 const currentPath = computed(() => route.path.replace(/\/+$/, '') || '/');
@@ -102,37 +102,13 @@ const themeToggleLabel = computed(() =>
   currentTheme.value === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'
 );
 
-const normalizeQueryValue = (value: unknown): string => {
-  if (Array.isArray(value)) {
-    return value[0] ?? '';
-  }
-
-  return typeof value === 'string' ? value : '';
-};
-
-const syncSearchQueryFromRoute = (value: unknown) => {
-  const normalized = normalizeQueryValue(value);
-
-  if (normalized !== searchQuery.value) {
-    searchQuery.value = normalized;
-  }
-};
-
-syncSearchQueryFromRoute(route.query.q);
-
-watch(
-  () => route.query.q,
-  newValue => {
-    syncSearchQueryFromRoute(newValue);
-  }
-);
-
 const handleSearch = () => {
   if (!canSearch.value) {
     return;
   }
 
   const query = searchQuery.value.trim();
+  searchQuery.value = query;
 
   router.push({ name: 'loras', query: { q: query } }).catch(() => {
     router.push('/loras');

@@ -2,9 +2,13 @@ import { computed, ref } from 'vue';
 import type { Ref } from 'vue';
 
 import type { GalleryLora, LoraGallerySortOption } from '@/types';
+import { useSyncedQueryParam } from '@/composables/shared';
 
-export function useLoraGalleryFilters(loras: Ref<GalleryLora[]>) {
-  const searchTerm = ref('');
+export function useLoraGalleryFilters(
+  loras: Ref<GalleryLora[]>,
+  searchTermRef?: Ref<string>
+) {
+  const searchTerm = searchTermRef ?? useSyncedQueryParam();
   const activeOnly = ref(false);
   const selectedTags = ref<string[]>([]);
   const sortBy = ref<LoraGallerySortOption>('name_asc');
