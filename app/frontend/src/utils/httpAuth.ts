@@ -1,5 +1,5 @@
 import runtimeConfig from '@/config/runtime';
-import { getBackendApiKey } from '@/config/backendSettings';
+import { normaliseBackendApiKey, tryGetSettingsStore } from '@/stores';
 
 export const API_AUTH_HEADER = 'X-API-Key';
 
@@ -8,17 +8,21 @@ type HeaderEntry = {
   value: string;
 };
 
-const sanitiseApiKey = (value?: string | null): string | null => {
-  if (value == null) {
-    return null;
+export const getActiveApiKey = (): string | null => {
+  const store = tryGetSettingsStore();
+  if (store) {
+    const candidate = normaliseBackendApiKey(store.backendApiKey);
+    if (candidate) {
+      return candidate;
+    }
+
+    const rawSettings = store.rawSettings;
+    if (rawSettings && Object.prototype.hasOwnProperty.call(rawSettings, 'backendApiKey')) {
+      return null;
+    }
   }
 
-  const trimmed = `${value}`.trim();
-  return trimmed.length > 0 ? trimmed : null;
-};
-
-export const getActiveApiKey = (): string | null => {
-  return sanitiseApiKey(getBackendApiKey()) ?? sanitiseApiKey(runtimeConfig.backendApiKey);
+  return normaliseBackendApiKey(runtimeConfig.backendApiKey);
 };
 
 const normaliseKey = (key: string): string => key.toLowerCase();

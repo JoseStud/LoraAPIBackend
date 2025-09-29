@@ -2,11 +2,15 @@ import { computed, unref, type ComputedRef, type MaybeRefOrGetter } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { runtimeConfig, DEFAULT_BACKEND_BASE } from '@/config/runtime';
-import { useSettingsStore } from '@/stores';
+import {
+  useSettingsStore,
+  sanitizeBackendBaseUrl,
+  trimTrailingSlash,
+  normaliseBackendBase,
+} from '@/stores';
 
 export { DEFAULT_BACKEND_BASE };
-
-export const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
+export { sanitizeBackendBaseUrl, trimTrailingSlash } from '@/stores';
 
 export const trimLeadingSlash = (value: string): string => value.replace(/^\/+/, '');
 
@@ -30,28 +34,6 @@ const pickBackendBase = (override?: string | null, configured?: string | null): 
   }
 
   return DEFAULT_BACKEND_BASE;
-};
-
-const normaliseBackendBase = (base: string): string => {
-  if (/^https?:\/\//i.test(base)) {
-    return trimTrailingSlash(base);
-  }
-
-  const withoutTrailing = trimTrailingSlash(base);
-  if (!withoutTrailing) {
-    return DEFAULT_BACKEND_BASE;
-  }
-
-  return withoutTrailing.startsWith('/') ? withoutTrailing : `/${withoutTrailing}`;
-};
-
-export const sanitizeBackendBaseUrl = (value?: string | null): string => {
-  if (typeof value !== 'string') {
-    return DEFAULT_BACKEND_BASE;
-  }
-
-  const trimmed = value.trim();
-  return normaliseBackendBase(trimmed);
 };
 
 const joinBackendPath = (base: string, path: string): string => {

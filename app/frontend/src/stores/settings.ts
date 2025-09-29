@@ -1,9 +1,69 @@
 import { defineStore } from 'pinia';
 
-import { resetBackendSettings, updateBackendSettings } from '@/config/backendSettings';
+import { DEFAULT_BACKEND_BASE, runtimeConfig } from '@/config/runtime';
 import { loadFrontendSettings } from '@/services';
-import { trimTrailingSlash } from '@/utils/backend';
 import type { FrontendRuntimeSettings, SettingsState } from '@/types';
+
+export const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
+
+export const trimLeadingSlash = (value: string): string => value.replace(/^\/+/, '');
+
+export const normaliseBackendBase = (base: string): string => {
+  if (/^https?:\/\//i.test(base)) {
+    return trimTrailingSlash(base);
+  }
+
+  const withoutTrailing = trimTrailingSlash(base);
+  if (!withoutTrailing) {
+    return DEFAULT_BACKEND_BASE;
+  }
+
+  return withoutTrailing.startsWith('/') ? withoutTrailing : `/${withoutTrailing}`;
+};
+
+export const sanitizeBackendBaseUrl = (value?: string | null): string => {
+  if (typeof value !== 'string') {
+    return DEFAULT_BACKEND_BASE;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return DEFAULT_BACKEND_BASE;
+  }
+
+  return normaliseBackendBase(trimmed);
+};
+
+export const normaliseBackendApiKey = (value?: string | null): string | null => {
+  if (value == null) {
+    return null;
+  }
+
+  const trimmed = `${value}`.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const runtimeBackendDefaults = Object.freeze({
+  backendUrl: sanitizeBackendBaseUrl(runtimeConfig.backendBasePath),
+  backendApiKey: normaliseBackendApiKey(runtimeConfig.backendApiKey),
+});
+
+const ensureBackendUrl = (value: unknown): string => {
+  if (typeof value === 'string') {
+    return sanitizeBackendBaseUrl(value);
+  }
+  if (value == null) {
+    return runtimeBackendDefaults.backendUrl;
+  }
+  return sanitizeBackendBaseUrl(String(value));
+};
+
+const ensureBackendApiKey = (value: unknown): string | null => {
+  if (value == null) {
+    return null;
+  }
+  return normaliseBackendApiKey(value as string | null | undefined);
+};
 
 export const useSettingsStore = defineStore('app-settings', {
   state: (): SettingsState => ({
@@ -14,20 +74,46 @@ export const useSettingsStore = defineStore('app-settings', {
   }),
 
   getters: {
-    backendUrl: (state): string => (typeof state.settings?.backendUrl === 'string'
-      ? trimTrailingSlash(state.settings.backendUrl)
-      : ''
-    ),
-    backendApiKey: (state): string | null => state.settings?.backendApiKey ?? null,
+    backendUrl: (state): string => {
+      if (!state.settings) {
+        return runtimeBackendDefaults.backendUrl;
+      }
+
+      const candidate = ensureBackendUrl(state.settings.backendUrl ?? runtimeBackendDefaults.backendUrl);
+      return candidate || runtimeBackendDefaults.backendUrl;
+    },
+    backendApiKey: (state): string | null => {
+      if (!state.settings) {
+        return runtimeBackendDefaults.backendApiKey ?? null;
+      }
+
+      const hasExplicitKey = Object.prototype.hasOwnProperty.call(state.settings, 'backendApiKey');
+      if (!hasExplicitKey) {
+        return runtimeBackendDefaults.backendApiKey ?? null;
+      }
+
+      return normaliseBackendApiKey(state.settings.backendApiKey ?? null);
+    },
     rawSettings: (state): FrontendRuntimeSettings | null => state.settings,
   },
 
   actions: {
     setSettings(partial: Partial<FrontendRuntimeSettings> = {}) {
-      const backendUrlSource = partial.backendUrl ?? this.settings?.backendUrl ?? '';
-      const backendUrl = trimTrailingSlash(backendUrlSource);
-      const backendApiKey =
-        partial.backendApiKey ?? (this.settings?.backendApiKey ?? null);
+      const previousSettings = this.settings ?? {};
+
+      const hasBackendUrl = Object.prototype.hasOwnProperty.call(partial, 'backendUrl');
+      const backendUrlSource = hasBackendUrl
+        ? partial.backendUrl
+        : previousSettings.backendUrl ?? runtimeBackendDefaults.backendUrl;
+      const backendUrl = ensureBackendUrl(backendUrlSource);
+
+      const hasBackendApiKey = Object.prototype.hasOwnProperty.call(partial, 'backendApiKey');
+      const previousBackendApiKey = Object.prototype.hasOwnProperty.call(previousSettings, 'backendApiKey')
+        ? ensureBackendApiKey(previousSettings.backendApiKey)
+        : runtimeBackendDefaults.backendApiKey ?? null;
+      const backendApiKey = hasBackendApiKey
+        ? ensureBackendApiKey(partial.backendApiKey)
+        : previousBackendApiKey;
 
       const merged: FrontendRuntimeSettings = {
         ...(this.settings ?? {}),
@@ -38,10 +124,6 @@ export const useSettingsStore = defineStore('app-settings', {
 
       this.settings = merged;
       this.isLoaded = true;
-      updateBackendSettings({
-        backendUrl,
-        backendApiKey,
-      });
     },
 
     async loadSettings(force = false) {
@@ -61,7 +143,7 @@ export const useSettingsStore = defineStore('app-settings', {
       } catch (error: unknown) {
         this.error = error;
         if (!this.isLoaded) {
-          this.setSettings({ backendUrl: this.settings?.backendUrl ?? '' });
+          this.setSettings({ backendUrl: runtimeBackendDefaults.backendUrl });
         }
         throw error;
       } finally {
@@ -74,7 +156,40 @@ export const useSettingsStore = defineStore('app-settings', {
       this.isLoaded = false;
       this.isLoading = false;
       this.error = null;
-      resetBackendSettings();
     },
   },
 });
+
+export type SettingsStore = ReturnType<typeof useSettingsStore>;
+
+export const getRuntimeBackendDefaults = () => ({
+  backendUrl: runtimeBackendDefaults.backendUrl,
+  backendApiKey: runtimeBackendDefaults.backendApiKey ?? null,
+});
+
+export const tryGetSettingsStore = (): SettingsStore | null => {
+  try {
+    return useSettingsStore();
+  } catch (_error) {
+    return null;
+  }
+};
+
+export const getResolvedBackendSettings = (): {
+  backendUrl: string;
+  backendApiKey: string | null;
+} => {
+  const store = tryGetSettingsStore();
+  if (store) {
+    return {
+      backendUrl: sanitizeBackendBaseUrl(store.backendUrl),
+      backendApiKey: normaliseBackendApiKey(store.backendApiKey),
+    };
+  }
+
+  return getRuntimeBackendDefaults();
+};
+
+export const getResolvedBackendUrl = (): string => getResolvedBackendSettings().backendUrl;
+
+export const getResolvedBackendApiKey = (): string | null => getResolvedBackendSettings().backendApiKey;
