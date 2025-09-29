@@ -99,7 +99,7 @@ export const useSettingsStore = defineStore('app-settings', {
 
   actions: {
     setSettings(partial: Partial<FrontendRuntimeSettings> = {}) {
-      const previousSettings = this.settings ?? {};
+      const previousSettings: Partial<FrontendRuntimeSettings> = this.settings ?? {};
 
       const hasBackendUrl = Object.prototype.hasOwnProperty.call(partial, 'backendUrl');
       const backendUrlSource = hasBackendUrl

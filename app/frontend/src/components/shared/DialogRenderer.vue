@@ -46,7 +46,7 @@
             <button
               type="button"
               class="btn btn-primary"
-              :disabled="isConfirmDisabled.value"
+              :disabled="isConfirmDisabled"
               @click="onConfirm"
             >
               {{ dialogState.confirmLabel || 'Confirm' }}

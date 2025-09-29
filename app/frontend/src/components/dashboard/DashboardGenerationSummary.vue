@@ -66,7 +66,7 @@
               </p>
             </div>
             <div class="shrink-0 text-right text-xs text-gray-500">
-              <div>{{ formatRelativeTime(item.created_at ?? '') }}</div>
+              <div>{{ formatRelativeTime(item.created_at) }}</div>
               <div v-if="item.rating != null" class="text-amber-600">
                 ★ {{ Number(item.rating).toFixed(1) }}
               </div>
@@ -100,7 +100,11 @@ import { RouterLink } from 'vue-router';
 import { listResults as listHistoryResults, useBackendClient } from '@/services';
 import { useGenerationResultsStore } from '@/stores/generation';
 import { formatFileSize, formatRelativeTime } from '@/utils/format';
-import type { GenerationHistoryResult, GenerationHistoryStats } from '@/types';
+import type {
+  GenerationHistoryResult,
+  GenerationHistoryStats,
+  GenerationResult,
+} from '@/types';
 
 const SUMMARY_QUERY = Object.freeze({ page_size: 4, sort: 'created_at_desc' as const });
 
@@ -133,20 +137,56 @@ const errorMessage = computed(() => {
 const formattedAverage = computed(() => stats.value.avg_rating.toFixed(1));
 const formattedSize = computed(() => formatFileSize(stats.value.total_size));
 
+const toHistoryResult = (result: GenerationResult): GenerationHistoryResult => ({
+  id: result.id,
+  job_id: result.job_id,
+  prompt: result.prompt ?? null,
+  negative_prompt: result.negative_prompt ?? null,
+  status: result.status ?? null,
+  image_url: result.image_url ?? null,
+  thumbnail_url: result.thumbnail_url ?? null,
+  created_at: result.created_at ?? new Date().toISOString(),
+  finished_at: result.finished_at ?? null,
+  width: result.width ?? null,
+  height: result.height ?? null,
+  steps: result.steps ?? null,
+  cfg_scale: result.cfg_scale ?? null,
+  seed: result.seed ?? null,
+  generation_info: result.generation_info ?? null,
+});
+
+const toGenerationResult = (item: GenerationHistoryResult): GenerationResult => ({
+  id: item.id,
+  job_id: item.job_id,
+  prompt: item.prompt ?? undefined,
+  negative_prompt: item.negative_prompt ?? null,
+  image_url: item.image_url ?? null,
+  thumbnail_url: item.thumbnail_url ?? null,
+  width: item.width ?? undefined,
+  height: item.height ?? undefined,
+  steps: item.steps ?? undefined,
+  cfg_scale: item.cfg_scale ?? undefined,
+  seed: item.seed ?? null,
+  created_at: item.created_at,
+  finished_at: item.finished_at ?? null,
+  status: item.status ?? undefined,
+  generation_info: item.generation_info ?? null,
+});
+
 const recentResults = computed<GenerationHistoryResult[]>(() => {
   const limit = SUMMARY_QUERY.page_size ?? 4;
   if (fetchedResults.value.length) {
     return fetchedResults.value.slice(0, limit);
   }
   if (storeResults.value.length) {
-    return storeResults.value.slice(0, limit);
+    return storeResults.value.slice(0, limit).map(toHistoryResult);
   }
   return [];
 });
 
-const truncate = (value: string, maxLength: number) => {
+const truncate = (value: string | null | undefined, maxLength: number) => {
   if (!value || value.length <= maxLength) {
-    return value;
+    return value ?? '';
   }
   return `${value.slice(0, maxLength)}…`;
 };
@@ -164,7 +204,7 @@ const refresh = async () => {
     stats.value = output.stats;
     fetchedResults.value = output.results;
     if (!storeResults.value.length && output.results.length) {
-      resultsStore.setResults(output.results);
+      resultsStore.setResults(output.results.map(toGenerationResult));
     }
   } catch (err) {
     error.value = err instanceof Error ? err : new Error('Failed to load generation summary');
