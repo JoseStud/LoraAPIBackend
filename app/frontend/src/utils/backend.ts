@@ -1,26 +1,29 @@
 import { computed, unref, type ComputedRef, type MaybeRefOrGetter } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { runtimeConfig, DEFAULT_BACKEND_BASE } from '@/config/runtime';
+import { useSettingsStore } from '@/stores';
+
 import {
-  useSettingsStore,
-  sanitizeBackendBaseUrl,
-  trimTrailingSlash,
+  DEFAULT_BACKEND_BASE,
+  joinBackendPath,
   normaliseBackendBase,
-} from '@/stores';
+  sanitizeBackendBaseUrl,
+  trimLeadingSlash,
+  trimTrailingSlash,
+  resolveGenerationRoute,
+} from './backend/helpers';
 
-export { DEFAULT_BACKEND_BASE };
-export { sanitizeBackendBaseUrl, trimTrailingSlash } from '@/stores';
-
-export const trimLeadingSlash = (value: string): string => value.replace(/^\/+/, '');
-
-const splitPathSuffix = (input: string): { pathname: string; suffix: string } => {
-  const match = input.match(/^([^?#]*)(.*)$/);
-  if (!match) {
-    return { pathname: input, suffix: '' };
-  }
-  return { pathname: match[1] ?? '', suffix: match[2] ?? '' };
+export {
+  DEFAULT_BACKEND_BASE,
+  joinBackendPath,
+  normaliseBackendBase,
+  resolveGenerationRoute,
+  sanitizeBackendBaseUrl,
+  trimLeadingSlash,
+  trimTrailingSlash,
 };
+
+const isDev = import.meta.env.DEV ?? false;
 
 const pickBackendBase = (override?: string | null, configured?: string | null): string => {
   const trimmedOverride = typeof override === 'string' ? override.trim() : '';
@@ -34,26 +37,6 @@ const pickBackendBase = (override?: string | null, configured?: string | null): 
   }
 
   return DEFAULT_BACKEND_BASE;
-};
-
-const joinBackendPath = (base: string, path: string): string => {
-  const { pathname, suffix } = splitPathSuffix(path);
-  const normalisedBase = trimTrailingSlash(base);
-  const normalisedPathname = trimLeadingSlash(pathname);
-
-  if (!normalisedPathname) {
-    return normalisedBase || DEFAULT_BACKEND_BASE;
-  }
-
-  if (!normalisedBase) {
-    return `/${normalisedPathname}${suffix}`;
-  }
-
-  const combined = /^https?:\/\//i.test(normalisedBase)
-    ? `${normalisedBase}/${normalisedPathname}`
-    : `${normalisedBase}/${normalisedPathname}`.replace(/^\/+/, '/');
-
-  return `${combined}${suffix}`;
 };
 
 const resolveMaybeRef = (
@@ -74,7 +57,7 @@ const resolveMaybeRef = (
 
     return resolved ?? undefined;
   } catch (error) {
-    if (runtimeConfig.isDev) {
+    if (isDev) {
       console.warn('Failed to resolve backend override', error);
     }
     return undefined;
@@ -113,7 +96,7 @@ const resolvePathInput = (path: MaybeRefOrGetter<string>): string => {
     const resolved = typeof path === 'function' ? (path as () => string)() : unref(path);
     return typeof resolved === 'string' ? resolved : '';
   } catch (error) {
-    if (runtimeConfig.isDev) {
+    if (isDev) {
       console.warn('Failed to resolve backend path', error);
     }
     return '';
@@ -145,6 +128,9 @@ export const createBackendUrlGetter = (
 
 export const backendUtils = {
   DEFAULT_BACKEND_BASE,
+  joinBackendPath,
+  normaliseBackendBase,
+  resolveGenerationRoute,
   trimLeadingSlash,
   trimTrailingSlash,
   sanitizeBackendBaseUrl,

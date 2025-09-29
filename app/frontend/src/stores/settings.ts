@@ -1,38 +1,10 @@
 import { defineStore } from 'pinia';
 
-import { DEFAULT_BACKEND_BASE, runtimeConfig } from '@/config/runtime';
+import { runtimeConfig } from '@/config/runtime';
 import { loadFrontendSettings } from '@/services';
 import type { FrontendRuntimeSettings, SettingsState } from '@/types';
 
-export const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
-
-export const trimLeadingSlash = (value: string): string => value.replace(/^\/+/, '');
-
-export const normaliseBackendBase = (base: string): string => {
-  if (/^https?:\/\//i.test(base)) {
-    return trimTrailingSlash(base);
-  }
-
-  const withoutTrailing = trimTrailingSlash(base);
-  if (!withoutTrailing) {
-    return DEFAULT_BACKEND_BASE;
-  }
-
-  return withoutTrailing.startsWith('/') ? withoutTrailing : `/${withoutTrailing}`;
-};
-
-export const sanitizeBackendBaseUrl = (value?: string | null): string => {
-  if (typeof value !== 'string') {
-    return DEFAULT_BACKEND_BASE;
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return DEFAULT_BACKEND_BASE;
-  }
-
-  return normaliseBackendBase(trimmed);
-};
+import { sanitizeBackendBaseUrl } from '@/utils/backend/helpers';
 
 export const normaliseBackendApiKey = (value?: string | null): string | null => {
   if (value == null) {

@@ -16,7 +16,7 @@ import {
   type ApiRequestInit,
   type BackendClient,
 } from '@/services/backendClient';
-import { trimLeadingSlash } from '@/utils/backend';
+import { resolveGenerationRoute as buildGenerationRoute } from '@/utils/backend';
 
 export type GenerationParamOverrides =
   & Pick<SDNextGenerationParams, 'prompt'>
@@ -28,10 +28,7 @@ export type GenerationRequestBody = SDNextGenerationParams & {
 
 type GenerationClientInput = BackendClient | string | null | undefined;
 
-const generationPath = (path = ''): string => {
-  const trimmed = trimLeadingSlash(path);
-  return `/generation${trimmed ? `/${trimmed}` : ''}`;
-};
+const generationPath = (path = ''): string => buildGenerationRoute(path);
 
 const resolveClient = (input?: GenerationClientInput): BackendClient => {
   if (typeof input === 'string') {

@@ -1,4 +1,4 @@
-const DEFAULT_BACKEND_BASE = '/api/v1';
+import { DEFAULT_BACKEND_BASE, sanitizeBackendBaseUrl } from '@/utils/backend';
 
 interface WindowRuntimeSettings {
   backendUrl?: string | null;
@@ -10,20 +10,6 @@ interface AugmentedWindow extends Window {
   BACKEND_API_KEY?: string | null;
   __APP_SETTINGS__?: WindowRuntimeSettings | null;
 }
-
-const sanitizeBasePath = (value?: string | null): string => {
-  if (!value) {
-    return DEFAULT_BACKEND_BASE;
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return DEFAULT_BACKEND_BASE;
-  }
-
-  const withoutTrailing = trimmed.replace(/\/+$/, '');
-  return withoutTrailing || DEFAULT_BACKEND_BASE;
-};
 
 const normalizeApiKey = (value?: string | null): string | null => {
   if (value == null) {
@@ -85,7 +71,7 @@ const envBackendApiKey =
   ?? readEnvString(import.meta.env.VITE_API_KEY);
 const windowSettings = readWindowSettings();
 
-const backendBasePath = sanitizeBasePath(
+const backendBasePath = sanitizeBackendBaseUrl(
   envBackendBase ?? windowSettings.backendUrl ?? undefined,
 );
 
