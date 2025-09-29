@@ -10,7 +10,7 @@
             Browse LoRAs
           </RouterLink>
           <RouterLink class="btn btn-primary btn-sm" to="/generate">
-            Launch Studio
+            Open Generation Studio
           </RouterLink>
         </div>
       </template>
