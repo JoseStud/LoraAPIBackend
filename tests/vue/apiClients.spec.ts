@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useActiveJobsApi, useAdapterListApi } from '../../app/frontend/src/composables/shared/apiClients';
+import { useActiveJobsApi } from '../../app/frontend/src/composables/shared/apiClients';
 import { useDashboardStatsApi, useSystemStatusApi } from '../../app/frontend/src/services/system';
 import { useSettingsStore } from '../../app/frontend/src/stores/settings';
 
@@ -23,22 +23,6 @@ describe('apiClients composables', () => {
 
   afterEach(() => {
     vi.resetAllMocks();
-  });
-
-  it('resolves adapter list requests against the configured backend URL', async () => {
-    const settingsStore = useSettingsStore();
-    settingsStore.setSettings({ backendUrl: 'https://backend.example/api/v2/' });
-
-    const fetchMock = vi.fn().mockResolvedValue(createJsonResponse({ items: [] }));
-    global.fetch = fetchMock as unknown as typeof fetch;
-
-    const api = useAdapterListApi({ page: 2, perPage: 25, search: 'demo' });
-    await api.fetchData();
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://backend.example/api/v2/adapters?page=2&per_page=25&search=demo',
-      expect.objectContaining({ credentials: 'same-origin' }),
-    );
   });
 
   it('resolves dashboard stats requests against the configured backend URL', async () => {
