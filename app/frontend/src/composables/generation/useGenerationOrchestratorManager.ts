@@ -21,7 +21,7 @@ import type {
   GenerationStartResponse,
   SystemStatusState,
 } from '@/types'
-import type { GenerationOrchestrator } from '@/services/generation/orchestrator'
+import type { GenerationOrchestrator } from '@/services'
 
 export interface GenerationOrchestratorAcquireOptions {
   notify: GenerationNotificationAdapter['notify']
