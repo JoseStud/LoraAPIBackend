@@ -3,7 +3,7 @@ import { computed, onMounted } from 'vue'
 import { useGenerationPersistence } from '@/composables/generation'
 import { useGenerationStudioController } from '@/composables/generation/useGenerationStudioController'
 import { useGenerationUI } from '@/composables/generation'
-import { useNotifications } from '@/composables/shared'
+import { useDialogService, useNotifications } from '@/composables/shared'
 import { useGenerationFormStore } from '@/stores/generation'
 import type { GenerationFormState, NotificationType } from '@/types'
 
@@ -11,6 +11,7 @@ export const useGenerationStudio = () => {
   const formStore = useGenerationFormStore()
 
   const { notify: pushNotification } = useNotifications()
+  const { confirm: requestConfirmation } = useDialogService()
 
   const logDebug = (...args: unknown[]): void => {
     if (import.meta.env.DEV) {
@@ -77,7 +78,14 @@ export const useGenerationStudio = () => {
       return
     }
 
-    if (!window.confirm('Are you sure you want to clear the entire generation queue?')) {
+    const confirmed = await requestConfirmation({
+      title: 'Clear generation queue?',
+      message: 'Are you sure you want to clear the entire generation queue?',
+      confirmLabel: 'Clear queue',
+      cancelLabel: 'Keep jobs',
+    })
+
+    if (!confirmed) {
       return
     }
 
@@ -85,7 +93,14 @@ export const useGenerationStudio = () => {
   }
 
   const deleteResult = async (resultId: string | number): Promise<void> => {
-    if (!window.confirm('Are you sure you want to delete this result?')) {
+    const confirmed = await requestConfirmation({
+      title: 'Delete result?',
+      message: 'Are you sure you want to delete this generated result?',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+    })
+
+    if (!confirmed) {
       return
     }
 

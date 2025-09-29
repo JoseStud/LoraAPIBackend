@@ -27,6 +27,7 @@
 
     <AppFooter />
     <Notifications />
+    <DialogRenderer />
   </div>
 </template>
 
@@ -37,4 +38,5 @@ import AppFooter from '@/components/layout/AppFooter.vue';
 import MainNavigation from '@/components/layout/MainNavigation.vue';
 import MobileNav from '@/components/layout/MobileNav.vue';
 import Notifications from '@/components/shared/Notifications.vue';
+import DialogRenderer from '@/components/shared/DialogRenderer.vue';
 </script>
