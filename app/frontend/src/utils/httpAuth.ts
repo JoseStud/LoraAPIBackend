@@ -1,4 +1,5 @@
 import runtimeConfig from '@/config/runtime';
+import { getBackendApiKey } from '@/config/backendSettings';
 
 export const API_AUTH_HEADER = 'X-API-Key';
 
@@ -16,20 +17,8 @@ const sanitiseApiKey = (value?: string | null): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
-const readWindowApiKey = (): string | null => {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  const win = window as typeof window & {
-    BACKEND_API_KEY?: string | null;
-  };
-
-  return sanitiseApiKey(win.BACKEND_API_KEY ?? null);
-};
-
 export const getActiveApiKey = (): string | null => {
-  return readWindowApiKey() ?? sanitiseApiKey(runtimeConfig.backendApiKey);
+  return sanitiseApiKey(getBackendApiKey()) ?? sanitiseApiKey(runtimeConfig.backendApiKey);
 };
 
 const normaliseKey = (key: string): string => key.toLowerCase();
