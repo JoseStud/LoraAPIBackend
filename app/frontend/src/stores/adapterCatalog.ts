@@ -213,6 +213,7 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
   };
 
   const reset = () => {
+    api.cancelActiveRequest();
     pendingFetch.value = null;
     lastFetchedAt.value = null;
     pendingTagFetch.value = null;
