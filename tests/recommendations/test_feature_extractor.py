@@ -100,7 +100,9 @@ class _StaticTriggerResolver:
 class _StaticTriggerEmbedder:
     def encode(self, phrases: Iterable[str]) -> np.ndarray:  # noqa: D401 - stub
         phrases = list(phrases)
-        return np.asarray([[float(index)] for index, _ in enumerate(phrases)], dtype=float)
+        return np.asarray(
+            [[float(index)] for index, _ in enumerate(phrases)], dtype=float
+        )
 
 
 class TestGPULoRAFeatureExtractor:
@@ -128,11 +130,15 @@ class TestGPULoRAFeatureExtractor:
         adapter_without_description = _Adapter(description=None)
         adapter_with_description = _Adapter(description="ornate gilded wings")
 
-        features_without_description = self.embedder_logger_extractor.extract_advanced_features(
-            adapter_without_description
+        features_without_description = (
+            self.embedder_logger_extractor.extract_advanced_features(
+                adapter_without_description
+            )
         )
-        features_with_description = self.embedder_logger_extractor.extract_advanced_features(
-            adapter_with_description
+        features_with_description = (
+            self.embedder_logger_extractor.extract_advanced_features(
+                adapter_with_description
+            )
         )
 
         assert np.array_equal(
@@ -147,22 +153,24 @@ class TestGPULoRAFeatureExtractor:
             features_with_description["technical_embedding"],
             features_without_description["technical_embedding"],
         )
-        assert features_with_description["trigger_embeddings"] == features_without_description[
-            "trigger_embeddings"
-        ]
+        assert (
+            features_with_description["trigger_embeddings"]
+            == features_without_description["trigger_embeddings"]
+        )
         assert (
             features_with_description["normalized_triggers"]
             == features_without_description["normalized_triggers"]
         )
-        assert features_with_description["trigger_metadata"] == features_without_description[
-            "trigger_metadata"
-        ]
-        assert features_with_description["quality_score"] == features_without_description[
-            "quality_score"
-        ]
+        assert (
+            features_with_description["trigger_metadata"]
+            == features_without_description["trigger_metadata"]
+        )
+        assert (
+            features_with_description["quality_score"]
+            == features_without_description["quality_score"]
+        )
         assert len(self.embedder.payloads) == 2
         assert all(
             "ornate" not in payload["semantic"] and "ornate" not in payload["artistic"]
             for payload in self.embedder.payloads
         )
-

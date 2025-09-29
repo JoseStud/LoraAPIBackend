@@ -124,4 +124,3 @@ def downgrade() -> None:
         batch_op.drop_column("trigger_embeddings")
         batch_op.drop_column("trigger_aliases")
         batch_op.drop_column("normalized_triggers")
-

@@ -13,9 +13,7 @@ class TestLoRASemanticEmbedder:
     """Unit tests covering prompt embedding generation."""
 
     def setup_method(self) -> None:
-        self.embedder = LoRASemanticEmbedder(
-            device="cpu", force_fallback=True
-        )
+        self.embedder = LoRASemanticEmbedder(device="cpu", force_fallback=True)
 
     def test_compute_prompt_embeddings_returns_modalities(self) -> None:
         prompt = "dreamy watercolor landscape"

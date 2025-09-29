@@ -9,9 +9,9 @@ from .interfaces import (
     SemanticEmbedderProtocol,
 )
 from .sentence_transformer_provider import SentenceTransformerProvider
+from .text_payload_builder import MultiModalTextPayloadBuilder
 from .trigger_embedder import TriggerEmbedder
 from .trigger_processing import TriggerResolver
-from .text_payload_builder import MultiModalTextPayloadBuilder
 
 __all__ = [
     "FeatureExtractorProtocol",

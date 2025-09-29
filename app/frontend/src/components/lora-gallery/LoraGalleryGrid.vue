@@ -91,7 +91,7 @@ const props = withDefaults(
   },
 );
 
-const emit = defineEmits<{
+defineEmits<{
   (event: 'toggle-selection', id: string): void;
   (event: 'update', payload: LoraUpdatePayload): void;
   (event: 'delete', id: string): void;

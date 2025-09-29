@@ -236,7 +236,9 @@ class DeliveryJobRepository:
     def get_queue_statistics(self) -> Dict[str, int]:
         """Summarise queue-oriented counts for dashboards."""
         total_jobs = (
-            self._session.execute(select(func.count(DeliveryJob.id))).scalar_one_or_none()
+            self._session.execute(
+                select(func.count(DeliveryJob.id))
+            ).scalar_one_or_none()
             or 0
         )
         active_jobs = self.count_active_jobs()
@@ -250,9 +252,7 @@ class DeliveryJobRepository:
         )
         failed_jobs = (
             self._session.execute(
-                select(func.count(DeliveryJob.id)).where(
-                    DeliveryJob.status == "failed"
-                )
+                select(func.count(DeliveryJob.id)).where(DeliveryJob.status == "failed")
             ).scalar_one_or_none()
             or 0
         )

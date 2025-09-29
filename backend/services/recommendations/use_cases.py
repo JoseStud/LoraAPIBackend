@@ -126,6 +126,7 @@ class TriggerRecommendationUseCase:
         metrics: RecommendationMetricsTracker,
         logger: Optional[logging.Logger] = None,
     ) -> None:
+        """Cache dependencies required to execute trigger recommendations."""
         self._repository = repository
         self._trigger_engine_provider = trigger_engine_provider
         self._metrics = metrics

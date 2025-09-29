@@ -74,9 +74,7 @@ class RecommendationRepository(Protocol):
     def get_embedding(self, adapter_id: str):  # pragma: no cover - Protocol
         """Return the embedding entry for ``adapter_id`` if present."""
 
-    def get_recent_active_adapters(
-        self, limit: int
-    ):  # pragma: no cover - Protocol
+    def get_recent_active_adapters(self, limit: int):  # pragma: no cover - Protocol
         """Return recently active adapters for deterministic fallbacks."""
 
 

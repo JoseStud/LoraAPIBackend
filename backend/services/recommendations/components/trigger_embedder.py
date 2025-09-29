@@ -22,6 +22,7 @@ class TriggerEmbedder:
         logger: Optional[logging.Logger] = None,
         provider: Optional[SentenceTransformerProvider] = None,
     ) -> None:
+        """Initialise the embedder with the desired device and provider overrides."""
         self._logger = logger or logging.getLogger(__name__)
         configs = {
             self.MODEL_KEY: {
@@ -57,7 +58,9 @@ class TriggerEmbedder:
     def encode_single(self, phrase: str) -> np.ndarray:
         """Encode a single phrase returning a 1D vector."""
         vectors = self.encode([phrase])
-        return vectors[0] if len(vectors) else np.zeros(self.dimension, dtype=np.float32)
+        return (
+            vectors[0] if len(vectors) else np.zeros(self.dimension, dtype=np.float32)
+        )
 
 
 __all__ = ["TriggerEmbedder"]

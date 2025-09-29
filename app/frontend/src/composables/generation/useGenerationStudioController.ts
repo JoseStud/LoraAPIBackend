@@ -4,7 +4,7 @@ import { toGenerationRequestPayload } from '@/services'
 import {
   useGenerationOrchestratorManager,
   type GenerationOrchestratorBinding,
-} from '@/composables/generation/useGenerationOrchestratorManager'
+} from '@/composables/generation'
 import { useGenerationFormStore } from '@/stores/generation'
 import type { GenerationFormState, NotificationType, GenerationJob } from '@/types'
 

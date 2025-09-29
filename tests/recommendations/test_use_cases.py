@@ -1,7 +1,7 @@
 """Tests for recommendation use cases."""
 
-from dataclasses import dataclass
 import pickle
+from dataclasses import dataclass
 from typing import List, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -122,7 +122,9 @@ class TestRecommendationUseCases:
                 self.calls: List[tuple[str, Optional[str]]] = []
                 self._vector = np.asarray([1.0, 0.0, 0.0], dtype=np.float32)
 
-            def compute_prompt_embeddings(self, prompt: str, *, device: Optional[str] = None):
+            def compute_prompt_embeddings(
+                self, prompt: str, *, device: Optional[str] = None
+            ):
                 self.calls.append((prompt, device))
                 return {
                     "semantic": self._vector,

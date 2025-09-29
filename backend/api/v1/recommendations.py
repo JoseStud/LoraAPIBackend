@@ -158,7 +158,6 @@ async def get_recommendations_for_trigger(
     services: DomainServices = Depends(get_domain_services),
 ):
     """Get LoRA recommendations that align with trigger phrases."""
-
     try:
         start_time = datetime.now()
         recommendation_service = services.recommendations
