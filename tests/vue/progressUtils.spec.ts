@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
 
 import { normalizeGenerationProgress } from '../../app/frontend/src/utils/progress.ts'
+import { useGenerationQueueStore } from '../../app/frontend/src/stores/generation/queue.ts'
 
 describe('normalizeGenerationProgress', () => {
   it('returns 0 for undefined and null values', () => {
@@ -21,5 +23,46 @@ describe('normalizeGenerationProgress', () => {
   it('rounds numeric percentages above 1', () => {
     expect(normalizeGenerationProgress(45.2)).toBe(45)
     expect(normalizeGenerationProgress(99.6)).toBe(100)
+  })
+
+  it('clamps normalized progress between 0 and 100', () => {
+    expect(normalizeGenerationProgress(-0.2)).toBe(0)
+    expect(normalizeGenerationProgress(-15)).toBe(0)
+    expect(normalizeGenerationProgress(1.2)).toBe(1)
+    expect(normalizeGenerationProgress(150)).toBe(100)
+  })
+})
+
+describe('useGenerationQueueStore progress normalization', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('clamps progress values above 100 received from progress messages', () => {
+    const store = useGenerationQueueStore()
+
+    store.handleProgressMessage({
+      job_id: 'job-1',
+      progress: 150,
+      status: 'processing',
+    } as any)
+
+    expect(store.jobs).toHaveLength(1)
+    expect(store.jobs[0]?.progress).toBe(100)
+  })
+
+  it('clamps progress values below 0 received from progress messages', () => {
+    const store = useGenerationQueueStore()
+
+    store.enqueueJob({ id: 'job-2', status: 'processing', progress: 25 })
+
+    store.handleProgressMessage({
+      job_id: 'job-2',
+      progress: -0.25,
+      status: 'processing',
+    } as any)
+
+    const job = store.jobs.find((item) => item.id === 'job-2')
+    expect(job?.progress).toBe(0)
   })
 })
