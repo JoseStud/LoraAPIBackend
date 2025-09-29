@@ -203,7 +203,7 @@ const apiMocks = {
     'POST /api/loras/upload': (url, options) => {
         // Check if proper form data was sent
         const hasFormData = options.body instanceof FormData;
-        
+
         if (!hasFormData) {
             throw new Error('File is required');
         }
@@ -242,6 +242,41 @@ const apiMocks = {
         }
 
         return { success: true };
+    },
+
+    'POST /api/generation/generate': () => ({
+        job_id: 'job-1',
+        status: 'queued',
+        images: [],
+        progress: 0,
+        generation_info: null,
+    }),
+
+    'POST /api/generation/jobs/:id/cancel': (url) => {
+        const id = url.split('/').slice(-2)[0];
+        return {
+            success: true,
+            status: 'cancelled',
+            message: `Cancelled ${id}`,
+        };
+    },
+
+    'POST /custom/api/generation/jobs/:id/cancel': (url) => {
+        const id = url.split('/').slice(-2)[0];
+        return {
+            success: true,
+            status: 'cancelled',
+            message: `Cancelled ${id}`,
+        };
+    },
+
+    'DELETE /api/generation/results/:id': () => ({ success: true }),
+
+    'DELETE /prefixed/api/generation/results/:id': () => ({ success: true }),
+
+    'GET /api/generation/results/:id/download': (url) => {
+        const id = url.split('/').slice(-2)[0];
+        return new Blob([`result-${id}`], { type: 'image/png' });
     },
     
     // Recommendations

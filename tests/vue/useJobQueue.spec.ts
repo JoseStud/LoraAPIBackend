@@ -61,11 +61,15 @@ vi.mock('@/composables/shared', async () => {
   };
 });
 
-vi.mock('@/utils/backend', () => ({
-  DEFAULT_BACKEND_BASE: '/api/v1',
-  useBackendBase: () => computed(() => '/api/v1'),
-  resolveBackendUrl: (path: string) => `/api/v1${path}`,
-}));
+vi.mock('@/utils/backend', async () => {
+  const actual = await vi.importActual<typeof import('@/utils/backend')>('@/utils/backend');
+  return {
+    ...actual,
+    DEFAULT_BACKEND_BASE: '/api/v1',
+    useBackendBase: () => computed(() => '/api/v1'),
+    resolveBackendUrl: (path: string) => `/api/v1${path}`,
+  };
+});
 
 const withQueue = async (
   run: (queue: ReturnType<typeof useJobQueue>) => Promise<void>,

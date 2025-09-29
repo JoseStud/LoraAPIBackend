@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 
 import { runtimeConfig } from '@/config/runtime';
-import { loadFrontendSettings } from '@/services';
 import type { FrontendRuntimeSettings, SettingsState } from '@/types';
 
 import { sanitizeBackendBaseUrl } from '@/utils/backend/helpers';
@@ -107,6 +106,7 @@ export const useSettingsStore = defineStore('app-settings', {
       this.error = null;
 
       try {
+        const { loadFrontendSettings } = await import('@/services/system/systemService');
         const payload = await loadFrontendSettings();
         if (!payload) {
           throw new Error('Received empty settings response');

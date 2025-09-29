@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
+import type {
+  GenerationRequestBody,
+  GenerationRequestPayload,
+} from '../../app/frontend/src/types'
 
 import {
   cancelGenerationJob,
@@ -8,51 +12,8 @@ import {
   resolveBackendUrl,
   resolveGenerationBaseUrl,
   startGeneration,
-} from '../../app/frontend/src/services/generation/generationService.ts'
-import { useSettingsStore } from '../../app/frontend/src/stores/settings'
-import type {
-  GenerationCancelResponse,
-  GenerationRequestBody,
-  GenerationRequestPayload,
-  GenerationStartResponse,
-  SDNextGenerationResult,
-} from '../../app/frontend/src/types'
-
-const mocks = vi.hoisted(() => ({
-  postJson: vi.fn(),
-  requestJson: vi.fn(),
-  deleteRequest: vi.fn(),
-  requestBlob: vi.fn(),
-}))
-
-vi.mock('../../app/frontend/src/services/apiClient.ts', async () => {
-  const actual = await vi.importActual<typeof import('../../app/frontend/src/services/apiClient.ts')>(
-    '../../app/frontend/src/services/apiClient.ts'
-  )
-  return {
-    ...actual,
-    postJson: mocks.postJson,
-    requestJson: mocks.requestJson,
-    deleteRequest: mocks.deleteRequest,
-    requestBlob: mocks.requestBlob,
-  }
-})
-
-const defaultResult: SDNextGenerationResult = {
-  job_id: 'job-1',
-  status: 'queued',
-  images: [],
-  progress: 0,
-  generation_info: null,
-}
-
-const defaultStartResponse: GenerationStartResponse = { ...defaultResult }
-
-const defaultCancelResponse: GenerationCancelResponse = {
-  success: true,
-  status: 'cancelled',
-  message: null,
-}
+} from '@/services/generation/generationService'
+import { useSettingsStore } from '@/stores/settings'
 
 const createGenerationPayload = (): GenerationRequestPayload => ({
   prompt: 'test',
@@ -76,39 +37,7 @@ beforeEach(() => {
   const settingsStore = useSettingsStore()
   settingsStore.reset()
 
-  mocks.postJson.mockReset()
-  mocks.requestJson.mockReset()
-  mocks.deleteRequest.mockReset()
-  mocks.requestBlob.mockReset()
-
-  mocks.postJson.mockResolvedValue({
-    data: defaultStartResponse,
-    meta: { ok: true, status: 200, statusText: 'OK' },
-  })
-
-  mocks.requestJson.mockResolvedValue({
-    data: defaultCancelResponse,
-    meta: { ok: true, status: 200, statusText: 'OK' },
-  })
-
-  mocks.deleteRequest.mockResolvedValue({
-    data: null,
-    meta: { ok: true, status: 204, statusText: 'No Content' },
-  })
-
-  const blob = new Blob(['payload'])
-  const response = {
-    headers: {
-      get: vi.fn((header: string) => {
-        if (header === 'content-type') {
-          return 'image/png'
-        }
-        return null
-      }),
-    },
-  } as unknown as Response
-
-  mocks.requestBlob.mockResolvedValue({ blob, response })
+  fetch.mockClear()
 })
 
 describe('resolveBackendUrl', () => {
@@ -170,10 +99,9 @@ describe('generationService URL resolution', () => {
 
     await requestGeneration(body, 'https://external.example/api')
 
-    expect(mocks.postJson).toHaveBeenCalledWith(
+    expect(fetch).toHaveBeenCalledWith(
       'https://external.example/api/generation/generate',
-      body,
-      expect.objectContaining({ credentials: 'same-origin' }),
+      expect.objectContaining({ method: 'POST', body: JSON.stringify(body) }),
     )
   })
 
@@ -184,17 +112,16 @@ describe('generationService URL resolution', () => {
     const payload = createGenerationPayload()
     await startGeneration(payload)
 
-    expect(mocks.postJson).toHaveBeenCalledWith(
+    expect(fetch).toHaveBeenCalledWith(
       'https://configured.example/api/generation/generate',
-      payload,
-      expect.objectContaining({ credentials: 'same-origin' }),
+      expect.objectContaining({ method: 'POST', body: JSON.stringify(payload) }),
     )
   })
 
   it('resolves cancelGenerationJob with override', async () => {
     await cancelGenerationJob('job-123', '/custom/api')
 
-    expect(mocks.requestJson).toHaveBeenCalledWith(
+    expect(fetch).toHaveBeenCalledWith(
       '/custom/api/generation/jobs/job-123/cancel',
       expect.objectContaining({ method: 'POST' }),
     )
@@ -206,18 +133,18 @@ describe('generationService URL resolution', () => {
 
     await deleteGenerationResult('result-9')
 
-    expect(mocks.deleteRequest).toHaveBeenCalledWith(
+    expect(fetch).toHaveBeenCalledWith(
       '/prefixed/api/generation/results/result-9',
-      expect.objectContaining({ credentials: 'same-origin' }),
+      expect.objectContaining({ method: 'DELETE' }),
     )
   })
 
   it('resolves downloadGenerationResult using overrides', async () => {
     await downloadGenerationResult(5, undefined, 'https://download.example/api')
 
-    expect(mocks.requestBlob).toHaveBeenCalledWith(
+    expect(fetch).toHaveBeenCalledWith(
       'https://download.example/api/generation/results/5/download',
-      expect.objectContaining({ credentials: 'same-origin' }),
+      expect.objectContaining({ method: 'GET' }),
     )
   })
 })

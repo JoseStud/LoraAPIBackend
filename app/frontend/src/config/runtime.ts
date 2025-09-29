@@ -1,4 +1,4 @@
-import { DEFAULT_BACKEND_BASE, sanitizeBackendBaseUrl } from '@/utils/backend';
+import { DEFAULT_BACKEND_BASE, sanitizeBackendBaseUrl } from '@/utils/backend/helpers';
 
 interface WindowRuntimeSettings {
   backendUrl?: string | null;
