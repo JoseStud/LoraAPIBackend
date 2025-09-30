@@ -1,6 +1,10 @@
 import { getFilenameFromContentDisposition } from '@/services/apiClient';
-import { resolveBackendClient, type ApiRequestInit, type BackendClient } from '@/services/backendClient';
-import { trimLeadingSlash } from '@/utils/backend';
+import type { BackendClient } from '@/services/backendClient';
+import {
+  createBackendPathResolver,
+  resolveClient,
+  withSameOrigin,
+} from '@/services/shared/backendHelpers';
 
 import type {
   GenerationBulkDeleteRequest,
@@ -16,17 +20,8 @@ import type {
   GenerationRatingUpdate,
 } from '@/types';
 
-const withSameOrigin = (init: ApiRequestInit = {}): ApiRequestInit => ({
-  credentials: 'same-origin',
-  ...init,
-});
-
-const resolveClient = (client?: BackendClient | null): BackendClient => resolveBackendClient(client ?? undefined);
-
-const historyPath = (path: string): string => {
-  const trimmed = trimLeadingSlash(path);
-  return `/generation${trimmed ? `/${trimmed}` : ''}`;
-};
+const historyPaths = createBackendPathResolver('generation');
+const historyPath = historyPaths.path;
 
 const toStats = (stats?: GenerationHistoryStats | null): GenerationHistoryStats => ({
   total_results: stats?.total_results ?? 0,

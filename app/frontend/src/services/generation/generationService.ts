@@ -11,12 +11,12 @@ import type {
 } from '@/types';
 import { ensureData, getFilenameFromContentDisposition } from '@/services/apiClient';
 import {
-  createBackendClient,
-  resolveBackendClient,
-  type ApiRequestInit,
-  type BackendClient,
-} from '@/services/backendClient';
-import { resolveGenerationRoute as buildGenerationRoute } from '@/utils/backend';
+  createBackendPathResolver,
+  resolveBackendPath,
+  resolveClient,
+  withSameOrigin,
+  type BackendClientInput,
+} from '@/services/shared/backendHelpers';
 
 export type GenerationParamOverrides =
   & Pick<SDNextGenerationParams, 'prompt'>
@@ -26,35 +26,19 @@ export type GenerationRequestBody = SDNextGenerationParams & {
   loras?: CompositionEntry[];
 };
 
-type GenerationClientInput = BackendClient | string | null | undefined;
+type GenerationClientInput = BackendClientInput;
 
-const generationPath = (path = ''): string => buildGenerationRoute(path);
-
-const resolveClient = (input?: GenerationClientInput): BackendClient => {
-  if (typeof input === 'string') {
-    return createBackendClient(input);
-  }
-
-  if (input == null) {
-    return resolveBackendClient();
-  }
-
-  return resolveBackendClient(input);
-};
-
-const withSameOrigin = (init: ApiRequestInit = {}): ApiRequestInit => ({
-  credentials: 'same-origin',
-  ...init,
-});
+const generationPaths = createBackendPathResolver('generation');
+const generationPath = generationPaths.path;
 
 export const resolveGenerationBaseUrl = (input?: GenerationClientInput): string =>
-  resolveClient(input).resolve(generationPath());
+  generationPaths.resolve('', input);
 
 export const resolveBackendUrl = (path: string, input?: GenerationClientInput): string =>
-  resolveClient(input).resolve(path);
+  resolveBackendPath(path, input);
 
 export const resolveGenerationRoute = (path: string, input?: GenerationClientInput): string =>
-  resolveClient(input).resolve(generationPath(path));
+  generationPaths.resolve(path, input);
 
 export const createGenerationParams = (
   overrides: GenerationParamOverrides,

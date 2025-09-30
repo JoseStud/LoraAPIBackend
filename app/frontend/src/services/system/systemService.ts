@@ -1,4 +1,5 @@
-import { resolveBackendClient, type ApiRequestInit, type BackendClient } from '@/services/backendClient';
+import type { BackendClient } from '@/services/backendClient';
+import { resolveBackendPath, withSameOrigin } from '@/services/shared/backendHelpers';
 
 import type {
   DashboardStatsSummary,
@@ -8,15 +9,8 @@ import type {
 } from '@/types';
 import { requestConfiguredJson, type ApiRequestConfig } from '@/services/apiClient';
 
-const withSameOrigin = (init: ApiRequestInit = {}): ApiRequestInit => ({
-  credentials: 'same-origin',
-  ...init,
-});
-
-const resolveClient = (client?: BackendClient | null): BackendClient => resolveBackendClient(client ?? undefined);
-
 const createRequestConfig = (path: string, client?: BackendClient | null): ApiRequestConfig => ({
-  target: resolveClient(client).resolve(path),
+  target: resolveBackendPath(path, client ?? undefined),
   init: withSameOrigin(),
 });
 

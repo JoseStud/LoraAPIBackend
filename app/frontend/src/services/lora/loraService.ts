@@ -1,4 +1,5 @@
-import { resolveBackendClient, type BackendClient } from '@/services/backendClient';
+import type { BackendClient } from '@/services/backendClient';
+import { createBackendPathResolver, resolveClient } from '@/services/shared/backendHelpers';
 
 import type {
   AdapterListQuery,
@@ -95,9 +96,8 @@ export const buildAdapterListQuery = (query: AdapterListQuery = {}): string => {
   return suffix ? `?${suffix}` : '';
 };
 
-const resolveClient = (client?: BackendClient | null): BackendClient => resolveBackendClient(client ?? undefined);
-
-const adaptersPath = (suffix = ''): string => `/adapters${suffix}`;
+const adaptersPaths = createBackendPathResolver('adapters');
+const adaptersPath = adaptersPaths.path;
 
 export const fetchAdapterTags = async (client?: BackendClient | null): Promise<string[]> => {
   const backend = resolveClient(client);
