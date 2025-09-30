@@ -2,7 +2,7 @@ import { computed, onMounted } from 'vue'
 
 import {
   useGenerationPersistence,
-  useGenerationStudioController,
+  useGenerationStudioDomain,
   useGenerationUI,
 } from '@/composables/generation'
 import { useDialogService, useNotifications } from '@/composables/shared'
@@ -53,11 +53,12 @@ export const useGenerationStudio = () => {
     showToast: notify,
   })
 
-  const controller = useGenerationStudioController({
+  const domain = useGenerationStudioDomain({
     params: uiParams,
     notify,
     debug: logDebug,
     onAfterStart: persistParams,
+    onAfterInitialize: loadParams,
   })
 
   const params = computed(() => uiParams.value)
@@ -66,17 +67,17 @@ export const useGenerationStudio = () => {
   const showModal = computed(() => showModalRef.value)
   const selectedResult = computed(() => selectedResultRef.value)
   const recentResults = computed(() => recentResultsRef.value)
-  const activeJobs = computed(() => controller.activeJobs.value)
-  const sortedActiveJobs = computed(() => controller.sortedActiveJobs.value)
-  const systemStatus = computed(() => controller.systemStatus.value)
-  const isConnected = computed(() => controller.isConnected.value)
+  const activeJobs = computed(() => domain.activeJobs.value)
+  const sortedActiveJobs = computed(() => domain.sortedActiveJobs.value)
+  const systemStatus = computed(() => domain.systemStatus.value)
+  const isConnected = computed(() => domain.isConnected.value)
 
   const startGeneration = async (): Promise<void> => {
-    await controller.startGeneration()
+    await domain.startGeneration()
   }
 
   const clearQueueWithConfirmation = async (): Promise<void> => {
-    if (controller.activeJobs.value.length === 0) {
+    if (domain.activeJobs.value.length === 0) {
       return
     }
 
@@ -91,7 +92,7 @@ export const useGenerationStudio = () => {
       return
     }
 
-    await controller.clearQueue()
+    await domain.clearQueue()
   }
 
   const deleteResult = async (resultId: string | number): Promise<void> => {
@@ -106,11 +107,11 @@ export const useGenerationStudio = () => {
       return
     }
 
-    await controller.deleteResult(resultId)
+    await domain.deleteResult(resultId)
   }
 
   const refreshResults = async (): Promise<void> => {
-    await controller.refreshResults(true)
+    await domain.refreshResults(true)
   }
 
   const updateParams = (value: GenerationFormState): void => {
@@ -123,8 +124,7 @@ export const useGenerationStudio = () => {
 
   onMounted(async () => {
     logDebug('Initializing Generation Studio composable...')
-    await controller.initialize()
-    loadParams()
+    await domain.initialize()
   })
 
   return {
@@ -139,7 +139,7 @@ export const useGenerationStudio = () => {
     sortedActiveJobs,
     isConnected,
     startGeneration,
-    cancelJob: controller.cancelJob,
+    cancelJob: domain.cancelJob,
     clearQueue: clearQueueWithConfirmation,
     refreshResults,
     loadFromComposer,
@@ -152,7 +152,7 @@ export const useGenerationStudio = () => {
     formatTime,
     getJobStatusClasses,
     getJobStatusText,
-    canCancelJob: controller.canCancelJob,
+    canCancelJob: domain.canCancelJob,
     getSystemStatusClasses,
     updateParams,
     toggleHistory,
