@@ -1,6 +1,7 @@
 import { onUnmounted, watch, type Ref } from 'vue'
 
 import { useDialogService, usePersistence } from '@/composables/shared'
+import { useGenerationFormStore } from '@/stores/generation'
 import { PERSISTENCE_KEYS } from '@/constants/persistence'
 import type { GenerationFormState, NotificationType } from '@/types'
 
@@ -32,6 +33,7 @@ export const useGenerationPersistence = ({
   params,
   showToast,
 }: UseGenerationPersistenceOptions): UseGenerationPersistenceReturn => {
+  const formStore = useGenerationFormStore()
   const persistence = usePersistence()
 
   const load = (): void => {
@@ -40,7 +42,7 @@ export const useGenerationPersistence = ({
         const urlParams = new URLSearchParams(window.location.search)
         const prompt = urlParams.get('prompt')
         if (typeof prompt === 'string') {
-          params.value.prompt = prompt
+          formStore.setPrompt(prompt)
         }
       }
 
@@ -50,7 +52,7 @@ export const useGenerationPersistence = ({
       )
 
       if (saved) {
-        Object.assign(params.value, saved)
+        formStore.updateParams(saved)
       }
     } catch (error) {
       console.error('Error loading saved parameters:', error)
@@ -128,10 +130,10 @@ export const useGenerationPersistence = ({
         persistence.getJSON<string | null>(
           PERSISTENCE_KEYS.composerPrompt,
           null,
-        ) ?? persistence.getItem(PERSISTENCE_KEYS.composerPrompt)
+      ) ?? persistence.getItem(PERSISTENCE_KEYS.composerPrompt)
 
       if (composerData) {
-        params.value.prompt = composerData
+        formStore.setPrompt(composerData)
         showToast('Loaded prompt from composer', 'success')
       } else {
         showToast('No composer data found', 'warning')
@@ -143,7 +145,7 @@ export const useGenerationPersistence = ({
 
   const useRandomPrompt = (): void => {
     const index = Math.floor(Math.random() * RANDOM_PROMPTS.length)
-    params.value.prompt = RANDOM_PROMPTS[index]
+    formStore.setPrompt(RANDOM_PROMPTS[index])
     showToast('Random prompt generated', 'success')
   }
 
