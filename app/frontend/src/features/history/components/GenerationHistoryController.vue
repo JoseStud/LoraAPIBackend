@@ -24,6 +24,7 @@ import {
   type DimensionFilterOption,
 } from '@/features/history';
 import { PERSISTENCE_KEYS, useAsyncLifecycleTask, usePersistence } from '@/composables/shared';
+import { useBackendRefresh } from '@/services';
 import { useBackendBase } from '@/utils/backend';
 import { formatHistoryDate } from '@/utils/format';
 import type { GenerationHistoryResult } from '@/types';
@@ -139,6 +140,33 @@ const { unregister: unregisterShortcuts } = useHistoryShortcuts({
   },
 });
 
+const resetFiltersToDefaults = (): void => {
+  searchTerm.value = '';
+  sortBy.value = 'created_at';
+  dateFilter.value = 'all';
+  ratingFilter.value = 0;
+  dimensionFilter.value = 'all';
+};
+
+const refreshHistoryForBackendChange = async (): Promise<void> => {
+  debouncedApplyFilters.cancel();
+  clearSelection();
+  modal.closeModal();
+  resetFiltersToDefaults();
+  isInitialized.value = false;
+
+  try {
+    await loadInitialResults();
+    isInitialized.value = true;
+  } catch {
+    isInitialized.value = false;
+  }
+};
+
+const backendRefreshSubscription = useBackendRefresh(() => {
+  void refreshHistoryForBackendChange();
+});
+
 useAsyncLifecycleTask(
   async () => {
     const savedViewMode = persistence.getItem(PERSISTENCE_KEYS.historyViewMode);
@@ -167,6 +195,7 @@ useAsyncLifecycleTask(
 onUnmounted(() => {
   debouncedApplyFilters.cancel();
   unregisterShortcuts();
+  backendRefreshSubscription.stop();
 });
 
 watch(viewMode, (newMode: HistoryViewMode) => {
