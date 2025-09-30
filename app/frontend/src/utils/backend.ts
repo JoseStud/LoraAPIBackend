@@ -9,23 +9,32 @@ import {
 
 import {
   DEFAULT_BACKEND_BASE,
+  createBackendPathBuilder,
   joinBackendPath,
+  joinBackendSegments,
   normaliseBackendBase,
   sanitizeBackendBaseUrl,
   trimLeadingSlash,
   trimTrailingSlash,
   resolveGenerationRoute,
+  withSameOrigin,
+  type BackendPathBuilder,
 } from './backend/helpers';
 
 export {
   DEFAULT_BACKEND_BASE,
+  createBackendPathBuilder,
   joinBackendPath,
+  joinBackendSegments,
   normaliseBackendBase,
   resolveGenerationRoute,
   sanitizeBackendBaseUrl,
   trimLeadingSlash,
   trimTrailingSlash,
+  withSameOrigin,
 };
+
+export type { BackendPathBuilder };
 
 const isDev = import.meta.env.DEV ?? false;
 
@@ -147,12 +156,15 @@ export const createBackendUrlGetter = (
 
 export const backendUtils = {
   DEFAULT_BACKEND_BASE,
+  createBackendPathBuilder,
   joinBackendPath,
+  joinBackendSegments,
   normaliseBackendBase,
   resolveGenerationRoute,
   trimLeadingSlash,
   trimTrailingSlash,
   sanitizeBackendBaseUrl,
+  withSameOrigin,
   resolveBackendBaseUrl,
   resolveBackendUrl,
   useBackendBase,
