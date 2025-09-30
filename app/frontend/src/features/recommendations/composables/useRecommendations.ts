@@ -6,6 +6,7 @@ import { useAdapterCatalogStore } from '@/features/lora/public';
 import { useBackendEnvironmentSubscription } from '@/services';
 import { useBackendEnvironment, useSettingsStore } from '@/stores';
 import type { AdapterSummary, RecommendationItem, RecommendationResponse } from '@/types';
+import { debounce, type DebouncedFunction } from '@/utils/async';
 
 const WEIGHT_KEYS = ['semantic', 'artistic', 'technical'] as const;
 type WeightKey = (typeof WEIGHT_KEYS)[number];
@@ -142,6 +143,27 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
     return recommendations.value;
   };
 
+  const debouncedFetchRecommendations: DebouncedFunction<() => void> = debounce(
+    () => {
+      void fetchRecommendations();
+    },
+    250,
+  );
+
+  const scheduleRecommendationsRefresh = ({ immediate = false } = {}) => {
+    if (!selectedLora.value || !isHydrated.value) {
+      return;
+    }
+
+    if (immediate) {
+      debouncedFetchRecommendations.cancel();
+      void fetchRecommendations();
+      return;
+    }
+
+    debouncedFetchRecommendations();
+  };
+
   const resetSettings = () => {
     limit.value = options.initialLimit ?? 10;
     similarityThreshold.value = options.initialThreshold ?? 0.1;
@@ -156,36 +178,38 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
 
   watch(selectedLoraId, (next) => {
     if (!next) {
+      debouncedFetchRecommendations.cancel();
       recommendations.value = [];
       error.value = '';
       return;
     }
 
     if (isHydrated.value) {
-      void fetchRecommendations();
+      scheduleRecommendationsRefresh({ immediate: true });
     }
   });
 
-  const triggerRefreshIfReady = () => {
-    if (!selectedLora.value || !isHydrated.value) {
-      return;
-    }
-    void fetchRecommendations();
-  };
+  watch([limit, similarityThreshold], () => {
+    scheduleRecommendationsRefresh();
+  });
 
-  watch([limit, similarityThreshold], triggerRefreshIfReady);
-
-  watch(weights as Ref<WeightState>, triggerRefreshIfReady, { deep: true });
+  watch(
+    weights as Ref<WeightState>,
+    () => {
+      scheduleRecommendationsRefresh();
+    },
+    { deep: true },
+  );
 
   watch(isHydrated, (ready) => {
     if (ready && selectedLora.value) {
-      void fetchRecommendations();
+      scheduleRecommendationsRefresh({ immediate: true });
     }
   });
 
   useBackendEnvironmentSubscription(() => {
     if (selectedLora.value) {
-      void fetchRecommendations();
+      scheduleRecommendationsRefresh({ immediate: true });
     }
   });
 
