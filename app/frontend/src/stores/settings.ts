@@ -1,8 +1,15 @@
-import { effectScope, watch, type EffectScope, type WatchStopHandle } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { defineStore } from 'pinia';
-import { runtimeConfig } from '@/config/runtime';
-import type { FrontendRuntimeSettings, SettingsState } from '@/types';
 
+import { runtimeConfig } from '@/config/runtime';
+import type { FrontendRuntimeSettings } from '@/types';
+
+import {
+  emitBackendUrlChanged,
+  subscribe,
+  unsubscribe,
+  type BackendEnvironmentBusHandler,
+} from '@/services/system/backendEnvironmentEventBus';
 import { sanitizeBackendBaseUrl } from '@/utils/backend/helpers';
 
 export const normaliseBackendApiKey = (value?: string | null): string | null => {
@@ -36,100 +43,150 @@ const ensureBackendApiKey = (value: unknown): string | null => {
   return normaliseBackendApiKey(value as string | null | undefined);
 };
 
-export const useSettingsStore = defineStore('app-settings', {
-  state: (): SettingsState => ({
-    settings: null,
-    isLoading: false,
-    isLoaded: false,
-    error: null,
-  }),
+interface DeferredPromise {
+  promise: Promise<void>;
+  resolve: () => void;
+}
 
-  getters: {
-    backendUrl: (state): string => {
-      if (!state.settings) {
-        return runtimeBackendDefaults.backendUrl;
-      }
+const createDeferredPromise = (): DeferredPromise => {
+  let resolved = false;
+  let resolveFn: (() => void) | null = null;
+  const promise = new Promise<void>((resolve) => {
+    resolveFn = resolve;
+  });
 
-      const candidate = ensureBackendUrl(state.settings.backendUrl ?? runtimeBackendDefaults.backendUrl);
-      return candidate || runtimeBackendDefaults.backendUrl;
-    },
-    backendApiKey: (state): string | null => {
-      if (!state.settings) {
-        return runtimeBackendDefaults.backendApiKey ?? null;
-      }
-
-      const hasExplicitKey = Object.prototype.hasOwnProperty.call(state.settings, 'backendApiKey');
-      if (!hasExplicitKey) {
-        return runtimeBackendDefaults.backendApiKey ?? null;
-      }
-
-      return normaliseBackendApiKey(state.settings.backendApiKey ?? null);
-    },
-    rawSettings: (state): FrontendRuntimeSettings | null => state.settings,
-  },
-
-  actions: {
-    setSettings(partial: Partial<FrontendRuntimeSettings> = {}) {
-      const previousSettings: Partial<FrontendRuntimeSettings> = this.settings ?? {};
-
-      const hasBackendUrl = Object.prototype.hasOwnProperty.call(partial, 'backendUrl');
-      const backendUrlSource = hasBackendUrl
-        ? partial.backendUrl
-        : previousSettings.backendUrl ?? runtimeBackendDefaults.backendUrl;
-      const backendUrl = ensureBackendUrl(backendUrlSource);
-
-      const hasBackendApiKey = Object.prototype.hasOwnProperty.call(partial, 'backendApiKey');
-      const previousBackendApiKey = Object.prototype.hasOwnProperty.call(previousSettings, 'backendApiKey')
-        ? ensureBackendApiKey(previousSettings.backendApiKey)
-        : runtimeBackendDefaults.backendApiKey ?? null;
-      const backendApiKey = hasBackendApiKey
-        ? ensureBackendApiKey(partial.backendApiKey)
-        : previousBackendApiKey;
-
-      const merged: FrontendRuntimeSettings = {
-        ...(this.settings ?? {}),
-        ...partial,
-        backendUrl,
-        backendApiKey,
-      };
-
-      this.settings = merged;
-      this.isLoaded = true;
-    },
-
-    async loadSettings(force = false) {
-      if (this.isLoaded && !force) {
+  return {
+    promise,
+    resolve: () => {
+      if (resolved) {
         return;
       }
+      resolved = true;
+      resolveFn?.();
+      resolveFn = null;
+    },
+  };
+};
 
-      this.isLoading = true;
-      this.error = null;
+export const useSettingsStore = defineStore('app-settings', () => {
+  const settings = ref<FrontendRuntimeSettings | null>(null);
+  const isLoading = ref(false);
+  const isLoaded = ref(false);
+  const error = ref<unknown>(null);
 
-      try {
-        const { loadFrontendSettings } = await import('@/services/system/systemService');
-        const payload = await loadFrontendSettings();
-        if (!payload) {
-          throw new Error('Received empty settings response');
-        }
-        this.setSettings(payload);
-      } catch (error: unknown) {
-        this.error = error;
-        if (!this.isLoaded) {
-          this.setSettings({ backendUrl: runtimeBackendDefaults.backendUrl });
-        }
-        throw error;
-      } finally {
-        this.isLoading = false;
+  const backendEnvironmentReady = createDeferredPromise();
+
+  const backendUrl = computed<string>(() => {
+    if (!settings.value) {
+      return runtimeBackendDefaults.backendUrl;
+    }
+
+    const candidate = ensureBackendUrl(settings.value.backendUrl ?? runtimeBackendDefaults.backendUrl);
+    return candidate || runtimeBackendDefaults.backendUrl;
+  });
+
+  const backendApiKey = computed<string | null>(() => {
+    if (!settings.value) {
+      return runtimeBackendDefaults.backendApiKey ?? null;
+    }
+
+    const hasExplicitKey = Object.prototype.hasOwnProperty.call(settings.value, 'backendApiKey');
+    if (!hasExplicitKey) {
+      return runtimeBackendDefaults.backendApiKey ?? null;
+    }
+
+    return normaliseBackendApiKey(settings.value.backendApiKey ?? null);
+  });
+
+  const rawSettings = computed<FrontendRuntimeSettings | null>(() => settings.value);
+
+  const setSettings = (partial: Partial<FrontendRuntimeSettings> = {}) => {
+    const previousSettings: Partial<FrontendRuntimeSettings> = settings.value ?? {};
+
+    const hasBackendUrl = Object.prototype.hasOwnProperty.call(partial, 'backendUrl');
+    const backendUrlSource = hasBackendUrl
+      ? partial.backendUrl
+      : previousSettings.backendUrl ?? runtimeBackendDefaults.backendUrl;
+    const nextBackendUrl = ensureBackendUrl(backendUrlSource);
+
+    const hasBackendApiKey = Object.prototype.hasOwnProperty.call(partial, 'backendApiKey');
+    const previousBackendApiKey = Object.prototype.hasOwnProperty.call(previousSettings, 'backendApiKey')
+      ? ensureBackendApiKey(previousSettings.backendApiKey)
+      : runtimeBackendDefaults.backendApiKey ?? null;
+    const nextBackendApiKey = hasBackendApiKey ? ensureBackendApiKey(partial.backendApiKey) : previousBackendApiKey;
+
+    const merged: FrontendRuntimeSettings = {
+      ...(settings.value ?? {}),
+      ...partial,
+      backendUrl: nextBackendUrl,
+      backendApiKey: nextBackendApiKey,
+    };
+
+    settings.value = merged;
+    isLoaded.value = true;
+  };
+
+  const loadSettings = async (force = false) => {
+    if (isLoaded.value && !force) {
+      return;
+    }
+
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      const { loadFrontendSettings } = await import('@/services/system/systemService');
+      const payload = await loadFrontendSettings();
+      if (!payload) {
+        throw new Error('Received empty settings response');
       }
-    },
+      setSettings(payload);
+    } catch (err) {
+      error.value = err;
+      if (!isLoaded.value) {
+        setSettings({ backendUrl: runtimeBackendDefaults.backendUrl });
+      }
+      throw err;
+    } finally {
+      isLoading.value = false;
+    }
+  };
 
-    reset() {
-      this.settings = null;
-      this.isLoaded = false;
-      this.isLoading = false;
-      this.error = null;
+  const reset = () => {
+    settings.value = null;
+    isLoaded.value = false;
+    isLoading.value = false;
+    error.value = null;
+  };
+
+  watch(
+    backendUrl,
+    (next, previous) => {
+      if (next === previous) {
+        return;
+      }
+      emitBackendUrlChanged(next, previous ?? null);
     },
-  },
+    { flush: 'post' },
+  );
+
+  Promise.resolve().then(() => {
+    backendEnvironmentReady.resolve();
+  });
+
+  return {
+    settings,
+    isLoading,
+    isLoaded,
+    error,
+    backendUrl,
+    backendApiKey,
+    rawSettings,
+    setSettings,
+    loadSettings,
+    reset,
+    backendEnvironmentReadyPromise: backendEnvironmentReady.promise,
+  };
 });
 
 export type SettingsStore = ReturnType<typeof useSettingsStore>;
@@ -168,82 +225,15 @@ export const getResolvedBackendApiKey = (): string | null => getResolvedBackendS
 
 export type BackendUrlChangeHandler = (next: string, previous: string | null) => void;
 
-const backendUrlSubscribers = new Set<BackendUrlChangeHandler>();
-let backendUrlWatchStop: WatchStopHandle | null = null;
-let backendUrlWatchedStore: SettingsStore | null = null;
-let backendEnvironmentReadyPromise: Promise<void> | null = null;
-let resolveBackendEnvironmentReady: (() => void) | null = null;
-let backendUrlWatcherScope: EffectScope | null = null;
-
-const ensureBackendEnvironmentReadyPromise = (): Promise<void> => {
-  if (!backendEnvironmentReadyPromise) {
-    backendEnvironmentReadyPromise = new Promise<void>((resolve) => {
-      resolveBackendEnvironmentReady = resolve;
-    });
-  }
-  return backendEnvironmentReadyPromise;
-};
-
-const resolveBackendReady = () => {
-  if (resolveBackendEnvironmentReady) {
-    resolveBackendEnvironmentReady();
-    resolveBackendEnvironmentReady = null;
-  }
-};
-
-const ensureBackendUrlWatcher = (): SettingsStore => {
-  const store = useSettingsStore();
-
-  if (backendUrlWatcherScope && !backendUrlWatcherScope.active) {
-    backendUrlWatcherScope = null;
-    backendUrlWatchStop = null;
-    backendUrlWatchedStore = null;
-  }
-
-  if (backendUrlWatchedStore && backendUrlWatchedStore !== store) {
-    backendUrlWatchStop?.();
-    backendUrlWatchStop = null;
-    backendUrlWatchedStore = null;
-  }
-
-  if (backendUrlWatchStop) {
-    return store;
-  }
-
-  backendUrlWatcherScope?.stop();
-  backendUrlWatcherScope = effectScope(true);
-
-  backendUrlWatchedStore = store;
-  backendUrlWatcherScope.run(() => {
-    backendUrlWatchStop = watch(
-      () => store.backendUrl,
-      (next, previous) => {
-        if (next === previous) {
-          return;
-        }
-
-        for (const handler of backendUrlSubscribers) {
-          handler(next, previous ?? null);
-        }
-      },
-      { flush: 'post' },
-    );
-  });
-
-  ensureBackendEnvironmentReadyPromise();
-  Promise.resolve().then(() => {
-    resolveBackendReady();
-  });
-
-  return store;
-};
-
 export const onBackendUrlChange = (handler: BackendUrlChangeHandler): (() => void) => {
-  ensureBackendUrlWatcher();
-  backendUrlSubscribers.add(handler);
+  useSettingsStore();
+  const busHandler: BackendEnvironmentBusHandler = ({ next, previous }) => {
+    handler(next, previous);
+  };
+  subscribe(busHandler);
 
   return () => {
-    backendUrlSubscribers.delete(handler);
+    unsubscribe(busHandler);
   };
 };
 
@@ -253,11 +243,10 @@ export interface BackendEnvironmentBinding {
 }
 
 export const useBackendEnvironment = (): BackendEnvironmentBinding => {
-  const readyPromise = ensureBackendEnvironmentReadyPromise();
-  ensureBackendUrlWatcher();
+  const store = useSettingsStore();
 
   return {
-    readyPromise,
+    readyPromise: store.backendEnvironmentReadyPromise,
     onBackendUrlChange,
   };
 };

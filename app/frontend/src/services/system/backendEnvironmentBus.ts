@@ -1,8 +1,12 @@
 import { onScopeDispose } from 'vue';
 
-// Access settings store directly to avoid circular dependencies when importing from the stores barrel.
 // eslint-disable-next-line no-restricted-imports
-import { useBackendEnvironment, type BackendUrlChangeHandler } from '@/stores/settings';
+import type { BackendUrlChangeHandler } from '@/stores/settings';
+import {
+  subscribe as subscribeToBackendEnvironmentBus,
+  unsubscribe as unsubscribeFromBackendEnvironmentBus,
+  type BackendEnvironmentBusHandler,
+} from './backendEnvironmentEventBus';
 
 export interface BackendEnvironmentSubscription {
   start(): void;
@@ -14,24 +18,26 @@ export interface BackendEnvironmentSubscription {
 export const createBackendEnvironmentSubscription = (
   handler: BackendUrlChangeHandler,
 ): BackendEnvironmentSubscription => {
-  const backendEnvironment = useBackendEnvironment();
-  let stop: (() => void) | null = null;
+  let isSubscribed = false;
+
+  const busHandler: BackendEnvironmentBusHandler = ({ next, previous }) => {
+    void handler(next, previous);
+  };
 
   const start = () => {
-    if (stop) {
+    if (isSubscribed) {
       return;
     }
-    stop = backendEnvironment.onBackendUrlChange((next, previous) => {
-      void handler(next, previous);
-    });
+    subscribeToBackendEnvironmentBus(busHandler);
+    isSubscribed = true;
   };
 
   const stopSubscription = () => {
-    if (!stop) {
+    if (!isSubscribed) {
       return;
     }
-    stop();
-    stop = null;
+    unsubscribeFromBackendEnvironmentBus(busHandler);
+    isSubscribed = false;
   };
 
   const restart = () => {
@@ -39,7 +45,7 @@ export const createBackendEnvironmentSubscription = (
     start();
   };
 
-  const isActive = () => stop != null;
+  const isActive = () => isSubscribed;
 
   return {
     start,
