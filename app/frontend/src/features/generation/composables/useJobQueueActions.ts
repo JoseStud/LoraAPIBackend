@@ -1,7 +1,7 @@
 import { ref, unref, type MaybeRefOrGetter } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { cancelGenerationJob } from '@/services';
+import { cancelGenerationJob } from '@/features/generation/services';
 import { useGenerationQueueStore } from '@/features/generation';
 import { useNotifications } from '@/composables/shared';
 import { useBackendBase } from '@/utils/backend';

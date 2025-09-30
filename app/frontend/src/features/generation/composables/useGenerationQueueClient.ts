@@ -6,7 +6,7 @@ import {
   parseGenerationJobStatuses,
   parseGenerationResults,
   type GenerationQueueClient,
-} from '@/services';
+} from '@/features/generation/services';
 import type {
   GenerationJobStatus,
   GenerationRequestPayload,

@@ -4,7 +4,7 @@ import {
   createGenerationWebSocketManager,
   ensureArray,
   type GenerationWebSocketManager,
-} from '@/services';
+} from '@/features/generation/services';
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,

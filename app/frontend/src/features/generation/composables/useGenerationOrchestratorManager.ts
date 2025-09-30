@@ -9,7 +9,7 @@ import type { GenerationNotificationAdapter } from './useGenerationTransport';
 import type {
   GenerationQueueClient,
   GenerationWebSocketManager,
-} from '@/services';
+} from '@/features/generation/services';
 import {
   useGenerationConnectionStore,
   useGenerationQueueStore,
