@@ -1,2 +1,2 @@
-export { LoraGallery, useAdapterCatalogStore, fetchTopAdapters } from './public';
+export { LoraGallery, useAdapterCatalogStore, useAdapterSummaries, fetchTopAdapters } from './public';
 export type { AdapterCatalogStore } from './public';
