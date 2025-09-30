@@ -5,7 +5,6 @@ import { ApiError } from '@/composables/shared';
 import { fetchSystemStatus, useBackendClient, type BackendClient } from '@/services';
 import { resolveBackendBaseUrl } from '@/utils/backend';
 import { useGenerationConnectionStore } from './connection';
-import { useGenerationOrchestratorManagerStore } from './orchestratorManagerStore';
 
 const DEFAULT_POLL_INTERVAL = 10_000;
 
@@ -169,14 +168,25 @@ const resolveControllerKey = (
   return DEFAULT_CONTROLLER_KEY;
 };
 
-const getOrchestratorManagerStore = () => useGenerationOrchestratorManagerStore();
+const controllerRegistry = new Map<string, { controller: SystemStatusController; consumers: number }>();
 
 const resolveController = (
   options?: AcquireSystemStatusControllerOptions,
-): SystemStatusController =>
-  getOrchestratorManagerStore().resolveController(resolveControllerKey(options), () =>
-    createController(createBackendClientResolver(options)),
-  );
+): SystemStatusController => {
+  const key = resolveControllerKey(options);
+  const existing = controllerRegistry.get(key);
+  if (existing) {
+    return existing.controller;
+  }
+
+  const entry = {
+    controller: createController(createBackendClientResolver(options)),
+    consumers: 0,
+  };
+
+  controllerRegistry.set(key, entry);
+  return entry.controller;
+};
 
 export const useSystemStatusController = (
   options?: AcquireSystemStatusControllerOptions,
@@ -184,9 +194,41 @@ export const useSystemStatusController = (
 
 export const acquireSystemStatusController = (
   options?: AcquireSystemStatusControllerOptions,
-): SystemStatusControllerHandle =>
-  getOrchestratorManagerStore().acquireController(resolveControllerKey(options), () =>
-    createController(createBackendClientResolver(options)),
-  );
+): SystemStatusControllerHandle => {
+  const key = resolveControllerKey(options);
+  let entry = controllerRegistry.get(key);
+
+  if (!entry) {
+    entry = {
+      controller: createController(createBackendClientResolver(options)),
+      consumers: 0,
+    };
+    controllerRegistry.set(key, entry);
+  }
+
+  entry.consumers += 1;
+
+  if (entry.consumers === 1) {
+    entry.controller.start();
+  }
+
+  let released = false;
+
+  const release = (): void => {
+    if (released) {
+      return;
+    }
+
+    released = true;
+    entry!.consumers = Math.max(0, entry!.consumers - 1);
+
+    if (entry!.consumers === 0) {
+      entry!.controller.stop();
+      controllerRegistry.delete(key);
+    }
+  };
+
+  return { controller: entry.controller, release };
+};
 
 export default useSystemStatusController;

@@ -1,20 +1,14 @@
 import { type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import {
-  createGenerationOrchestratorFactory,
-  type GenerationOrchestrator,
-} from './createGenerationOrchestrator';
 import type { GenerationNotificationAdapter } from './useGenerationTransport';
 import type { GenerationQueueClient } from '../services/queueClient';
 import type { GenerationWebSocketManager } from '../services/websocketManager';
-import { useGenerationConnectionStore } from '../stores/connection';
-import { useGenerationQueueStore } from '../stores/queue';
-import { useGenerationResultsStore } from '../stores/results';
 import {
   useGenerationOrchestratorManagerStore,
   type GenerationOrchestratorConsumer,
 } from '../stores/orchestratorManagerStore';
+import { useGenerationOrchestratorStore } from '../stores/useGenerationOrchestratorStore';
 import { useGenerationStudioUiStore } from '../stores/ui';
 import { useSettingsStore } from '@/stores';
 import type {
@@ -36,21 +30,15 @@ export interface UseGenerationOrchestratorManagerDependencies {
   useGenerationOrchestratorManagerStore: () => ReturnType<
     typeof useGenerationOrchestratorManagerStore
   >;
+  useGenerationOrchestratorStore: () => ReturnType<typeof useGenerationOrchestratorStore>;
   useGenerationStudioUiStore: () => ReturnType<typeof useGenerationStudioUiStore>;
-  useGenerationQueueStore: () => ReturnType<typeof useGenerationQueueStore>;
-  useGenerationResultsStore: () => ReturnType<typeof useGenerationResultsStore>;
-  useGenerationConnectionStore: () => ReturnType<
-    typeof useGenerationConnectionStore
-  >;
   useSettingsStore: () => ReturnType<typeof useSettingsStore>;
 }
 
 const defaultDependencies: UseGenerationOrchestratorManagerDependencies = {
   useGenerationOrchestratorManagerStore,
+  useGenerationOrchestratorStore,
   useGenerationStudioUiStore,
-  useGenerationQueueStore,
-  useGenerationResultsStore,
-  useGenerationConnectionStore,
   useSettingsStore,
 };
 
@@ -74,58 +62,21 @@ export interface GenerationOrchestratorBinding {
   release: () => void;
 }
 
-const createOrchestratorFactory = (
-  options: GenerationOrchestratorAcquireOptions,
-  context: {
-    showHistory: Ref<boolean>;
-    configuredBackendUrl: Ref<string | null | undefined>;
-    queueStoreReturn: ReturnType<typeof useGenerationQueueStore>;
-    resultsStoreReturn: ReturnType<typeof useGenerationResultsStore>;
-    connectionStoreReturn: ReturnType<typeof useGenerationConnectionStore>;
-    historyLimit: Ref<number>;
-    pollIntervalMs: Ref<number>;
-  },
-  notifyAll: GenerationNotificationAdapter['notify'],
-  debugAll: GenerationNotificationAdapter['debug'],
-): GenerationOrchestrator =>
-  createGenerationOrchestratorFactory({
-    showHistory: context.showHistory,
-    configuredBackendUrl: context.configuredBackendUrl,
-    notificationAdapter: {
-      notify: notifyAll,
-      debug: debugAll,
-    },
-    queueStore: context.queueStoreReturn,
-    resultsStore: context.resultsStoreReturn,
-    connectionStore: context.connectionStoreReturn,
-    historyLimit: context.historyLimit,
-    pollIntervalMs: context.pollIntervalMs,
-    queueClient: options.queueClient,
-    websocketManager: options.websocketManager,
-  });
-
 export const createUseGenerationOrchestratorManager = (
   dependencies: UseGenerationOrchestratorManagerDependencies = defaultDependencies,
 ) => () => {
   const orchestratorManagerStore = dependencies.useGenerationOrchestratorManagerStore();
-  const {
-    orchestrator: orchestratorRef,
-    initializationPromise,
-    isInitialized,
-    consumers,
-  } = storeToRefs(orchestratorManagerStore);
+  const orchestratorStore = dependencies.useGenerationOrchestratorStore();
+  const { initializationPromise, isInitialized, consumers } = storeToRefs(orchestratorManagerStore);
 
   const uiStore = dependencies.useGenerationStudioUiStore();
-  const queueStore = dependencies.useGenerationQueueStore();
-  const resultsStore = dependencies.useGenerationResultsStore();
-  const connectionStore = dependencies.useGenerationConnectionStore();
   const settingsStore = dependencies.useSettingsStore();
 
   const { showHistory } = storeToRefs(uiStore);
   const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
-  const { historyLimit, recentResults } = storeToRefs(resultsStore);
-  const { pollIntervalMs, systemStatus, isConnected } = storeToRefs(connectionStore);
-  const { activeJobs, sortedActiveJobs } = storeToRefs(queueStore);
+  const { recentResults, systemStatus, isConnected, activeJobs, sortedActiveJobs } = storeToRefs(
+    orchestratorStore,
+  );
 
   const notifyAll: GenerationNotificationAdapter['notify'] = (
     message,
@@ -142,40 +93,29 @@ export const createUseGenerationOrchestratorManager = (
     });
   };
 
-  const ensureOrchestrator = (
-    options: GenerationOrchestratorAcquireOptions,
-  ): GenerationOrchestrator =>
-    orchestratorManagerStore.ensureOrchestrator(() =>
-      createOrchestratorFactory(
-        options,
-        {
-          showHistory,
-          configuredBackendUrl,
-          queueStoreReturn: queueStore,
-          resultsStoreReturn: resultsStore,
-          connectionStoreReturn: connectionStore,
-          historyLimit,
-          pollIntervalMs,
-        },
-        notifyAll,
-        debugAll,
-      ),
-    );
+  const ensureOrchestrator = (): ReturnType<typeof useGenerationOrchestratorStore> =>
+    orchestratorManagerStore.ensureOrchestrator(() => orchestratorStore);
 
-  const ensureInitialized = async (): Promise<void> => {
+  const ensureInitialized = async (
+    options: GenerationOrchestratorAcquireOptions,
+  ): Promise<void> => {
     if (isInitialized.value) {
       return;
     }
 
-    const orchestrator = orchestratorRef.value;
-
-    if (!orchestrator) {
-      throw new Error('Generation orchestrator has not been created yet');
-    }
-
     if (!initializationPromise.value) {
+      const orchestrator = ensureOrchestrator();
       const promise = orchestrator
-        .initialize()
+        .initialize({
+          showHistory,
+          configuredBackendUrl,
+          notificationAdapter: {
+            notify: notifyAll,
+            debug: debugAll,
+          },
+          queueClient: options.queueClient,
+          websocketManager: options.websocketManager,
+        })
         .then(() => {
           isInitialized.value = true;
         })
@@ -200,10 +140,7 @@ export const createUseGenerationOrchestratorManager = (
 
     orchestratorManagerStore.unregisterConsumer(id);
 
-    if (
-      consumers.value.size === 0 &&
-      orchestratorRef.value
-    ) {
+    if (consumers.value.size === 0) {
       orchestratorManagerStore.destroyOrchestrator();
     }
   };
@@ -217,21 +154,13 @@ export const createUseGenerationOrchestratorManager = (
       debug: options.debug,
     };
 
-    const orchestrator = (() => {
-      try {
-        const created = ensureOrchestrator(options);
-        orchestratorManagerStore.registerConsumer(consumer);
-        return created;
-      } catch (error) {
-        orchestratorManagerStore.unregisterConsumer(consumer.id);
-        throw error;
-      }
-    })();
+    const orchestrator = ensureOrchestrator();
+    orchestratorManagerStore.registerConsumer(consumer);
 
     const loadSystemStatusData = (): Promise<void> => orchestrator.loadSystemStatusData();
     const loadActiveJobsData = (): Promise<void> => orchestrator.loadActiveJobsData();
     const loadRecentResultsData = (notifySuccess?: boolean): Promise<void> =>
-      orchestrator.loadRecentResultsData(notifySuccess);
+      orchestrator.loadRecentResults(notifySuccess);
     const startGeneration = (payload: GenerationRequestPayload): Promise<GenerationStartResponse> =>
       orchestrator.startGeneration(payload);
     const cancelJob = (jobId: string): Promise<void> => orchestrator.cancelJob(jobId);
@@ -239,10 +168,10 @@ export const createUseGenerationOrchestratorManager = (
     const deleteResult = (resultId: string | number): Promise<void> =>
       orchestrator.deleteResult(resultId);
     const refreshResults = (notifySuccess = false): Promise<void> =>
-      orchestrator.loadRecentResultsData(notifySuccess);
+      orchestrator.loadRecentResults(notifySuccess);
 
     const initialize = async (): Promise<void> => {
-      await ensureInitialized();
+      await ensureInitialized(options);
     };
 
     const cleanup = (): void => {
@@ -265,7 +194,7 @@ export const createUseGenerationOrchestratorManager = (
       clearQueue,
       deleteResult,
       refreshResults,
-      canCancelJob: (job: GenerationJob) => queueStore.isJobCancellable(job),
+      canCancelJob: (job: GenerationJob) => orchestrator.isJobCancellable(job),
       release: () => {
         releaseConsumer(consumer.id);
       },
