@@ -86,6 +86,10 @@ export default defineConfig(({ mode }) => {
       find: '@',
       replacement: srcDirectory,
     },
+    {
+      find: '@/features',
+      replacement: fileURLToPath(new URL('./app/frontend/src/features', import.meta.url)),
+    },
   ];
 
   if (mode === 'test') {

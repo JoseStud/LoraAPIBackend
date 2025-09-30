@@ -1,7 +1,7 @@
 import { onUnmounted, watch, type Ref } from 'vue'
 
 import { PERSISTENCE_KEYS, useDialogService, usePersistence } from '@/composables/shared'
-import { useGenerationFormStore } from '@/stores/generation'
+import { useGenerationFormStore } from '@/features/generation'
 import type { GenerationFormState, NotificationType } from '@/types'
 
 const RANDOM_PROMPTS: readonly string[] = [

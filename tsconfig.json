@@ -3,7 +3,8 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["app/frontend/src/*"]
+      "@/*": ["app/frontend/src/*"],
+      "@/features/*": ["app/frontend/src/features/*"]
     },
     "types": ["vite/client"],
     "allowJs": false,

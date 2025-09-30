@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
 
-import GenerationStudio from '@/components/generation/GenerationStudio.vue';
+import { GenerationStudio } from '@/features/generation';
 import JobQueue from '@/components/shared/JobQueue.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import RecommendationsPanel from '@/components/recommendations/RecommendationsPanel.vue';

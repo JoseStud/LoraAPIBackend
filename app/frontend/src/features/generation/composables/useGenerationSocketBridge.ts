@@ -12,7 +12,7 @@ import type {
   SystemStatusPayload,
   SystemStatusState,
 } from '@/types';
-import type { GenerationJobInput } from '@/stores/generation';
+import type { GenerationJobInput } from '@/features/generation';
 
 interface SocketBridgeOptions {
   getBackendUrl: () => string | null | undefined;

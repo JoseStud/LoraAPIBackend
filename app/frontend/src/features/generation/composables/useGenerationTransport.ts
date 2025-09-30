@@ -13,7 +13,7 @@ import type {
   SystemStatusState,
   NotificationType,
 } from '@/types';
-import type { GenerationJobInput } from '@/stores/generation';
+import type { GenerationJobInput } from '@/features/generation';
 
 import { useGenerationQueueClient } from './useGenerationQueueClient';
 import { useGenerationSocketBridge } from './useGenerationSocketBridge';
