@@ -15,8 +15,6 @@ import {
   useGenerationFormStore,
   useGenerationQueueStore,
   useGenerationResultsStore,
-} from '@/stores/generation';
-import {
   useGenerationOrchestratorManagerStore,
   type GenerationOrchestratorConsumer,
 } from '@/stores/generation';
@@ -35,6 +33,28 @@ export interface GenerationOrchestratorAcquireOptions {
   queueClient?: GenerationQueueClient;
   websocketManager?: GenerationWebSocketManager;
 }
+
+export interface UseGenerationOrchestratorManagerDependencies {
+  useGenerationOrchestratorManagerStore: () => ReturnType<
+    typeof useGenerationOrchestratorManagerStore
+  >;
+  useGenerationFormStore: () => ReturnType<typeof useGenerationFormStore>;
+  useGenerationQueueStore: () => ReturnType<typeof useGenerationQueueStore>;
+  useGenerationResultsStore: () => ReturnType<typeof useGenerationResultsStore>;
+  useGenerationConnectionStore: () => ReturnType<
+    typeof useGenerationConnectionStore
+  >;
+  useSettingsStore: () => ReturnType<typeof useSettingsStore>;
+}
+
+const defaultDependencies: UseGenerationOrchestratorManagerDependencies = {
+  useGenerationOrchestratorManagerStore,
+  useGenerationFormStore,
+  useGenerationQueueStore,
+  useGenerationResultsStore,
+  useGenerationConnectionStore,
+  useSettingsStore,
+};
 
 export interface GenerationOrchestratorBinding {
   activeJobs: Ref<GenerationJob[]>;
@@ -86,8 +106,10 @@ const createOrchestratorFactory = (
     websocketManager: options.websocketManager,
   });
 
-export const useGenerationOrchestratorManager = () => {
-  const orchestratorManagerStore = useGenerationOrchestratorManagerStore();
+export const createUseGenerationOrchestratorManager = (
+  dependencies: UseGenerationOrchestratorManagerDependencies = defaultDependencies,
+) => () => {
+  const orchestratorManagerStore = dependencies.useGenerationOrchestratorManagerStore();
   const {
     orchestrator: orchestratorRef,
     initializationPromise,
@@ -95,11 +117,11 @@ export const useGenerationOrchestratorManager = () => {
     consumers,
   } = storeToRefs(orchestratorManagerStore);
 
-  const formStore = useGenerationFormStore();
-  const queueStore = useGenerationQueueStore();
-  const resultsStore = useGenerationResultsStore();
-  const connectionStore = useGenerationConnectionStore();
-  const settingsStore = useSettingsStore();
+  const formStore = dependencies.useGenerationFormStore();
+  const queueStore = dependencies.useGenerationQueueStore();
+  const resultsStore = dependencies.useGenerationResultsStore();
+  const connectionStore = dependencies.useGenerationConnectionStore();
+  const settingsStore = dependencies.useSettingsStore();
 
   const { showHistory } = storeToRefs(formStore);
   const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
@@ -246,6 +268,8 @@ export const useGenerationOrchestratorManager = () => {
     acquire,
   };
 };
+
+export const useGenerationOrchestratorManager = createUseGenerationOrchestratorManager();
 
 export type UseGenerationOrchestratorManagerReturn = ReturnType<
   typeof useGenerationOrchestratorManager
