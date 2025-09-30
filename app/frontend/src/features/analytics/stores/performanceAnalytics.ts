@@ -1,12 +1,8 @@
 import { computed, onScopeDispose, ref } from 'vue';
 import { defineStore } from 'pinia';
 
-import {
-  exportAnalyticsReport,
-  fetchPerformanceAnalytics,
-  fetchTopAdapters,
-  useBackendClient,
-} from '@/services';
+import { fetchTopAdapters, useBackendClient } from '@/services';
+import { exportAnalyticsReport, fetchPerformanceAnalytics } from '@/features/analytics/services';
 import { formatDuration as formatDurationLabel } from '@/utils/format';
 import { useBackendEnvironment } from '@/stores';
 

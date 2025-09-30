@@ -8,7 +8,7 @@ import {
 import type {
   GenerationQueueClient,
   GenerationWebSocketManager,
-} from '@/services';
+} from '@/features/generation/services';
 import type {
   GenerationJob,
   GenerationRequestPayload,

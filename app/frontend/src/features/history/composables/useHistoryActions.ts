@@ -3,6 +3,7 @@ import type { Router } from 'vue-router';
 
 import { PERSISTENCE_KEYS, usePersistence } from '@/composables/shared';
 import { downloadFile } from '@/utils/browser';
+import { useBackendClient } from '@/services';
 import {
   deleteResult as deleteHistoryResult,
   deleteResults as deleteHistoryResults,
@@ -11,8 +12,7 @@ import {
   favoriteResult as favoriteHistoryResult,
   favoriteResults as favoriteHistoryResults,
   rateResult as rateHistoryResult,
-  useBackendClient,
-} from '@/services';
+} from '@/features/history/services';
 import type { GenerationHistoryResult, NotificationType } from '@/types';
 
 export interface UseHistoryActionsOptions {
