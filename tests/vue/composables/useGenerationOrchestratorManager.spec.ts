@@ -189,6 +189,25 @@ describe('createUseGenerationOrchestratorManager', () => {
     vi.clearAllMocks();
   });
 
+  it('rethrows factory errors without retaining consumers', () => {
+    const { dependencies, orchestratorManagerStore } = createDependencies();
+    const error = new Error('factory failed');
+
+    orchestratorManagerStore.ensureOrchestrator = vi
+      .fn((factory: () => GenerationOrchestrator) => {
+        factory();
+        throw error;
+      }) as GenerationOrchestratorManagerStore['ensureOrchestrator'];
+
+    const useManager = createUseGenerationOrchestratorManager(dependencies);
+    const manager = useManager();
+
+    expect(() => manager.acquire({ notify: vi.fn() })).toThrowError(error);
+    expect(orchestratorManagerStore.registerConsumer).not.toHaveBeenCalled();
+    expect(orchestratorManagerStore.unregisterConsumer).toHaveBeenCalledTimes(1);
+    expect(orchestratorManagerStore.consumers.value.size).toBe(0);
+  });
+
   it('initializes orchestrator once and updates manager state', async () => {
     const { binding, orchestrator, stores } = createBinding();
 
