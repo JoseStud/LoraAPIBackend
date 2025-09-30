@@ -82,7 +82,7 @@ export interface GenerationJobStatus {
   progress: number;
   message?: string | null;
   error?: string | null;
-  params?: JsonObject;
+  params?: JsonObject | null;
   created_at: string;
   startTime?: string | null;
   finished_at?: string | null;
