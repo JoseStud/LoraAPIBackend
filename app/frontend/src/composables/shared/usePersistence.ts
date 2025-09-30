@@ -1,10 +1,20 @@
-import type { PersistenceKey } from '@/constants/persistence';
-
 interface StorageLike {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
 }
+
+export const PERSISTENCE_KEYS = {
+  historyViewMode: 'history-view-mode',
+  reuseParameters: 'reuse-parameters',
+  generationParams: 'generation_params',
+  generationPresets: 'generationPresets',
+  composerPrompt: 'composerPrompt',
+  loraGalleryViewMode: 'loraViewMode',
+} as const;
+
+export type PersistenceKey =
+  (typeof PERSISTENCE_KEYS)[keyof typeof PERSISTENCE_KEYS];
 
 const resolveStorage = (): StorageLike | null => {
   if (typeof window === 'undefined') {

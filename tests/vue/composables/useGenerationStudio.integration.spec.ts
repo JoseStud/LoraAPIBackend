@@ -6,7 +6,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useGenerationStudio } from '@/composables/generation/useGenerationStudio'
 import { useGenerationFormStore } from '@/stores/generation'
 import type { UseGenerationStudioReturn } from '@/composables/generation'
-import { PERSISTENCE_KEYS } from '@/constants/persistence'
+import { PERSISTENCE_KEYS } from '@/composables/shared'
 
 const orchestratorBindingMocks = vi.hoisted(() => {
   const { ref } = require('vue')

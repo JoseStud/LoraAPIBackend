@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { usePersistence } from '../../app/frontend/src/composables/shared/usePersistence';
-import { PERSISTENCE_KEYS } from '../../app/frontend/src/constants/persistence';
+import {
+  PERSISTENCE_KEYS,
+  usePersistence,
+} from '../../app/frontend/src/composables/shared/usePersistence';
 
 describe('usePersistence', () => {
   it('gracefully handles missing storage adapters', () => {

@@ -13,7 +13,7 @@ import {
   useGenerationQueueStore,
   useGenerationResultsStore,
 } from '../../app/frontend/src/stores/generation'
-import { PERSISTENCE_KEYS } from '../../app/frontend/src/constants/persistence'
+import { PERSISTENCE_KEYS } from '../../app/frontend/src/composables/shared/usePersistence'
 
 const mockStatusController = vi.hoisted(() => ({
   ensureHydrated: vi.fn().mockResolvedValue(undefined),

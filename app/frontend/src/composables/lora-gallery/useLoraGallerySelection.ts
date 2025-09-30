@@ -2,8 +2,7 @@ import { computed, ref, watch } from 'vue';
 import type { Ref } from 'vue';
 
 import { useLoraSelection } from './useLoraSelection';
-import { usePersistence } from '@/composables/shared';
-import { PERSISTENCE_KEYS } from '@/constants/persistence';
+import { PERSISTENCE_KEYS, usePersistence } from '@/composables/shared';
 import type { GalleryLora, LoraGallerySelectionState } from '@/types';
 
 export function useLoraGallerySelection(filteredLoras: Ref<GalleryLora[]>) {
