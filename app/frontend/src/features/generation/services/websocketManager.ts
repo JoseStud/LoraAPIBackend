@@ -1,3 +1,4 @@
+import { generationPollingConfig } from '../config/polling';
 import { resolveGenerationBaseUrl } from './generationService';
 import { ensureArray } from './validation';
 import type {
@@ -9,7 +10,7 @@ import type {
   WebSocketMessage,
 } from '@/types';
 
-const RECONNECT_DELAY = 3000;
+const RECONNECT_DELAY = generationPollingConfig.websocketRetryMs;
 
 const appendWebSocketPath = (path: string): string => {
   const trimmed = path.replace(/\/+$/, '');

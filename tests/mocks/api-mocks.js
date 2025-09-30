@@ -4,6 +4,9 @@
  */
 
 import { afterEach, beforeEach, vi } from 'vitest';
+import { generationPollingConfig } from '../../app/frontend/src/features/generation/config/polling';
+
+const defaultGenerationPolling = generationPollingConfig.resolve();
 
 // Mock fetch globally for all tests
 global.fetch = vi.fn();
@@ -499,6 +502,7 @@ const apiMocks = {
 
     'GET /frontend/settings': () => ({
         backendUrl: '/api/v1',
+        generationPolling: defaultGenerationPolling,
         features: {
             enableRecommendations: true,
             enableImportExport: true,

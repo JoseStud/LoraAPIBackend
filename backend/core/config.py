@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     SDNEXT_DEFAULT_CFG_SCALE: float = 7.0
     SDNEXT_OUTPUT_DIR: Optional[str] = None  # local storage for generated images
 
+    # Generation polling intervals (milliseconds)
+    GENERATION_QUEUE_POLL_INTERVAL_MS: int = Field(default=2_000, gt=0)
+    GENERATION_WEBSOCKET_RETRY_INTERVAL_MS: int = Field(default=3_000, gt=0)
+    GENERATION_SYSTEM_STATUS_POLL_INTERVAL_MS: int = Field(default=10_000, gt=0)
+
     # CORS settings for backend API
     CORS_ORIGINS: List[str] = Field(
         default_factory=lambda: [

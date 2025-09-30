@@ -1,7 +1,7 @@
 import { reactive, ref } from 'vue';
 import { defineStore } from 'pinia';
 
-import { DEFAULT_POLL_INTERVAL } from '../services/updates';
+import { generationPollingConfig } from '../config/polling';
 import type { SystemStatusPayload, SystemStatusState } from '@/types';
 
 export const DEFAULT_SYSTEM_STATUS: SystemStatusState = {
@@ -20,7 +20,7 @@ export const createDefaultSystemStatus = (): SystemStatusState => ({
 export const useGenerationConnectionStore = defineStore('generation-connection', () => {
   const systemStatus = reactive<SystemStatusState>(createDefaultSystemStatus());
   const isConnected = ref(false);
-  const pollIntervalMs = ref(DEFAULT_POLL_INTERVAL);
+  const pollIntervalMs = ref(generationPollingConfig.queueMs);
   const systemStatusReady = ref(false);
   const systemStatusLastUpdated = ref<Date | null>(null);
   const systemStatusApiAvailable = ref(true);
@@ -32,7 +32,9 @@ export const useGenerationConnectionStore = defineStore('generation-connection',
 
   function setPollInterval(interval: number): void {
     const numeric = Math.floor(Number(interval));
-    pollIntervalMs.value = Number.isFinite(numeric) && numeric > 0 ? numeric : DEFAULT_POLL_INTERVAL;
+    pollIntervalMs.value = Number.isFinite(numeric) && numeric > 0
+      ? numeric
+      : generationPollingConfig.queueMs;
   }
 
   function updateSystemStatus(status: Partial<SystemStatusState>): void {
@@ -78,7 +80,7 @@ export const useGenerationConnectionStore = defineStore('generation-connection',
   function reset(): void {
     resetSystemStatus();
     isConnected.value = false;
-    pollIntervalMs.value = DEFAULT_POLL_INTERVAL;
+    pollIntervalMs.value = generationPollingConfig.queueMs;
     queueManagerActive.value = false;
   }
 

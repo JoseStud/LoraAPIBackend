@@ -102,9 +102,15 @@ SPA_STATIC_APP = SPAStaticFiles(SPA_DIST_DIR)
 async def frontend_settings():
     """Expose runtime configuration for the Vue SPA."""
     backend_url = _normalise_public_api_url(backend_settings.BACKEND_URL)
+    polling_config = {
+        "queueMs": backend_settings.GENERATION_QUEUE_POLL_INTERVAL_MS,
+        "websocketRetryMs": backend_settings.GENERATION_WEBSOCKET_RETRY_INTERVAL_MS,
+        "systemStatusMs": backend_settings.GENERATION_SYSTEM_STATUS_POLL_INTERVAL_MS,
+    }
     return {
         "backendUrl": backend_url,
         "backendApiKey": backend_settings.API_KEY or None,
+        "generationPolling": polling_config,
     }
 
 
