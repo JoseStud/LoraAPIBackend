@@ -6,6 +6,7 @@ import {
   type GenerationQueueClient,
 } from '@/services/generation/updates';
 import type {
+  GenerationJobStatus,
   GenerationRequestPayload,
   GenerationResult,
   GenerationStartResponse,
@@ -14,8 +15,45 @@ import type {
   SystemStatusState,
 } from '@/types';
 import type { GenerationJobInput } from '@/stores/generation';
+import {
+  GenerationJobStatusSchema,
+  GenerationResultSchema,
+  SystemStatusPayloadSchema,
+} from '@/schemas';
+import { normalizeJobStatus } from '@/utils/status';
 
 const ensureArray = <T>(value: unknown): T[] => (Array.isArray(value) ? value : []);
+
+const logValidationIssues = (
+  context: string,
+  error: unknown,
+  payload: unknown,
+) => {
+  if (error && typeof error === 'object' && 'issues' in error) {
+    console.warn(`[generation] ${context} validation failed`, {
+      issues: (error as { issues: unknown }).issues,
+      payload,
+    });
+  } else {
+    console.warn(`[generation] ${context} validation failed`, { payload, error });
+  }
+};
+
+const toQueueJobInput = (status: GenerationJobStatus): GenerationJobInput => ({
+  id: status.id,
+  jobId: status.jobId ?? undefined,
+  prompt: status.prompt ?? undefined,
+  name: status.name ?? undefined,
+  status: normalizeJobStatus(status.status),
+  progress: status.progress,
+  message: status.message ?? undefined,
+  params: status.params ?? null,
+  result: status.result ?? null,
+  error: status.error ?? undefined,
+  created_at: status.created_at,
+  startTime: status.startTime ?? undefined,
+  finished_at: status.finished_at ?? undefined,
+});
 
 interface QueueClientOptions {
   getBackendUrl: () => string | null | undefined;
@@ -64,7 +102,12 @@ export const useGenerationQueueClient = (
     try {
       const status = await getQueueClient().fetchSystemStatus();
       if (status) {
-        callbacks.onSystemStatus?.(status);
+        const parsed = SystemStatusPayloadSchema.safeParse(status);
+        if (parsed.success) {
+          callbacks.onSystemStatus?.(parsed.data);
+        } else {
+          logValidationIssues('system status', parsed.error, status);
+        }
       }
     } catch (error) {
       console.error('Failed to refresh system status:', error);
@@ -75,7 +118,16 @@ export const useGenerationQueueClient = (
   const refreshActiveJobs = async (): Promise<void> => {
     try {
       const active = await getQueueClient().fetchActiveJobs();
-      callbacks.onQueueUpdate?.(ensureArray<GenerationJobInput>(active));
+      const normalized: GenerationJobInput[] = [];
+      ensureArray<GenerationJobStatus>(active).forEach((entry, index) => {
+        const parsed = GenerationJobStatusSchema.safeParse(entry);
+        if (parsed.success) {
+          normalized.push(toQueueJobInput(parsed.data));
+        } else {
+          logValidationIssues(`active job #${index}`, parsed.error, entry);
+        }
+      });
+      callbacks.onQueueUpdate?.(normalized);
     } catch (error) {
       console.error('Failed to refresh active jobs:', error);
       throw error;
@@ -85,7 +137,16 @@ export const useGenerationQueueClient = (
   const refreshRecentResults = async (limit: number, notifySuccess = false): Promise<void> => {
     try {
       const recent = await getQueueClient().fetchRecentResults(limit);
-      callbacks.onRecentResults?.(ensureArray(recent));
+      const normalized: GenerationResult[] = [];
+      ensureArray<GenerationResult>(recent).forEach((entry, index) => {
+        const parsed = GenerationResultSchema.safeParse(entry);
+        if (parsed.success) {
+          normalized.push(parsed.data);
+        } else {
+          logValidationIssues(`recent result #${index}`, parsed.error, entry);
+        }
+      });
+      callbacks.onRecentResults?.(normalized);
       if (notifySuccess) {
         notify('Results refreshed', 'success');
       }

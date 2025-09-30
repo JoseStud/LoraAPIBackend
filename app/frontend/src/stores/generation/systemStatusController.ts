@@ -2,7 +2,8 @@ import { computed, ref, type ComputedRef } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { ApiError } from '@/composables/shared';
-import { fetchSystemStatus, useBackendClient } from '@/services';
+import { fetchSystemStatus, useBackendClient, type BackendClient } from '@/services';
+import { resolveBackendBaseUrl } from '@/utils/backend';
 import { useGenerationConnectionStore } from '@/stores/generation';
 
 const DEFAULT_POLL_INTERVAL = 10_000;
@@ -20,20 +21,50 @@ export interface SystemStatusControllerHandle {
   release: () => void;
 }
 
-interface ControllerState {
-  instance: SystemStatusController | null;
+interface ControllerEntry {
+  controller: SystemStatusController;
   consumers: number;
 }
 
-const controllerState: ControllerState = {
-  instance: null,
-  consumers: 0,
+const DEFAULT_CONTROLLER_KEY = '__default__';
+
+const controllerRegistry = new Map<string, ControllerEntry>();
+
+export interface AcquireSystemStatusControllerOptions {
+  backendClient?: BackendClient | null;
+  resolveBackendClient?: () => BackendClient | null | undefined;
+  getBackendUrl?: () => string | null | undefined;
+}
+
+const createBackendClientResolver = (
+  options?: AcquireSystemStatusControllerOptions,
+): (() => BackendClient) => {
+  if (options?.backendClient) {
+    return () => options.backendClient as BackendClient;
+  }
+
+  if (options?.resolveBackendClient) {
+    const fallbackClient = options.getBackendUrl
+      ? useBackendClient(() => options.getBackendUrl?.() ?? null)
+      : useBackendClient();
+
+    return () => options.resolveBackendClient?.() ?? fallbackClient;
+  }
+
+  if (options?.getBackendUrl) {
+    const overrideClient = useBackendClient(() => options.getBackendUrl?.() ?? null);
+    return () => overrideClient;
+  }
+
+  const defaultClient = useBackendClient();
+  return () => defaultClient;
 };
 
-const createController = (): SystemStatusController => {
+const createController = (
+  resolveBackendClient: () => BackendClient,
+): SystemStatusController => {
   const connectionStore = useGenerationConnectionStore();
   const { systemStatusReady } = storeToRefs(connectionStore);
-  const backendClient = useBackendClient();
   const pollHandle = ref<ReturnType<typeof setInterval> | null>(null);
   const inFlight = ref<Promise<void> | null>(null);
 
@@ -51,7 +82,7 @@ const createController = (): SystemStatusController => {
 
     const run = (async () => {
       try {
-        const payload = await fetchSystemStatus(backendClient);
+        const payload = await fetchSystemStatus(resolveBackendClient());
         connectionStore.resetSystemStatus();
 
         if (payload) {
@@ -113,21 +144,72 @@ const createController = (): SystemStatusController => {
   };
 };
 
-const getController = (): SystemStatusController => {
-  if (!controllerState.instance) {
-    controllerState.instance = createController();
+const normaliseControllerKey = (base?: string | null): string => {
+  try {
+    return resolveBackendBaseUrl(base ?? undefined);
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('Failed to normalise backend base for system status controller', error);
+    }
+    return base?.toString() || DEFAULT_CONTROLLER_KEY;
   }
-
-  return controllerState.instance;
 };
 
-export const useSystemStatusController = (): SystemStatusController => getController();
+const resolveControllerKey = (
+  options?: AcquireSystemStatusControllerOptions,
+): string => {
+  if (options?.backendClient) {
+    return normaliseControllerKey(options.backendClient.resolve(''));
+  }
 
-export const acquireSystemStatusController = (): SystemStatusControllerHandle => {
-  const controller = getController();
-  controllerState.consumers += 1;
+  const resolvedClient = options?.resolveBackendClient?.();
+  if (resolvedClient) {
+    return normaliseControllerKey(resolvedClient.resolve(''));
+  }
 
-  if (controllerState.consumers === 1) {
+  if (options?.getBackendUrl) {
+    const resolvedUrl = options.getBackendUrl() ?? '';
+    return resolvedUrl ? normaliseControllerKey(resolvedUrl) : DEFAULT_CONTROLLER_KEY;
+  }
+
+  return DEFAULT_CONTROLLER_KEY;
+};
+
+const getControllerEntry = (
+  key: string,
+  options?: AcquireSystemStatusControllerOptions,
+): ControllerEntry => {
+  const existing = controllerRegistry.get(key);
+  if (existing) {
+    return existing;
+  }
+
+  const entry: ControllerEntry = {
+    controller: createController(createBackendClientResolver(options)),
+    consumers: 0,
+  };
+
+  controllerRegistry.set(key, entry);
+  return entry;
+};
+
+const getController = (
+  options?: AcquireSystemStatusControllerOptions,
+): SystemStatusController => getControllerEntry(resolveControllerKey(options), options).controller;
+
+export const useSystemStatusController = (
+  options?: AcquireSystemStatusControllerOptions,
+): SystemStatusController => getController(options);
+
+export const acquireSystemStatusController = (
+  options?: AcquireSystemStatusControllerOptions,
+): SystemStatusControllerHandle => {
+  const entry = getControllerEntry(resolveControllerKey(options), options);
+  const { controller } = entry;
+
+  entry.consumers += 1;
+
+  if (entry.consumers === 1) {
     controller.start();
   }
 
@@ -139,9 +221,9 @@ export const acquireSystemStatusController = (): SystemStatusControllerHandle =>
     }
 
     released = true;
-    controllerState.consumers = Math.max(0, controllerState.consumers - 1);
+    entry.consumers = Math.max(0, entry.consumers - 1);
 
-    if (controllerState.consumers === 0) {
+    if (entry.consumers === 0) {
       controller.stop();
     }
   };
