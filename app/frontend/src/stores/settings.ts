@@ -1,4 +1,4 @@
-import { watch, type WatchStopHandle } from 'vue';
+import { effectScope, watch, type EffectScope, type WatchStopHandle } from 'vue';
 import { defineStore } from 'pinia';
 import { runtimeConfig } from '@/config/runtime';
 import type { FrontendRuntimeSettings, SettingsState } from '@/types';
@@ -173,6 +173,7 @@ let backendUrlWatchStop: WatchStopHandle | null = null;
 let backendUrlWatchedStore: SettingsStore | null = null;
 let backendEnvironmentReadyPromise: Promise<void> | null = null;
 let resolveBackendEnvironmentReady: (() => void) | null = null;
+let backendUrlWatcherScope: EffectScope | null = null;
 
 const ensureBackendEnvironmentReadyPromise = (): Promise<void> => {
   if (!backendEnvironmentReadyPromise) {
@@ -192,6 +193,13 @@ const resolveBackendReady = () => {
 
 const ensureBackendUrlWatcher = (): SettingsStore => {
   const store = useSettingsStore();
+
+  if (backendUrlWatcherScope && !backendUrlWatcherScope.active) {
+    backendUrlWatcherScope = null;
+    backendUrlWatchStop = null;
+    backendUrlWatchedStore = null;
+  }
+
   if (backendUrlWatchedStore && backendUrlWatchedStore !== store) {
     backendUrlWatchStop?.();
     backendUrlWatchStop = null;
@@ -202,20 +210,25 @@ const ensureBackendUrlWatcher = (): SettingsStore => {
     return store;
   }
 
-  backendUrlWatchedStore = store;
-  backendUrlWatchStop = watch(
-    () => store.backendUrl,
-    (next, previous) => {
-      if (next === previous) {
-        return;
-      }
+  backendUrlWatcherScope?.stop();
+  backendUrlWatcherScope = effectScope(true);
 
-      for (const handler of backendUrlSubscribers) {
-        handler(next, previous ?? null);
-      }
-    },
-    { flush: 'post' },
-  );
+  backendUrlWatchedStore = store;
+  backendUrlWatcherScope.run(() => {
+    backendUrlWatchStop = watch(
+      () => store.backendUrl,
+      (next, previous) => {
+        if (next === previous) {
+          return;
+        }
+
+        for (const handler of backendUrlSubscribers) {
+          handler(next, previous ?? null);
+        }
+      },
+      { flush: 'post' },
+    );
+  });
 
   ensureBackendEnvironmentReadyPromise();
   Promise.resolve().then(() => {

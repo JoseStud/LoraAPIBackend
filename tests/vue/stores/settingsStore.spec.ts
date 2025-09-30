@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { nextTick } from 'vue';
+import { effectScope, nextTick, onScopeDispose } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 
 import { useBackendEnvironment, useSettingsStore } from '@/stores';
@@ -71,5 +71,33 @@ describe('backend environment notifier', () => {
     await flushBackendWatchers();
 
     expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('restores backend change notifications after subscriber scope disposal', async () => {
+    const initialUrl = settingsStore.backendUrl;
+    const scope = effectScope();
+
+    scope.run(() => {
+      const { onBackendUrlChange } = useBackendEnvironment();
+      const stop = onBackendUrlChange(() => {});
+      onScopeDispose(stop);
+    });
+
+    scope.stop();
+
+    const { onBackendUrlChange, readyPromise } = useBackendEnvironment();
+    await readyPromise;
+
+    const handler = vi.fn();
+    const stop = onBackendUrlChange(handler);
+
+    const nextUrl = 'https://scope-rebind.example/api';
+    settingsStore.setSettings({ backendUrl: nextUrl });
+    await flushBackendWatchers();
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenLastCalledWith(nextUrl, initialUrl);
+
+    stop();
   });
 });
