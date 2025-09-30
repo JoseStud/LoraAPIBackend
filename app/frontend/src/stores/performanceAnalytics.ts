@@ -1,5 +1,5 @@
-import { computed, ref, watch } from 'vue';
-import { defineStore, storeToRefs } from 'pinia';
+import { computed, onScopeDispose, ref } from 'vue';
+import { defineStore } from 'pinia';
 
 import {
   exportAnalyticsReport,
@@ -8,7 +8,7 @@ import {
   useBackendClient,
 } from '@/services';
 import { formatDuration as formatDurationLabel } from '@/utils/format';
-import { useSettingsStore } from '@/stores/settings';
+import { useBackendEnvironment } from '@/stores/settings';
 
 import type {
   ErrorAnalysisEntry,
@@ -82,9 +82,8 @@ const createDevTopLoras = (): TopLoraPerformance[] => [
 ];
 
 export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', () => {
-  const settingsStore = useSettingsStore();
-  const { backendUrl } = storeToRefs(settingsStore);
   const backendClient = useBackendClient();
+  const backendEnvironment = useBackendEnvironment();
 
   const timeRange = ref<PerformanceTimeRange>('24h');
   const autoRefresh = ref(false);
@@ -202,6 +201,24 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
     timeRange.value = range;
   };
 
+  let stopBackendSubscription: (() => void) | null = null;
+
+  const detachBackendSubscription = () => {
+    if (stopBackendSubscription) {
+      stopBackendSubscription();
+      stopBackendSubscription = null;
+    }
+  };
+
+  const attachBackendSubscription = () => {
+    detachBackendSubscription();
+    stopBackendSubscription = backendEnvironment.onBackendUrlChange(() => {
+      void loadAllData();
+    });
+  };
+
+  attachBackendSubscription();
+
   const cleanup = (): void => {
     stopAutoRefresh();
     autoRefresh.value = false;
@@ -217,17 +234,7 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
 
   const isInitialized = computed(() => hasLoaded.value);
 
-  watch(
-    backendUrl,
-    (next, previous) => {
-      if (next === previous) {
-        return;
-      }
-
-      void loadAllData();
-    },
-    { flush: 'post' },
-  );
+  onScopeDispose(detachBackendSubscription);
 
   return {
     timeRange,

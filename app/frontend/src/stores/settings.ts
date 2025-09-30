@@ -1,3 +1,4 @@
+import { watch, type WatchStopHandle } from 'vue';
 import { defineStore } from 'pinia';
 import { runtimeConfig } from '@/config/runtime';
 import type { FrontendRuntimeSettings, SettingsState } from '@/types';
@@ -164,3 +165,86 @@ export const getResolvedBackendSettings = (): {
 export const getResolvedBackendUrl = (): string => getResolvedBackendSettings().backendUrl;
 
 export const getResolvedBackendApiKey = (): string | null => getResolvedBackendSettings().backendApiKey;
+
+export type BackendUrlChangeHandler = (next: string, previous: string | null) => void;
+
+const backendUrlSubscribers = new Set<BackendUrlChangeHandler>();
+let backendUrlWatchStop: WatchStopHandle | null = null;
+let backendUrlWatchedStore: SettingsStore | null = null;
+let backendEnvironmentReadyPromise: Promise<void> | null = null;
+let resolveBackendEnvironmentReady: (() => void) | null = null;
+
+const ensureBackendEnvironmentReadyPromise = (): Promise<void> => {
+  if (!backendEnvironmentReadyPromise) {
+    backendEnvironmentReadyPromise = new Promise<void>((resolve) => {
+      resolveBackendEnvironmentReady = resolve;
+    });
+  }
+  return backendEnvironmentReadyPromise;
+};
+
+const resolveBackendReady = () => {
+  if (resolveBackendEnvironmentReady) {
+    resolveBackendEnvironmentReady();
+    resolveBackendEnvironmentReady = null;
+  }
+};
+
+const ensureBackendUrlWatcher = (): SettingsStore => {
+  const store = useSettingsStore();
+  if (backendUrlWatchedStore && backendUrlWatchedStore !== store) {
+    backendUrlWatchStop?.();
+    backendUrlWatchStop = null;
+    backendUrlWatchedStore = null;
+  }
+
+  if (backendUrlWatchStop) {
+    return store;
+  }
+
+  backendUrlWatchedStore = store;
+  backendUrlWatchStop = watch(
+    () => store.backendUrl,
+    (next, previous) => {
+      if (next === previous) {
+        return;
+      }
+
+      for (const handler of backendUrlSubscribers) {
+        handler(next, previous ?? null);
+      }
+    },
+    { flush: 'post' },
+  );
+
+  ensureBackendEnvironmentReadyPromise();
+  Promise.resolve().then(() => {
+    resolveBackendReady();
+  });
+
+  return store;
+};
+
+export const onBackendUrlChange = (handler: BackendUrlChangeHandler): (() => void) => {
+  ensureBackendUrlWatcher();
+  backendUrlSubscribers.add(handler);
+
+  return () => {
+    backendUrlSubscribers.delete(handler);
+  };
+};
+
+export interface BackendEnvironmentBinding {
+  readyPromise: Promise<void>;
+  onBackendUrlChange: (handler: BackendUrlChangeHandler) => () => void;
+}
+
+export const useBackendEnvironment = (): BackendEnvironmentBinding => {
+  const readyPromise = ensureBackendEnvironmentReadyPromise();
+  ensureBackendUrlWatcher();
+
+  return {
+    readyPromise,
+    onBackendUrlChange,
+  };
+};

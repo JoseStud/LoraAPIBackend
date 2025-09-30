@@ -1,0 +1,75 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { nextTick } from 'vue';
+import { createPinia, setActivePinia } from 'pinia';
+
+import { useBackendEnvironment, useSettingsStore } from '@/stores';
+
+const flushBackendWatchers = async () => {
+  await nextTick();
+  await Promise.resolve();
+  await nextTick();
+};
+
+describe('backend environment notifier', () => {
+  let settingsStore: ReturnType<typeof useSettingsStore>;
+
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    settingsStore = useSettingsStore();
+    settingsStore.reset();
+  });
+
+  it('notifies subscribers once per backend url change', async () => {
+    const { onBackendUrlChange, readyPromise } = useBackendEnvironment();
+    await readyPromise;
+
+    const initialUrl = settingsStore.backendUrl;
+    const firstUrl = 'https://api.example.com/v1';
+    const secondUrl = 'https://api.example.com/v2';
+
+    const handler = vi.fn();
+    const stop = onBackendUrlChange(handler);
+
+    await flushBackendWatchers();
+    expect(handler).not.toHaveBeenCalled();
+
+    settingsStore.setSettings({ backendUrl: firstUrl });
+    await flushBackendWatchers();
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenLastCalledWith(firstUrl, initialUrl);
+
+    settingsStore.setSettings({ backendUrl: firstUrl });
+    await flushBackendWatchers();
+
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    settingsStore.setSettings({ backendUrl: secondUrl });
+    await flushBackendWatchers();
+
+    expect(handler).toHaveBeenCalledTimes(2);
+    expect(handler).toHaveBeenLastCalledWith(secondUrl, firstUrl);
+
+    stop();
+  });
+
+  it('stops notifying once subscribers detach', async () => {
+    const { onBackendUrlChange, readyPromise } = useBackendEnvironment();
+    await readyPromise;
+
+    const handler = vi.fn();
+    const stop = onBackendUrlChange(handler);
+
+    settingsStore.setSettings({ backendUrl: 'https://notify.example/api' });
+    await flushBackendWatchers();
+
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    stop();
+
+    settingsStore.setSettings({ backendUrl: 'https://notify.example/api/v2' });
+    await flushBackendWatchers();
+
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+});
