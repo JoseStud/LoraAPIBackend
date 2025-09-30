@@ -186,7 +186,7 @@ export const fetchAdapterList = async (
 
   return {
     ...normalised,
-    items: normalised.items.map((item) => ({ ...item })),
+    items: normalised.items.map((item: AdapterRead) => ({ ...item })),
   } satisfies AdapterListResponse;
 };
 
@@ -195,7 +195,7 @@ export const fetchAdapters = async (
   client?: BackendClient | null,
 ): Promise<LoraListItem[]> => {
   const response = await fetchAdapterList(query, client);
-  return response.items.map((item) => ({ ...item })) as LoraListItem[];
+  return response.items.map((item: AdapterRead) => ({ ...item })) as LoraListItem[];
 };
 
 export const fetchTopAdapters = async (
@@ -204,7 +204,7 @@ export const fetchTopAdapters = async (
 ): Promise<TopLoraPerformance[]> => {
   const { items } = await fetchAdapterList({ perPage: limit }, client);
 
-  return items.slice(0, limit).map((item) => {
+  return items.slice(0, limit).map((item: AdapterRead) => {
     const stats = normalizeAdapterStats(item.stats);
 
     return {

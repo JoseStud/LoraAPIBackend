@@ -27,7 +27,7 @@
           <img
             v-if="result.image_url"
             :src="result.image_url"
-            :alt="result.prompt"
+            :alt="result.prompt ?? undefined"
             class="w-full h-32 object-cover cursor-pointer"
             @click="emit('show-image-modal', result)"
           >

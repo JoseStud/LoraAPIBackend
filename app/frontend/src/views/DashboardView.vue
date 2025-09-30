@@ -204,7 +204,7 @@ const handlePanelToggle = (key: PanelKey) => {
   setPanelState(key, { active: true, loading: !state.hasEverLoaded });
 
   if (key === 'analytics') {
-    void performanceAnalyticsStore.ensureLoaded().catch((error) => {
+    void performanceAnalyticsStore.ensureLoaded().catch((error: unknown) => {
       if (import.meta.env.DEV) {
         console.error('[DashboardView] Failed to prefetch analytics data', error);
       }

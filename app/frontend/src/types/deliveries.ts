@@ -2,66 +2,37 @@
  * Type definitions mirroring backend/schemas/deliveries.py.
  */
 
+import type { BackendSchemas } from './generated';
 import type { ComposeDeliverySDNext } from './generation';
 import type { JsonObject } from './json';
 
-export interface ComposeDeliveryHTTP {
-  host: string;
-  port?: number | null;
-  path?: string | null;
-}
+type Schemas = BackendSchemas;
+type DeliveryCreateSchema = Schemas['DeliveryCreate'];
+type DeliveryReadSchema = Schemas['DeliveryRead'];
 
-export interface ComposeDeliveryCLI {
-  template?: string | null;
-}
+export type ComposeDeliveryHTTP = Schemas['ComposeDeliveryHTTP'];
 
-export interface ComposeDelivery {
-  mode: string;
-  http?: ComposeDeliveryHTTP | null;
-  cli?: ComposeDeliveryCLI | null;
+export type ComposeDeliveryCLI = Schemas['ComposeDeliveryCLI'];
+
+export type ComposeDelivery = Omit<Schemas['ComposeDelivery'], 'sdnext'> & {
   sdnext?: ComposeDeliverySDNext | null;
-}
+};
 
-export interface ComposeDeliveryInfo {
-  id: string;
-  status: string;
-}
+export type ComposeDeliveryInfo = Schemas['ComposeDeliveryInfo'];
 
-export interface ComposeResponse {
-  prompt: string;
-  tokens: string[];
-  warnings: string[];
-  delivery?: ComposeDeliveryInfo | null;
-}
+export type ComposeResponse = Schemas['ComposeResponse'];
 
-export interface ComposeRequest {
-  prefix?: string | null;
-  suffix?: string | null;
-  delivery?: ComposeDelivery | null;
-}
+export type ComposeRequest = Schemas['ComposeRequest'];
 
-export interface DeliveryCreate {
-  prompt: string;
-  mode: string;
+export type DeliveryCreate = Omit<DeliveryCreateSchema, 'params'> & {
   params?: JsonObject | null;
-}
+};
 
-export interface DeliveryRead {
-  id: string;
-  prompt: string;
-  mode: string;
+export type DeliveryRead = Omit<DeliveryReadSchema, 'params' | 'result'> & {
   params: JsonObject;
   result?: JsonObject | null;
-  status: string;
-  created_at: string;
-  started_at?: string | null;
-  finished_at?: string | null;
-}
+};
 
-export interface DeliveryWrapper {
-  delivery: DeliveryRead;
-}
+export type DeliveryWrapper = Schemas['DeliveryWrapper'];
 
-export interface DeliveryCreateResponse {
-  delivery_id: string;
-}
+export type DeliveryCreateResponse = Schemas['DeliveryCreateResponse'];

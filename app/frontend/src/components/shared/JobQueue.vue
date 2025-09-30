@@ -55,7 +55,7 @@
                 />
               </div>
               <div class="flex justify-between text-xs text-gray-500">
-                <span>{{ formatDuration(job.startTime) }}</span>
+                <span>{{ formatDuration(job.startTime ?? undefined) }}</span>
                 <span>{{ job.message || '' }}</span>
               </div>
             </div>

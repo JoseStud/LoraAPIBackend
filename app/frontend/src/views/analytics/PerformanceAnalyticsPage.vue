@@ -239,7 +239,7 @@ const handleApplyRecommendation = (insight: PerformanceInsightEntry) => {
 };
 
 onMounted(() => {
-  void ensureLoaded().catch((error) => {
+  void ensureLoaded().catch((error: unknown) => {
     console.error('Failed to initialize performance analytics:', error);
     notifications.showError('Failed to load analytics data');
   });

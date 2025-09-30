@@ -18,6 +18,7 @@ import type {
   GenerationRequestPayload,
   GenerationStartResponse,
 } from '@/types';
+import { normalizeJobStatus } from '@/utils/status';
 
 export interface GenerationOrchestratorOptions {
   showHistory: Ref<boolean>;
@@ -146,7 +147,7 @@ export const createGenerationOrchestratorFactory = ({
         queueStore.enqueueJob({
           id: response.job_id,
           prompt: payload.prompt,
-          status: response.status,
+          status: normalizeJobStatus(response.status),
           progress: response.progress ?? 0,
           startTime: createdAt,
           created_at: createdAt,

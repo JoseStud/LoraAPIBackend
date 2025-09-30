@@ -41,11 +41,13 @@ export const useJobQueueActions = (options: UseJobQueueActionsOptions = {}) => {
       return false;
     }
 
-    const backendJobId = job.jobId ?? job.id;
-    if (!backendJobId) {
+    const backendJobIdRaw = job.jobId ?? job.id;
+    if (!backendJobIdRaw) {
       notifications.showToastError('Job not found');
       return false;
     }
+
+    const backendJobId = String(backendJobIdRaw);
 
     isCancelling.value = true;
 

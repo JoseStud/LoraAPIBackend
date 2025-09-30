@@ -9,3 +9,4 @@ export * from './promptComposer';
 export * from './analytics';
 export * from './json';
 export * from './importExport';
+export * from './generated';

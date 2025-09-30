@@ -2,9 +2,17 @@
  * Type definitions mirroring backend/schemas/generation.py.
  */
 
-import type { GenerationJob, NormalizedJobStatus } from './app';
+import type { GeneratedNormalizedJobStatus } from '@/constants/generated/jobStatuses';
+
+import type { BackendSchemas } from './generated';
 import type { JsonObject } from './json';
 import type { SystemStatusPayload } from './system';
+
+type Schemas = BackendSchemas;
+type GenerationJobStatusSchema = Schemas['GenerationJobStatus'];
+type GenerationResultSummarySchema = Schemas['GenerationResultSummary'];
+
+export type NormalizedJobStatus = GeneratedNormalizedJobStatus;
 
 export interface GenerationFormState {
   prompt: string;
@@ -20,49 +28,27 @@ export interface GenerationFormState {
   denoising_strength?: number | null;
 }
 
-export interface SDNextGenerationParams {
-  prompt: string;
-  negative_prompt?: string | null;
-  steps: number;
-  sampler_name: string;
-  cfg_scale: number;
-  width: number;
-  height: number;
-  seed: number;
-  batch_size: number;
-  n_iter: number;
-  denoising_strength?: number | null;
-}
+export type SDNextGenerationParams = Schemas['SDNextGenerationParams'];
 
-export type GenerationMode = 'immediate' | 'deferred';
+export type GenerationMode = Schemas['GenerationMode'];
 
-export type GenerationResultFormat = 'base64' | 'file_path' | 'url';
+export type GenerationResultFormat = Schemas['GenerationResultFormat'];
 
-export interface ComposeDeliverySDNext {
-  generation_params: SDNextGenerationParams;
-  mode?: GenerationMode;
-  save_images?: boolean;
-  return_format?: GenerationResultFormat;
-}
+export type ComposeDeliverySDNext = Schemas['ComposeDeliverySDNext'];
 
-export interface SDNextDeliveryParams {
-  generation_params: SDNextGenerationParams;
-  mode?: GenerationMode;
-  save_images?: boolean;
-  return_format?: GenerationResultFormat;
-}
+export type SDNextDeliveryParams = Schemas['ComposeDeliverySDNext'];
 
-export interface SDNextGenerationResult {
-  job_id: string;
+type SDNextGenerationResultSchema = Schemas['SDNextGenerationResult'];
+
+export type SDNextGenerationResult = Omit<SDNextGenerationResultSchema, 'status' | 'generation_info'> & {
   /** Normalized status reported by the backend. */
-  status: NormalizedJobStatus;
+  status: NormalizedJobStatus | SDNextGenerationResultSchema['status'];
   /** Base64 strings, URLs, or filesystem paths depending on delivery parameters. */
   images?: string[] | null;
   /** 0.0–1.0 progress indicator. */
   progress?: number | null;
-  error_message?: string | null;
   generation_info?: JsonObject | null;
-}
+};
 
 export interface GenerationLoraReference {
   id: string;
@@ -73,38 +59,37 @@ export interface GenerationLoraReference {
   extra?: JsonObject | null;
 }
 
-export interface GenerationJobStatus {
-  id: string;
-  jobId?: string | null;
-  prompt?: string | null;
+export type GenerationJobStatus = Omit<
+  GenerationJobStatusSchema,
+  'status' | 'params' | 'result' | 'jobId'
+> & {
   name?: string | null;
-  status: NormalizedJobStatus | string;
-  progress: number;
-  message?: string | null;
-  error?: string | null;
+  status: NormalizedJobStatus;
   params?: JsonObject | null;
-  created_at: string;
-  startTime?: string | null;
-  finished_at?: string | null;
   result?: JsonObject | null;
-}
-
-export interface GenerationHistoryResult {
-  id: string | number;
-  job_id?: string;
-  prompt?: string | null;
-  negative_prompt?: string | null;
-  status?: NormalizedJobStatus | string | null;
-  image_url?: string | null;
-  thumbnail_url?: string | null;
-  created_at: string;
-  finished_at?: string | null;
-  updated_at?: string | null;
+  jobId?: string | number;
+  current_step?: number | null;
+  total_steps?: number | null;
+  steps?: number | null;
   width?: number | null;
   height?: number | null;
-  steps?: number | null;
   cfg_scale?: number | null;
   seed?: number | null;
+};
+
+export type GenerationJob = GenerationJobStatus;
+
+export type GenerationHistoryResult = Omit<
+  GenerationResultSummarySchema,
+  'id' | 'job_id' | 'status' | 'generation_info' | 'is_favorite' | 'rating' | 'rating_updated_at' | 'favorite_updated_at'
+> & {
+  id: GenerationResultSummarySchema['id'] | number;
+  job_id?: GenerationResultSummarySchema['job_id'];
+  status?: NormalizedJobStatus | GenerationResultSummarySchema['status'] | null;
+  generation_info?: JsonObject | null;
+  metadata?: JsonObject | null;
+  loras?: GenerationLoraReference[] | null;
+  updated_at?: string | null;
   sampler_name?: string | null;
   sampler?: string | null;
   model?: string | null;
@@ -114,12 +99,13 @@ export interface GenerationHistoryResult {
   is_favorite?: boolean;
   rating_updated_at?: string | null;
   favorite_updated_at?: string | null;
-  generation_info?: JsonObject | null;
-  metadata?: JsonObject | null;
-  loras?: GenerationLoraReference[] | null;
-}
+};
 
 export type GenerationHistoryEntry = GenerationHistoryResult;
+
+export type GenerationResult = GenerationHistoryResult & {
+  result_id?: string | number;
+};
 
 export interface GenerationHistoryPageInfo {
   page?: number;
@@ -174,14 +160,14 @@ export interface GenerationBulkFavoriteRequest extends GenerationFavoriteUpdate 
   ids: readonly (string | number)[];
 }
 
-export interface GenerationBulkDeleteRequest {
-  ids: readonly (string | number)[];
-}
+export type GenerationBulkDeleteRequest = Schemas['GenerationBulkDeleteRequest'];
 
-export interface GenerationExportRequest {
-  ids: readonly (string | number)[];
+export type GenerationExportRequest = Omit<
+  Schemas['GenerationExportRequest'],
+  'include_metadata'
+> & {
   include_metadata?: boolean;
-}
+};
 
 export interface GenerationDownloadMetadata {
   blob: Blob;
@@ -194,11 +180,7 @@ export type GenerationRequestPayload = SDNextGenerationParams;
 
 export type GenerationStartResponse = SDNextGenerationResult;
 
-export interface GenerationCancelResponse {
-  success: boolean;
-  status: string;
-  message?: string | null;
-}
+export type GenerationCancelResponse = Schemas['GenerationCancelResponse'];
 
 export interface ProgressUpdate {
   job_id: string;

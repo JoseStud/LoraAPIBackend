@@ -18,12 +18,12 @@ export function useLoraGalleryFilters(
 
     if (searchTerm.value) {
       const query = searchTerm.value.toLowerCase();
-      filtered = filtered.filter(lora => {
+      filtered = filtered.filter((lora: GalleryLora) => {
         const matchesName = lora.name.toLowerCase().includes(query);
         const matchesDescription = lora.description
           ?.toLowerCase()
           .includes(query);
-        const matchesTags = lora.tags?.some(tag =>
+        const matchesTags = lora.tags?.some((tag: string) =>
           tag.toLowerCase().includes(query)
         );
 
@@ -36,8 +36,8 @@ export function useLoraGalleryFilters(
     }
 
     if (selectedTags.value.length > 0) {
-      filtered = filtered.filter(lora =>
-        lora.tags?.some(tag => selectedTags.value.includes(tag))
+      filtered = filtered.filter((lora: GalleryLora) =>
+        lora.tags?.some((tag: string) => selectedTags.value.includes(tag))
       );
     }
 

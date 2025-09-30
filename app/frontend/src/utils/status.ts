@@ -1,4 +1,4 @@
-import type { NormalizedJobStatus } from '@/types/app';
+import type { NormalizedJobStatus } from '@/types';
 import {
   DEFAULT_NORMALIZED_JOB_STATUS,
   JOB_STATUS_NORMALIZATION_MAP,

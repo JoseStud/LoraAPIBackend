@@ -173,7 +173,10 @@ const applyJobRecord = (
   if (!wasTracked) {
     queueStore.enqueueJob({
       id: jobId,
-      jobId: typeof record.jobId === 'string' ? record.jobId : undefined,
+      jobId:
+        typeof record.jobId === 'string' || typeof record.jobId === 'number'
+          ? record.jobId
+          : undefined,
       startTime:
         typeof record.startTime === 'string' && record.startTime.trim()
           ? record.startTime

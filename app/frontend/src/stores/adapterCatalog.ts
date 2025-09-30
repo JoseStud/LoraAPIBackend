@@ -5,6 +5,7 @@ import { ApiError } from '@/composables/shared';
 import { fetchAdapterList, fetchAdapterTags, performBulkLoraAction, useBackendClient } from '@/services';
 
 import type {
+  AdapterRead,
   AdapterListQuery,
   AdapterListResponse,
   AdapterSummary,
@@ -24,7 +25,7 @@ const extractGalleryItems = (
   }
 
   const items = Array.isArray(payload.items) ? payload.items : [];
-  return items.map((item) => ({ ...item }));
+  return items.map((item: AdapterRead) => ({ ...item }));
 };
 
 const toSummary = (item: LoraListItem): AdapterSummary => ({
@@ -56,7 +57,7 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
 
   const backendClient = useBackendClient();
   const query = reactive<AdapterListQuery>({ ...DEFAULT_QUERY });
-  const loras = computed<GalleryLora[]>(() => loraItems.value.map((item) => ({ ...item })));
+  const loras = computed<GalleryLora[]>(() => loraItems.value.map((item: GalleryLora) => ({ ...item })));
   const adapters = computed<AdapterSummary[]>(() => loraItems.value.map(toSummary));
   const error = computed(() => lastError.value);
   const areTagsLoading = computed(() => pendingTagFetch.value !== null);

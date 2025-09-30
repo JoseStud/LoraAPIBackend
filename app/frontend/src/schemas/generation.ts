@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 import type { GenerationJobStatus } from '@/types/generation';
-import type { GenerationResult } from '@/types/app';
+import type { GenerationResult } from '@/types';
+import { normalizeJobStatus } from '@/utils/status';
 
 import { JsonObjectSchema } from './json';
 
@@ -49,7 +50,8 @@ const GenerationJobStatusObject = z
 export const GenerationJobStatusSchema = GenerationJobStatusObject.transform(
   (value): GenerationJobStatus => ({
     ...value,
-    jobId: value.jobId ?? null,
+    status: normalizeJobStatus(value.status),
+    jobId: value.jobId ?? undefined,
     prompt: value.prompt ?? null,
     name: value.name ?? null,
     message: value.message ?? null,
@@ -58,6 +60,8 @@ export const GenerationJobStatusSchema = GenerationJobStatusObject.transform(
     startTime: value.startTime ?? null,
     finished_at: value.finished_at ?? null,
     result: value.result ?? null,
+    cfg_scale: typeof value.cfg_scale === 'number' ? value.cfg_scale : null,
+    seed: typeof value.seed === 'number' ? value.seed : null,
   }),
 );
 
@@ -95,11 +99,13 @@ const GenerationResultObject = z
 export const GenerationResultSchema = GenerationResultObject.transform(
   (value): GenerationResult => ({
     ...value,
+    status: value.status ? normalizeJobStatus(value.status) : undefined,
     negative_prompt: value.negative_prompt ?? null,
     image_url: value.image_url ?? null,
     thumbnail_url: value.thumbnail_url ?? null,
     seed: value.seed ?? null,
     finished_at: value.finished_at ?? null,
     generation_info: value.generation_info ?? null,
+    created_at: value.created_at ?? new Date().toISOString(),
   }),
 );
