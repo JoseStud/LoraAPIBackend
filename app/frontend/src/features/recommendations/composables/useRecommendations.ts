@@ -2,8 +2,8 @@ import { computed, onScopeDispose, ref, watch, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { useRecommendationApi } from '@/composables/shared';
-import { useAdapterCatalogStore, useSettingsStore } from '@/stores';
-import { useBackendEnvironment } from '@/stores';
+import { useAdapterCatalogStore } from '@/features/lora';
+import { useBackendEnvironment, useSettingsStore } from '@/stores';
 import type { AdapterSummary, RecommendationItem, RecommendationResponse } from '@/types';
 
 const WEIGHT_KEYS = ['semantic', 'artistic', 'technical'] as const;

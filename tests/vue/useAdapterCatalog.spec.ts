@@ -9,7 +9,25 @@ const mocks = vi.hoisted(() => ({
   performBulkLoraActionMock: vi.fn(),
 }));
 
-vi.mock('@/services/lora/loraService', async (importOriginal) => {
+vi.mock('@/services', async (importOriginal) => {
+  const actual = await importOriginal();
+  const backendClientMock = {
+    resolve: vi.fn((path = '') => path),
+    requestJson: vi.fn(),
+    getJson: vi.fn(),
+    postJson: vi.fn(),
+    putJson: vi.fn(),
+    delete: vi.fn(),
+    patchJson: vi.fn(),
+    requestBlob: vi.fn(),
+  };
+  return {
+    ...actual,
+    useBackendClient: vi.fn(() => backendClientMock),
+  };
+});
+
+vi.mock('@/features/lora/services', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,

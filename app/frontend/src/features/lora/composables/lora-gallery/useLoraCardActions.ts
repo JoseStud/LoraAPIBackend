@@ -2,14 +2,14 @@ import { computed, ref, watch, type Ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { useNotifications } from '@/composables/shared';
+import { useBackendClient } from '@/services';
 import {
   buildRecommendationsUrl,
   deleteLora as deleteLoraRequest,
   toggleLoraActiveState,
   triggerPreviewGeneration,
   updateLoraWeight,
-  useBackendClient,
-} from '@/services';
+} from '@/features/lora/services';
 import type { LoraListItem, LoraUpdatePayload } from '@/types';
 
 type UseLoraCardActionsOptions = {

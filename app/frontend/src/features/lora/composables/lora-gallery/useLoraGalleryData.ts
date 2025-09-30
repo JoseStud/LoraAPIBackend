@@ -1,6 +1,6 @@
 import { storeToRefs } from 'pinia';
 
-import { useAdapterCatalogStore } from '@/stores';
+import { useAdapterCatalogStore } from '@/features/lora';
 import type { AdapterListQuery, LoraBulkAction, LoraUpdatePayload } from '@/types';
 
 export function useLoraGalleryData() {

@@ -1,7 +1,7 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { useAdapterCatalogStore } from '@/stores';
+import { useAdapterCatalogStore } from '@/features/lora';
 
 import type { AdapterSummary } from '@/types';
 
