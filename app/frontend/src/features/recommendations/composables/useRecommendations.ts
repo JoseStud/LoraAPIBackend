@@ -1,10 +1,9 @@
 import { computed, ref, watch, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { useRecommendationApi } from '@/composables/shared';
+import { useAsyncResource } from '@/composables/shared';
 
-import { useAdapterCatalogStore } from '@/features/lora/public';
-import { useBackendRefresh } from '@/services';
+import { useBackendClient } from '@/services';
 
 import { useBackendEnvironment, useSettingsStore } from '@/stores';
 import type { AdapterSummary, RecommendationItem, RecommendationResponse } from '@/types';
@@ -48,7 +47,26 @@ const isRecommendationResponse = (
       Array.isArray((payload as RecommendationResponse).recommendations),
   );
 
+const normaliseRecommendations = (
+  payload: RecommendationResponse | RecommendationItem[] | null | undefined,
+): RecommendationItem[] => {
+  if (!payload) {
+    return [];
+  }
+
+  if (isRecommendationResponse(payload)) {
+    return payload.recommendations ?? [];
+  }
+
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  return [];
+};
+
 export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
+  const backendClient = useBackendClient();
   const settingsStore = useSettingsStore();
   const backendEnvironment = useBackendEnvironment();
 
@@ -71,9 +89,6 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
   const similarityThreshold = ref<number>(options.initialThreshold ?? 0.1);
   const weights = ref<WeightState>({ ...DEFAULT_WEIGHTS, ...(options.initialWeights ?? {}) });
 
-  const recommendations = ref<RecommendationItem[]>([]);
-  const error = ref<string>('');
-
   const hydrationReady = ref(false);
   void backendEnvironment.readyPromise.then(() => {
     hydrationReady.value = true;
@@ -81,11 +96,11 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
 
   const isHydrated = computed<boolean>(() => hydrationReady.value && settingsLoaded.value);
 
-  const recommendationPath = computed<string>(() => {
+  const recommendationPath = computed<string | null>(() => {
     if (!selectedLoraId.value) {
-      return '';
+      return null;
     }
-    const base = `recommendations/similar/${encodeURIComponent(selectedLoraId.value)}`;
+    const base = `/recommendations/similar/${encodeURIComponent(selectedLoraId.value)}`;
     const params = new URLSearchParams();
     params.set('limit', String(limit.value));
     params.set('similarity_threshold', String(similarityThreshold.value));
@@ -95,54 +110,56 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
     return `${base}?${params.toString()}`;
   });
 
-  const {
-    data: recsData,
-    error: recsErrObj,
-    isLoading: recsLoading,
-    fetchData: loadRecs,
-  } = useRecommendationApi(recommendationPath);
+  const recommendationResource = useAsyncResource<RecommendationItem[], string | null>(
+    async (path) => {
+      if (!path) {
+        return [];
+      }
+      const payload = await backendClient.getJson<RecommendationResponse | RecommendationItem[] | null>(path);
+      return normaliseRecommendations(payload);
+    },
+    {
+      initialArgs: null,
+      initialValue: [],
+      getKey: (value) => value ?? '',
+      backendRefresh: {
+        enabled: () => Boolean(selectedLora.value),
+        getArgs: () => recommendationPath.value,
+      },
+      onError: (err) => {
+        if (import.meta.env.DEV) {
+          console.error('[recommendations] Failed to fetch recommendations', err);
+        }
+      },
+    },
+  );
 
-  const isLoading = computed<boolean>(() => recsLoading.value);
-
-  const applyRecommendations = (payload: RecommendationResponse | RecommendationItem[] | null | undefined) => {
-    if (!payload) {
-      recommendations.value = [];
-      return;
-    }
-
-    if (isRecommendationResponse(payload)) {
-      recommendations.value = payload.recommendations;
-      return;
-    }
-
-    if (Array.isArray(payload)) {
-      recommendations.value = payload;
-      return;
-    }
-
-    recommendations.value = [];
-  };
+  const recommendations = computed<RecommendationItem[]>(() => recommendationResource.data.value ?? []);
+  const error = ref('');
+  const isLoading = computed<boolean>(() => recommendationResource.isLoading.value);
 
   const fetchRecommendations = async (): Promise<RecommendationItem[]> => {
-    error.value = '';
-    recommendations.value = [];
-
-    if (!selectedLora.value) {
-      return recommendations.value;
+    if (!selectedLora.value || !isHydrated.value) {
+      recommendationResource.setData([], { markLoaded: false, args: null });
+      error.value = '';
+      return [];
     }
 
-    if (!isHydrated.value) {
-      return recommendations.value;
+    const path = recommendationPath.value;
+    if (!path) {
+      recommendationResource.setData([], { markLoaded: false, args: null });
+      error.value = '';
+      return [];
     }
 
     try {
-      const payload = (await loadRecs()) ?? recsData.value;
-      applyRecommendations(payload);
+      const payload = await recommendationResource.refresh(path);
+      error.value = '';
+      return payload ?? [];
     } catch (err) {
       error.value = toErrorMessage(err, 'Failed to fetch recommendations');
+      return recommendations.value;
     }
-
-    return recommendations.value;
   };
 
   const debouncedFetchRecommendations: DebouncedFunction<() => void> = debounce(
@@ -172,29 +189,35 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
     weights.value = { ...DEFAULT_WEIGHTS, ...(options.initialWeights ?? {}) };
   };
 
-  watch(recsErrObj, (err) => {
-    if (err) {
-      error.value = toErrorMessage(err, 'Failed to fetch recommendations');
-    }
-  });
-
+  watch(
+    () => recommendationResource.error.value,
+    (err) => {
+      if (err) {
+        error.value = toErrorMessage(err, 'Failed to fetch recommendations');
+      }
+    },
+  );
 
   watch(selectedLoraId, (next) => {
     if (!next) {
       debouncedFetchRecommendations.cancel();
-      recommendations.value = [];
+      recommendationResource.setData([], { markLoaded: false, args: null });
+      recommendationResource.clearError();
       error.value = '';
       return;
     }
 
     if (isHydrated.value) {
       scheduleRecommendationsRefresh({ immediate: true });
+    }
+  });
 
   watch(
     () => selectedLora.value?.id ?? '',
     (next, previous) => {
       if (!next) {
-        recommendations.value = [];
+        recommendationResource.setData([], { markLoaded: false, args: null });
+        recommendationResource.clearError();
         error.value = '';
         return;
       }
@@ -212,7 +235,6 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
 
     if (!items.some((item) => item.id === selectedLoraId.value)) {
       selectedLoraId.value = '';
-
     }
   });
 
@@ -230,12 +252,6 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
 
   watch(isHydrated, (ready) => {
     if (ready && selectedLora.value) {
-      scheduleRecommendationsRefresh({ immediate: true });
-    }
-  });
-
-  useBackendRefresh(() => {
-    if (selectedLora.value) {
       scheduleRecommendationsRefresh({ immediate: true });
     }
   });
@@ -259,7 +275,3 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
     recommendationPath,
   };
 };
-
-export type UseRecommendationsReturn = ReturnType<typeof useRecommendations>;
-
-export const defaultRecommendationWeights = (): WeightState => ({ ...DEFAULT_WEIGHTS });

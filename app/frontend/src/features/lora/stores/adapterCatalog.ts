@@ -1,9 +1,9 @@
 import { computed, reactive, ref } from 'vue';
 import { defineStore } from 'pinia';
 
-import { ApiError } from '@/composables/shared';
+import { ApiError, useAsyncResource } from '@/composables/shared';
 import { fetchAdapterList, fetchAdapterTags, performBulkLoraAction } from '../services/lora/loraService';
-import { useBackendClient, useBackendRefresh } from '@/services';
+import { useBackendClient } from '@/services';
 
 import type {
   AdapterRead,
@@ -17,6 +17,11 @@ import type {
 } from '@/types';
 
 const DEFAULT_QUERY: AdapterListQuery = { page: 1, perPage: 200 };
+
+const normalizeQuery = (base: AdapterListQuery = {}): AdapterListQuery => ({
+  ...DEFAULT_QUERY,
+  ...base,
+});
 
 const extractGalleryItems = (
   payload: AdapterListResponse | null | undefined,
@@ -36,143 +41,14 @@ const toSummary = (item: LoraListItem): AdapterSummary => ({
   active: item.active ?? true,
 });
 
-const hasQueryChanged = (current: AdapterListQuery, next: AdapterListQuery): boolean =>
-  Object.entries(next).some(([key, value]) => {
-    if (value == null) {
-      return false;
-    }
-    const typedKey = key as keyof AdapterListQuery;
-    return current[typedKey] !== value;
-  });
-
 export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
-  const pendingFetch = ref<Promise<AdapterSummary[]> | null>(null);
-  const lastFetchedAt = ref<number | null>(null);
-  const pendingTagFetch = ref<Promise<string[]> | null>(null);
+  const backendClient = useBackendClient();
+
   const isInitialized = ref(false);
   const availableTags = ref<string[]>([]);
   const tagError = ref<unknown>(null);
-  const loraItems = ref<GalleryLora[]>([]);
-  const lastError = ref<ApiError | unknown | null>(null);
-  const isLoading = ref(false);
-
-  const backendClient = useBackendClient();
+  const pendingTagFetch = ref<Promise<string[]> | null>(null);
   const query = reactive<AdapterListQuery>({ ...DEFAULT_QUERY });
-  const loras = computed<GalleryLora[]>(() => loraItems.value.map((item: GalleryLora) => ({ ...item })));
-  const adapters = computed<AdapterSummary[]>(() => loraItems.value.map(toSummary));
-  const error = computed(() => lastError.value);
-  const areTagsLoading = computed(() => pendingTagFetch.value !== null);
-
-  const updateListData = (mutator: (draft: GalleryLora[]) => boolean): boolean => {
-    const draft = [...loraItems.value];
-    const changed = mutator(draft);
-    if (!changed) {
-      return false;
-    }
-
-    loraItems.value = draft;
-    lastError.value = null;
-    isLoading.value = false;
-    return true;
-  };
-
-  const applyLoraUpdate = (payload: LoraUpdatePayload): boolean => {
-    const { id, type } = payload;
-    if (!id) {
-      return false;
-    }
-
-    if (type === 'weight' && payload.weight !== undefined) {
-      return updateListData((draft) => {
-        const index = draft.findIndex((item) => item.id === id);
-        if (index === -1) {
-          return false;
-        }
-        draft[index] = { ...draft[index], weight: payload.weight };
-        return true;
-      });
-    }
-
-    if (type === 'active' && payload.active !== undefined) {
-      const nextActive = payload.active;
-      return updateListData((draft) => {
-        const index = draft.findIndex((item) => item.id === id);
-        if (index === -1) {
-          return false;
-        }
-        draft[index] = { ...draft[index], active: nextActive };
-        return true;
-      });
-    }
-
-    return false;
-  };
-
-  const removeLora = (id: string): boolean =>
-    updateListData((draft) => {
-      const index = draft.findIndex((item) => item.id === id);
-      if (index === -1) {
-        return false;
-      }
-      draft.splice(index, 1);
-      return true;
-    });
-
-  const runFetch = async (overrides: AdapterListQuery = {}): Promise<AdapterSummary[]> => {
-    if (pendingFetch.value) {
-      return pendingFetch.value;
-    }
-
-    const requestQuery: AdapterListQuery = { ...query, ...overrides };
-
-    const request = (async () => {
-      isLoading.value = true;
-      lastError.value = null;
-
-      try {
-        const payload = await fetchAdapterList(requestQuery, backendClient);
-        loraItems.value = extractGalleryItems(payload);
-        Object.assign(query, requestQuery);
-        lastFetchedAt.value = Date.now();
-        return adapters.value;
-      } catch (err) {
-        lastError.value = err;
-        throw err;
-      } finally {
-        isLoading.value = false;
-        pendingFetch.value = null;
-      }
-    })();
-
-    pendingFetch.value = request;
-    return request;
-  };
-
-  const ensureLoaded = async (overrides: AdapterListQuery = {}): Promise<AdapterSummary[]> => {
-    if (pendingFetch.value) {
-      await pendingFetch.value;
-      return adapters.value;
-    }
-
-    const shouldReload = lastFetchedAt.value == null || hasQueryChanged(query, overrides);
-
-    if (!shouldReload) {
-      return adapters.value;
-    }
-
-    await runFetch(overrides);
-    return adapters.value;
-  };
-
-  const loadLoras = async (overrides: AdapterListQuery = {}): Promise<GalleryLora[]> => {
-    await ensureLoaded(overrides);
-    return loras.value;
-  };
-
-  const refresh = async (overrides: AdapterListQuery = {}): Promise<AdapterSummary[]> => {
-    await runFetch(overrides);
-    return adapters.value;
-  };
 
   const fetchTags = async (): Promise<string[]> => {
     if (pendingTagFetch.value) {
@@ -199,6 +75,114 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
     return request;
   };
 
+  const listResource = useAsyncResource<GalleryLora[], AdapterListQuery>(
+    async (requestQuery) => {
+      const normalised = normalizeQuery(requestQuery);
+      const payload = await fetchAdapterList(normalised, backendClient);
+      return extractGalleryItems(payload);
+    },
+    {
+      initialArgs: { ...DEFAULT_QUERY },
+      initialValue: [],
+      getKey: (args) => JSON.stringify(normalizeQuery(args)),
+      backendRefresh: {
+        getArgs: () => ({ ...query }),
+      },
+      onSuccess: (_, { args }) => {
+        Object.assign(query, normalizeQuery(args));
+        void fetchTags();
+      },
+      onError: (err) => {
+        if (import.meta.env.DEV) {
+          console.error('[adapterCatalog] Failed to load adapters', err);
+        }
+      },
+    },
+  );
+
+  const loras = computed<GalleryLora[]>(() => {
+    const items = listResource.data.value ?? [];
+    return items.map((item) => ({ ...item }));
+  });
+
+  const adapters = computed<AdapterSummary[]>(() => loras.value.map(toSummary));
+
+  const error = computed<ApiError | unknown | null>(() => listResource.error.value as ApiError | unknown | null);
+  const isLoading = computed<boolean>(() => listResource.isLoading.value);
+  const areTagsLoading = computed(() => pendingTagFetch.value !== null);
+  const lastFetchedAt = computed(() => listResource.lastLoadedAt.value);
+
+  const mutateList = (mutator: (draft: GalleryLora[]) => boolean): boolean => {
+    const current = listResource.data.value ?? [];
+    const draft = current.map((item) => ({ ...item }));
+    const changed = mutator(draft);
+    if (!changed) {
+      return false;
+    }
+
+    listResource.setData(draft, { markLoaded: true, args: { ...query } });
+    listResource.clearError();
+    return true;
+  };
+
+  const applyLoraUpdate = (payload: LoraUpdatePayload): boolean => {
+    const { id, type } = payload;
+    if (!id) {
+      return false;
+    }
+
+    if (type === 'weight' && payload.weight !== undefined) {
+      return mutateList((draft) => {
+        const index = draft.findIndex((item) => item.id === id);
+        if (index === -1) {
+          return false;
+        }
+        draft[index] = { ...draft[index], weight: payload.weight };
+        return true;
+      });
+    }
+
+    if (type === 'active' && payload.active !== undefined) {
+      return mutateList((draft) => {
+        const index = draft.findIndex((item) => item.id === id);
+        if (index === -1) {
+          return false;
+        }
+        draft[index] = { ...draft[index], active: payload.active };
+        return true;
+      });
+    }
+
+    return false;
+  };
+
+  const removeLora = (id: string): boolean =>
+    mutateList((draft) => {
+      const index = draft.findIndex((item) => item.id === id);
+      if (index === -1) {
+        return false;
+      }
+      draft.splice(index, 1);
+      return true;
+    });
+
+  const ensureLoaded = async (overrides: AdapterListQuery = {}): Promise<AdapterSummary[]> => {
+    const requestQuery = normalizeQuery({ ...query, ...overrides });
+    const result = await listResource.ensureLoaded(requestQuery);
+    return (result ?? []).map(toSummary);
+  };
+
+  const loadLoras = async (overrides: AdapterListQuery = {}): Promise<GalleryLora[]> => {
+    await ensureLoaded(overrides);
+    return loras.value;
+  };
+
+  const refresh = async (overrides: AdapterListQuery = {}): Promise<AdapterSummary[]> => {
+    const requestQuery = normalizeQuery({ ...query, ...overrides });
+    const result = await listResource.refresh(requestQuery);
+    return (result ?? []).map(toSummary);
+  };
+
   const initialize = async (overrides: AdapterListQuery = {}): Promise<void> => {
     try {
       await Promise.all([
@@ -215,33 +199,25 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
       return;
     }
 
-    await performBulkLoraAction({
-      action,
-      lora_ids: loraIds,
-    }, backendClient);
+    await performBulkLoraAction(
+      {
+        action,
+        lora_ids: loraIds,
+      },
+      backendClient,
+    );
 
     await refresh();
-    await fetchTags();
   };
 
-  const backendRefresh = useBackendRefresh(() => {
-    void refresh();
-    void fetchTags();
-  });
-
   const reset = () => {
-    backendRefresh.stop();
-    pendingFetch.value = null;
-    lastFetchedAt.value = null;
-    pendingTagFetch.value = null;
-    isInitialized.value = false;
-    loraItems.value = [];
-    lastError.value = null;
-    isLoading.value = false;
+    listResource.reset();
     availableTags.value = [];
     tagError.value = null;
+    pendingTagFetch.value = null;
+    isInitialized.value = false;
     Object.assign(query, { ...DEFAULT_QUERY });
-    backendRefresh.start();
+    listResource.backendRefresh?.restart?.();
   };
 
   return {

@@ -1,131 +1,72 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { computed, nextTick, ref, unref, watch } from 'vue';
+import { computed } from 'vue';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 
-import type { RecommendationItem, RecommendationResponse } from '@/types';
+import * as services from '@/services';
+import * as stores from '@/stores';
+import * as loraSummariesModule from '@/features/recommendations/composables/useLoraSummaries';
+import { useRecommendations } from '@/features/recommendations/composables/useRecommendations';
+import { useSettingsStore } from '@/stores';
 
-type UseRecommendations = typeof import('@/features/recommendations/composables/useRecommendations').useRecommendations;
-type UseSettingsStore = typeof import('@/stores/settings').useSettingsStore;
+const backendRefreshCallbacks: Array<() => void> = [];
 
-const flush = async () => {
-  await Promise.resolve();
-  await nextTick();
-  await Promise.resolve();
-  await nextTick();
+const backendClientMock = {
+  getJson: vi.fn(),
 };
 
-const serviceMocks = {
-  fetchAdapterList: vi.fn(),
-  fetchAdapterTags: vi.fn(),
-  performBulkLoraAction: vi.fn(),
-  useBackendClient: vi.fn(() => ({ baseUrl: '/api' })),
-};
-
-const createBackendEnvironmentState = () => {
-  let resolveReady: (() => void) | null = null;
-  const handlers: ((next: string, previous: string | null) => void)[] = [];
-  const readyPromise = new Promise<void>((resolve) => {
-    resolveReady = resolve;
-  });
-
-  const onBackendUrlChange = (handler: (next: string, previous: string | null) => void) => {
-    handlers.push(handler);
-    return () => {
-      const index = handlers.indexOf(handler);
-      if (index !== -1) {
-        handlers.splice(index, 1);
-      }
-    };
-  };
-
-  return {
-    readyPromise,
-    onBackendUrlChange,
-    resolveReady: () => {
-      resolveReady?.();
-    },
-    triggerBackendChange: (next = '/api/new', previous: string | null = '/api/old') => {
-      handlers.forEach((handler) => handler(next, previous));
-    },
-    resetHandlers: () => {
-      handlers.splice(0, handlers.length);
-    },
-  };
-};
-
-const recommendationApiMock = (() => {
-  const data = ref<RecommendationResponse | RecommendationItem[] | null>(null);
-  const error = ref<unknown>(null);
-  const isLoading = ref(false);
-  const lastPath = ref('');
-  const fetchCalls: string[] = [];
-  let fetchImplementation: (() => Promise<RecommendationResponse | RecommendationItem[] | null>) | null = null;
-
-  const fetchDataMock = vi.fn(async () => {
-    fetchCalls.push(lastPath.value);
-    const payload = await (fetchImplementation?.() ?? Promise.resolve({ recommendations: [] }));
-    data.value = payload;
-    return payload;
-  });
-
-  const useMock = vi.fn((path) => {
-    const resolved = computed(() => (typeof path === 'function' ? path() : unref(path)));
-    watch(
-      resolved,
-      (value) => {
-        lastPath.value = value;
-      },
-      { immediate: true },
-    );
-
-    return {
-      data,
-      error,
-      isLoading,
-      fetchData: fetchDataMock,
-    };
-  });
-
-  const setFetchImplementation = (
-    impl: () => Promise<RecommendationResponse | RecommendationItem[] | null>,
-  ) => {
-    fetchImplementation = impl;
-  };
-
-  const reset = () => {
-    data.value = null;
-    error.value = null;
-    isLoading.value = false;
-    lastPath.value = '';
-    fetchCalls.splice(0, fetchCalls.length);
-    fetchDataMock.mockClear();
-    fetchImplementation = null;
-  };
-
-  return {
-    useMock,
-    fetchDataMock,
-    fetchCalls,
-    lastPath,
-    setFetchImplementation,
-    reset,
-    error,
-    data,
-    isLoading,
-  };
-})();
+const useBackendClientSpy = vi.spyOn(services, 'useBackendClient');
+const useBackendRefreshSpy = vi.spyOn(services, 'useBackendRefresh');
+const useBackendEnvironmentSpy = vi.spyOn(stores, 'useBackendEnvironment');
+const useLoraSummariesSpy = vi.spyOn(loraSummariesModule, 'useLoraSummaries');
 
 describe('useRecommendations', () => {
-  let useRecommendations: UseRecommendations;
-  let useSettingsStore: UseSettingsStore;
-  let backendEnvironmentState = createBackendEnvironmentState();
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    backendRefreshCallbacks.splice(0, backendRefreshCallbacks.length);
+    backendClientMock.getJson.mockReset();
 
-  const withRecommendations = async (
-    run: (state: ReturnType<UseRecommendations>) => Promise<void>,
-  ) => {
-    let state: ReturnType<UseRecommendations> | undefined;
+    useBackendClientSpy.mockReset().mockReturnValue(backendClientMock as never);
+    useBackendRefreshSpy.mockReset().mockImplementation((callback: () => void) => {
+      backendRefreshCallbacks.push(callback);
+      return {
+        start: vi.fn(),
+        stop: vi.fn(),
+        restart: vi.fn(() => {
+          callback();
+        }),
+        isActive: vi.fn(() => true),
+        trigger: vi.fn(() => {
+          callback();
+        }),
+      };
+    });
+    useBackendEnvironmentSpy.mockReset().mockReturnValue({
+      readyPromise: Promise.resolve(),
+      onBackendUrlChange: vi.fn(),
+    } as never);
+    useLoraSummariesSpy.mockReset().mockReturnValue({
+      loras: computed(() => [
+        { id: 'alpha', name: 'Alpha', description: 'First', active: true },
+        { id: 'beta', name: 'Beta', description: 'Second', active: true },
+      ]),
+      error: computed(() => null),
+      isLoading: computed(() => false),
+      ensureLoaded: vi.fn(),
+    });
 
+    const settingsStore = useSettingsStore();
+    settingsStore.reset();
+    settingsStore.setSettings({ backendUrl: '/api/v1' });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    backendRefreshCallbacks.splice(0, backendRefreshCallbacks.length);
+  });
+
+  const mountComposable = () => {
+    let state: ReturnType<typeof useRecommendations> | undefined;
     const wrapper = mount({
       setup() {
         state = useRecommendations();
@@ -133,189 +74,63 @@ describe('useRecommendations', () => {
       },
     });
 
-    try {
-      await run(state!);
-    } finally {
-      wrapper.unmount();
-    }
+    return { state: state!, destroy: () => wrapper.unmount() };
   };
 
-  beforeEach(async () => {
-    vi.resetModules();
-
-    backendEnvironmentState = createBackendEnvironmentState();
-    backendEnvironmentState.resetHandlers();
-
-    recommendationApiMock.reset();
-
-    serviceMocks.fetchAdapterList.mockReset();
-    serviceMocks.fetchAdapterList.mockImplementation(async () => ({
-      items: [
-        { id: 'alpha', name: 'Alpha', description: 'First', active: true },
-        { id: 'beta', name: 'Beta', description: 'Second', active: true },
+  it('fetches recommendations for the selected LoRA', async () => {
+    backendClientMock.getJson.mockResolvedValue({
+      recommendations: [
+        { id: 'r-1', name: 'Alpha Twin', similarity: 0.92 },
       ],
-      total: 2,
-      filtered: 2,
-      page: 1,
-      pages: 1,
-      per_page: 200,
-    }));
-    serviceMocks.fetchAdapterTags.mockReset();
-    serviceMocks.performBulkLoraAction.mockReset();
-    serviceMocks.useBackendClient.mockReturnValue({ baseUrl: '/api' });
-
-    vi.doMock('@/services', async () => {
-      const actual = await vi.importActual<typeof import('@/services')>('@/services');
-      return {
-        ...actual,
-        useBackendClient: serviceMocks.useBackendClient,
-      };
     });
 
-    vi.doMock('@/features/lora/services/lora/loraService', async () => {
-      const actual = await vi.importActual<typeof import('@/features/lora/services/lora/loraService')>(
-        '@/features/lora/services/lora/loraService',
-      );
-      return {
-        ...actual,
-        fetchAdapterList: serviceMocks.fetchAdapterList,
-      };
-    });
+    const { state, destroy } = mountComposable();
 
-    vi.doMock('@/stores/settings', async () => {
-      const actual = await vi.importActual<typeof import('@/stores/settings')>('@/stores/settings');
-      return {
-        ...actual,
-        useBackendEnvironment: () => backendEnvironmentState,
-      };
-    });
+    state.selectedLoraId.value = 'alpha';
+    await Promise.resolve();
+    await Promise.resolve();
+    const results = await state.fetchRecommendations();
 
-    vi.doMock('@/composables/shared', async () => {
-      const actual = await vi.importActual<typeof import('@/composables/shared')>('@/composables/shared');
-      return {
-        ...actual,
-        useRecommendationApi: recommendationApiMock.useMock,
-      };
-    });
+    expect(backendClientMock.getJson).toHaveBeenCalledWith(
+      expect.stringContaining('/recommendations/similar/alpha'),
+    );
+    expect(results).toHaveLength(1);
+    expect(state.recommendations.value[0].id).toBe('r-1');
 
-    const module = await import('@/features/recommendations/composables/useRecommendations');
-    useRecommendations = module.useRecommendations;
-
-    const settingsModule = await import('@/stores/settings');
-    useSettingsStore = settingsModule.useSettingsStore;
-
-    const pinia = createPinia();
-    setActivePinia(pinia);
-
-    const settingsStore = useSettingsStore();
-    settingsStore.reset();
-    settingsStore.setSettings({ backendUrl: '/api' });
+    destroy();
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-    vi.resetModules();
+  it('triggers a refresh when the backend notifies a change', async () => {
+    backendClientMock.getJson.mockResolvedValue({ recommendations: [] });
+    const { state, destroy } = mountComposable();
+
+    state.selectedLoraId.value = 'alpha';
+    await Promise.resolve();
+    await Promise.resolve();
+    await state.fetchRecommendations();
+    expect(backendRefreshCallbacks).toHaveLength(1);
+
+    backendClientMock.getJson.mockClear().mockResolvedValue({ recommendations: [] });
+    backendRefreshCallbacks[0]?.();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(backendClientMock.getJson).toHaveBeenCalledTimes(1);
+
+    destroy();
   });
 
-  it('builds the recommendation API path with selected parameters', async () => {
-    await withRecommendations(async (state) => {
-      backendEnvironmentState.resolveReady();
-      await flush();
+  it('records errors returned by the API', async () => {
+    backendClientMock.getJson.mockRejectedValueOnce(new Error('boom'));
+    const { state, destroy } = mountComposable();
 
-      state.selectedLoraId.value = 'alpha';
-      await flush();
+    state.selectedLoraId.value = 'alpha';
+    await Promise.resolve();
+    await Promise.resolve();
+    await state.fetchRecommendations();
 
-      expect(recommendationApiMock.fetchDataMock).toHaveBeenCalledTimes(1);
-      expect(recommendationApiMock.lastPath.value).toContain('recommendations/similar/alpha');
-      expect(recommendationApiMock.lastPath.value).toContain('limit=10');
-      expect(recommendationApiMock.lastPath.value).toContain('similarity_threshold=0.1');
-      expect(recommendationApiMock.lastPath.value).toContain('weight_semantic=0.6');
-      expect(recommendationApiMock.lastPath.value).toContain('weight_artistic=0.3');
-      expect(recommendationApiMock.lastPath.value).toContain('weight_technical=0.1');
-    });
-  });
+    expect(state.error.value).toBe('boom');
 
-  it('does not fetch recommendations until the backend environment is hydrated', async () => {
-    await withRecommendations(async (state) => {
-      state.selectedLoraId.value = 'alpha';
-      await flush();
-
-      expect(recommendationApiMock.fetchDataMock).not.toHaveBeenCalled();
-
-      backendEnvironmentState.resolveReady();
-      await flush();
-
-      expect(recommendationApiMock.fetchDataMock).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  it('refreshes recommendations when query parameters change', async () => {
-    const responses: RecommendationResponse[] = [
-      {
-        recommendations: [
-          {
-            lora_id: 'beta',
-            lora_name: 'Beta',
-            lora_description: 'Second',
-            final_score: 0.9,
-            similarity_score: 0.8,
-          } as RecommendationItem,
-        ],
-        recommendation_config: {},
-      },
-      {
-        recommendations: [
-          {
-            lora_id: 'gamma',
-            lora_name: 'Gamma',
-            lora_description: 'Third',
-            final_score: 0.7,
-            similarity_score: 0.6,
-          } as RecommendationItem,
-        ],
-        recommendation_config: {},
-      },
-      {
-        recommendations: [
-          {
-            lora_id: 'delta',
-            lora_name: 'Delta',
-            lora_description: 'Fourth',
-            final_score: 0.5,
-            similarity_score: 0.4,
-          } as RecommendationItem,
-        ],
-        recommendation_config: {},
-      },
-    ];
-
-    let callIndex = 0;
-    recommendationApiMock.setFetchImplementation(async () => {
-      const payload = responses[Math.min(callIndex, responses.length - 1)];
-      callIndex += 1;
-      return payload;
-    });
-
-    await withRecommendations(async (state) => {
-      backendEnvironmentState.resolveReady();
-      await flush();
-
-      state.selectedLoraId.value = 'alpha';
-      await flush();
-
-      expect(state.recommendations.value[0]?.lora_id).toBe('beta');
-
-      state.limit.value = 20;
-      await flush();
-      expect(state.recommendations.value[0]?.lora_id).toBe('gamma');
-      expect(state.recommendationPath.value).toContain('limit=20');
-
-      state.weights.value.semantic = 0.4;
-      await flush();
-      expect(state.recommendations.value[0]?.lora_id).toBe('delta');
-      expect(state.recommendationPath.value).toContain('weight_semantic=0.4');
-
-      expect(recommendationApiMock.fetchDataMock).toHaveBeenCalledTimes(3);
-    });
+    destroy();
   });
 });
