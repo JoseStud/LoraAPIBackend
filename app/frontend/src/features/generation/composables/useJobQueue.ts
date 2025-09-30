@@ -1,6 +1,7 @@
 import { computed, unref, type MaybeRefOrGetter } from 'vue';
 import { storeToRefs } from 'pinia';
 
+import { generationPollingConfig } from '../config/polling';
 import { useGenerationConnectionStore } from '../stores/connection';
 import { useGenerationQueueStore } from '../stores/queue';
 import { useGenerationResultsStore } from '../stores/results';
@@ -12,8 +13,6 @@ import type { UseNotificationsReturn } from '@/composables/shared';
 
 import { useJobQueueTransport } from './useJobQueueTransport';
 import { useJobQueuePolling } from './useJobQueuePolling';
-
-const DEFAULT_POLL_INTERVAL = 2000;
 
 export interface UseJobQueueOptions {
   pollInterval?: MaybeRefOrGetter<number>;
@@ -39,7 +38,7 @@ const resolveBoolean = (value?: MaybeRefOrGetter<boolean>): boolean => {
 
 const resolveNumber = (
   value?: MaybeRefOrGetter<number>,
-  fallback = DEFAULT_POLL_INTERVAL,
+  fallback = generationPollingConfig.queueMs,
 ): number => {
   if (value === undefined) {
     return fallback;

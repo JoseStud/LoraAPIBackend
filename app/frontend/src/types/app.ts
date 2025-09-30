@@ -12,9 +12,17 @@ import type {
 } from './system';
 
 
+export interface GenerationPollingSettings {
+  queueMs?: number | string | null;
+  websocketRetryMs?: number | string | null;
+  systemStatusMs?: number | string | null;
+  [key: string]: unknown;
+}
+
 export interface FrontendRuntimeSettings {
   backendUrl: string;
   backendApiKey?: string | null;
+  generationPolling?: GenerationPollingSettings | null;
   [key: string]: unknown;
 }
 
