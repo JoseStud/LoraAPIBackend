@@ -2,11 +2,15 @@ import { computed, ref, watch, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { useRecommendationApi } from '@/composables/shared';
+
 import { useAdapterCatalogStore } from '@/features/lora/public';
-import { useBackendEnvironmentSubscription } from '@/services';
+import { useBackendRefresh } from '@/services';
+
 import { useBackendEnvironment, useSettingsStore } from '@/stores';
 import type { AdapterSummary, RecommendationItem, RecommendationResponse } from '@/types';
 import { debounce, type DebouncedFunction } from '@/utils/async';
+
+import { useLoraSummaries } from './useLoraSummaries';
 
 const WEIGHT_KEYS = ['semantic', 'artistic', 'technical'] as const;
 type WeightKey = (typeof WEIGHT_KEYS)[number];
@@ -45,16 +49,14 @@ const isRecommendationResponse = (
   );
 
 export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
-  const adapterCatalog = useAdapterCatalogStore();
   const settingsStore = useSettingsStore();
   const backendEnvironment = useBackendEnvironment();
 
-  const { adapters: catalogAdapters, error: lorasErr, isLoading: lorasLoading } = storeToRefs(adapterCatalog);
+  const { loras, error: lorasErrorRaw, isLoading: lorasLoading, ensureLoaded: ensureLorasLoaded } = useLoraSummaries();
   const { isLoaded: settingsLoaded } = storeToRefs(settingsStore);
 
-  const loras = computed<AdapterSummary[]>(() => catalogAdapters.value);
   const lorasError = computed<string>(() =>
-    lorasErr.value ? toErrorMessage(lorasErr.value, 'Unable to load available LoRAs') : '',
+    lorasErrorRaw.value ? toErrorMessage(lorasErrorRaw.value, 'Unable to load available LoRAs') : '',
   );
 
   const selectedLoraId = ref<AdapterSummary['id'] | ''>(options.initialLoraId ?? '');
@@ -176,6 +178,7 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
     }
   });
 
+
   watch(selectedLoraId, (next) => {
     if (!next) {
       debouncedFetchRecommendations.cancel();
@@ -186,6 +189,30 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
 
     if (isHydrated.value) {
       scheduleRecommendationsRefresh({ immediate: true });
+
+  watch(
+    () => selectedLora.value?.id ?? '',
+    (next, previous) => {
+      if (!next) {
+        recommendations.value = [];
+        error.value = '';
+        return;
+      }
+
+      if (next !== previous && isHydrated.value) {
+        void fetchRecommendations();
+      }
+    },
+  );
+
+  watch(loras, (items) => {
+    if (!items.length || !selectedLoraId.value) {
+      return;
+    }
+
+    if (!items.some((item) => item.id === selectedLoraId.value)) {
+      selectedLoraId.value = '';
+
     }
   });
 
@@ -207,13 +234,13 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
     }
   });
 
-  useBackendEnvironmentSubscription(() => {
+  useBackendRefresh(() => {
     if (selectedLora.value) {
       scheduleRecommendationsRefresh({ immediate: true });
     }
   });
 
-  void adapterCatalog.ensureLoaded({ perPage: 200 });
+  void ensureLorasLoaded();
 
   return {
     loras,
