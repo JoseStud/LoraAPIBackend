@@ -1,7 +1,8 @@
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { defineStore } from 'pinia';
 
-import { useBackendClient, useBackendRefresh } from '@/services';
+import { useAsyncResource } from '@/composables/shared';
+import { useBackendClient } from '@/services';
 import { fetchTopAdapters } from '@/features/lora/public';
 import { exportAnalyticsReport, fetchPerformanceAnalytics } from '../services/analyticsService';
 import { formatDuration as formatDurationLabel } from '@/utils/format';
@@ -77,19 +78,119 @@ const createDevTopLoras = (): TopLoraPerformance[] => [
   },
 ];
 
+interface AnalyticsResourceState {
+  generatedAt: string;
+  kpis: PerformanceKpiSummary;
+  chartData: PerformanceAnalyticsCharts;
+  errorAnalysis: ErrorAnalysisEntry[];
+  performanceInsights: PerformanceInsightEntry[];
+  topLoras: TopLoraPerformance[];
+}
+
+const createDefaultState = (): AnalyticsResourceState => ({
+  generatedAt: new Date(0).toISOString(),
+  kpis: { ...DEFAULT_KPIS },
+  chartData: createEmptyCharts(),
+  errorAnalysis: [],
+  performanceInsights: [],
+  topLoras: [],
+});
+
+const resolveTopLoras = (items: TopLoraPerformance[]): TopLoraPerformance[] => {
+  if (items.length) {
+    return items.map((item) => ({ ...item }));
+  }
+  if (import.meta.env.DEV) {
+    return createDevTopLoras();
+  }
+  return [];
+};
+
 export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', () => {
   const backendClient = useBackendClient();
 
   const timeRange = ref<PerformanceTimeRange>('24h');
   const autoRefresh = ref(false);
-  const isLoading = ref(false);
-  const hasLoaded = ref(false);
 
-  const kpis = ref<PerformanceKpiSummary>({ ...DEFAULT_KPIS });
-  const topLoras = ref<TopLoraPerformance[]>([]);
-  const errorAnalysis = ref<ErrorAnalysisEntry[]>([]);
-  const performanceInsights = ref<PerformanceInsightEntry[]>([]);
-  const chartData = ref<PerformanceAnalyticsCharts>(createEmptyCharts());
+  const fallbackState = createDefaultState();
+
+  const analyticsResource = useAsyncResource<AnalyticsResourceState, PerformanceTimeRange>(
+    async (range) => {
+      const targetRange = range ?? timeRange.value;
+
+      const [summary, topLorasRaw] = await Promise.all([
+        fetchPerformanceAnalytics(targetRange, backendClient),
+        fetchTopAdapters(10, backendClient).catch((error) => {
+          if (import.meta.env.DEV) {
+            console.error('[performanceAnalytics] Error loading top LoRAs', error);
+          }
+          return [] as TopLoraPerformance[];
+        }),
+      ]);
+
+      const topLoras = resolveTopLoras(topLorasRaw);
+      const chartData = {
+        ...createEmptyCharts(),
+        ...summary.chartData,
+      } satisfies PerformanceAnalyticsCharts;
+
+      if (!chartData.loraUsage.length && topLoras.length) {
+        chartData.loraUsage = topLoras.map((lora) => ({
+          name: lora.name,
+          usage_count: lora.usage_count,
+        }));
+      }
+
+      const kpis: PerformanceKpiSummary = {
+        ...DEFAULT_KPIS,
+        ...(summary.kpis ?? {}),
+      } satisfies PerformanceKpiSummary;
+
+      return {
+        generatedAt: summary.generatedAt,
+        kpis,
+        chartData,
+        errorAnalysis: [...summary.errorAnalysis],
+        performanceInsights: [...summary.performanceInsights],
+        topLoras,
+      } satisfies AnalyticsResourceState;
+    },
+    {
+      initialArgs: '24h',
+      initialValue: createDefaultState(),
+      getKey: (range) => range ?? '24h',
+      backendRefresh: {
+        getArgs: () => timeRange.value,
+      },
+      onError: (error) => {
+        if (import.meta.env.DEV) {
+          console.error('[performanceAnalytics] Error loading analytics summary', error);
+        }
+      },
+    },
+  );
+
+  watch(
+    () => analyticsResource.error.value,
+    (err) => {
+      if (err) {
+        analyticsResource.setData(createDefaultState());
+      }
+    },
+  );
+
+  const isLoading = computed(() => analyticsResource.isLoading.value);
+  const isInitialized = computed(() => analyticsResource.isLoaded.value);
+
+  const kpis = computed(() => analyticsResource.data.value?.kpis ?? fallbackState.kpis);
+  const topLoras = computed(() => analyticsResource.data.value?.topLoras ?? []);
+  const errorAnalysis = computed(
+    () => analyticsResource.data.value?.errorAnalysis ?? fallbackState.errorAnalysis,
+  );
+  const performanceInsights = computed(
+    () => analyticsResource.data.value?.performanceInsights ?? fallbackState.performanceInsights,
+  );
+  const chartData = computed(() => analyticsResource.data.value?.chartData ?? fallbackState.chartData);
 
   let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -100,6 +201,19 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
     }
   };
 
+  const loadAllData = async (): Promise<void> => {
+    await analyticsResource.refresh(timeRange.value);
+  };
+
+  const ensureLoaded = async (force = false): Promise<void> => {
+    if (force) {
+      await loadAllData();
+      return;
+    }
+
+    await analyticsResource.ensureLoaded(timeRange.value);
+  };
+
   const startAutoRefresh = () => {
     stopAutoRefresh();
     refreshInterval = setInterval(() => {
@@ -107,85 +221,9 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
     }, 30_000);
   };
 
-  const loadTopLoras = async (): Promise<void> => {
-    try {
-      const adapters = await fetchTopAdapters(10, backendClient);
-      topLoras.value = adapters;
-
-      if (!topLoras.value.length && import.meta.env.DEV) {
-        topLoras.value = createDevTopLoras();
-      }
-
-      if (topLoras.value.length && chartData.value.loraUsage.length === 0) {
-        chartData.value = {
-          ...chartData.value,
-          loraUsage: topLoras.value.map((lora) => ({
-            name: lora.name,
-            usage_count: lora.usage_count,
-          })),
-        } satisfies PerformanceAnalyticsCharts;
-      }
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('[performanceAnalytics] Error loading top LoRAs', error);
-      }
-      topLoras.value = import.meta.env.DEV ? createDevTopLoras() : [];
-    }
-  };
-
-  const loadAnalyticsSummary = async (): Promise<void> => {
-    try {
-      const summary = await fetchPerformanceAnalytics(timeRange.value, backendClient);
-
-      kpis.value = {
-        ...DEFAULT_KPIS,
-        ...(summary.kpis ?? {}),
-      } satisfies PerformanceKpiSummary;
-
-      chartData.value = {
-        ...createEmptyCharts(),
-        ...summary.chartData,
-      } satisfies PerformanceAnalyticsCharts;
-
-      errorAnalysis.value = [...summary.errorAnalysis];
-      performanceInsights.value = [...summary.performanceInsights];
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('[performanceAnalytics] Error loading analytics summary', error);
-      }
-      kpis.value = { ...DEFAULT_KPIS };
-      chartData.value = createEmptyCharts();
-      errorAnalysis.value = [];
-      performanceInsights.value = [];
-    }
-  };
-
-  const loadAllData = async (): Promise<void> => {
-    if (isLoading.value) {
-      return;
-    }
-
-    isLoading.value = true;
-    try {
-      await loadAnalyticsSummary();
-      await loadTopLoras();
-      hasLoaded.value = true;
-    } finally {
-      isLoading.value = false;
-    }
-  };
-
-  const ensureLoaded = async (force = false): Promise<void> => {
-    if (force || !hasLoaded.value) {
-      await loadAllData();
-    }
-  };
-
   const toggleAutoRefresh = (): void => {
     if (autoRefresh.value) {
-      if (!hasLoaded.value) {
-        void ensureLoaded();
-      }
+      void ensureLoaded();
       startAutoRefresh();
     } else {
       stopAutoRefresh();
@@ -194,11 +232,8 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
 
   const setTimeRange = (range: PerformanceTimeRange): void => {
     timeRange.value = range;
-  };
-
-  useBackendRefresh(() => {
     void loadAllData();
-  });
+  };
 
   const cleanup = (): void => {
     stopAutoRefresh();
@@ -208,12 +243,9 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
   const exportAnalytics = async (
     format: string,
     overrides: Partial<AnalyticsExportOptions> = {},
-  ): Promise<AnalyticsExportResult> =>
-    exportAnalyticsReport({ format, ...overrides }, backendClient);
+  ): Promise<AnalyticsExportResult> => exportAnalyticsReport({ format, ...overrides }, backendClient);
 
   const formatDuration = (value: number): string => formatDurationLabel(value);
-
-  const isInitialized = computed(() => hasLoaded.value);
 
   return {
     timeRange,
