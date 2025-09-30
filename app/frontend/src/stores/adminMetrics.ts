@@ -15,7 +15,7 @@ import {
   mergeStatusLevels,
   normaliseStatus,
 } from '@/utils/systemMetrics';
-import { useBackendEnvironment } from '@/stores/settings';
+import { useBackendEnvironment } from '@/stores';
 
 import type {
   DashboardStatsSummary,

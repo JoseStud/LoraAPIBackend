@@ -168,12 +168,14 @@ import { computed, onMounted, onUnmounted } from 'vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import SystemStatusCard from '@/components/system/SystemStatusCard.vue';
 import SystemStatusPanel from '@/components/system/SystemStatusPanel.vue';
-import PerformanceAnalyticsChartGrid from '@/components/analytics/PerformanceAnalyticsChartGrid.vue';
-import PerformanceAnalyticsExportToolbar from '@/components/analytics/PerformanceAnalyticsExportToolbar.vue';
-import PerformanceAnalyticsInsights from '@/components/analytics/PerformanceAnalyticsInsights.vue';
-import PerformanceAnalyticsKpiGrid from '@/components/analytics/PerformanceAnalyticsKpiGrid.vue';
+import {
+  PerformanceAnalyticsChartGrid,
+  PerformanceAnalyticsExportToolbar,
+  PerformanceAnalyticsInsights,
+  PerformanceAnalyticsKpiGrid,
+  usePerformanceAnalytics,
+} from '@/features/analytics';
 import { useNotifications } from '@/composables/shared';
-import { usePerformanceAnalytics } from '@/composables/usePerformanceAnalytics';
 import { downloadFile } from '@/utils/browser';
 import { successRateClass } from '@/utils/analyticsFormatting';
 import type { PerformanceInsightEntry } from '@/types';
