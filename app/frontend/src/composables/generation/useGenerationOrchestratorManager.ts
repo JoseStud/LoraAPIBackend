@@ -18,7 +18,7 @@ import {
   useGenerationOrchestratorManagerStore,
   type GenerationOrchestratorConsumer,
 } from '@/stores/generation';
-import { useSettingsStore, waitForSettingsHydration } from '@/stores';
+import { useSettingsStore } from '@/stores';
 import type {
   GenerationJob,
   GenerationRequestPayload,
@@ -45,7 +45,6 @@ export interface UseGenerationOrchestratorManagerDependencies {
     typeof useGenerationConnectionStore
   >;
   useSettingsStore: () => ReturnType<typeof useSettingsStore>;
-  waitForSettingsHydration: typeof waitForSettingsHydration;
 }
 
 const defaultDependencies: UseGenerationOrchestratorManagerDependencies = {
@@ -55,7 +54,6 @@ const defaultDependencies: UseGenerationOrchestratorManagerDependencies = {
   useGenerationResultsStore,
   useGenerationConnectionStore,
   useSettingsStore,
-  waitForSettingsHydration,
 };
 
 export interface GenerationOrchestratorBinding {
@@ -131,21 +129,6 @@ export const createUseGenerationOrchestratorManager = (
   const { pollIntervalMs, systemStatus, isConnected } = storeToRefs(connectionStore);
   const { activeJobs, sortedActiveJobs } = storeToRefs(queueStore);
 
-  const ensureSettingsHydrated = async (): Promise<void> => {
-    await dependencies.waitForSettingsHydration(settingsStore);
-  };
-
-  const callWithSettings = async <T>(operation: () => Promise<T>): Promise<T> => {
-    await ensureSettingsHydrated();
-    return operation();
-  };
-
-  const wrapWithSettings = <Args extends unknown[], T>(
-    operation: (...args: Args) => Promise<T>,
-  ) =>
-    (...args: Args): Promise<T> =>
-      callWithSettings(() => operation(...args));
-
   const notifyAll: GenerationNotificationAdapter['notify'] = (
     message,
     type: Parameters<GenerationNotificationAdapter['notify']>[1] = 'info',
@@ -185,8 +168,6 @@ export const createUseGenerationOrchestratorManager = (
     if (isInitialized.value) {
       return;
     }
-
-    await ensureSettingsHydrated();
 
     const orchestrator = orchestratorRef.value;
 
@@ -242,16 +223,18 @@ export const createUseGenerationOrchestratorManager = (
 
     const orchestrator = ensureOrchestrator(options);
 
-    const loadSystemStatusData = wrapWithSettings(orchestrator.loadSystemStatusData);
-    const loadActiveJobsData = wrapWithSettings(orchestrator.loadActiveJobsData);
-    const loadRecentResultsData = wrapWithSettings(orchestrator.loadRecentResultsData);
-    const startGeneration = wrapWithSettings(orchestrator.startGeneration);
-    const cancelJob = wrapWithSettings(orchestrator.cancelJob);
-    const clearQueue = wrapWithSettings(orchestrator.clearQueue);
-    const deleteResult = wrapWithSettings(orchestrator.deleteResult);
-    const refreshResults = wrapWithSettings((notifySuccess = false) =>
-      orchestrator.loadRecentResultsData(notifySuccess),
-    );
+    const loadSystemStatusData = (): Promise<void> => orchestrator.loadSystemStatusData();
+    const loadActiveJobsData = (): Promise<void> => orchestrator.loadActiveJobsData();
+    const loadRecentResultsData = (notifySuccess?: boolean): Promise<void> =>
+      orchestrator.loadRecentResultsData(notifySuccess);
+    const startGeneration = (payload: GenerationRequestPayload): Promise<GenerationStartResponse> =>
+      orchestrator.startGeneration(payload);
+    const cancelJob = (jobId: string): Promise<void> => orchestrator.cancelJob(jobId);
+    const clearQueue = (): Promise<void> => orchestrator.clearQueue();
+    const deleteResult = (resultId: string | number): Promise<void> =>
+      orchestrator.deleteResult(resultId);
+    const refreshResults = (notifySuccess = false): Promise<void> =>
+      orchestrator.loadRecentResultsData(notifySuccess);
 
     const initialize = async (): Promise<void> => {
       await ensureInitialized();

@@ -1,6 +1,4 @@
 import { defineStore } from 'pinia';
-import { watch } from 'vue';
-
 import { runtimeConfig } from '@/config/runtime';
 import type { FrontendRuntimeSettings, SettingsState } from '@/types';
 
@@ -146,44 +144,6 @@ export const tryGetSettingsStore = (): SettingsStore | null => {
   } catch (_error) {
     return null;
   }
-};
-
-export const waitForSettingsHydration = async (
-  store: SettingsStore | null | undefined = tryGetSettingsStore(),
-): Promise<void> => {
-  const target = store ?? tryGetSettingsStore();
-  if (!target) {
-    return;
-  }
-
-  if (target.isLoaded) {
-    return;
-  }
-
-  if (!target.isLoading) {
-    void target.loadSettings().catch((error) => {
-      if (import.meta.env.DEV) {
-        console.warn('Failed to hydrate frontend settings during wait', error);
-      }
-    });
-  }
-
-  await new Promise<void>((resolve) => {
-    const stop = watch(
-      () => ({
-        loaded: target.isLoaded,
-        loading: target.isLoading,
-        error: target.error,
-      }),
-      ({ loaded, loading, error }) => {
-        if (loaded || (!loading && error)) {
-          stop();
-          resolve();
-        }
-      },
-      { immediate: true, deep: false },
-    );
-  });
 };
 
 export const getResolvedBackendSettings = (): {

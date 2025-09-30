@@ -15,7 +15,7 @@ import {
   mergeStatusLevels,
   normaliseStatus,
 } from '@/utils/systemMetrics';
-import { useSettingsStore, waitForSettingsHydration } from '@/stores/settings';
+import { useSettingsStore } from '@/stores/settings';
 
 import type {
   DashboardStatsSummary,
@@ -30,7 +30,7 @@ interface RefreshOptions {
 
 export const useAdminMetricsStore = defineStore('adminMetrics', () => {
   const settingsStore = useSettingsStore();
-  const { backendUrl, isLoaded: settingsLoaded } = storeToRefs(settingsStore);
+  const { backendUrl } = storeToRefs(settingsStore);
   const backendClient = useBackendClient();
 
   const summary = ref<DashboardStatsSummary | null>(null);
@@ -79,7 +79,6 @@ export const useAdminMetricsStore = defineStore('adminMetrics', () => {
     }
 
     try {
-      await waitForSettingsHydration(settingsStore);
       const payload = await fetchDashboardStats(backendClient);
       applySummary(payload);
     } catch (err) {
@@ -116,7 +115,7 @@ export const useAdminMetricsStore = defineStore('adminMetrics', () => {
   watch(
     backendUrl,
     (next, previous) => {
-      if (next === previous || !settingsLoaded.value) {
+      if (next === previous) {
         return;
       }
 
