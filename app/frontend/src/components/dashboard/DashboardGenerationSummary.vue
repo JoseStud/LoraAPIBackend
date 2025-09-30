@@ -98,7 +98,7 @@ import { storeToRefs } from 'pinia';
 import { RouterLink } from 'vue-router';
 
 import { listResults as listHistoryResults, useBackendClient } from '@/services';
-import { useGenerationResultsStore } from '@/stores/generation';
+import { useGenerationResultsStore } from '@/features/generation';
 import { formatFileSize, formatRelativeTime } from '@/utils/format';
 import { mapGenerationResultsToHistory, mapHistoryResultsToGeneration } from '@/utils/generationHistory';
 import type {

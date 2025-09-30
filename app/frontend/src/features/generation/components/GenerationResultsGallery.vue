@@ -75,7 +75,7 @@
 <script setup lang="ts">
 import { toRefs } from 'vue'
 
-import type { UseGenerationStudioReturn } from '@/composables/generation'
+import type { UseGenerationStudioReturn } from '@/features/generation'
 import type { GenerationResult } from '@/types'
 
 const props = defineProps<{

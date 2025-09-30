@@ -126,11 +126,13 @@
 </template>
 
 <script setup lang="ts">
-import GenerationActiveJobsList from '@/components/generation/GenerationActiveJobsList.vue'
-import GenerationParameterForm from '@/components/generation/GenerationParameterForm.vue'
-import GenerationResultsGallery from '@/components/generation/GenerationResultsGallery.vue'
-import GenerationSystemStatusCard from '@/components/generation/GenerationSystemStatusCard.vue'
-import { useGenerationStudio } from '@/composables/generation'
+import {
+  GenerationActiveJobsList,
+  GenerationParameterForm,
+  GenerationResultsGallery,
+  GenerationSystemStatusCard,
+  useGenerationStudio,
+} from '@/features/generation'
 
 const generationStudio = useGenerationStudio()
 

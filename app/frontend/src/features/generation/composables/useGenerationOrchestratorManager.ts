@@ -17,7 +17,7 @@ import {
   useGenerationResultsStore,
   useGenerationOrchestratorManagerStore,
   type GenerationOrchestratorConsumer,
-} from '@/stores/generation';
+} from '@/features/generation';
 import { useSettingsStore } from '@/stores';
 import type {
   GenerationJob,

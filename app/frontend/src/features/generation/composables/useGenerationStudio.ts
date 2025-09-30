@@ -4,7 +4,7 @@ import { useGenerationPersistence } from './useGenerationPersistence'
 import { useGenerationUI } from './useGenerationUI'
 import { useGenerationStudioController } from './useGenerationStudioController'
 import { useDialogService, useNotifications } from '@/composables/shared'
-import { useGenerationFormStore } from '@/stores/generation'
+import { useGenerationFormStore } from '@/features/generation'
 import type { GenerationFormState, NotificationType } from '@/types'
 
 export const useGenerationStudio = () => {
