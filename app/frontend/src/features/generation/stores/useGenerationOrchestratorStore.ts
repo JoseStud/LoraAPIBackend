@@ -1,87 +1,21 @@
-import { computed, reactive, ref, watch, type Ref, type WatchStopHandle } from 'vue';
+import { ref, watch, type Ref } from 'vue';
 import { defineStore } from 'pinia';
 
 import { createGenerationTransportAdapter, type GenerationTransportAdapter } from '../composables/createGenerationTransportAdapter';
 import type { GenerationQueueClient } from '../services/queueClient';
 import type { GenerationWebSocketManager } from '../services/websocketManager';
-import { DEFAULT_POLL_INTERVAL } from '../services/updates';
 import type { GenerationNotificationAdapter } from '../composables/useGenerationTransport';
 import { acquireSystemStatusController } from './systemStatusController';
-import { normalizeGenerationProgress } from '@/utils/progress';
-import { normalizeJobStatus } from '@/utils/status';
-import type {
-  GenerationCompleteMessage,
-  GenerationErrorMessage,
-  GenerationJob,
-  GenerationProgressMessage,
-  GenerationRequestPayload,
-  GenerationResult,
-  GenerationStartResponse,
-  ProgressUpdate,
-  SystemStatusPayload,
-  SystemStatusState,
-} from '@/types';
+import { createQueueModule } from './orchestrator/queueModule';
+import { createResultsModule, DEFAULT_HISTORY_LIMIT } from './orchestrator/resultsModule';
+import { createSystemStatusModule } from './orchestrator/systemStatusModule';
+import { createTransportModule } from './orchestrator/transportModule';
+import { createWatcherRegistry } from './orchestrator/watcherRegistry';
+import type { GenerationRequestPayload, GenerationStartResponse } from '@/types';
 
-export type GenerationJobInput = Partial<GenerationJob> & {
-  id?: string | number;
-  jobId?: string | number;
-};
-
-export const MAX_RESULTS = 200;
-export const DEFAULT_HISTORY_LIMIT = 10;
-
-const HISTORY_LIMIT_WHEN_SHOWING = 50;
-
-const CANCELLABLE_STATUSES: ReadonlySet<GenerationJob['status']> = new Set([
-  'queued',
-  'processing',
-]);
-
-export const DEFAULT_SYSTEM_STATUS: SystemStatusState = {
-  gpu_available: false,
-  queue_length: 0,
-  status: 'unknown',
-  gpu_status: 'Unknown',
-  memory_used: 0,
-  memory_total: 0,
-};
-
-export const createDefaultSystemStatus = (): SystemStatusState => ({
-  ...DEFAULT_SYSTEM_STATUS,
-});
-
-const resolveJobId = (job: GenerationJobInput): string => {
-  const rawId = job.id ?? job.jobId;
-  const id = typeof rawId === 'number' || typeof rawId === 'string' ? String(rawId) : '';
-  return id || `job-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-};
-
-const toStoredJob = (job: GenerationJobInput): GenerationJob => {
-  const id = resolveJobId(job);
-  const startTime = job.startTime ?? job.created_at ?? new Date().toISOString();
-  const progress = normalizeGenerationProgress(
-    typeof job.progress === 'number' ? job.progress : undefined,
-  );
-  const status = normalizeJobStatus(typeof job.status === 'string' ? job.status : undefined);
-
-  const createdAt = job.created_at ?? startTime;
-
-  return {
-    ...job,
-    id,
-    startTime,
-    created_at: createdAt,
-    progress,
-    status,
-  } as GenerationJob;
-};
-
-const sanitizeResult = (result: GenerationResult): GenerationResult => {
-  if (typeof result.created_at === 'string' && result.created_at.trim()) {
-    return result;
-  }
-  return { ...result, created_at: new Date().toISOString() };
-};
+export type { GenerationJobInput } from './orchestrator/queueModule';
+export { MAX_RESULTS, DEFAULT_HISTORY_LIMIT } from './orchestrator/resultsModule';
+export { DEFAULT_SYSTEM_STATUS, createDefaultSystemStatus } from './orchestrator/systemStatusModule';
 
 export interface GenerationOrchestratorInitializeOptions {
   showHistory: Ref<boolean>;
@@ -99,293 +33,45 @@ const defaultDependencies: GenerationOrchestratorStoreDependencies = {
   createTransportAdapter: createGenerationTransportAdapter,
 };
 
-const HISTORY_LIMIT_DEFAULT = DEFAULT_HISTORY_LIMIT;
+const HISTORY_LIMIT_WHEN_SHOWING = 50;
 
 export const useGenerationOrchestratorStore = defineStore(
   'generation-orchestrator',
   (dependencies: GenerationOrchestratorStoreDependencies = defaultDependencies) => {
-    const jobs = ref<GenerationJob[]>([]);
-    const results = ref<GenerationResult[]>([]);
-    const historyLimit = ref(HISTORY_LIMIT_DEFAULT);
+    const queue = createQueueModule();
+    const results = createResultsModule();
 
-    const systemStatus = reactive<SystemStatusState>(createDefaultSystemStatus());
-    const isConnected = ref(false);
-    const pollIntervalMs = ref(DEFAULT_POLL_INTERVAL);
-    const systemStatusReady = ref(false);
-    const systemStatusLastUpdated = ref<Date | null>(null);
-    const systemStatusApiAvailable = ref(true);
-    const queueManagerActive = ref(false);
+    const transportModule = createTransportModule();
+    const handlePollIntervalChange = (next: number): void => {
+      if (transportModule.transport.value) {
+        transportModule.transport.value.setPollInterval(next);
+      }
+    };
 
-    const isActive = ref(false);
-    const transport = ref<GenerationTransportAdapter | null>(null);
-    const systemStatusRelease = ref<(() => void) | null>(null);
-    const watchers = ref<WatchStopHandle[]>([]);
-
-    const activeJobs = computed(() => jobs.value);
-
-    const sortedActiveJobs = computed(() => {
-      const statusPriority: Record<GenerationJob['status'], number> = {
-        processing: 0,
-        queued: 1,
-        completed: 2,
-        failed: 3,
-      };
-
-      return [...jobs.value].sort((a, b) => {
-        const aPriority = statusPriority[a.status] ?? 4;
-        const bPriority = statusPriority[b.status] ?? 4;
-
-        if (aPriority !== bPriority) {
-          return aPriority - bPriority;
-        }
-
-        const aCreated = Date.parse(a.created_at ?? a.startTime ?? '');
-        const bCreated = Date.parse(b.created_at ?? b.startTime ?? '');
-
-        if (Number.isNaN(aCreated) && Number.isNaN(bCreated)) {
-          return 0;
-        }
-
-        if (Number.isNaN(aCreated)) {
-          return 1;
-        }
-
-        if (Number.isNaN(bCreated)) {
-          return -1;
-        }
-
-        return bCreated - aCreated;
-      });
+    const systemStatusModule = createSystemStatusModule({
+      onPollIntervalChange: handlePollIntervalChange,
     });
 
-    const hasActiveJobs = computed(() => activeJobs.value.length > 0);
+    const watcherRegistry = createWatcherRegistry();
 
-    const recentResults = computed(() => results.value);
-
-    const registerWatcher = (stopHandle: WatchStopHandle): void => {
-      watchers.value.push(stopHandle);
-    };
-
-    const stopWatchers = (): void => {
-      watchers.value.forEach((stop) => {
-        stop();
-      });
-      watchers.value = [];
-    };
-
-    const enqueueJob = (job: GenerationJobInput): GenerationJob => {
-      const stored = toStoredJob(job);
-      const existingIndex = jobs.value.findIndex((item) => item.id === stored.id);
-      if (existingIndex >= 0) {
-        jobs.value.splice(existingIndex, 1, stored);
-      } else {
-        jobs.value.push(stored);
-      }
-      return stored;
-    };
-
-    const setJobs = (list: GenerationJobInput[]): void => {
-      jobs.value = list.map((job) => toStoredJob(job));
-    };
-
-    const updateJob = (jobId: string, updates: Partial<GenerationJob>): void => {
-      const index = jobs.value.findIndex((job) => job.id === jobId);
-      if (index >= 0) {
-        const merged = { ...jobs.value[index], ...updates } as GenerationJob;
-        merged.progress = normalizeGenerationProgress(merged.progress);
-        merged.status = normalizeJobStatus(merged.status);
-        jobs.value.splice(index, 1, merged);
-      }
-    };
-
-    const removeJob = (jobId: string): void => {
-      jobs.value = jobs.value.filter((job) => job.id !== jobId);
-    };
-
-    const clearCompletedJobs = (): void => {
-      jobs.value = jobs.value.filter((job) => !['completed', 'failed'].includes(job.status));
-    };
-
-    const isJobCancellable = (job: GenerationJob): boolean => CANCELLABLE_STATUSES.has(job.status);
-
-    const getCancellableJobs = (): GenerationJob[] => jobs.value.filter((job) => isJobCancellable(job));
-
-    const handleProgressMessage = (message: GenerationProgressMessage | ProgressUpdate): void => {
-      const jobId = message.job_id;
-      const job = jobs.value.find((item) => item.id === jobId);
-      const updates: Partial<GenerationJob> = {
-        status: normalizeJobStatus(message.status),
-        progress: normalizeGenerationProgress(message.progress),
-        current_step: typeof message.current_step === 'number' ? message.current_step : job?.current_step,
-        total_steps: typeof message.total_steps === 'number' ? message.total_steps : job?.total_steps,
-      };
-
-      if (!job) {
-        enqueueJob({ id: jobId, ...updates });
-        return;
-      }
-
-      updateJob(jobId, updates);
-    };
-
-    const handleCompletionMessage = (message: GenerationCompleteMessage): GenerationResult => {
-      removeJob(message.job_id);
-      const createdAt = message.created_at ?? new Date().toISOString();
-      const imageUrl = message.image_url ?? (Array.isArray(message.images) ? message.images[0] ?? null : null);
-
-      return {
-        id: message.result_id ?? message.job_id,
-        job_id: message.job_id,
-        result_id: message.result_id,
-        prompt: message.prompt,
-        negative_prompt: message.negative_prompt,
-        image_url: imageUrl,
-        width: message.width,
-        height: message.height,
-        steps: message.steps,
-        cfg_scale: message.cfg_scale,
-        seed: message.seed ?? null,
-        created_at: createdAt,
-      };
-    };
-
-    const handleErrorMessage = (message: GenerationErrorMessage): void => {
-      removeJob(message.job_id);
-    };
-
-    const ingestQueue = (list: GenerationJobInput[] | undefined | null): void => {
-      if (!Array.isArray(list)) {
-        return;
-      }
-      setJobs(list);
-    };
-
-    const resetQueue = (): void => {
-      jobs.value = [];
-    };
-
-    const resolveResultsLimit = (): number => {
-      const normalized = Math.max(1, Math.floor(historyLimit.value || HISTORY_LIMIT_DEFAULT));
-      return Math.min(normalized, MAX_RESULTS);
-    };
-
-    const clampResults = (list: GenerationResult[]): GenerationResult[] => {
-      const limit = resolveResultsLimit();
-      return list.slice(0, limit);
-    };
-
-    const addResult = (result: GenerationResult): void => {
-      const sanitized = sanitizeResult(result);
-      results.value = clampResults([sanitized, ...results.value]);
-    };
-
-    const setResults = (list: GenerationResult[]): void => {
-      const sanitized = list.map(sanitizeResult);
-      results.value = clampResults(sanitized);
-    };
-
-    const removeResult = (resultId: string | number): void => {
-      results.value = results.value.filter((result) => result.id !== resultId);
-    };
-
-    const setHistoryLimit = (limit: number): void => {
-      const normalized = Math.floor(Number(limit));
-      const resolved = Number.isFinite(normalized) && normalized > 0 ? normalized : HISTORY_LIMIT_DEFAULT;
-      historyLimit.value = resolved;
-      results.value = clampResults(results.value);
-    };
-
-    const resetResults = (): void => {
-      results.value = [];
-      historyLimit.value = HISTORY_LIMIT_DEFAULT;
-    };
-
-    const setConnectionState = (connected: boolean): void => {
-      isConnected.value = connected;
-    };
-
-    const setPollInterval = (interval: number): void => {
-      const numeric = Math.floor(Number(interval));
-      const next = Number.isFinite(numeric) && numeric > 0 ? numeric : DEFAULT_POLL_INTERVAL;
-      pollIntervalMs.value = next;
-      transport.value?.setPollInterval(next);
-    };
-
-    const updateSystemStatus = (status: Partial<SystemStatusState>): void => {
-      Object.assign(systemStatus, status);
-    };
-
-    const resetSystemStatus = (): void => {
-      Object.assign(systemStatus, createDefaultSystemStatus());
-      systemStatusReady.value = false;
-      systemStatusLastUpdated.value = null;
-      systemStatusApiAvailable.value = true;
-    };
-
-    const applySystemStatusPayload = (payload: SystemStatusPayload | Partial<SystemStatusState>): void => {
-      const {
-        metrics: _metrics,
-        message: _message,
-        updated_at: _updatedAt,
-        type: _type,
-        ...status
-      } = payload as Record<string, unknown>;
-      updateSystemStatus(status as Partial<SystemStatusState>);
-      const timestamp =
-        (payload as SystemStatusPayload).updated_at || (payload as SystemStatusPayload).last_updated || null;
-      const resolvedTimestamp = timestamp ? new Date(timestamp) : new Date();
-      systemStatusReady.value = true;
-      systemStatusApiAvailable.value = true;
-      systemStatusLastUpdated.value = resolvedTimestamp;
-    };
-
-    const markSystemStatusHydrated = (date: Date | null = null): void => {
-      systemStatusReady.value = true;
-      systemStatusApiAvailable.value = true;
-      systemStatusLastUpdated.value = date ?? new Date();
-    };
-
-    const markSystemStatusUnavailable = (date: Date | null = null): void => {
-      systemStatusReady.value = true;
-      systemStatusApiAvailable.value = false;
-      systemStatusLastUpdated.value = date ?? new Date();
-    };
-
-    const setQueueManagerActive = (active: boolean): void => {
-      queueManagerActive.value = active;
-    };
-
-    const resetConnection = (): void => {
-      resetSystemStatus();
-      isConnected.value = false;
-      pollIntervalMs.value = DEFAULT_POLL_INTERVAL;
-      queueManagerActive.value = false;
-    };
-
-    const resetState = (): void => {
-      resetQueue();
-      resetResults();
-      resetConnection();
-    };
-
-    const ensureTransport = (): GenerationTransportAdapter => {
-      const instance = transport.value;
-      if (!instance) {
-        throw new Error('Generation transport has not been initialized');
-      }
-      return instance;
-    };
+    const isActive = ref(false);
+    const systemStatusRelease = ref<(() => void) | null>(null);
 
     const cleanup = (): void => {
-      transport.value?.clear();
-      transport.value = null;
-      stopWatchers();
+      transportModule.clearTransport();
+      watcherRegistry.stopAll();
       if (systemStatusRelease.value) {
         systemStatusRelease.value();
         systemStatusRelease.value = null;
       }
-      setQueueManagerActive(false);
+      systemStatusModule.setQueueManagerActive(false);
       isActive.value = false;
+    };
+
+    const resetState = (): void => {
+      queue.resetQueue();
+      results.resetResults();
+      systemStatusModule.resetConnection();
     };
 
     const initialize = async (options: GenerationOrchestratorInitializeOptions): Promise<void> => {
@@ -408,30 +94,31 @@ export const useGenerationOrchestratorStore = defineStore(
         notificationAdapter: options.notificationAdapter,
         queueClient: options.queueClient,
         websocketManager: options.websocketManager,
-        initialPollInterval: pollIntervalMs.value,
-        shouldPollQueue: () => hasActiveJobs.value,
+        initialPollInterval: systemStatusModule.pollIntervalMs.value,
+        shouldPollQueue: () => queue.hasActiveJobs.value,
         onSystemStatus: (payload) => {
-          applySystemStatusPayload(payload);
+          systemStatusModule.applySystemStatusPayload(payload);
         },
         onQueueUpdate: (jobsPayload) => {
-          ingestQueue(jobsPayload);
+          queue.ingestQueue(jobsPayload);
         },
         onProgress: (message) => {
-          handleProgressMessage(message);
+          queue.handleProgressMessage(message);
         },
         onComplete: (message) => {
-          const result = handleCompletionMessage(message);
-          addResult(result);
+          queue.handleCompletionMessage(message);
+          const result = results.createResultFromCompletion(message);
+          results.addResult(result);
           return result;
         },
         onError: (message) => {
-          handleErrorMessage(message);
+          queue.handleErrorMessage(message);
         },
         onRecentResults: (payload) => {
-          setResults(payload);
+          results.setResults(payload);
         },
         onConnectionChange: (connected) => {
-          setConnectionState(connected);
+          systemStatusModule.setConnectionState(connected);
         },
         onHydrateSystemStatus: () => controller.ensureHydrated(),
         onReleaseSystemStatus: () => {
@@ -440,15 +127,15 @@ export const useGenerationOrchestratorStore = defineStore(
         },
       });
 
-      transport.value = adapter;
+      transportModule.setTransport(adapter);
 
       const stopHistoryWatch = watch(options.showHistory, (next) => {
-        const nextLimit = next ? HISTORY_LIMIT_WHEN_SHOWING : HISTORY_LIMIT_DEFAULT;
-        setHistoryLimit(nextLimit);
+        const nextLimit = next ? HISTORY_LIMIT_WHEN_SHOWING : DEFAULT_HISTORY_LIMIT;
+        results.setHistoryLimit(nextLimit);
         void loadRecentResults();
       });
 
-      registerWatcher(stopHistoryWatch);
+      watcherRegistry.register(stopHistoryWatch);
 
       const stopBackendWatch = watch(
         options.configuredBackendUrl,
@@ -456,25 +143,27 @@ export const useGenerationOrchestratorStore = defineStore(
           if (next === previous) {
             return;
           }
-          transport.value?.reconnect();
+          transportModule.transport.value?.reconnect();
           void refreshAllData();
         },
       );
 
-      registerWatcher(stopBackendWatch);
+      watcherRegistry.register(stopBackendWatch);
 
-      const nextLimit = options.showHistory.value ? HISTORY_LIMIT_WHEN_SHOWING : HISTORY_LIMIT_DEFAULT;
-      setHistoryLimit(nextLimit);
-      setQueueManagerActive(true);
+      const nextLimit = options.showHistory.value ? HISTORY_LIMIT_WHEN_SHOWING : DEFAULT_HISTORY_LIMIT;
+      results.setHistoryLimit(nextLimit);
+      systemStatusModule.setQueueManagerActive(true);
 
       try {
         isActive.value = true;
-        await adapter.initialize(historyLimit.value);
+        await adapter.initialize(results.historyLimit.value);
       } catch (error) {
         cleanup();
         throw error;
       }
     };
+
+    const ensureTransport = (): GenerationTransportAdapter => transportModule.ensureTransport();
 
     const loadSystemStatusData = async (): Promise<void> => {
       await ensureTransport().refreshSystemStatus();
@@ -485,11 +174,11 @@ export const useGenerationOrchestratorStore = defineStore(
     };
 
     const loadRecentResults = async (notifySuccess = false): Promise<void> => {
-      await ensureTransport().refreshRecentResults(historyLimit.value, notifySuccess);
+      await ensureTransport().refreshRecentResults(results.historyLimit.value, notifySuccess);
     };
 
     const refreshAllData = async (): Promise<void> => {
-      await ensureTransport().refreshAll(historyLimit.value);
+      await ensureTransport().refreshAll(results.historyLimit.value);
     };
 
     const startGeneration = async (
@@ -500,10 +189,10 @@ export const useGenerationOrchestratorStore = defineStore(
 
       if (response.job_id) {
         const createdAt = new Date().toISOString();
-        enqueueJob({
+        queue.enqueueJob({
           id: response.job_id,
           prompt: payload.prompt,
-          status: normalizeJobStatus(response.status),
+          status: response.status,
           progress: response.progress ?? 0,
           startTime: createdAt,
           created_at: createdAt,
@@ -522,11 +211,11 @@ export const useGenerationOrchestratorStore = defineStore(
     const cancelJob = async (jobId: string): Promise<void> => {
       const transportInstance = ensureTransport();
       await transportInstance.cancelJob(jobId);
-      removeJob(jobId);
+      queue.removeJob(jobId);
     };
 
     const clearQueue = async (): Promise<void> => {
-      const cancellableJobs = getCancellableJobs();
+      const cancellableJobs = queue.getCancellableJobs();
       if (cancellableJobs.length === 0) {
         return;
       }
@@ -537,7 +226,7 @@ export const useGenerationOrchestratorStore = defineStore(
     const deleteResult = async (resultId: string | number): Promise<void> => {
       const transportInstance = ensureTransport();
       await transportInstance.deleteResult(resultId);
-      removeResult(resultId);
+      results.removeResult(resultId);
     };
 
     const destroy = (): void => {
@@ -547,51 +236,51 @@ export const useGenerationOrchestratorStore = defineStore(
 
     return {
       // state
-      jobs,
-      results,
-      historyLimit,
-      systemStatus,
-      isConnected,
-      pollIntervalMs,
-      systemStatusReady,
-      systemStatusLastUpdated,
-      systemStatusApiAvailable,
-      queueManagerActive,
+      jobs: queue.jobs,
+      results: results.results,
+      historyLimit: results.historyLimit,
+      systemStatus: systemStatusModule.systemStatus,
+      isConnected: systemStatusModule.isConnected,
+      pollIntervalMs: systemStatusModule.pollIntervalMs,
+      systemStatusReady: systemStatusModule.systemStatusReady,
+      systemStatusLastUpdated: systemStatusModule.systemStatusLastUpdated,
+      systemStatusApiAvailable: systemStatusModule.systemStatusApiAvailable,
+      queueManagerActive: systemStatusModule.queueManagerActive,
       isActive,
       // getters
-      activeJobs,
-      sortedActiveJobs,
-      hasActiveJobs,
-      recentResults,
+      activeJobs: queue.activeJobs,
+      sortedActiveJobs: queue.sortedActiveJobs,
+      hasActiveJobs: queue.hasActiveJobs,
+      recentResults: results.recentResults,
       // queue actions
-      enqueueJob,
-      setJobs,
-      updateJob,
-      removeJob,
-      clearCompletedJobs,
-      isJobCancellable,
-      getCancellableJobs,
-      handleProgressMessage,
-      handleCompletionMessage,
-      handleErrorMessage,
-      ingestQueue,
-      resetQueue,
+      enqueueJob: queue.enqueueJob,
+      setJobs: queue.setJobs,
+      updateJob: queue.updateJob,
+      removeJob: queue.removeJob,
+      clearCompletedJobs: queue.clearCompletedJobs,
+      isJobCancellable: queue.isJobCancellable,
+      getCancellableJobs: queue.getCancellableJobs,
+      handleProgressMessage: queue.handleProgressMessage,
+      handleCompletionMessage: queue.handleCompletionMessage,
+      handleErrorMessage: queue.handleErrorMessage,
+      ingestQueue: queue.ingestQueue,
+      resetQueue: queue.resetQueue,
       // result actions
-      addResult,
-      setResults,
-      removeResult,
-      setHistoryLimit,
-      resetResults,
+      addResult: results.addResult,
+      setResults: results.setResults,
+      removeResult: results.removeResult,
+      setHistoryLimit: results.setHistoryLimit,
+      resetResults: results.resetResults,
       // connection actions
-      setConnectionState,
-      setPollInterval,
-      updateSystemStatus,
-      resetSystemStatus,
-      applySystemStatusPayload,
-      markSystemStatusHydrated,
-      markSystemStatusUnavailable,
-      resetConnection,
-      setQueueManagerActive,
+      setConnectionState: systemStatusModule.setConnectionState,
+      setPollInterval: systemStatusModule.setPollInterval,
+      updateSystemStatus: systemStatusModule.updateSystemStatus,
+      resetSystemStatus: systemStatusModule.resetSystemStatus,
+      applySystemStatusPayload: systemStatusModule.applySystemStatusPayload,
+      markSystemStatusHydrated: systemStatusModule.markSystemStatusHydrated,
+      markSystemStatusUnavailable: systemStatusModule.markSystemStatusUnavailable,
+      resetConnection: systemStatusModule.resetConnection,
+      setQueueManagerActive: systemStatusModule.setQueueManagerActive,
       // orchestrator actions
       initialize,
       loadSystemStatusData,
