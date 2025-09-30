@@ -5,7 +5,7 @@ import { createPinia, setActivePinia } from 'pinia';
 
 import type { RecommendationItem, RecommendationResponse } from '@/types';
 
-type UseRecommendations = typeof import('@/composables/recommendations/useRecommendations').useRecommendations;
+type UseRecommendations = typeof import('@/features/recommendations/composables/useRecommendations').useRecommendations;
 type UseSettingsStore = typeof import('@/stores/settings').useSettingsStore;
 
 const flush = async () => {
@@ -168,10 +168,17 @@ describe('useRecommendations', () => {
       const actual = await vi.importActual<typeof import('@/services')>('@/services');
       return {
         ...actual,
-        fetchAdapterList: serviceMocks.fetchAdapterList,
-        fetchAdapterTags: serviceMocks.fetchAdapterTags,
-        performBulkLoraAction: serviceMocks.performBulkLoraAction,
         useBackendClient: serviceMocks.useBackendClient,
+      };
+    });
+
+    vi.doMock('@/features/lora/services/lora/loraService', async () => {
+      const actual = await vi.importActual<typeof import('@/features/lora/services/lora/loraService')>(
+        '@/features/lora/services/lora/loraService',
+      );
+      return {
+        ...actual,
+        fetchAdapterList: serviceMocks.fetchAdapterList,
       };
     });
 
@@ -191,7 +198,7 @@ describe('useRecommendations', () => {
       };
     });
 
-    const module = await import('@/composables/recommendations/useRecommendations');
+    const module = await import('@/features/recommendations/composables/useRecommendations');
     useRecommendations = module.useRecommendations;
 
     const settingsModule = await import('@/stores/settings');
