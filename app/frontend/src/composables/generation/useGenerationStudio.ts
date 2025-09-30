@@ -1,10 +1,8 @@
 import { computed, onMounted } from 'vue'
 
-import {
-  useGenerationPersistence,
-  useGenerationStudioDomain,
-  useGenerationUI,
-} from '@/composables/generation'
+import { useGenerationPersistence } from './useGenerationPersistence'
+import { useGenerationStudioDomain } from './useGenerationStudioDomain'
+import { useGenerationUI } from './useGenerationUI'
 import { useDialogService, useNotifications } from '@/composables/shared'
 import { useGenerationFormStore } from '@/stores/generation'
 import type { GenerationFormState, NotificationType } from '@/types'

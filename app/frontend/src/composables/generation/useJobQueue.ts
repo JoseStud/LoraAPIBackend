@@ -12,8 +12,8 @@ import { normalizeJobStatus } from '@/utils/status';
 import { useNotifications } from '@/composables/shared';
 import type { UseNotificationsReturn } from '@/composables/shared';
 
-import { useJobQueueTransport } from '@/composables/generation';
-import { useJobQueuePolling } from '@/composables/generation';
+import { useJobQueueTransport } from './useJobQueueTransport';
+import { useJobQueuePolling } from './useJobQueuePolling';
 
 const DEFAULT_POLL_INTERVAL = 2000;
 

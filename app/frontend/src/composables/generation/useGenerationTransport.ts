@@ -15,8 +15,8 @@ import type {
 } from '@/types';
 import type { GenerationJobInput } from '@/stores/generation';
 
-import { useGenerationQueueClient } from '@/composables/generation';
-import { useGenerationSocketBridge } from '@/composables/generation';
+import { useGenerationQueueClient } from './useGenerationQueueClient';
+import { useGenerationSocketBridge } from './useGenerationSocketBridge';
 
 export interface GenerationNotificationAdapter {
   notify(message: string, type?: NotificationType): void;
