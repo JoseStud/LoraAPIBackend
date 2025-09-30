@@ -3,4 +3,5 @@ export * from './app';
 export * from './adminMetrics';
 export * from './generation';
 export * from './adapterCatalog';
+export * from './performanceAnalytics';
 

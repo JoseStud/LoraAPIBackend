@@ -163,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
 
 import PageHeader from '@/components/layout/PageHeader.vue';
 import SystemStatusCard from '@/components/system/SystemStatusCard.vue';
@@ -197,24 +197,14 @@ const {
   performanceInsights,
   chartData,
   isLoading,
+  isInitialized,
+  ensureLoaded,
   loadAllData,
   toggleAutoRefresh,
   formatDuration,
   cleanup,
   exportAnalytics,
 } = usePerformanceAnalytics();
-
-const isInitialized = ref(false);
-
-const init = async () => {
-  try {
-    await loadAllData();
-    isInitialized.value = true;
-  } catch (error) {
-    console.error('Failed to initialize performance analytics:', error);
-    notifications.showError('Failed to load analytics data');
-  }
-};
 
 const handleTimeRangeChange = async () => {
   await loadAllData();
@@ -249,7 +239,10 @@ const handleApplyRecommendation = (insight: PerformanceInsightEntry) => {
 };
 
 onMounted(() => {
-  void init();
+  void ensureLoaded().catch((error) => {
+    console.error('Failed to initialize performance analytics:', error);
+    notifications.showError('Failed to load analytics data');
+  });
 });
 
 onUnmounted(() => {

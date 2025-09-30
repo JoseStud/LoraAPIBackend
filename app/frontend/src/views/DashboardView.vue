@@ -80,6 +80,7 @@ import RecommendationsPanel from '@/components/recommendations/RecommendationsPa
 import SystemAdminStatusCard from '@/components/system/SystemAdminStatusCard.vue';
 import SystemStatusCard from '@/components/system/SystemStatusCard.vue';
 import SystemStatusPanel from '@/components/system/SystemStatusPanel.vue';
+import { usePerformanceAnalyticsStore } from '@/stores';
 
 type PanelKey = 'analytics' | 'composer' | 'studio' | 'gallery' | 'history' | 'importExport';
 
@@ -172,6 +173,8 @@ const panels = panelConfigs.map((panel) => ({
   component: defineAsyncComponent(panel.loader),
 }));
 
+const performanceAnalyticsStore = usePerformanceAnalyticsStore();
+
 const panelStates = reactive<Record<PanelKey, PanelState>>(
   panels.reduce((state, panel) => {
     state[panel.key] = { active: false, loading: false, hasEverLoaded: false };
@@ -199,5 +202,13 @@ const handlePanelToggle = (key: PanelKey) => {
   }
 
   setPanelState(key, { active: true, loading: !state.hasEverLoaded });
+
+  if (key === 'analytics') {
+    void performanceAnalyticsStore.ensureLoaded().catch((error) => {
+      if (import.meta.env.DEV) {
+        console.error('[DashboardView] Failed to prefetch analytics data', error);
+      }
+    });
+  }
 };
 </script>
