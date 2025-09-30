@@ -113,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { useRecommendations } from '@/composables/recommendations/useRecommendations';
+import { useRecommendations } from '@/features/recommendations';
 import type { RecommendationItem } from '@/types';
 
 const {

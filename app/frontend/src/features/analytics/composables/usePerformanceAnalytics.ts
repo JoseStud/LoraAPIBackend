@@ -1,6 +1,6 @@
 import { storeToRefs } from 'pinia';
 
-import { usePerformanceAnalyticsStore } from '@/stores';
+import { usePerformanceAnalyticsStore } from '@/features/analytics';
 
 export function usePerformanceAnalytics() {
   const store = usePerformanceAnalyticsStore();

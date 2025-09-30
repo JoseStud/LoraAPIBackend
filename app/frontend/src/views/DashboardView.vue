@@ -74,13 +74,13 @@ import { RouterLink } from 'vue-router';
 import DashboardGenerationSummary from '@/components/dashboard/DashboardGenerationSummary.vue';
 import DashboardLazyModuleCard from '@/components/dashboard/DashboardLazyModuleCard.vue';
 import DashboardLoraSummary from '@/components/dashboard/DashboardLoraSummary.vue';
-import JobQueue from '@/components/shared/JobQueue.vue';
+import { JobQueue } from '@/features/generation';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import RecommendationsPanel from '@/components/recommendations/RecommendationsPanel.vue';
+import { RecommendationsPanel } from '@/features/recommendations';
 import SystemAdminStatusCard from '@/components/system/SystemAdminStatusCard.vue';
 import SystemStatusCard from '@/components/system/SystemStatusCard.vue';
 import SystemStatusPanel from '@/components/system/SystemStatusPanel.vue';
-import { usePerformanceAnalyticsStore } from '@/stores';
+import { usePerformanceAnalyticsStore } from '@/features/analytics';
 
 type PanelKey = 'analytics' | 'composer' | 'studio' | 'gallery' | 'history' | 'importExport';
 
@@ -153,7 +153,7 @@ const panelConfigs = [
     placeholder:
       'Load a lightweight history viewer inline or head to the history page for advanced filtering and exports.',
     fallback: 'Loading generation history…',
-    loader: () => import('@/components/history/GenerationHistory.vue').then((module) => module.default),
+    loader: () => import('@/features/history').then((module) => module.GenerationHistory),
   },
   {
     key: 'importExport',

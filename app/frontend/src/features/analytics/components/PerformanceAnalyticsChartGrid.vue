@@ -51,10 +51,12 @@
 </template>
 
 <script setup lang="ts">
-import GenerationVolumeChart from '@/components/analytics/GenerationVolumeChart.vue';
-import LoraUsageChart from '@/components/analytics/LoraUsageChart.vue';
-import PerformanceTrendChart from '@/components/analytics/PerformanceTrendChart.vue';
-import ResourceUsageChart from '@/components/analytics/ResourceUsageChart.vue';
+import {
+  GenerationVolumeChart,
+  LoraUsageChart,
+  PerformanceTrendChart,
+  ResourceUsageChart,
+} from '@/features/analytics';
 import type { PerformanceAnalyticsCharts } from '@/types';
 
 defineProps<{

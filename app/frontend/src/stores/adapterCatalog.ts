@@ -3,7 +3,7 @@ import { defineStore } from 'pinia';
 
 import { ApiError } from '@/composables/shared';
 import { fetchAdapterList, fetchAdapterTags, performBulkLoraAction, useBackendClient } from '@/services';
-import { useBackendEnvironment } from '@/stores/settings';
+import { useBackendEnvironment } from '@/stores';
 
 import type {
   AdapterRead,

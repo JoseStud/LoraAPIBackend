@@ -31,9 +31,9 @@ import { RouterLink } from 'vue-router';
 import { defineAsyncComponent } from 'vue';
 
 import ImportExportContainer from '@/components/import-export/ImportExportContainer.vue';
-import JobQueue from '@/components/shared/JobQueue.vue';
+import { JobQueue } from '@/features/generation';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import RecommendationsPanel from '@/components/recommendations/RecommendationsPanel.vue';
+import { RecommendationsPanel } from '@/features/recommendations';
 import SystemAdminStatusCard from '@/components/system/SystemAdminStatusCard.vue';
 import SystemStatusPanel from '@/components/system/SystemStatusPanel.vue';
 

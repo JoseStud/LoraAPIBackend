@@ -8,7 +8,7 @@ import {
   useBackendClient,
 } from '@/services';
 import { formatDuration as formatDurationLabel } from '@/utils/format';
-import { useBackendEnvironment } from '@/stores/settings';
+import { useBackendEnvironment } from '@/stores';
 
 import type {
   ErrorAnalysisEntry,
