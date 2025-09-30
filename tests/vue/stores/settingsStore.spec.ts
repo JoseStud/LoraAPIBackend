@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, nextTick, onScopeDispose } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 
 import { useBackendEnvironment, useSettingsStore } from '@/stores';
+import { resetBackendEnvironmentBus } from '@/services/system/backendEnvironmentEventBus';
 
 const flushBackendWatchers = async () => {
   await nextTick();
@@ -17,6 +18,11 @@ describe('backend environment notifier', () => {
     setActivePinia(createPinia());
     settingsStore = useSettingsStore();
     settingsStore.reset();
+  });
+
+  afterEach(() => {
+    resetBackendEnvironmentBus();
+    settingsStore.$dispose();
   });
 
   it('notifies subscribers once per backend url change', async () => {
