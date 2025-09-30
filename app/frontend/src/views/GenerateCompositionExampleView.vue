@@ -25,6 +25,5 @@ import { RouterLink } from 'vue-router';
 
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PromptComposer from '@/components/compose/PromptComposer.vue';
-import SystemStatusCard from '@/components/system/SystemStatusCard.vue';
-import SystemStatusPanel from '@/components/system/SystemStatusPanel.vue';
+import { SystemStatusCard, SystemStatusPanel } from '@/features/generation';
 </script>

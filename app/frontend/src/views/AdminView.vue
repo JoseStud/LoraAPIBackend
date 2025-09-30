@@ -31,11 +31,9 @@ import { RouterLink } from 'vue-router';
 import { defineAsyncComponent } from 'vue';
 
 import ImportExportContainer from '@/components/import-export/ImportExportContainer.vue';
-import { JobQueue } from '@/features/generation';
+import { JobQueue, SystemAdminStatusCard, SystemStatusPanel } from '@/features/generation';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { RecommendationsPanel } from '@/features/recommendations';
-import SystemAdminStatusCard from '@/components/system/SystemAdminStatusCard.vue';
-import SystemStatusPanel from '@/components/system/SystemStatusPanel.vue';
 
 const PerformanceAnalytics = defineAsyncComponent(
   () => import('@/views/analytics/PerformanceAnalyticsPage.vue'),

@@ -74,12 +74,9 @@ import { RouterLink } from 'vue-router';
 import DashboardGenerationSummary from '@/components/dashboard/DashboardGenerationSummary.vue';
 import DashboardLazyModuleCard from '@/components/dashboard/DashboardLazyModuleCard.vue';
 import DashboardLoraSummary from '@/components/dashboard/DashboardLoraSummary.vue';
-import { JobQueue } from '@/features/generation';
+import { JobQueue, SystemAdminStatusCard, SystemStatusCard, SystemStatusPanel } from '@/features/generation';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { RecommendationsPanel } from '@/features/recommendations';
-import SystemAdminStatusCard from '@/components/system/SystemAdminStatusCard.vue';
-import SystemStatusCard from '@/components/system/SystemStatusCard.vue';
-import SystemStatusPanel from '@/components/system/SystemStatusPanel.vue';
 import { usePerformanceAnalyticsStore } from '@/features/analytics';
 
 type PanelKey = 'analytics' | 'composer' | 'studio' | 'gallery' | 'history' | 'importExport';

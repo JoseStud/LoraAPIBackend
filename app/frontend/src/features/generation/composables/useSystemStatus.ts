@@ -1,10 +1,8 @@
 import { computed, onScopeDispose } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import {
-  acquireSystemStatusController,
-  useGenerationConnectionStore,
-} from '@/features/generation';
+import { acquireSystemStatusController } from '../stores/systemStatusController';
+import { useGenerationConnectionStore } from '../stores/connection';
 
 const formatMemory = (used: number | null | undefined, total: number | null | undefined) => {
   if (!total) {
