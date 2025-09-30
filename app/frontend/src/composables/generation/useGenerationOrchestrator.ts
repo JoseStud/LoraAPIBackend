@@ -1,26 +1,26 @@
 import type {
   GenerationQueueClient,
   GenerationWebSocketManager,
-} from '@/services/generation/updates'
+} from '@/services';
 
-import type { GenerationNotificationAdapter } from './useGenerationTransport'
+import type { GenerationNotificationAdapter } from './useGenerationTransport';
 import {
   useGenerationOrchestratorManager,
   type GenerationOrchestratorBinding,
-} from './useGenerationOrchestratorManager'
+} from './useGenerationOrchestratorManager';
 
 export interface UseGenerationOrchestratorOptions {
-  notify: GenerationNotificationAdapter['notify']
-  debug?: GenerationNotificationAdapter['debug']
-  queueClient?: GenerationQueueClient
-  websocketManager?: GenerationWebSocketManager
+  notify: GenerationNotificationAdapter['notify'];
+  debug?: GenerationNotificationAdapter['debug'];
+  queueClient?: GenerationQueueClient;
+  websocketManager?: GenerationWebSocketManager;
 }
 
 export const useGenerationOrchestrator = (
   options: UseGenerationOrchestratorOptions,
 ): GenerationOrchestratorBinding => {
-  const manager = useGenerationOrchestratorManager()
-  return manager.acquire(options)
-}
+  const manager = useGenerationOrchestratorManager();
+  return manager.acquire(options);
+};
 
-export type UseGenerationOrchestratorReturn = ReturnType<typeof useGenerationOrchestrator>
+export type UseGenerationOrchestratorReturn = ReturnType<typeof useGenerationOrchestrator>;

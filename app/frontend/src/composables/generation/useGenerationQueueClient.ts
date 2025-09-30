@@ -3,8 +3,9 @@ import { ref, shallowRef } from 'vue';
 import {
   createGenerationQueueClient,
   DEFAULT_POLL_INTERVAL,
+  ensureArray,
   type GenerationQueueClient,
-} from '@/services/generation/updates';
+} from '@/services';
 import type {
   GenerationJobStatus,
   GenerationRequestPayload,
@@ -21,8 +22,6 @@ import {
   SystemStatusPayloadSchema,
 } from '@/schemas';
 import { normalizeJobStatus } from '@/utils/status';
-
-const ensureArray = <T>(value: unknown): T[] => (Array.isArray(value) ? value : []);
 
 const logValidationIssues = (
   context: string,

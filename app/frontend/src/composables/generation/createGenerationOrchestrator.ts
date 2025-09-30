@@ -8,7 +8,7 @@ import {
 import type {
   GenerationQueueClient,
   GenerationWebSocketManager,
-} from '@/services/generation/updates';
+} from '@/services';
 import { acquireSystemStatusController, DEFAULT_HISTORY_LIMIT } from '@/stores/generation';
 import type {
   GenerationConnectionStore,
