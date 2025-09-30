@@ -88,6 +88,12 @@ const createOrchestratorFactory = (
 
 export const useGenerationOrchestratorManager = () => {
   const orchestratorManagerStore = useGenerationOrchestratorManagerStore();
+  const {
+    orchestrator: orchestratorRef,
+    initializationPromise,
+    isInitialized,
+    consumers,
+  } = storeToRefs(orchestratorManagerStore);
 
   const formStore = useGenerationFormStore();
   const queueStore = useGenerationQueueStore();
@@ -105,13 +111,13 @@ export const useGenerationOrchestratorManager = () => {
     message,
     type: Parameters<GenerationNotificationAdapter['notify']>[1] = 'info',
   ) => {
-    orchestratorManagerStore.consumers.value.forEach((consumer) => {
+    consumers.value.forEach((consumer) => {
       consumer.notify(message, type);
     });
   };
 
   const debugAll: GenerationNotificationAdapter['debug'] = (...args: unknown[]) => {
-    orchestratorManagerStore.consumers.value.forEach((consumer) => {
+    consumers.value.forEach((consumer) => {
       consumer.debug?.(...args);
     });
   };
@@ -137,46 +143,46 @@ export const useGenerationOrchestratorManager = () => {
     );
 
   const ensureInitialized = async (): Promise<void> => {
-    if (orchestratorManagerStore.isInitialized.value) {
+    if (isInitialized.value) {
       return;
     }
 
-    const orchestrator = orchestratorManagerStore.orchestrator.value;
+    const orchestrator = orchestratorRef.value;
 
     if (!orchestrator) {
       throw new Error('Generation orchestrator has not been created yet');
     }
 
-    if (!orchestratorManagerStore.initializationPromise.value) {
+    if (!initializationPromise.value) {
       const promise = orchestrator
         .initialize()
         .then(() => {
-          orchestratorManagerStore.isInitialized.value = true;
+          isInitialized.value = true;
         })
         .catch((error) => {
-          orchestratorManagerStore.isInitialized.value = false;
+          isInitialized.value = false;
           throw error;
         })
         .finally(() => {
-          orchestratorManagerStore.initializationPromise.value = null;
+          initializationPromise.value = null;
         });
 
-      orchestratorManagerStore.initializationPromise.value = promise;
+      initializationPromise.value = promise;
     }
 
-    await orchestratorManagerStore.initializationPromise.value;
+    await initializationPromise.value;
   };
 
   const releaseConsumer = (id: symbol): void => {
-    if (!orchestratorManagerStore.consumers.value.has(id)) {
+    if (!consumers.value.has(id)) {
       return;
     }
 
     orchestratorManagerStore.unregisterConsumer(id);
 
     if (
-      orchestratorManagerStore.consumers.value.size === 0 &&
-      orchestratorManagerStore.orchestrator.value
+      consumers.value.size === 0 &&
+      orchestratorRef.value
     ) {
       orchestratorManagerStore.destroyOrchestrator();
     }

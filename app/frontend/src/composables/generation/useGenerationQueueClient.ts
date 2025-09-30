@@ -16,11 +16,7 @@ import type {
   SystemStatusState,
 } from '@/types';
 import type { GenerationJobInput } from '@/stores/generation';
-import {
-  GenerationJobStatusSchema,
-  GenerationResultSchema,
-  SystemStatusPayloadSchema,
-} from '@/schemas';
+import { SystemStatusPayloadSchema } from '@/schemas';
 import { normalizeJobStatus } from '@/utils/status';
 
 const logValidationIssues = (
@@ -38,6 +34,7 @@ const logValidationIssues = (
   }
 };
 
+
 const toQueueJobInput = (status: GenerationJobStatus): GenerationJobInput => ({
   id: status.id,
   jobId: status.jobId ?? undefined,
@@ -51,7 +48,6 @@ const toQueueJobInput = (status: GenerationJobStatus): GenerationJobInput => ({
   error: status.error ?? undefined,
   created_at: status.created_at,
   startTime: status.startTime ?? undefined,
-  finished_at: status.finished_at ?? undefined,
 });
 
 interface QueueClientOptions {
@@ -117,15 +113,8 @@ export const useGenerationQueueClient = (
   const refreshActiveJobs = async (): Promise<void> => {
     try {
       const active = await getQueueClient().fetchActiveJobs();
-      const normalized: GenerationJobInput[] = [];
-      ensureArray<GenerationJobStatus>(active).forEach((entry, index) => {
-        const parsed = GenerationJobStatusSchema.safeParse(entry);
-        if (parsed.success) {
-          normalized.push(toQueueJobInput(parsed.data));
-        } else {
-          logValidationIssues(`active job #${index}`, parsed.error, entry);
-        }
-      });
+      const parsed = parseGenerationJobStatuses(active, 'active job');
+      const normalized = parsed.map(toQueueJobInput);
       callbacks.onQueueUpdate?.(normalized);
     } catch (error) {
       console.error('Failed to refresh active jobs:', error);
@@ -136,15 +125,7 @@ export const useGenerationQueueClient = (
   const refreshRecentResults = async (limit: number, notifySuccess = false): Promise<void> => {
     try {
       const recent = await getQueueClient().fetchRecentResults(limit);
-      const normalized: GenerationResult[] = [];
-      ensureArray<GenerationResult>(recent).forEach((entry, index) => {
-        const parsed = GenerationResultSchema.safeParse(entry);
-        if (parsed.success) {
-          normalized.push(parsed.data);
-        } else {
-          logValidationIssues(`recent result #${index}`, parsed.error, entry);
-        }
-      });
+      const normalized = parseGenerationResults(recent, 'recent result');
       callbacks.onRecentResults?.(normalized);
       if (notifySuccess) {
         notify('Results refreshed', 'success');
