@@ -1,4 +1,4 @@
-import { MaybeRefOrGetter, Ref, ref, unref } from 'vue';
+import { MaybeRefOrGetter, Ref, getCurrentScope, onScopeDispose, ref, unref } from 'vue';
 
 import type { ApiResponseMeta } from '@/types';
 import { ApiError } from '@/types';
@@ -60,11 +60,16 @@ export function useApi<T = unknown, TError = unknown>(
   };
 
   const cancelActiveRequest = () => {
-    if (activeController.value) {
-      activeController.value.abort();
+    const controller = activeController.value;
+    if (controller) {
       activeController.value = null;
+      controller.abort();
     }
   };
+
+  if (getCurrentScope()) {
+    onScopeDispose(cancelActiveRequest);
+  }
 
   const fetchData = async (init: ApiRequestInit = {}) => {
     const targetUrl = resolveUrl();
