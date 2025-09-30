@@ -13,6 +13,7 @@ export interface UseGenerationStudioControllerOptions {
   notify: (message: string, type?: NotificationType) => void
   debug?: (...args: unknown[]) => void
   onAfterStart?: (params: GenerationFormState) => void
+  onAfterInitialize?: () => void | Promise<void>
 }
 
 export const useGenerationStudioController = ({
@@ -20,6 +21,7 @@ export const useGenerationStudioController = ({
   notify,
   debug,
   onAfterStart,
+  onAfterInitialize,
 }: UseGenerationStudioControllerOptions) => {
   const formStore = useGenerationFormStore()
   const orchestratorManager = useGenerationOrchestratorManager()
@@ -49,6 +51,7 @@ export const useGenerationStudioController = ({
     debug?.('Initializing generation controller...')
     const binding = ensureBinding()
     await binding.initialize()
+    await onAfterInitialize?.()
   }
 
   const startGeneration = async (): Promise<boolean> => {

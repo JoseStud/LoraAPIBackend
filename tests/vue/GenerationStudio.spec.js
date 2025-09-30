@@ -30,44 +30,79 @@ vi.mock('../../app/frontend/src/stores/generation/systemStatusController', () =>
   useSystemStatusController: () => mockStatusController,
 }))
 
-const orchestratorMocks = vi.hoisted(() => ({
-  initialize: vi.fn(),
-  cleanup: vi.fn(),
-  loadSystemStatusData: vi.fn(),
-  loadActiveJobsData: vi.fn(),
-  loadRecentResultsData: vi.fn(),
-  startGeneration: vi.fn(),
-  cancelJob: vi.fn(),
-  clearQueue: vi.fn(),
-  deleteResult: vi.fn(),
-}))
-
-const createGenerationOrchestratorMock = vi.hoisted(() =>
-  vi.fn(() => ({
-    initialize: orchestratorMocks.initialize,
-    cleanup: orchestratorMocks.cleanup,
-    loadSystemStatusData: orchestratorMocks.loadSystemStatusData,
-    loadActiveJobsData: orchestratorMocks.loadActiveJobsData,
-    loadRecentResultsData: orchestratorMocks.loadRecentResultsData,
-    startGeneration: orchestratorMocks.startGeneration,
-    cancelJob: orchestratorMocks.cancelJob,
-    clearQueue: orchestratorMocks.clearQueue,
-    deleteResult: orchestratorMocks.deleteResult,
-  })),
-)
-
-vi.mock('@/services/generation/orchestrator', () => ({
-  createGenerationOrchestrator: createGenerationOrchestratorMock,
-}))
-
-vi.mock('@/services', async () => {
-  const actual = await vi.importActual('../../app/frontend/src/services/index.ts')
+const controllerMocks = vi.hoisted(() => {
+  const { ref } = require('vue')
 
   return {
-    ...actual,
-    createGenerationOrchestrator: createGenerationOrchestratorMock,
+    lastOptions: null,
+    lastStartParams: null,
+    activeJobs: ref([]),
+    sortedActiveJobs: ref([]),
+    recentResults: ref([]),
+    systemStatus: ref({ status: 'healthy' }),
+    isConnected: ref(true),
+    initialize: vi.fn(async () => {}),
+    startGeneration: vi.fn(async (_payload) => true),
+    cancelJob: vi.fn(async (_jobId) => {}),
+    clearQueue: vi.fn(async () => {}),
+    refreshResults: vi.fn(async (_notify = true) => {}),
+    deleteResult: vi.fn(async (_resultId) => {}),
+    canCancelJob: vi.fn(() => true),
   }
 })
+
+const useGenerationStudioControllerMock = vi.hoisted(() =>
+  vi.fn((options) => {
+    controllerMocks.lastOptions = options
+
+    return {
+      activeJobs: controllerMocks.activeJobs,
+      sortedActiveJobs: controllerMocks.sortedActiveJobs,
+      recentResults: controllerMocks.recentResults,
+      systemStatus: controllerMocks.systemStatus,
+      isConnected: controllerMocks.isConnected,
+      initialize: vi.fn(async () => {
+        await controllerMocks.initialize()
+        await options.onAfterInitialize?.()
+      }),
+      startGeneration: vi.fn(async () => {
+        const store = useGenerationFormStore()
+        const trimmedPrompt = options.params.value.prompt.trim()
+
+        if (!trimmedPrompt) {
+          options.notify('Please enter a prompt', 'error')
+          return false
+        }
+
+        store.setGenerating(true)
+
+        try {
+          store.setPrompt(trimmedPrompt)
+          const payload = { ...options.params.value }
+          controllerMocks.lastStartParams = payload
+          const result = await controllerMocks.startGeneration(payload)
+          if (result) {
+            options.onAfterStart?.({ ...options.params.value })
+          }
+          return result
+        } finally {
+          store.setGenerating(false)
+        }
+      }),
+      cancelJob: controllerMocks.cancelJob,
+      clearQueue: controllerMocks.clearQueue,
+      refreshResults: vi.fn(async (notifySuccess = true) => {
+        await controllerMocks.refreshResults(notifySuccess)
+      }),
+      deleteResult: controllerMocks.deleteResult,
+      canCancelJob: controllerMocks.canCancelJob,
+    }
+  }),
+)
+
+vi.mock('@/composables/generation/useGenerationStudioController', () => ({
+  useGenerationStudioController: useGenerationStudioControllerMock,
+}))
 
 // Mock WebSocket
 global.WebSocket = vi.fn(() => ({
@@ -122,18 +157,27 @@ describe('GenerationStudio.vue', () => {
     connectionStore.reset()
     formStore.reset()
     localStorageMock.getItem.mockReturnValue(null)
-    orchestratorMocks.startGeneration.mockResolvedValue({ job_id: 'job-123', status: 'queued', progress: 0 })
-    orchestratorMocks.cancelJob.mockResolvedValue(undefined)
-    orchestratorMocks.deleteResult.mockResolvedValue(undefined)
-    orchestratorMocks.clearQueue.mockResolvedValue(undefined)
-    orchestratorMocks.initialize.mockResolvedValue(undefined)
-    orchestratorMocks.loadRecentResultsData.mockResolvedValue(undefined)
-    orchestratorMocks.loadSystemStatusData.mockResolvedValue(undefined)
-    orchestratorMocks.loadActiveJobsData.mockResolvedValue(undefined)
+    controllerMocks.activeJobs.value = []
+    controllerMocks.sortedActiveJobs.value = []
+    controllerMocks.recentResults.value = []
+    controllerMocks.systemStatus.value = { status: 'healthy' }
+    controllerMocks.isConnected.value = true
+    controllerMocks.lastOptions = null
+    controllerMocks.lastStartParams = null
+    controllerMocks.initialize.mockResolvedValue(undefined)
+    controllerMocks.startGeneration.mockResolvedValue(true)
+    controllerMocks.cancelJob.mockResolvedValue(undefined)
+    controllerMocks.deleteResult.mockResolvedValue(undefined)
+    controllerMocks.clearQueue.mockResolvedValue(undefined)
+    controllerMocks.refreshResults.mockResolvedValue(undefined)
+    controllerMocks.canCancelJob.mockImplementation((job) =>
+      ['queued', 'processing'].includes(job.status),
+    )
+    useGenerationStudioControllerMock.mockClear()
   })
 
   afterEach(() => {
-    createGenerationOrchestratorMock.mockClear()
+    useGenerationStudioControllerMock.mockClear()
     if (wrapper) {
       wrapper.unmount()
     }
@@ -202,13 +246,14 @@ describe('GenerationStudio.vue', () => {
     expect(wrapper.text()).toContain('Generated images will appear here')
   })
 
-  it('reuses a single orchestrator when multiple studios mount', async () => {
+  it('initializes the generation controller when multiple studios mount', async () => {
     const first = mount(GenerationStudio)
     const second = mount(GenerationStudio)
 
     await nextTick()
 
-    expect(createGenerationOrchestratorMock).toHaveBeenCalledTimes(1)
+    expect(useGenerationStudioControllerMock).toHaveBeenCalledTimes(2)
+    expect(controllerMocks.initialize).toHaveBeenCalledTimes(2)
 
     first.unmount()
     second.unmount()
@@ -322,14 +367,14 @@ describe('GenerationStudio.vue', () => {
     const generateButton = wrapper.find('.btn-primary')
     await generateButton.trigger('click')
 
-    expect(orchestratorMocks.startGeneration).toHaveBeenCalled()
-    const [payload] = orchestratorMocks.startGeneration.mock.calls[0]
+    expect(controllerMocks.startGeneration).toHaveBeenCalled()
+    const [payload] = controllerMocks.startGeneration.mock.calls[0]
     expect(payload).toMatchObject({ prompt: 'test prompt' })
   })
 
   it('shows generate button loading state during generation', async () => {
     let resolveGeneration = null
-    orchestratorMocks.startGeneration.mockImplementation(
+    controllerMocks.startGeneration.mockImplementation(
       () =>
         new Promise(resolve => {
           resolveGeneration = resolve
@@ -345,11 +390,13 @@ describe('GenerationStudio.vue', () => {
 
     await generateButton.trigger('click')
     await nextTick()
+    await nextTick()
 
+    expect(formStore.isGenerating).toBe(true)
     expect(generateButton.text()).toContain('Generating...')
 
     expect(resolveGeneration).toBeTruthy()
-    resolveGeneration?.({ job_id: 'test123', status: 'queued', progress: 0 })
+    resolveGeneration?.(true)
     await nextTick()
   })
 
