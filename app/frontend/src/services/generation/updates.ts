@@ -8,6 +8,11 @@ import {
 } from './generationService';
 import { requestJson } from '@/services/apiClient';
 import { normalizeJobStatus } from '@/utils/status';
+import {
+  GenerationJobStatusSchema,
+  GenerationResultSchema,
+  SystemStatusPayloadSchema,
+} from '@/schemas';
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,
@@ -83,9 +88,24 @@ export interface GenerationQueueClient {
   cancelJob(jobId: string): Promise<void>;
   deleteResult(resultId: string | number): Promise<void>;
   fetchSystemStatus(): Promise<SystemStatusPayload | null>;
-  fetchActiveJobs(): Promise<Partial<GenerationJob>[]>;
+  fetchActiveJobs(): Promise<GenerationJobStatus[]>;
   fetchRecentResults(limit: number): Promise<GenerationResult[]>;
 }
+
+const logValidationIssues = (
+  context: string,
+  error: unknown,
+  payload: unknown,
+) => {
+  if (error && typeof error === 'object' && 'issues' in error) {
+    console.warn(`[generation] ${context} validation failed`, {
+      issues: (error as { issues: unknown }).issues,
+      payload,
+    });
+  } else {
+    console.warn(`[generation] ${context} validation failed`, { payload, error });
+  }
+};
 
 export const createGenerationQueueClient = (
   options: GenerationQueueClientOptions,
@@ -99,33 +119,41 @@ export const createGenerationQueueClient = (
 
   const fetchSystemStatus = async (): Promise<SystemStatusPayload | null> => {
     try {
-      const result = await requestJson<SystemStatusPayload>(buildUrl('/system/status'), withCredentials());
-      return result.data ?? null;
+      const result = await requestJson<unknown>(buildUrl('/system/status'), withCredentials());
+      if (result.data == null) {
+        return null;
+      }
+      const parsed = SystemStatusPayloadSchema.safeParse(result.data);
+      if (parsed.success) {
+        return parsed.data;
+      }
+      logValidationIssues('system status', parsed.error, result.data);
+      return null;
     } catch (error) {
       console.error('Failed to load system status:', error);
       throw error;
     }
   };
 
-  const fetchActiveJobs = async (): Promise<Partial<GenerationJob>[]> => {
+  const fetchActiveJobs = async (): Promise<GenerationJobStatus[]> => {
     try {
-      const result = await requestJson<GenerationJobStatus[]>(
+      const result = await requestJson<unknown>(
         buildGenerationUrl('jobs/active'),
         withCredentials(),
       );
-      return ensureArray<GenerationJobStatus>(result.data).map((status) => ({
-        id: status.id,
-        jobId: status.jobId ?? undefined,
-        prompt: status.prompt ?? undefined,
+      const statuses = ensureArray(result.data);
+      const parsed: GenerationJobStatus[] = [];
+      statuses.forEach((entry, index) => {
+        const validation = GenerationJobStatusSchema.safeParse(entry);
+        if (validation.success) {
+          parsed.push(validation.data);
+        } else {
+          logValidationIssues(`active job #${index}`, validation.error, entry);
+        }
+      });
+      return parsed.map((status) => ({
+        ...status,
         status: normalizeJobStatus(status.status),
-        progress: status.progress,
-        message: status.message ?? undefined,
-        params: status.params ?? null,
-        result: status.result ?? null,
-        error: status.error ?? undefined,
-        created_at: status.created_at,
-        startTime: status.startTime ?? undefined,
-        finished_at: status.finished_at ?? undefined,
       }));
     } catch (error) {
       console.error('Failed to load active jobs:', error);
@@ -136,11 +164,21 @@ export const createGenerationQueueClient = (
   const fetchRecentResults = async (limit: number): Promise<GenerationResult[]> => {
     const normalizedLimit = Math.max(1, Number(limit) || 1);
     try {
-      const result = await requestJson<GenerationResult[]>(
+      const result = await requestJson<unknown>(
         buildGenerationUrl(`results?limit=${normalizedLimit}`),
         withCredentials(),
       );
-      return ensureArray<GenerationResult>(result.data);
+      const entries = ensureArray(result.data);
+      const parsed: GenerationResult[] = [];
+      entries.forEach((entry, index) => {
+        const validation = GenerationResultSchema.safeParse(entry);
+        if (validation.success) {
+          parsed.push(validation.data);
+        } else {
+          logValidationIssues(`recent result #${index}`, validation.error, entry);
+        }
+      });
+      return parsed;
     } catch (error) {
       console.error('Failed to load recent results:', error);
       throw error;
