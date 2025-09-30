@@ -66,6 +66,36 @@ describe('useAsyncResource', () => {
     scope.stop();
   });
 
+  it('issues a new request when arguments change mid-flight and ignores stale responses', async () => {
+    const pendingResolvers = new Map<number, (value: number) => void>();
+
+    const fetcher = vi
+      .fn((value: number) =>
+        new Promise<number>((resolve) => {
+          pendingResolvers.set(value, resolve);
+        }),
+      )
+      .mockName('fetcher');
+
+    const scope = effectScope();
+    const resource = scope.run(() => useAsyncResource(fetcher, { initialArgs: 1 }))!;
+
+    const first = resource.refresh(1);
+    const second = resource.refresh(2);
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+
+    pendingResolvers.get(2)?.(20);
+    await second;
+    expect(resource.data.value).toBe(20);
+
+    pendingResolvers.get(1)?.(10);
+    await first;
+    expect(resource.data.value).toBe(20);
+
+    scope.stop();
+  });
+
   it('tracks errors and supports backend-triggered refresh', async () => {
     let shouldFail = true;
     const fetcher = vi.fn(async () => {

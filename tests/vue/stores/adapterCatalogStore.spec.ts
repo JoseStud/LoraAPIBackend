@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import * as services from '@/services';
 import * as loraService from '@/features/lora/services/lora/loraService';
 import { useAdapterCatalogStore } from '@/features/lora/stores/adapterCatalog';
+import type { AdapterListQuery, AdapterListResponse } from '@/types';
 
 const backendRefreshCallbacks: Array<() => void> = [];
 
@@ -95,5 +96,62 @@ describe('adapterCatalog store', () => {
     await flushAsync();
     expect(store.error).toBeInstanceOf(Error);
     expect(store.adapters).toEqual([]);
+  });
+
+  it('ignores stale list responses when filters change rapidly', async () => {
+    const store = useAdapterCatalogStore();
+
+    const pendingRequests: Array<{
+      resolve: (value: AdapterListResponse) => void;
+      query: AdapterListQuery;
+    }> = [];
+
+    fetchAdapterListSpy.mockImplementation(
+      (requestQuery: AdapterListQuery) =>
+        new Promise<AdapterListResponse>((resolve) => {
+          pendingRequests.push({ resolve, query: requestQuery });
+        }),
+    );
+
+    const first = store.ensureLoaded({ tags: ['alpha'] });
+    await Promise.resolve();
+
+    const second = store.ensureLoaded({ tags: ['beta'] });
+
+    expect(fetchAdapterListSpy).toHaveBeenCalledTimes(2);
+    expect(pendingRequests.at(0)?.query.tags).toEqual(['alpha']);
+    expect(pendingRequests.at(1)?.query.tags).toEqual(['beta']);
+
+    pendingRequests[1]?.resolve({
+      items: [
+        { id: 'beta', name: 'Beta', description: 'Latest', active: true },
+      ],
+      total: 1,
+      filtered: 1,
+      page: 1,
+      pages: 1,
+      per_page: 200,
+    });
+
+    await second;
+    expect(store.adapters).toEqual([
+      { id: 'beta', name: 'Beta', description: 'Latest', active: true },
+    ]);
+
+    pendingRequests[0]?.resolve({
+      items: [
+        { id: 'alpha', name: 'Alpha', description: 'Stale', active: true },
+      ],
+      total: 1,
+      filtered: 1,
+      page: 1,
+      pages: 1,
+      per_page: 200,
+    });
+
+    await first;
+    expect(store.adapters).toEqual([
+      { id: 'beta', name: 'Beta', description: 'Latest', active: true },
+    ]);
   });
 });

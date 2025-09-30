@@ -133,6 +133,8 @@ export const useAsyncResource = <TResult, TArgs = void>(
   const lastArgs = ref<TArgs | undefined>(initialArgs);
 
   let pending: Promise<TResult> | null = null;
+  let pendingKey: unknown | null = null;
+  let currentRequestId = 0;
   let lastKey: unknown = resolveKey(initialArgs, getKey);
 
   const ensureArgs = (args?: TArgs): TArgs => {
@@ -149,12 +151,15 @@ export const useAsyncResource = <TResult, TArgs = void>(
   };
 
   const runFetch = (args?: TArgs): Promise<TResult> => {
-    if (pending) {
+    const nextArgs = ensureArgs(args);
+    const requestKey = resolveKey(nextArgs, getKey);
+
+    if (pending && requestKey === pendingKey) {
       return pending;
     }
 
-    const nextArgs = ensureArgs(args);
-    const requestKey = resolveKey(nextArgs, getKey);
+    const requestId = ++currentRequestId;
+    pendingKey = requestKey;
 
     const request = (async () => {
       isLoading.value = true;
@@ -162,19 +167,28 @@ export const useAsyncResource = <TResult, TArgs = void>(
 
       try {
         const result = await fetcher(nextArgs);
-        data.value = result;
-        lastArgs.value = nextArgs;
-        lastKey = requestKey;
-        lastLoadedAt.value = Date.now();
-        onSuccess?.(result, { args: nextArgs });
+        if (requestId === currentRequestId) {
+          data.value = result;
+          lastArgs.value = nextArgs;
+          lastKey = requestKey;
+          lastLoadedAt.value = Date.now();
+          onSuccess?.(result, { args: nextArgs });
+        }
         return result;
       } catch (err) {
-        error.value = err;
-        onError?.(err, { args: nextArgs });
+        if (requestId === currentRequestId) {
+          error.value = err;
+          onError?.(err, { args: nextArgs });
+        }
         throw err;
       } finally {
-        isLoading.value = false;
-        pending = null;
+        if (requestId === currentRequestId) {
+          isLoading.value = false;
+          pending = null;
+          pendingKey = null;
+        } else if (pending === request) {
+          pending = null;
+        }
       }
     })();
 
@@ -191,7 +205,7 @@ export const useAsyncResource = <TResult, TArgs = void>(
     const targetArgs = ensureArgs(args);
     const targetKey = resolveKey(targetArgs, getKey);
 
-    if (pending) {
+    if (pending && pendingKey === targetKey) {
       await pending;
       return data.value;
     }
@@ -252,6 +266,8 @@ export const useAsyncResource = <TResult, TArgs = void>(
 
   const reset = () => {
     pending = null;
+    pendingKey = null;
+    currentRequestId = 0;
     isLoading.value = false;
     error.value = null;
     data.value = initialValue;
@@ -281,6 +297,7 @@ export const useAsyncResource = <TResult, TArgs = void>(
 
   onScopeDispose(() => {
     pending = null;
+    pendingKey = null;
   });
 
   return {
