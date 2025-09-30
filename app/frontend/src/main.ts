@@ -18,16 +18,14 @@ const bootstrap = () => {
   app.use(pinia);
   app.use(router);
 
-  const settingsStore = useSettingsStore(pinia);
-  settingsStore
-    .loadSettings()
-    .catch((error) => {
-      if (import.meta.env.DEV) {
-        console.warn('Failed to preload frontend settings', error);
-      }
-    });
-
   app.mount('#app');
+
+  const settingsStore = useSettingsStore(pinia);
+  void settingsStore.loadSettings().catch((error) => {
+    if (import.meta.env.DEV) {
+      console.warn('Failed to preload frontend settings', error);
+    }
+  });
 };
 
 bootstrap();

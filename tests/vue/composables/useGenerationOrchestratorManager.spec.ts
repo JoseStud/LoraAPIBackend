@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ref, type Ref } from 'vue';
 
-import { createUseGenerationOrchestratorManager } from '@/composables/generation/useGenerationOrchestratorManager';
+import {
+  createUseGenerationOrchestratorManager,
+  type UseGenerationOrchestratorManagerDependencies,
+} from '@/composables/generation/useGenerationOrchestratorManager';
 import { createGenerationOrchestratorFactory } from '@/composables/generation/createGenerationOrchestrator';
 import type { GenerationNotificationAdapter } from '@/composables/generation/useGenerationTransport';
 import type {
@@ -132,6 +135,13 @@ const createDependencies = () => {
     backendUrl: 'http://localhost',
   } satisfies Partial<SettingsStore> & { backendUrl: string };
 
+  const waitForSettingsHydrationMock = vi
+    .fn<
+      Parameters<UseGenerationOrchestratorManagerDependencies['waitForSettingsHydration']>,
+      ReturnType<UseGenerationOrchestratorManagerDependencies['waitForSettingsHydration']>
+    >()
+    .mockResolvedValue(undefined);
+
   return {
     orchestratorManagerStore,
     queueStore,
@@ -139,6 +149,7 @@ const createDependencies = () => {
     connectionStore,
     formStore,
     settingsStore,
+    waitForSettingsHydrationMock,
     dependencies: {
       useGenerationOrchestratorManagerStore: () =>
         orchestratorManagerStore as GenerationOrchestratorManagerStore,
@@ -148,6 +159,7 @@ const createDependencies = () => {
         connectionStore as GenerationConnectionStore,
       useGenerationFormStore: () => formStore as GenerationFormStore,
       useSettingsStore: () => settingsStore as SettingsStore,
+      waitForSettingsHydration: waitForSettingsHydrationMock,
     },
   };
 };
@@ -192,9 +204,11 @@ describe('createUseGenerationOrchestratorManager', () => {
     await binding.initialize();
     expect(orchestrator.initialize).toHaveBeenCalledTimes(1);
     expect(stores.orchestratorManagerStore.isInitialized.value).toBe(true);
+    expect(stores.waitForSettingsHydrationMock).toHaveBeenCalledTimes(1);
 
     await binding.initialize();
     expect(orchestrator.initialize).toHaveBeenCalledTimes(1);
+    expect(stores.waitForSettingsHydrationMock).toHaveBeenCalledTimes(1);
   });
 
   it('cleans up last consumer and destroys orchestrator', () => {
@@ -218,5 +232,19 @@ describe('createUseGenerationOrchestratorManager', () => {
 
     notificationAdapter.debug?.('details');
     expect(debug).toHaveBeenCalledWith('details');
+  });
+
+  it('waits for settings hydration before orchestrator operations', async () => {
+    const { binding, orchestrator, stores } = createBinding();
+
+    await binding.initialize();
+    await binding.loadSystemStatusData();
+    await binding.startGeneration({} as GenerationRequestPayload);
+    await binding.refreshResults(true);
+
+    expect(stores.waitForSettingsHydrationMock).toHaveBeenCalledTimes(4);
+    expect(orchestrator.loadSystemStatusData).toHaveBeenCalledTimes(1);
+    expect(orchestrator.startGeneration).toHaveBeenCalledTimes(1);
+    expect(orchestrator.loadRecentResultsData).toHaveBeenCalledTimes(1);
   });
 });
