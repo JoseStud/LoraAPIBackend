@@ -78,17 +78,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { RouterLink } from 'vue-router';
 
 import { useAdapterCatalogStore } from '@/features/lora/public';
 import { formatRelativeTime } from '@/utils/format';
+import { useAsyncLifecycleTask, useNotifications } from '@/composables/shared';
 
 const SUMMARY_QUERY = Object.freeze({ perPage: 12, sort: 'last_updated_desc' as const });
 
 const catalogStore = useAdapterCatalogStore();
 const { loras, isLoading } = storeToRefs(catalogStore);
+const { showError } = useNotifications();
 
 const totalLoras = computed(() => loras.value.length);
 const activeLoras = computed(() => loras.value.filter((item) => item.active !== false).length);
@@ -118,11 +120,24 @@ const refresh = async () => {
   await catalogStore.ensureLoaded(SUMMARY_QUERY);
 };
 
-onMounted(async () => {
-  if (!loras.value.length) {
-    await refresh();
-  } else {
+useAsyncLifecycleTask(
+  async () => {
+    if (!loras.value.length) {
+      await refresh();
+      return;
+    }
+
     void catalogStore.ensureLoaded(SUMMARY_QUERY);
-  }
-});
+  },
+  {
+    errorMessage: (error) =>
+      error instanceof Error
+        ? `Failed to load the LoRA catalog snapshot: ${error.message}`
+        : 'Failed to load the LoRA catalog snapshot.',
+    notifyError: (message) => {
+      showError(message, 6000);
+    },
+    logLabel: '[DashboardLoraSummary] Initialization',
+  },
+);
 </script>

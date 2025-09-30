@@ -8,7 +8,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import {
@@ -23,7 +23,7 @@ import {
   type RatingFilterOption,
   type DimensionFilterOption,
 } from '@/features/history';
-import { PERSISTENCE_KEYS, usePersistence } from '@/composables/shared';
+import { PERSISTENCE_KEYS, useAsyncLifecycleTask, usePersistence } from '@/composables/shared';
 import { useBackendBase } from '@/utils/backend';
 import { formatHistoryDate } from '@/utils/format';
 import type { GenerationHistoryResult } from '@/types';
@@ -139,15 +139,30 @@ const { unregister: unregisterShortcuts } = useHistoryShortcuts({
   },
 });
 
-onMounted(async () => {
-  const savedViewMode = persistence.getItem(PERSISTENCE_KEYS.historyViewMode);
-  if (savedViewMode === 'grid' || savedViewMode === 'list') {
-    viewMode.value = savedViewMode as HistoryViewMode;
-  }
+useAsyncLifecycleTask(
+  async () => {
+    const savedViewMode = persistence.getItem(PERSISTENCE_KEYS.historyViewMode);
+    if (savedViewMode === 'grid' || savedViewMode === 'list') {
+      viewMode.value = savedViewMode as HistoryViewMode;
+    }
 
-  await loadInitialResults();
-  isInitialized.value = true;
-});
+    await loadInitialResults();
+    isInitialized.value = true;
+  },
+  {
+    errorMessage: (error) =>
+      error instanceof Error
+        ? `Failed to load generation history: ${error.message}`
+        : 'Failed to load generation history.',
+    notifyError: (message) => {
+      showToast(message, 'error');
+    },
+    onError: () => {
+      isInitialized.value = false;
+    },
+    logLabel: '[GenerationHistory] Initialization',
+  },
+);
 
 onUnmounted(() => {
   debouncedApplyFilters.cancel();

@@ -6,3 +6,4 @@ export * from './usePolling';
 export * from './useTheme';
 export * from './usePersistence';
 export * from './useSyncedQueryParam';
+export * from './useAsyncLifecycleTask';

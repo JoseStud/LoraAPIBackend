@@ -62,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { ref } from 'vue';
 
 import LoraGalleryBulkActions from './LoraGalleryBulkActions.vue';
 import LoraGalleryFilters from './LoraGalleryFilters.vue';
@@ -72,7 +72,7 @@ import LoraGalleryTagModal from './LoraGalleryTagModal.vue';
 import { useLoraGalleryData } from '../../composables/lora-gallery/useLoraGalleryData';
 import { useLoraGalleryFilters } from '../../composables/lora-gallery/useLoraGalleryFilters';
 import { useLoraGallerySelection } from '../../composables/lora-gallery/useLoraGallerySelection';
-import { useDialogService, useNotifications, useSyncedQueryParam } from '@/composables/shared';
+import { useAsyncLifecycleTask, useDialogService, useNotifications, useSyncedQueryParam } from '@/composables/shared';
 import type {
   LoraBulkAction,
   LoraUpdatePayload,
@@ -175,8 +175,20 @@ const handleLoraDelete = (id: string) => {
   deselect(id);
 };
 
-onMounted(async () => {
-  initializeSelection();
-  await initialize();
-});
+useAsyncLifecycleTask(
+  async () => {
+    initializeSelection();
+    await initialize();
+  },
+  {
+    errorMessage: (error) =>
+      error instanceof Error
+        ? `Failed to load the LoRA gallery: ${error.message}`
+        : 'Failed to load the LoRA gallery.',
+    notifyError: (message) => {
+      showError(message, 8000);
+    },
+    logLabel: '[LoraGallery] Initialization',
+  },
+);
 </script>

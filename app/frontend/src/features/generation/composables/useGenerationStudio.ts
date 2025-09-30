@@ -1,10 +1,11 @@
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
 
 import { useGenerationPersistence } from './useGenerationPersistence'
 import { useGenerationUI } from './useGenerationUI'
 import { useGenerationStudioController } from './useGenerationStudioController'
 import { useGenerationStudioNotifications } from './useGenerationStudioNotifications'
 import { useGenerationFormStore } from '../stores/form'
+import { useAsyncLifecycleTask } from '@/composables/shared'
 import type { GenerationFormState } from '@/types'
 
 export const useGenerationStudio = () => {
@@ -107,10 +108,22 @@ export const useGenerationStudio = () => {
     formStore.updateParams(value)
   }
 
-  onMounted(async () => {
-    logDebug('Initializing Generation Studio composable...')
-    await controller.initialize()
-  })
+  useAsyncLifecycleTask(
+    async () => {
+      logDebug('Initializing Generation Studio composable...')
+      await controller.initialize()
+    },
+    {
+      errorMessage: (error) =>
+        error instanceof Error
+          ? `Failed to initialize the generation studio: ${error.message}`
+          : 'Failed to initialize the generation studio.',
+      notifyError: (message) => {
+        notify(message, 'error')
+      },
+      logLabel: '[GenerationStudio] Initialization',
+    },
+  )
 
   return {
     params,
