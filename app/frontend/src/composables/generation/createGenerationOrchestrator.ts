@@ -60,12 +60,14 @@ export const createGenerationOrchestratorFactory = ({
 }: GenerationOrchestratorOptions): GenerationOrchestrator => {
   const { hasActiveJobs } = storeToRefs(queueStore);
 
+  const getBackendUrl = () => configuredBackendUrl.value;
+
   const { controller: systemStatusController, release: releaseSystemStatusController } =
-    acquireSystemStatusController();
+    acquireSystemStatusController({ getBackendUrl });
 
   const transport = useGenerationTransport(
     {
-      getBackendUrl: () => configuredBackendUrl.value,
+      getBackendUrl,
       queueClient,
       websocketManager,
       pollIntervalMs: pollIntervalMs.value,
