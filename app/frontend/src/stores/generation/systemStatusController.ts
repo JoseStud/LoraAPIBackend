@@ -5,6 +5,7 @@ import { ApiError } from '@/composables/shared';
 import { fetchSystemStatus, useBackendClient, type BackendClient } from '@/services';
 import { resolveBackendBaseUrl } from '@/utils/backend';
 import { useGenerationConnectionStore } from '@/stores/generation';
+import { useGenerationOrchestratorManagerStore } from './orchestratorManagerStore';
 
 const DEFAULT_POLL_INTERVAL = 10_000;
 
@@ -21,14 +22,7 @@ export interface SystemStatusControllerHandle {
   release: () => void;
 }
 
-interface ControllerEntry {
-  controller: SystemStatusController;
-  consumers: number;
-}
-
 const DEFAULT_CONTROLLER_KEY = '__default__';
-
-const controllerRegistry = new Map<string, ControllerEntry>();
 
 export interface AcquireSystemStatusControllerOptions {
   backendClient?: BackendClient | null;
@@ -175,60 +169,24 @@ const resolveControllerKey = (
   return DEFAULT_CONTROLLER_KEY;
 };
 
-const getControllerEntry = (
-  key: string,
+const getOrchestratorManagerStore = () => useGenerationOrchestratorManagerStore();
+
+const resolveController = (
   options?: AcquireSystemStatusControllerOptions,
-): ControllerEntry => {
-  const existing = controllerRegistry.get(key);
-  if (existing) {
-    return existing;
-  }
-
-  const entry: ControllerEntry = {
-    controller: createController(createBackendClientResolver(options)),
-    consumers: 0,
-  };
-
-  controllerRegistry.set(key, entry);
-  return entry;
-};
-
-const getController = (
-  options?: AcquireSystemStatusControllerOptions,
-): SystemStatusController => getControllerEntry(resolveControllerKey(options), options).controller;
+): SystemStatusController =>
+  getOrchestratorManagerStore().resolveController(resolveControllerKey(options), () =>
+    createController(createBackendClientResolver(options)),
+  );
 
 export const useSystemStatusController = (
   options?: AcquireSystemStatusControllerOptions,
-): SystemStatusController => getController(options);
+): SystemStatusController => resolveController(options);
 
 export const acquireSystemStatusController = (
   options?: AcquireSystemStatusControllerOptions,
-): SystemStatusControllerHandle => {
-  const entry = getControllerEntry(resolveControllerKey(options), options);
-  const { controller } = entry;
-
-  entry.consumers += 1;
-
-  if (entry.consumers === 1) {
-    controller.start();
-  }
-
-  let released = false;
-
-  const release = (): void => {
-    if (released) {
-      return;
-    }
-
-    released = true;
-    entry.consumers = Math.max(0, entry.consumers - 1);
-
-    if (entry.consumers === 0) {
-      controller.stop();
-    }
-  };
-
-  return { controller, release };
-};
+): SystemStatusControllerHandle =>
+  getOrchestratorManagerStore().acquireController(resolveControllerKey(options), () =>
+    createController(createBackendClientResolver(options)),
+  );
 
 export default useSystemStatusController;

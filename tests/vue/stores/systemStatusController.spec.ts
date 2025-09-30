@@ -43,11 +43,27 @@ const createBackendClient = (label: string): BackendClient =>
   }) as unknown as BackendClient;
 
 describe('acquireSystemStatusController', () => {
-  beforeEach(() => {
+  let resetStore: (() => void) | null = null;
+
+  beforeEach(async () => {
     vi.resetModules();
     serviceMocks.fetchSystemStatus.mockReset();
     serviceMocks.fetchSystemStatus.mockResolvedValue(null);
     serviceMocks.useBackendClient.mockReset();
+    setActivePinia(createPinia());
+    const { useGenerationOrchestratorManagerStore } = await import(
+      '@/stores/generation/orchestratorManagerStore'
+    );
+    const orchestratorManagerStore = useGenerationOrchestratorManagerStore();
+    orchestratorManagerStore.reset();
+    resetStore = () => {
+      orchestratorManagerStore.reset();
+    };
+  });
+
+  afterEach(() => {
+    resetStore?.();
+    resetStore = null;
   });
 
   it('uses the global backend client by default', async () => {
@@ -57,8 +73,6 @@ describe('acquireSystemStatusController', () => {
     const { acquireSystemStatusController } = await import(
       '@/stores/generation/systemStatusController'
     );
-
-    setActivePinia(createPinia());
 
     const { controller, release } = acquireSystemStatusController();
     await controller.refresh();
@@ -77,8 +91,6 @@ describe('acquireSystemStatusController', () => {
     const { acquireSystemStatusController } = await import(
       '@/stores/generation/systemStatusController'
     );
-
-    setActivePinia(createPinia());
 
     const { controller, release } = acquireSystemStatusController({ backendClient: overrideClient });
     await controller.refresh();
@@ -104,8 +116,6 @@ describe('acquireSystemStatusController', () => {
     const { acquireSystemStatusController } = await import(
       '@/stores/generation/systemStatusController'
     );
-
-    setActivePinia(createPinia());
 
     const { controller, release } = acquireSystemStatusController({ getBackendUrl });
     await controller.refresh();
