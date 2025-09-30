@@ -3,26 +3,15 @@ import { computed, onMounted } from 'vue'
 import { useGenerationPersistence } from './useGenerationPersistence'
 import { useGenerationUI } from './useGenerationUI'
 import { useGenerationStudioController } from './useGenerationStudioController'
-import { useDialogService, useNotifications } from '@/composables/shared'
+import { useGenerationStudioNotifications } from './useGenerationStudioNotifications'
 import { useGenerationFormStore } from '@/features/generation'
-import type { GenerationFormState, NotificationType } from '@/types'
+import type { GenerationFormState } from '@/types'
 
 export const useGenerationStudio = () => {
   const formStore = useGenerationFormStore()
 
-  const { notify: pushNotification } = useNotifications()
-  const { confirm: requestConfirmation } = useDialogService()
-
-  const logDebug = (...args: unknown[]): void => {
-    if (import.meta.env.DEV) {
-      console.info('[GenerationStudio]', ...args)
-    }
-  }
-
-  const notify = (message: string, type: NotificationType = 'success') => {
-    logDebug(`[${type.toUpperCase()}] ${message}`)
-    pushNotification(message, type)
-  }
+  const { notify, confirm: requestConfirmation, prompt: requestPrompt, logDebug } =
+    useGenerationStudioNotifications()
 
   const {
     params: uiParams,
@@ -50,6 +39,7 @@ export const useGenerationStudio = () => {
   } = useGenerationPersistence({
     params: uiParams,
     showToast: notify,
+    requestPrompt,
   })
 
   const controller = useGenerationStudioController({

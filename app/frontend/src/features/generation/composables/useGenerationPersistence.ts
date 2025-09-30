@@ -1,7 +1,8 @@
 import { onUnmounted, watch, type Ref } from 'vue'
 
-import { PERSISTENCE_KEYS, useDialogService, usePersistence } from '@/composables/shared'
+import { PERSISTENCE_KEYS, usePersistence } from '@/composables/shared'
 import { useGenerationFormStore } from '@/features/generation'
+import type { UseDialogServiceReturn } from '@/composables/shared'
 import type { GenerationFormState, NotificationType } from '@/types'
 
 const RANDOM_PROMPTS: readonly string[] = [
@@ -18,6 +19,7 @@ const RANDOM_PROMPTS: readonly string[] = [
 interface UseGenerationPersistenceOptions {
   params: Ref<GenerationFormState>
   showToast: (message: string, type?: NotificationType) => void
+  requestPrompt: UseDialogServiceReturn['prompt']
 }
 
 export interface UseGenerationPersistenceReturn {
@@ -31,6 +33,7 @@ export interface UseGenerationPersistenceReturn {
 export const useGenerationPersistence = ({
   params,
   showToast,
+  requestPrompt,
 }: UseGenerationPersistenceOptions): UseGenerationPersistenceReturn => {
   const formStore = useGenerationFormStore()
   const persistence = usePersistence()
@@ -83,8 +86,6 @@ export const useGenerationPersistence = ({
 
     persistParams(value)
   }
-
-  const { prompt: requestPrompt } = useDialogService()
 
   const savePreset = async (): Promise<void> => {
     const presetName = await requestPrompt({
