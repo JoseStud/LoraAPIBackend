@@ -27,8 +27,8 @@ module.exports = {
       { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
     ],
     // Enforce barrel imports for composables and generation services
-    // Prefer: '@/composables/<feature>' and '@/services/generation'
-    // Avoid: '@/composables/<feature>/SomeFile' and '@/services/generation/<file>'
+    // Prefer: '@/composables/<feature>' and '@/features/generation/services'
+    // Avoid: '@/composables/<feature>/SomeFile' and '@/features/generation/services/<file>'
     'no-restricted-imports': [
       'error',
       {
@@ -38,12 +38,12 @@ module.exports = {
             message: 'Import composables via the feature barrel, e.g. \'@/composables/<feature>\'.',
           },
           {
-            group: ['@/services/generation/*'],
-            message: 'Import from the generation services barrel: \'@/services/generation\'.',
+            group: ['@/features/generation/services/*'],
+            message: 'Import from the generation services barrel: \'@/features/generation/services\'.',
           },
           {
             group: [
-              '@/services/generation',
+              '@/features/generation/services',
               '@/services/system',
               '@/services/lora',
               '@/services/history',
@@ -71,8 +71,8 @@ module.exports = {
             message: 'Import stores from the root barrel: \'@/stores\'.',
           },
           {
-            group: ['@/stores/generation/*'],
-            message: 'Import generation stores via the barrel: \'@/stores/generation\'.',
+            group: ['@/features/generation/stores/*'],
+            message: 'Import generation stores via the barrel: \'@/features/generation/stores\'.',
           },
         ],
       },

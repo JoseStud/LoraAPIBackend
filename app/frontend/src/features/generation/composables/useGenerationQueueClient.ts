@@ -16,7 +16,7 @@ import type {
   SystemStatusPayload,
   SystemStatusState,
 } from '@/types';
-import type { GenerationJobInput } from '@/stores/generation';
+import type { GenerationJobInput } from '@/features/generation/stores';
 import { SystemStatusPayloadSchema } from '@/schemas';
 import { normalizeJobStatus } from '@/utils/status';
 

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, effectScope } from 'vue';
 
-import { useJobQueueTransport } from '@/composables/generation/useJobQueueTransport';
+import { useJobQueueTransport } from '@/features/generation/composables/useJobQueueTransport';
 
 const serviceMocks = vi.hoisted(() => ({
   fetchActiveGenerationJobs: vi.fn(),

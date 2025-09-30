@@ -23,7 +23,7 @@ vi.mock('@/services', async (importOriginal) => {
   };
 });
 
-vi.mock('@/services/generation/generationService', () => ({
+vi.mock('@/features/generation/services/generationService', () => ({
   cancelGenerationJob: serviceMocks.cancelGenerationJob,
   fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
 }));

@@ -78,10 +78,9 @@
 import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { useJobQueue } from '@/composables/generation';
-import { useJobQueueActions } from '@/composables/generation';
+import { useJobQueue, useJobQueueActions } from '@/features/generation/composables';
 import { formatElapsedTime } from '@/utils/format';
-import { useGenerationConnectionStore } from '@/stores/generation';
+import { useGenerationConnectionStore } from '@/features/generation/stores';
 
 import type { GenerationJob } from '@/types';
 

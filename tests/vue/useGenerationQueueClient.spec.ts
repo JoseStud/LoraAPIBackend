@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { useGenerationQueueClient } from '@/composables/generation';
-import type { GenerationQueueClient } from '@/services/generation/queueClient';
+import { useGenerationQueueClient } from '@/features/generation/composables';
+import type { GenerationQueueClient } from '@/features/generation/services/queueClient';
 import type { GenerationJobStatus, GenerationResult, SystemStatusPayload } from '@/types';
 
 const iso = '2024-01-01T00:00:00Z';

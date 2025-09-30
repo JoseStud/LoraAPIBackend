@@ -100,7 +100,7 @@ const useGenerationStudioControllerMock = vi.hoisted(() =>
   }),
 )
 
-vi.mock('@/composables/generation/useGenerationStudioController', () => ({
+vi.mock('@/features/generation/composables/useGenerationStudioController', () => ({
   useGenerationStudioController: useGenerationStudioControllerMock,
 }))
 

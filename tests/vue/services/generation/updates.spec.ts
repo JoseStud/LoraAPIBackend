@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
-import { createGenerationQueueClient } from '@/services/generation/queueClient';
+import { createGenerationQueueClient } from '@/features/generation/services/queueClient';
 import type { ApiResponseMeta } from '@/types';
 
 vi.mock('@/services/apiClient', async () => {

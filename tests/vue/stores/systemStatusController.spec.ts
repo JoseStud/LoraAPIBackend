@@ -52,7 +52,7 @@ describe('acquireSystemStatusController', () => {
     serviceMocks.useBackendClient.mockReset();
     setActivePinia(createPinia());
     const { useGenerationOrchestratorManagerStore } = await import(
-      '@/stores/generation/orchestratorManagerStore'
+      '@/features/generation/stores/orchestratorManagerStore'
     );
     const orchestratorManagerStore = useGenerationOrchestratorManagerStore();
     orchestratorManagerStore.reset();
@@ -71,7 +71,7 @@ describe('acquireSystemStatusController', () => {
     serviceMocks.useBackendClient.mockReturnValue(defaultClient);
 
     const { acquireSystemStatusController } = await import(
-      '@/stores/generation/systemStatusController'
+      '@/features/generation/stores/systemStatusController'
     );
 
     const { controller, release } = acquireSystemStatusController();
@@ -89,7 +89,7 @@ describe('acquireSystemStatusController', () => {
     serviceMocks.useBackendClient.mockReturnValue(defaultClient);
 
     const { acquireSystemStatusController } = await import(
-      '@/stores/generation/systemStatusController'
+      '@/features/generation/stores/systemStatusController'
     );
 
     const { controller, release } = acquireSystemStatusController({ backendClient: overrideClient });
@@ -114,7 +114,7 @@ describe('acquireSystemStatusController', () => {
     });
 
     const { acquireSystemStatusController } = await import(
-      '@/stores/generation/systemStatusController'
+      '@/features/generation/stores/systemStatusController'
     );
 
     const { controller, release } = acquireSystemStatusController({ getBackendUrl });

@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, nextTick, ref } from 'vue';
 import { mount } from '@vue/test-utils';
 
-import { useJobQueue } from '@/composables/generation/useJobQueue';
-import { useGenerationConnectionStore, useGenerationQueueStore } from '@/stores/generation';
+import { useJobQueue } from '@/features/generation/composables/useJobQueue';
+import { useGenerationConnectionStore, useGenerationQueueStore } from '@/features/generation/stores';
 
 const serviceMocks = vi.hoisted(() => ({
   fetchActiveGenerationJobs: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('@/services', async (importOriginal) => {
 });
 
 
-vi.mock('@/services/generation/generationService', () => ({
+vi.mock('@/features/generation/services/generationService', () => ({
   fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
   cancelGenerationJob: serviceMocks.cancelGenerationJob,
 }));

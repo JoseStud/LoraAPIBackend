@@ -4,9 +4,9 @@ import { ref, type Ref } from 'vue';
 import {
   createUseGenerationOrchestratorManager,
   type UseGenerationOrchestratorManagerDependencies,
-} from '@/composables/generation/useGenerationOrchestratorManager';
-import { createGenerationOrchestratorFactory } from '@/composables/generation/createGenerationOrchestrator';
-import type { GenerationNotificationAdapter } from '@/composables/generation/useGenerationTransport';
+} from '@/features/generation/composables/useGenerationOrchestratorManager';
+import { createGenerationOrchestratorFactory } from '@/features/generation/composables/createGenerationOrchestrator';
+import type { GenerationNotificationAdapter } from '@/features/generation/composables/useGenerationTransport';
 import type {
   GenerationConnectionStore,
   GenerationFormStore,
@@ -14,9 +14,9 @@ import type {
   GenerationOrchestratorManagerStore,
   GenerationQueueStore,
   GenerationResultsStore,
-} from '@/stores/generation';
+} from '@/features/generation/stores';
 import type { SettingsStore } from '@/stores';
-import type { GenerationOrchestrator } from '@/composables/generation/createGenerationOrchestrator';
+import type { GenerationOrchestrator } from '@/features/generation/composables/createGenerationOrchestrator';
 import type {
   GenerationJob,
   GenerationRequestPayload,
@@ -25,7 +25,7 @@ import type {
   SystemStatusState,
 } from '@/types';
 
-vi.mock('@/composables/generation/createGenerationOrchestrator', () => ({
+vi.mock('@/features/generation/composables/createGenerationOrchestrator', () => ({
   createGenerationOrchestratorFactory: vi.fn(),
 }));
 

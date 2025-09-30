@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, effectScope } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { useJobQueueActions } from '@/composables/generation/useJobQueueActions';
-import { useGenerationQueueStore } from '@/stores/generation';
+import { useJobQueueActions } from '@/features/generation/composables/useJobQueueActions';
+import { useGenerationQueueStore } from '@/features/generation/stores';
 
 const serviceMocks = vi.hoisted(() => ({
   cancelGenerationJob: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('@/services', async (importOriginal) => {
 });
 
 
-vi.mock('@/services/generation/generationService', () => ({
+vi.mock('@/features/generation/services/generationService', () => ({
   cancelGenerationJob: serviceMocks.cancelGenerationJob,
   fetchActiveGenerationJobs: serviceMocks.fetchActiveGenerationJobs,
 }));

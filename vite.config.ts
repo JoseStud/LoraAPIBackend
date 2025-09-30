@@ -4,6 +4,7 @@ import vue from '@vitejs/plugin-vue';
 
 const frontendRoot = fileURLToPath(new URL('./app/frontend', import.meta.url));
 const srcDirectory = fileURLToPath(new URL('./app/frontend/src', import.meta.url));
+const featuresDirectory = fileURLToPath(new URL('./app/frontend/src/features', import.meta.url));
 const entryFile = fileURLToPath(new URL('./app/frontend/src/main.ts', import.meta.url));
 
 const pickFirst = (
@@ -85,6 +86,10 @@ export default defineConfig(({ mode }) => {
     {
       find: '@',
       replacement: srcDirectory,
+    },
+    {
+      find: '@/features',
+      replacement: featuresDirectory,
     },
   ];
 

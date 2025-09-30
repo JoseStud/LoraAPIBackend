@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia';
 import { ApiError } from '@/composables/shared';
 import { fetchSystemStatus, useBackendClient, type BackendClient } from '@/services';
 import { resolveBackendBaseUrl } from '@/utils/backend';
-import { useGenerationConnectionStore } from '@/stores/generation';
+import { useGenerationConnectionStore } from '@/features/generation/stores';
 import { useGenerationOrchestratorManagerStore } from './orchestratorManagerStore';
 
 const DEFAULT_POLL_INTERVAL = 10_000;

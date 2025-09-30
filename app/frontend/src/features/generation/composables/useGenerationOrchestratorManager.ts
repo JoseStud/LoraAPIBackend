@@ -17,7 +17,7 @@ import {
   useGenerationResultsStore,
   useGenerationOrchestratorManagerStore,
   type GenerationOrchestratorConsumer,
-} from '@/stores/generation';
+} from '@/features/generation/stores';
 import { useSettingsStore, waitForSettingsHydration } from '@/stores';
 import type {
   GenerationJob,
@@ -249,7 +249,7 @@ export const createUseGenerationOrchestratorManager = (
     const cancelJob = wrapWithSettings(orchestrator.cancelJob);
     const clearQueue = wrapWithSettings(orchestrator.clearQueue);
     const deleteResult = wrapWithSettings(orchestrator.deleteResult);
-    const refreshResults = wrapWithSettings((notifySuccess = false) =>
+    const refreshResults = wrapWithSettings((notifySuccess: boolean | undefined = false) =>
       orchestrator.loadRecentResultsData(notifySuccess),
     );
 

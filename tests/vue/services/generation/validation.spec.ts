@@ -4,7 +4,7 @@ import {
   ensureArray,
   parseGenerationJobStatuses,
   parseGenerationResults,
-} from '@/services/generation/validation';
+} from '@/features/generation/services/validation';
 import type { GenerationJobStatus, GenerationResult } from '@/types';
 
 const iso = '2024-01-01T00:00:00Z';

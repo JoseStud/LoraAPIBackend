@@ -5,7 +5,7 @@ import {
   useGenerationConnectionStore,
   useGenerationQueueStore,
   useGenerationResultsStore,
-} from '@/stores/generation';
+} from '@/features/generation/stores';
 import { useBackendBase } from '@/utils/backend';
 import type { GenerationJob, GenerationJobStatus, GenerationResult } from '@/types';
 import { normalizeJobStatus } from '@/utils/status';

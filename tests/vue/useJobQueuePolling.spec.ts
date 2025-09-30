@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, ref } from 'vue';
 import { mount } from '@vue/test-utils';
 
-import { useJobQueuePolling } from '@/composables/generation/useJobQueuePolling';
+import { useJobQueuePolling } from '@/features/generation/composables/useJobQueuePolling';
 
 describe('useJobQueuePolling', () => {
   beforeEach(() => {

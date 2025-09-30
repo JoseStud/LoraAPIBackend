@@ -3,9 +3,9 @@ import { defineComponent } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
-import { useGenerationStudio } from '@/composables/generation/useGenerationStudio'
-import { useGenerationFormStore } from '@/stores/generation'
-import type { UseGenerationStudioReturn } from '@/composables/generation'
+import { useGenerationStudio } from '@/features/generation/composables/useGenerationStudio'
+import { useGenerationFormStore } from '@/features/generation/stores'
+import type { UseGenerationStudioReturn } from '@/features/generation/composables'
 import { PERSISTENCE_KEYS } from '@/composables/shared'
 
 const orchestratorBindingMocks = vi.hoisted(() => {
@@ -65,7 +65,7 @@ const dialogServiceMocks = vi.hoisted(() => {
   }
 })
 
-vi.mock('@/composables/generation/useGenerationOrchestratorManager', () => ({
+vi.mock('@/features/generation/composables/useGenerationOrchestratorManager', () => ({
   useGenerationOrchestratorManager: () => orchestratorManagerMocks,
 }))
 

@@ -9,12 +9,12 @@ import type {
   GenerationQueueClient,
   GenerationWebSocketManager,
 } from '@/services';
-import { acquireSystemStatusController, DEFAULT_HISTORY_LIMIT } from '@/stores/generation';
+import { acquireSystemStatusController, DEFAULT_HISTORY_LIMIT } from '@/features/generation/stores';
 import type {
   GenerationConnectionStore,
   GenerationQueueStore,
   GenerationResultsStore,
-} from '@/stores/generation';
+} from '@/features/generation/stores';
 import type {
   GenerationJob,
   GenerationRequestPayload,

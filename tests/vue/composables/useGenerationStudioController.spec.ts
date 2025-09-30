@@ -54,7 +54,7 @@ const orchestratorBindings = vi.hoisted(() => {
   return { binding, acquire, manager }
 })
 
-vi.mock('@/composables/generation/useGenerationOrchestratorManager', () => ({
+vi.mock('@/features/generation/composables/useGenerationOrchestratorManager', () => ({
   useGenerationOrchestratorManager: () => orchestratorBindings.manager,
 }))
 
@@ -63,7 +63,7 @@ const formStore = vi.hoisted(() => ({
   setPrompt: vi.fn((_: string) => {}),
 }))
 
-vi.mock('@/stores/generation', () => ({
+vi.mock('@/features/generation/stores', () => ({
   useGenerationFormStore: () => formStore,
 }))
 
@@ -77,7 +77,7 @@ vi.mock('@/services', () => servicesMock)
 
 const toGenerationRequestPayload = servicesMock.toGenerationRequestPayload
 
-import { useGenerationStudioController } from '@/composables/generation/useGenerationStudioController'
+import { useGenerationStudioController } from '@/features/generation/composables/useGenerationStudioController'
 import type { GenerationFormState, GenerationJob } from '@/types'
 
 const createParams = (): GenerationFormState => ({

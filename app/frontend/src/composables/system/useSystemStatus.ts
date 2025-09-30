@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia';
 import {
   acquireSystemStatusController,
   useGenerationConnectionStore,
-} from '@/stores/generation';
+} from '@/features/generation/stores';
 
 const formatMemory = (used: number | null | undefined, total: number | null | undefined) => {
   if (!total) {

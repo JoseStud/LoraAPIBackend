@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, storeToRefs } from 'pinia'
 
-import { useGenerationUI } from '@/composables/generation/useGenerationUI'
-import { useGenerationFormStore, useGenerationResultsStore } from '@/stores/generation'
+import { useGenerationUI } from '@/features/generation/composables/useGenerationUI'
+import { useGenerationFormStore, useGenerationResultsStore } from '@/features/generation/stores'
 import type { GenerationResult } from '@/types'
 
 describe('useGenerationUI', () => {

@@ -5,7 +5,7 @@ import {
   useGenerationOrchestratorManager,
   type GenerationOrchestratorBinding,
 } from './useGenerationOrchestratorManager'
-import { useGenerationFormStore } from '@/stores/generation'
+import { useGenerationFormStore } from '@/features/generation/stores'
 import type { GenerationFormState, NotificationType, GenerationJob } from '@/types'
 
 export interface UseGenerationStudioControllerOptions {
