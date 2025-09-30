@@ -56,32 +56,9 @@ const extractParamsFromResult = (
 export const useGenerationFormStore = defineStore('generation-form', () => {
   const params = ref<GenerationFormState>(createInitialParams());
   const isGenerating = ref(false);
-  const showHistory = ref(false);
-  const showModal = ref(false);
-  const selectedResult = ref<GenerationResult | null>(null);
 
   const setGenerating = (value: boolean): void => {
     isGenerating.value = value;
-  };
-
-  const setShowHistory = (value: boolean): void => {
-    showHistory.value = value;
-  };
-
-  const toggleHistory = (): void => {
-    showHistory.value = !showHistory.value;
-  };
-
-  const setShowModal = (value: boolean): void => {
-    showModal.value = value;
-    if (!value) {
-      selectedResult.value = null;
-    }
-  };
-
-  const selectResult = (result: GenerationResult | null): void => {
-    selectedResult.value = result;
-    showModal.value = result != null;
   };
 
   const updateParams = (updates: Partial<GenerationFormState>): void => {
@@ -138,22 +115,12 @@ export const useGenerationFormStore = defineStore('generation-form', () => {
   const reset = (): void => {
     resetParams();
     isGenerating.value = false;
-    showHistory.value = false;
-    showModal.value = false;
-    selectedResult.value = null;
   };
 
   return {
     params,
     isGenerating,
-    showHistory,
-    showModal,
-    selectedResult,
     setGenerating,
-    setShowHistory,
-    toggleHistory,
-    setShowModal,
-    selectResult,
     applyResultParameters,
     updateParams,
     setPrompt,

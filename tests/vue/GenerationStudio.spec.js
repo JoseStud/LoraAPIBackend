@@ -12,6 +12,7 @@ import {
   useGenerationFormStore,
   useGenerationQueueStore,
   useGenerationResultsStore,
+  useGenerationStudioUiStore,
 } from '../../app/frontend/src/stores/generation'
 import { PERSISTENCE_KEYS } from '../../app/frontend/src/composables/shared/usePersistence'
 
@@ -143,6 +144,7 @@ describe('GenerationStudio.vue', () => {
   let resultsStore
   let connectionStore
   let formStore
+  let uiStore
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -152,10 +154,12 @@ describe('GenerationStudio.vue', () => {
     resultsStore = useGenerationResultsStore()
     connectionStore = useGenerationConnectionStore()
     formStore = useGenerationFormStore()
+    uiStore = useGenerationStudioUiStore()
     queueStore.reset()
     resultsStore.reset()
     connectionStore.reset()
     formStore.reset()
+    uiStore.reset()
     localStorageMock.getItem.mockReturnValue(null)
     controllerMocks.activeJobs.value = []
     controllerMocks.sortedActiveJobs.value = []

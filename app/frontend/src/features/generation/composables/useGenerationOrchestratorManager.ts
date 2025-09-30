@@ -12,10 +12,10 @@ import type {
 } from '@/services';
 import {
   useGenerationConnectionStore,
-  useGenerationFormStore,
   useGenerationQueueStore,
   useGenerationResultsStore,
   useGenerationOrchestratorManagerStore,
+  useGenerationStudioUiStore,
   type GenerationOrchestratorConsumer,
 } from '@/features/generation';
 import { useSettingsStore } from '@/stores';
@@ -38,7 +38,7 @@ export interface UseGenerationOrchestratorManagerDependencies {
   useGenerationOrchestratorManagerStore: () => ReturnType<
     typeof useGenerationOrchestratorManagerStore
   >;
-  useGenerationFormStore: () => ReturnType<typeof useGenerationFormStore>;
+  useGenerationStudioUiStore: () => ReturnType<typeof useGenerationStudioUiStore>;
   useGenerationQueueStore: () => ReturnType<typeof useGenerationQueueStore>;
   useGenerationResultsStore: () => ReturnType<typeof useGenerationResultsStore>;
   useGenerationConnectionStore: () => ReturnType<
@@ -49,7 +49,7 @@ export interface UseGenerationOrchestratorManagerDependencies {
 
 const defaultDependencies: UseGenerationOrchestratorManagerDependencies = {
   useGenerationOrchestratorManagerStore,
-  useGenerationFormStore,
+  useGenerationStudioUiStore,
   useGenerationQueueStore,
   useGenerationResultsStore,
   useGenerationConnectionStore,
@@ -117,13 +117,13 @@ export const createUseGenerationOrchestratorManager = (
     consumers,
   } = storeToRefs(orchestratorManagerStore);
 
-  const formStore = dependencies.useGenerationFormStore();
+  const uiStore = dependencies.useGenerationStudioUiStore();
   const queueStore = dependencies.useGenerationQueueStore();
   const resultsStore = dependencies.useGenerationResultsStore();
   const connectionStore = dependencies.useGenerationConnectionStore();
   const settingsStore = dependencies.useSettingsStore();
 
-  const { showHistory } = storeToRefs(formStore);
+  const { showHistory } = storeToRefs(uiStore);
   const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
   const { historyLimit, recentResults } = storeToRefs(resultsStore);
   const { pollIntervalMs, systemStatus, isConnected } = storeToRefs(connectionStore);
