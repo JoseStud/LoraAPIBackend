@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
+import { effectScope } from 'vue';
 
 import { useApi, ApiError } from '@/composables/shared/useApi';
 
@@ -169,5 +170,32 @@ describe('useApi composable', () => {
     expect(data.value).toBeNull();
     expect(error.value).toBeNull();
     expect(isLoading.value).toBe(false);
+  });
+
+  it('automatically cancels active requests when the scope is disposed', async () => {
+    const abortSpy = vi.fn();
+    const fetchMock = vi.fn().mockImplementation((_, init?: RequestInit) => {
+      return new Promise<Response>((_, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          abortSpy();
+          reject(new DOMException('Aborted', 'AbortError'));
+        });
+      });
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const scope = effectScope();
+    let composable: ReturnType<typeof useApi> | undefined;
+    scope.run(() => {
+      composable = useApi('/api/test');
+    });
+
+    expect(composable).toBeDefined();
+    const requestPromise = composable!.fetchData();
+
+    scope.stop();
+
+    await expect(requestPromise).resolves.toBeNull();
+    expect(abortSpy).toHaveBeenCalledTimes(1);
   });
 });
