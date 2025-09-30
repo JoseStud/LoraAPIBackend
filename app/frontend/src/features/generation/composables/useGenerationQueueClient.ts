@@ -1,7 +1,7 @@
 import { ref, shallowRef } from 'vue';
 
 import { createGenerationQueueClient, type GenerationQueueClient } from '../services/queueClient';
-import { DEFAULT_POLL_INTERVAL } from '../services/updates';
+import { generationPollingConfig } from '../config/polling';
 import { parseGenerationJobStatuses, parseGenerationResults } from '../services/validation';
 import type { GenerationJobInput } from '../stores/queue';
 import type {
@@ -69,7 +69,7 @@ export const useGenerationQueueClient = (
   callbacks: QueueClientCallbacks,
 ) => {
   const queueClientRef = shallowRef<GenerationQueueClient | null>(options.queueClient ?? null);
-  const pollInterval = ref(options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL);
+  const pollInterval = ref(options.pollIntervalMs ?? generationPollingConfig.queueMs);
   const pollTimer = ref<number | null>(null);
   const logDebug = (...args: unknown[]): void => {
     if (typeof callbacks.logger === 'function') {
@@ -172,7 +172,9 @@ export const useGenerationQueueClient = (
 
   const setPollInterval = (nextInterval: number): void => {
     const numeric = Math.floor(Number(nextInterval));
-    pollInterval.value = Number.isFinite(numeric) && numeric > 0 ? numeric : DEFAULT_POLL_INTERVAL;
+    pollInterval.value = Number.isFinite(numeric) && numeric > 0
+      ? numeric
+      : generationPollingConfig.queueMs;
 
     if (pollTimer.value != null) {
       stopPolling();

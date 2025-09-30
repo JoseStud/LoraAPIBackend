@@ -3,6 +3,11 @@ import { DEFAULT_BACKEND_BASE, sanitizeBackendBaseUrl } from '@/utils/backend/he
 interface WindowRuntimeSettings {
   backendUrl?: string | null;
   backendApiKey?: string | null;
+  generationPolling?: {
+    queueMs?: number | string | null;
+    websocketRetryMs?: number | string | null;
+    systemStatusMs?: number | string | null;
+  } | null;
 }
 
 interface AugmentedWindow extends Window {
@@ -31,6 +36,7 @@ const readWindowSettings = (): WindowRuntimeSettings => {
   return {
     backendUrl: appSettings?.backendUrl ?? win.BACKEND_URL ?? null,
     backendApiKey: appSettings?.backendApiKey ?? win.BACKEND_API_KEY ?? null,
+    generationPolling: appSettings?.generationPolling ?? null,
   };
 };
 
@@ -38,6 +44,26 @@ const readEnvString = (value: unknown): string | undefined => {
   if (typeof value === 'string') {
     return value;
   }
+  return undefined;
+};
+
+const readEnvPositiveInt = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return Math.floor(value);
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+
+    const parsed = Number.parseInt(trimmed, 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
   return undefined;
 };
 
@@ -79,6 +105,20 @@ const backendApiKey = normalizeApiKey(
   envBackendApiKey ?? windowSettings.backendApiKey ?? null,
 );
 
+const windowPolling = windowSettings.generationPolling ?? null;
+
+const runtimePolling = {
+  queueMs:
+    readEnvPositiveInt(import.meta.env.VITE_GENERATION_QUEUE_POLL_INTERVAL_MS)
+    ?? readEnvPositiveInt(windowPolling?.queueMs ?? undefined),
+  websocketRetryMs:
+    readEnvPositiveInt(import.meta.env.VITE_GENERATION_WEBSOCKET_RETRY_MS)
+    ?? readEnvPositiveInt(windowPolling?.websocketRetryMs ?? undefined),
+  systemStatusMs:
+    readEnvPositiveInt(import.meta.env.VITE_GENERATION_SYSTEM_STATUS_POLL_INTERVAL_MS)
+    ?? readEnvPositiveInt(windowPolling?.systemStatusMs ?? undefined),
+} as const;
+
 export interface RuntimeConfig {
   mode: string;
   isDev: boolean;
@@ -86,6 +126,11 @@ export interface RuntimeConfig {
   isTest: boolean;
   backendBasePath: string;
   backendApiKey: string | null;
+  generationPolling: {
+    queueMs?: number;
+    websocketRetryMs?: number;
+    systemStatusMs?: number;
+  };
 }
 
 const mode =
@@ -100,6 +145,7 @@ export const runtimeConfig: RuntimeConfig = Object.freeze({
   isTest: mode === 'test',
   backendBasePath,
   backendApiKey,
+  generationPolling: runtimePolling,
 }) as RuntimeConfig;
 
 export { DEFAULT_BACKEND_BASE };

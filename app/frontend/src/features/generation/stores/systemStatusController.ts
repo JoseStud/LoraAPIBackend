@@ -4,9 +4,8 @@ import { storeToRefs } from 'pinia';
 import { ApiError } from '@/composables/shared';
 import { fetchSystemStatus, useBackendClient, type BackendClient } from '@/services';
 import { resolveBackendBaseUrl } from '@/utils/backend';
+import { generationPollingConfig } from '../config/polling';
 import { useGenerationConnectionStore } from './connection';
-
-const DEFAULT_POLL_INTERVAL = 10_000;
 
 export interface SystemStatusController {
   readonly isPolling: ComputedRef<boolean>;
@@ -115,7 +114,7 @@ const createController = (
 
     pollHandle.value = setInterval(() => {
       void refresh();
-    }, DEFAULT_POLL_INTERVAL);
+    }, generationPollingConfig.systemStatusMs);
   };
 
   const ensureHydrated = async (): Promise<void> => {
