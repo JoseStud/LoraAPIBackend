@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
-import { ref } from 'vue';
 
 vi.mock('@/features/generation/composables/createGenerationTransportAdapter', () => ({
   createGenerationTransportAdapter: vi.fn(),
@@ -49,15 +48,14 @@ describe('useGenerationOrchestratorStore', () => {
     createTransportAdapterMock.mockReturnValue(transport);
   });
 
-  it('initializes transport and toggles history limits', async () => {
+  it('initializes transport with provided history limit and handles backend changes', async () => {
     const store = useGenerationOrchestratorStore();
     const notificationAdapter = { notify: vi.fn(), debug: vi.fn() };
-    const showHistory = ref(false);
-    const backendUrl = ref<string | null>('http://localhost');
+    const backendUrl = 'http://localhost';
 
     await store.initialize({
-      showHistory,
-      configuredBackendUrl: backendUrl,
+      historyLimit: DEFAULT_HISTORY_LIMIT,
+      getBackendUrl: () => backendUrl,
       notificationAdapter,
     });
 
@@ -65,23 +63,21 @@ describe('useGenerationOrchestratorStore', () => {
     expect(store.queueManagerActive).toBeDefined();
     expect(store.queueManagerActive).toBe(true);
 
-    showHistory.value = true;
-    await Promise.resolve();
+    await store.handleBackendUrlChange();
 
-    expect(store.historyLimit).toBeGreaterThan(DEFAULT_HISTORY_LIMIT);
-    expect(transport.refreshRecentResults).toHaveBeenCalled();
+    expect(transport.reconnect).toHaveBeenCalled();
+    expect(transport.refreshAll).toHaveBeenCalledWith(DEFAULT_HISTORY_LIMIT);
   });
 
   it('enqueues and removes jobs through start and cancel actions', async () => {
     const store = useGenerationOrchestratorStore();
     const notificationAdapter = { notify: vi.fn(), debug: vi.fn() };
-    const showHistory = ref(false);
-    const backendUrl = ref<string | null>('http://localhost');
+    const backendUrl = 'http://localhost';
     transport.startGeneration.mockResolvedValue({ job_id: 'job-1', status: 'queued', progress: 0 } as any);
 
     await store.initialize({
-      showHistory,
-      configuredBackendUrl: backendUrl,
+      historyLimit: DEFAULT_HISTORY_LIMIT,
+      getBackendUrl: () => backendUrl,
       notificationAdapter,
     });
 
@@ -96,12 +92,11 @@ describe('useGenerationOrchestratorStore', () => {
   it('clears queue by cancelling cancellable jobs', async () => {
     const store = useGenerationOrchestratorStore();
     const notificationAdapter = { notify: vi.fn(), debug: vi.fn() };
-    const showHistory = ref(false);
-    const backendUrl = ref<string | null>('http://localhost');
+    const backendUrl = 'http://localhost';
 
     await store.initialize({
-      showHistory,
-      configuredBackendUrl: backendUrl,
+      historyLimit: DEFAULT_HISTORY_LIMIT,
+      getBackendUrl: () => backendUrl,
       notificationAdapter,
     });
 
@@ -117,12 +112,11 @@ describe('useGenerationOrchestratorStore', () => {
   it('deletes results and clears transport on cleanup', async () => {
     const store = useGenerationOrchestratorStore();
     const notificationAdapter = { notify: vi.fn(), debug: vi.fn() };
-    const showHistory = ref(false);
-    const backendUrl = ref<string | null>('http://localhost');
+    const backendUrl = 'http://localhost';
 
     await store.initialize({
-      showHistory,
-      configuredBackendUrl: backendUrl,
+      historyLimit: DEFAULT_HISTORY_LIMIT,
+      getBackendUrl: () => backendUrl,
       notificationAdapter,
     });
 

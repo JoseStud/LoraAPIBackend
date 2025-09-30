@@ -1,4 +1,4 @@
-import { reactive, ref } from 'vue';
+import { reactive, readonly, ref } from 'vue';
 
 import { DEFAULT_POLL_INTERVAL } from '../../services/updates';
 import type { SystemStatusPayload, SystemStatusState } from '@/types';
@@ -26,13 +26,20 @@ const toPollInterval = (interval: number): number => {
 };
 
 export const createSystemStatusModule = (options: SystemStatusModuleOptions = {}) => {
-  const systemStatus = reactive<SystemStatusState>(createDefaultSystemStatus());
+  const systemStatusState = reactive<SystemStatusState>(createDefaultSystemStatus());
   const isConnected = ref(false);
   const pollIntervalMs = ref(DEFAULT_POLL_INTERVAL);
   const systemStatusReady = ref(false);
   const systemStatusLastUpdated = ref<Date | null>(null);
   const systemStatusApiAvailable = ref(true);
   const queueManagerActive = ref(false);
+  const systemStatus = readonly(systemStatusState);
+  const pollIntervalState = readonly(pollIntervalMs);
+  const isConnectedState = readonly(isConnected);
+  const systemStatusReadyState = readonly(systemStatusReady);
+  const systemStatusLastUpdatedState = readonly(systemStatusLastUpdated);
+  const systemStatusApiAvailableState = readonly(systemStatusApiAvailable);
+  const queueManagerActiveState = readonly(queueManagerActive);
 
   const setConnectionState = (connected: boolean): void => {
     isConnected.value = connected;
@@ -45,11 +52,11 @@ export const createSystemStatusModule = (options: SystemStatusModuleOptions = {}
   };
 
   const updateSystemStatus = (status: Partial<SystemStatusState>): void => {
-    Object.assign(systemStatus, status);
+    Object.assign(systemStatusState, status);
   };
 
   const resetSystemStatus = (): void => {
-    Object.assign(systemStatus, createDefaultSystemStatus());
+    Object.assign(systemStatusState, createDefaultSystemStatus());
     systemStatusReady.value = false;
     systemStatusLastUpdated.value = null;
     systemStatusApiAvailable.value = true;
@@ -99,12 +106,12 @@ export const createSystemStatusModule = (options: SystemStatusModuleOptions = {}
 
   return {
     systemStatus,
-    isConnected,
-    pollIntervalMs,
-    systemStatusReady,
-    systemStatusLastUpdated,
-    systemStatusApiAvailable,
-    queueManagerActive,
+    isConnected: isConnectedState,
+    pollIntervalMs: pollIntervalState,
+    systemStatusReady: systemStatusReadyState,
+    systemStatusLastUpdated: systemStatusLastUpdatedState,
+    systemStatusApiAvailable: systemStatusApiAvailableState,
+    queueManagerActive: queueManagerActiveState,
     setConnectionState,
     setPollInterval,
     updateSystemStatus,

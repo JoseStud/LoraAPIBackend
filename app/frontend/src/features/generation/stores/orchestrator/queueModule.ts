@@ -1,5 +1,6 @@
-import { computed, ref } from 'vue';
+import { computed, readonly, ref } from 'vue';
 
+import { GenerationJobStatusSchema } from '@/schemas';
 import { normalizeGenerationProgress } from '@/utils/progress';
 import { normalizeJobStatus } from '@/utils/status';
 import type {
@@ -29,25 +30,25 @@ const resolveJobId = (job: GenerationJobInput): string => {
 const toStoredJob = (job: GenerationJobInput): GenerationJob => {
   const id = resolveJobId(job);
   const startTime = job.startTime ?? job.created_at ?? new Date().toISOString();
-  const progress = normalizeGenerationProgress(
-    typeof job.progress === 'number' ? job.progress : undefined,
-  );
-  const status = normalizeJobStatus(typeof job.status === 'string' ? job.status : undefined);
-
-  const createdAt = job.created_at ?? startTime;
+  const parsed = GenerationJobStatusSchema.parse({
+    id,
+    jobId: job.jobId ?? job.id ?? id,
+    status: normalizeJobStatus(job.status),
+    progress: normalizeGenerationProgress(job.progress),
+    created_at: job.created_at ?? startTime,
+    startTime,
+    ...job,
+  }) as GenerationJob;
 
   return {
-    ...job,
-    id,
-    startTime,
-    created_at: createdAt,
-    progress,
-    status,
-  } as GenerationJob;
+    ...parsed,
+    progress: normalizeGenerationProgress(parsed.progress),
+  };
 };
 
 export const createQueueModule = () => {
   const jobs = ref<GenerationJob[]>([]);
+  const jobsState = readonly(jobs);
 
   const activeJobs = computed(() => jobs.value);
 
@@ -163,7 +164,7 @@ export const createQueueModule = () => {
   };
 
   return {
-    jobs,
+    jobs: jobsState,
     activeJobs,
     sortedActiveJobs,
     hasActiveJobs,

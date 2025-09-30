@@ -17,16 +17,31 @@ export const createTransportModule = () => {
     transport.value = adapter;
   };
 
+  const setPollInterval = (interval: number): void => {
+    transport.value?.setPollInterval(interval);
+  };
+
+  const reconnect = (): void => {
+    transport.value?.reconnect();
+  };
+
   const clearTransport = (): void => {
     transport.value?.clear();
     transport.value = null;
   };
 
+  const withTransport = <T>(callback: (adapter: GenerationTransportAdapter) => T): T => {
+    const instance = ensureTransport();
+    return callback(instance);
+  };
+
   return {
-    transport,
     ensureTransport,
     setTransport,
+    setPollInterval,
+    reconnect,
     clearTransport,
+    withTransport,
   };
 };
 
