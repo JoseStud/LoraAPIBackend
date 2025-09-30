@@ -16,7 +16,6 @@ import {
   sanitizeBackendBaseUrl,
   trimLeadingSlash,
   trimTrailingSlash,
-  resolveGenerationRoute,
   withSameOrigin,
   type BackendPathBuilder,
 } from './backend/helpers';
@@ -27,7 +26,6 @@ export {
   joinBackendPath,
   joinBackendSegments,
   normaliseBackendBase,
-  resolveGenerationRoute,
   sanitizeBackendBaseUrl,
   trimLeadingSlash,
   trimTrailingSlash,
@@ -160,7 +158,6 @@ export const backendUtils = {
   joinBackendPath,
   joinBackendSegments,
   normaliseBackendBase,
-  resolveGenerationRoute,
   trimLeadingSlash,
   trimTrailingSlash,
   sanitizeBackendBaseUrl,
