@@ -2,9 +2,9 @@ import { shallowRef } from 'vue';
 
 import {
   createGenerationWebSocketManager,
-  ensureArray,
   type GenerationWebSocketManager,
-} from '@/services';
+} from '@/services/generation/websocketManager';
+import { ensureArray } from '@/services/generation/validation';
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,

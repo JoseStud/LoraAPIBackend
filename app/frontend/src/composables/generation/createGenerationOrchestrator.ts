@@ -5,10 +5,8 @@ import {
   useGenerationTransport,
   type GenerationNotificationAdapter,
 } from './useGenerationTransport';
-import type {
-  GenerationQueueClient,
-  GenerationWebSocketManager,
-} from '@/services';
+import type { GenerationQueueClient } from '@/services/generation/queueClient';
+import type { GenerationWebSocketManager } from '@/services/generation/websocketManager';
 import { acquireSystemStatusController, DEFAULT_HISTORY_LIMIT } from '@/stores/generation';
 import type {
   GenerationConnectionStore,
