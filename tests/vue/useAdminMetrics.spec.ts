@@ -16,7 +16,7 @@ import { defineComponent, nextTick } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 
 import { useAdminMetrics } from '@/composables/system';
-import { useAdminMetricsStore } from '@/stores';
+import { useAdminMetricsStore, useSettingsStore } from '@/stores';
 import {
   deriveMetricsFromDashboard,
   emptyMetricsSnapshot,
@@ -61,6 +61,10 @@ describe('useAdminMetrics composable', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     setActivePinia(createPinia());
+
+    const settingsStore = useSettingsStore();
+    settingsStore.reset();
+    settingsStore.setSettings({ backendUrl: '/api/v1' });
 
     store = useAdminMetricsStore();
     refreshSpy = vi.spyOn(store, 'refresh');

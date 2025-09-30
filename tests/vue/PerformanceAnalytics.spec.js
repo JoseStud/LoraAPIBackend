@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { defineComponent, h, watchEffect } from 'vue';
+import { createPinia, setActivePinia } from 'pinia';
 
 import PerformanceAnalyticsPage from '../../app/frontend/src/views/analytics/PerformanceAnalyticsPage.vue';
+import { useSettingsStore } from '../../app/frontend/src/stores/settings';
 
 const notificationSpies = vi.hoisted(() => ({
   showSuccess: vi.fn(),
@@ -188,6 +190,8 @@ const flushPromises = async () => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 };
 
+let pinia;
+
 const mountPage = () =>
   mount(PerformanceAnalyticsPage, {
     props: {
@@ -195,6 +199,7 @@ const mountPage = () =>
       showSystemStatus: false,
     },
     global: {
+      plugins: [pinia],
       stubs: {
         PageHeader: PageHeaderStub,
         SystemStatusPanel: SystemStatusStub,
@@ -212,6 +217,12 @@ describe('PerformanceAnalyticsPage.vue', () => {
   let wrapper;
 
   beforeEach(() => {
+    pinia = createPinia();
+    setActivePinia(pinia);
+    const settingsStore = useSettingsStore();
+    settingsStore.reset();
+    settingsStore.setSettings({ backendUrl: '/api/v1' });
+
     kpiGridProps = undefined;
     chartGridProps = undefined;
     insightsProps = undefined;

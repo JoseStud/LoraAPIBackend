@@ -1,8 +1,9 @@
-import { computed, reactive, ref } from 'vue';
-import { defineStore } from 'pinia';
+import { computed, reactive, ref, watch } from 'vue';
+import { defineStore, storeToRefs } from 'pinia';
 
 import { ApiError } from '@/composables/shared';
 import { fetchAdapterList, fetchAdapterTags, performBulkLoraAction, useBackendClient } from '@/services';
+import { useSettingsStore, waitForSettingsHydration } from '@/stores/settings';
 
 import type {
   AdapterRead,
@@ -54,6 +55,9 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
   const loraItems = ref<GalleryLora[]>([]);
   const lastError = ref<ApiError | unknown | null>(null);
   const isLoading = ref(false);
+
+  const settingsStore = useSettingsStore();
+  const { backendUrl, isLoaded: settingsLoaded } = storeToRefs(settingsStore);
 
   const backendClient = useBackendClient();
   const query = reactive<AdapterListQuery>({ ...DEFAULT_QUERY });
@@ -125,6 +129,8 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
     const requestQuery: AdapterListQuery = { ...query, ...overrides };
 
     const request = (async () => {
+      await waitForSettingsHydration(settingsStore);
+
       isLoading.value = true;
       lastError.value = null;
 
@@ -179,6 +185,7 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
     }
 
     const request = (async () => {
+      await waitForSettingsHydration(settingsStore);
       try {
         const tags = await fetchAdapterTags(backendClient);
         availableTags.value = tags;
@@ -214,6 +221,8 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
       return;
     }
 
+    await waitForSettingsHydration(settingsStore);
+
     await performBulkLoraAction({
       action,
       lora_ids: loraIds,
@@ -235,6 +244,23 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
     tagError.value = null;
     Object.assign(query, { ...DEFAULT_QUERY });
   };
+
+  watch(
+    backendUrl,
+    (next, previous) => {
+      if (next === previous) {
+        return;
+      }
+
+      if (!settingsLoaded.value) {
+        return;
+      }
+
+      void refresh();
+      void fetchTags();
+    },
+    { flush: 'post' },
+  );
 
   return {
     isInitialized,
