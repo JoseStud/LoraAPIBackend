@@ -4,7 +4,7 @@ import type { Router } from 'vue-router';
 
 import type { GenerationHistoryResult } from '../../app/frontend/src/types';
 import { useHistoryActions } from '../../app/frontend/src/composables/history/useHistoryActions';
-import { PERSISTENCE_KEYS } from '../../app/frontend/src/constants/persistence';
+import { PERSISTENCE_KEYS } from '../../app/frontend/src/composables/shared/usePersistence';
 
 const serviceMocks = vi.hoisted(() => ({
   rateResult: vi.fn(),

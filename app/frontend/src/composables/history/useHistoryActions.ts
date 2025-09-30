@@ -1,8 +1,7 @@
 import type { Ref } from 'vue';
 import type { Router } from 'vue-router';
 
-import { usePersistence } from '@/composables/shared';
-import { PERSISTENCE_KEYS } from '@/constants/persistence';
+import { PERSISTENCE_KEYS, usePersistence } from '@/composables/shared';
 import { downloadFile } from '@/utils/browser';
 import {
   deleteResult as deleteHistoryResult,

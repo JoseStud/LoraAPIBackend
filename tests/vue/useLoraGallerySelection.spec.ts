@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick, ref } from 'vue';
 
-import type { PersistenceKey } from '../../app/frontend/src/constants/persistence';
-import { PERSISTENCE_KEYS } from '../../app/frontend/src/constants/persistence';
-import type { UsePersistenceReturn } from '../../app/frontend/src/composables/shared/usePersistence';
+import type {
+  PersistenceKey,
+  UsePersistenceReturn,
+} from '../../app/frontend/src/composables/shared/usePersistence';
+import { PERSISTENCE_KEYS } from '../../app/frontend/src/composables/shared/usePersistence';
 import type { GalleryLora } from '../../app/frontend/src/types';
 
 const persistenceMocks = vi.hoisted(() => {

@@ -23,8 +23,7 @@ import {
   type RatingFilterOption,
   type DimensionFilterOption,
 } from '@/composables/history';
-import { usePersistence } from '@/composables/shared';
-import { PERSISTENCE_KEYS } from '@/constants/persistence';
+import { PERSISTENCE_KEYS, usePersistence } from '@/composables/shared';
 import { useBackendBase } from '@/utils/backend';
 import { formatHistoryDate } from '@/utils/format';
 import type { GenerationHistoryResult } from '@/types';
