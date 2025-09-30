@@ -8,14 +8,15 @@ import {
 } from './generationService';
 import { requestJson } from '@/services/apiClient';
 import { normalizeJobStatus } from '@/utils/status';
+import { withSameOrigin } from '@/utils/backend';
 
-import { ensureArray } from './validation';
 import {
   GenerationJobStatusSchema,
   GenerationResultSchema,
   SystemStatusPayloadSchema,
 } from '@/schemas';
 
+import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,
   GenerationJob,
@@ -37,11 +38,6 @@ import {
 
 const DEFAULT_POLL_INTERVAL = 2000;
 const RECONNECT_DELAY = 3000;
-
-const withCredentials = (init: RequestInit = {}): RequestInit => ({
-  credentials: 'same-origin',
-  ...init,
-});
 
 const appendWebSocketPath = (path: string): string => {
   const trimmed = path.replace(/\/+$/, '');
@@ -110,7 +106,7 @@ export const createGenerationQueueClient = (
 
   const fetchSystemStatus = async (): Promise<SystemStatusPayload | null> => {
     try {
-      const result = await requestJson<unknown>(buildUrl('/system/status'), withCredentials());
+      const result = await requestJson<unknown>(buildUrl('/system/status'), withSameOrigin());
       if (result.data == null) {
         return null;
       }
@@ -130,7 +126,7 @@ export const createGenerationQueueClient = (
     try {
       const result = await requestJson<unknown>(
         buildGenerationUrl('jobs/active'),
-        withCredentials(),
+        withSameOrigin(),
       );
       const parsed = parseGenerationJobStatuses(result.data, 'active job');
       return parsed.map((status) => ({
@@ -148,7 +144,7 @@ export const createGenerationQueueClient = (
     try {
       const result = await requestJson<unknown>(
         buildGenerationUrl(`results?limit=${normalizedLimit}`),
-        withCredentials(),
+        withSameOrigin(),
       );
       return parseGenerationResults(result.data, 'recent result');
     } catch (error) {

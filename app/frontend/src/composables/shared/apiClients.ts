@@ -9,14 +9,9 @@ import type {
   SystemStatusPayload,
 } from '@/types';
 
-import { resolveBackendUrl } from '@/utils/backend';
+import { resolveBackendUrl, withSameOrigin } from '@/utils/backend';
 
 export type DashboardStatsResponse = DashboardStatsSummary;
-
-const withCredentials = (init: RequestInit = {}): RequestInit => ({
-  credentials: 'same-origin',
-  ...init,
-});
 
 const resolveRecommendationUrl = (input: MaybeRefOrGetter<string>) =>
   computed(() => {
@@ -43,7 +38,7 @@ export const useRecommendationApi = (
   init: RequestInit = {},
 ) => {
   const url = resolveRecommendationUrl(path);
-  return useApi<RecommendationResponse>(() => url.value, withCredentials(init));
+  return useApi<RecommendationResponse>(() => url.value, withSameOrigin(init));
 };
 
 export const useActiveJobsApi = () =>
@@ -52,10 +47,10 @@ export const useActiveJobsApi = () =>
 export const useRecentResultsApi = (
   url: MaybeRefOrGetter<string>,
   init: RequestInit = {},
-) => useApi<GenerationResult[]>(url, withCredentials(init));
+) => useApi<GenerationResult[]>(url, withSameOrigin(init));
 
 export const useDashboardStatsApi = (init: RequestInit = {}) =>
-  useApi<DashboardStatsSummary>(() => resolveBackendUrl('/dashboard/stats'), withCredentials(init));
+  useApi<DashboardStatsSummary>(() => resolveBackendUrl('/dashboard/stats'), withSameOrigin(init));
 
 export const useSystemStatusApi = (init: RequestInit = {}) =>
-  useApi<SystemStatusPayload>(() => resolveBackendUrl('/system/status'), withCredentials(init));
+  useApi<SystemStatusPayload>(() => resolveBackendUrl('/system/status'), withSameOrigin(init));
