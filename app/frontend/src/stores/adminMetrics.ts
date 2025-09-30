@@ -6,7 +6,7 @@ import {
   emptyMetricsSnapshot,
   fetchDashboardStats,
   useBackendClient,
-  useBackendEnvironmentSubscription,
+  useBackendRefresh,
 } from '@/services';
 import {
   buildResourceStats,
@@ -95,7 +95,7 @@ export const useAdminMetricsStore = defineStore('adminMetrics', () => {
     }
   };
 
-  useBackendEnvironmentSubscription(() => {
+  useBackendRefresh(() => {
     void refresh({ showLoader: false });
   });
 
