@@ -8,6 +8,7 @@ import { useBackendRefresh } from '@/services';
 
 import { useBackendEnvironment, useSettingsStore } from '@/stores';
 import type { AdapterSummary, RecommendationItem, RecommendationResponse } from '@/types';
+import { debounce, type DebouncedFunction } from '@/utils/async';
 
 import { useLoraSummaries } from './useLoraSummaries';
 
@@ -144,6 +145,27 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
     return recommendations.value;
   };
 
+  const debouncedFetchRecommendations: DebouncedFunction<() => void> = debounce(
+    () => {
+      void fetchRecommendations();
+    },
+    250,
+  );
+
+  const scheduleRecommendationsRefresh = ({ immediate = false } = {}) => {
+    if (!selectedLora.value || !isHydrated.value) {
+      return;
+    }
+
+    if (immediate) {
+      debouncedFetchRecommendations.cancel();
+      void fetchRecommendations();
+      return;
+    }
+
+    debouncedFetchRecommendations();
+  };
+
   const resetSettings = () => {
     limit.value = options.initialLimit ?? 10;
     similarityThreshold.value = options.initialThreshold ?? 0.1;
@@ -155,6 +177,18 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
       error.value = toErrorMessage(err, 'Failed to fetch recommendations');
     }
   });
+
+
+  watch(selectedLoraId, (next) => {
+    if (!next) {
+      debouncedFetchRecommendations.cancel();
+      recommendations.value = [];
+      error.value = '';
+      return;
+    }
+
+    if (isHydrated.value) {
+      scheduleRecommendationsRefresh({ immediate: true });
 
   watch(
     () => selectedLora.value?.id ?? '',
@@ -178,29 +212,31 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
 
     if (!items.some((item) => item.id === selectedLoraId.value)) {
       selectedLoraId.value = '';
+
     }
   });
 
-  const triggerRefreshIfReady = () => {
-    if (!selectedLora.value || !isHydrated.value) {
-      return;
-    }
-    void fetchRecommendations();
-  };
+  watch([limit, similarityThreshold], () => {
+    scheduleRecommendationsRefresh();
+  });
 
-  watch([limit, similarityThreshold], triggerRefreshIfReady);
-
-  watch(weights as Ref<WeightState>, triggerRefreshIfReady, { deep: true });
+  watch(
+    weights as Ref<WeightState>,
+    () => {
+      scheduleRecommendationsRefresh();
+    },
+    { deep: true },
+  );
 
   watch(isHydrated, (ready) => {
     if (ready && selectedLora.value) {
-      void fetchRecommendations();
+      scheduleRecommendationsRefresh({ immediate: true });
     }
   });
 
   useBackendRefresh(() => {
     if (selectedLora.value) {
-      void fetchRecommendations();
+      scheduleRecommendationsRefresh({ immediate: true });
     }
   });
 
