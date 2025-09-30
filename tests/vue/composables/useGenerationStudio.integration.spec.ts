@@ -124,7 +124,7 @@ describe('useGenerationStudio integration', () => {
 
   it('starts a generation job and persists parameters', async () => {
     const formStore = useGenerationFormStore()
-    formStore.params.prompt = '  integration test prompt  '
+    formStore.setPrompt('  integration test prompt  ')
 
     await wrapper.vm.studio.startGeneration()
 

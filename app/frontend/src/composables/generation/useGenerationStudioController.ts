@@ -61,8 +61,8 @@ export const useGenerationStudioController = ({
     formStore.setGenerating(true)
 
     try {
-      params.value.prompt = trimmedPrompt
-      const payload = toGenerationRequestPayload({ ...params.value, prompt: trimmedPrompt })
+      formStore.setPrompt(trimmedPrompt)
+      const payload = toGenerationRequestPayload({ ...params.value })
       await ensureBinding().startGeneration(payload)
       onAfterStart?.({ ...params.value })
       return true

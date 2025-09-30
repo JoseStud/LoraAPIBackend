@@ -42,6 +42,7 @@ export const useGenerationUI = ({ notify }: UseGenerationUIOptions) => {
 
   const reuseParameters = (result: GenerationResult): void => {
     formStore.applyResultParameters(result)
+
     notify('Parameters loaded from result', 'success')
   }
 
