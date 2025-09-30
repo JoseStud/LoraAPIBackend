@@ -2,63 +2,24 @@ import { computed, ref, watch } from 'vue';
 import type { Ref } from 'vue';
 
 import { useLoraSelection } from './useLoraSelection';
+import { usePersistence } from '@/composables/shared';
 import { PERSISTENCE_KEYS } from '@/constants/persistence';
 import type { GalleryLora, LoraGallerySelectionState } from '@/types';
 
-const storage = (() => {
-  if (typeof window === 'undefined') {
-    return null;
-  }
+export function useLoraGallerySelection(filteredLoras: Ref<GalleryLora[]>) {
+  const selection = useLoraSelection();
+  const persistence = usePersistence();
+  const viewMode = ref<LoraGallerySelectionState['viewMode']>('grid');
+  const bulkMode = ref(false);
 
-  try {
-    return window.localStorage ?? null;
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn('[useLoraGallerySelection] Failed to access localStorage', error);
-    }
-    return null;
-  }
-})();
-
-const VIEW_MODE_KEY = PERSISTENCE_KEYS.loraGalleryViewMode;
-
-const persistViewMode = (mode: LoraGallerySelectionState['viewMode']) => {
-  if (!storage) {
-    return;
-  }
-
-  try {
-    storage.setItem(VIEW_MODE_KEY, mode);
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn('[useLoraGallerySelection] Failed to persist view mode', error);
-    }
-  }
-};
-
-const readPersistedViewMode = (): LoraGallerySelectionState['viewMode'] | null => {
-  if (!storage) {
-    return null;
-  }
-
-  try {
-    const savedViewMode = storage.getItem(VIEW_MODE_KEY);
+  const readPersistedViewMode = (): LoraGallerySelectionState['viewMode'] | null => {
+    const savedViewMode = persistence.getItem(PERSISTENCE_KEYS.loraGalleryViewMode);
     if (savedViewMode === 'grid' || savedViewMode === 'list') {
       return savedViewMode;
     }
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn('[useLoraGallerySelection] Failed to read view mode', error);
-    }
-  }
 
-  return null;
-};
-
-export function useLoraGallerySelection(filteredLoras: Ref<GalleryLora[]>) {
-  const selection = useLoraSelection();
-  const viewMode = ref<LoraGallerySelectionState['viewMode']>('grid');
-  const bulkMode = ref(false);
+    return null;
+  };
 
   const allSelected = computed(() =>
     filteredLoras.value.length > 0 &&
@@ -67,7 +28,7 @@ export function useLoraGallerySelection(filteredLoras: Ref<GalleryLora[]>) {
 
   const setViewMode = (mode: LoraGallerySelectionState['viewMode']) => {
     viewMode.value = mode;
-    persistViewMode(mode);
+    persistence.setItem(PERSISTENCE_KEYS.loraGalleryViewMode, mode);
   };
 
   const toggleBulkMode = () => {
