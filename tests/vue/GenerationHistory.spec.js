@@ -2,13 +2,14 @@ import { mount, shallowMount } from '@vue/test-utils';
 import { defineComponent, nextTick, ref } from 'vue';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import GenerationHistory from '../../app/frontend/src/components/history/GenerationHistory.vue';
-import GenerationHistoryController from '../../app/frontend/src/components/history/GenerationHistoryController.vue';
-import GenerationHistoryView from '../../app/frontend/src/components/history/GenerationHistoryView.vue';
-import HistoryModalController from '../../app/frontend/src/components/history/HistoryModalController.vue';
-import HistoryToast from '../../app/frontend/src/components/history/HistoryToast.vue';
-import { useGenerationHistory } from '../../app/frontend/src/composables/history/useGenerationHistory';
-import { useHistoryModalCoordinator } from '../../app/frontend/src/composables/history/useHistoryModalCoordinator';
+import GenerationHistory from '../../app/frontend/src/features/history/components/GenerationHistory.vue';
+import GenerationHistoryController from '../../app/frontend/src/features/history/components/GenerationHistoryController.vue';
+import GenerationHistoryView from '../../app/frontend/src/features/history/components/GenerationHistoryView.vue';
+import HistoryModalController from '../../app/frontend/src/features/history/components/HistoryModalController.vue';
+import HistoryToast from '../../app/frontend/src/features/history/components/HistoryToast.vue';
+import { useGenerationHistory } from '../../app/frontend/src/features/history/composables/useGenerationHistory';
+import { useHistoryModalCoordinator } from '../../app/frontend/src/features/history/composables/useHistoryModalCoordinator';
+import { HistoryServiceParseError } from '../../app/frontend/src/features/history/services/historySchemas';
 
 const routerMock = vi.hoisted(() => ({
   push: vi.fn(),
@@ -29,7 +30,7 @@ const serviceMocks = vi.hoisted(() => ({
   deleteResults: vi.fn(),
 }));
 
-vi.mock('../../app/frontend/src/services/history/historyService', () => ({
+vi.mock('../../app/frontend/src/features/history/services/historyService', () => ({
   listResults: serviceMocks.listResults,
   rateResult: serviceMocks.rateResult,
   favoriteResult: serviceMocks.favoriteResult,
@@ -40,7 +41,7 @@ vi.mock('../../app/frontend/src/services/history/historyService', () => ({
   deleteResults: serviceMocks.deleteResults,
 }));
 
-vi.mock('../../app/frontend/src/services/history', () => ({
+vi.mock('../../app/frontend/src/features/history/services', () => ({
   listResults: serviceMocks.listResults,
   rateResult: serviceMocks.rateResult,
   favoriteResult: serviceMocks.favoriteResult,
@@ -553,14 +554,16 @@ describe('GenerationHistory.vue', () => {
   });
 
   it('shows an error toast when history loading fails', async () => {
-    serviceMocks.listResults.mockRejectedValue(new Error('failed to load'));
+    serviceMocks.listResults.mockRejectedValue(
+      new HistoryServiceParseError('generation history list response validation failed: results.0.id: Required'),
+    );
 
     const wrapper = mount(GenerationHistory);
     await flush();
 
     const toast = wrapper.findComponent(HistoryToast);
     expect(toast.exists()).toBe(true);
-    expect(toast.text()).toContain('failed to load');
+    expect(toast.text()).toContain('validation failed');
 
     wrapper.unmount();
   });
