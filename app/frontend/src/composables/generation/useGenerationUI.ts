@@ -41,26 +41,7 @@ export const useGenerationUI = ({ notify }: UseGenerationUIOptions) => {
   }
 
   const reuseParameters = (result: GenerationResult): void => {
-    if (typeof result.prompt === 'string') {
-      params.value.prompt = result.prompt
-    }
-    params.value.negative_prompt = typeof result.negative_prompt === 'string' ? result.negative_prompt : ''
-    if (typeof result.width === 'number') {
-      params.value.width = result.width
-    }
-    if (typeof result.height === 'number') {
-      params.value.height = result.height
-    }
-    if (typeof result.steps === 'number') {
-      params.value.steps = result.steps
-    }
-    if (typeof result.cfg_scale === 'number') {
-      params.value.cfg_scale = result.cfg_scale
-    }
-    if (typeof result.seed === 'number') {
-      params.value.seed = result.seed
-    }
-
+    formStore.applyResultParameters(result)
     notify('Parameters loaded from result', 'success')
   }
 

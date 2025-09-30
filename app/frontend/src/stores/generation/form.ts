@@ -21,6 +21,38 @@ const createInitialParams = (): GenerationFormState => ({
   ...DEFAULT_FORM_STATE,
 });
 
+const extractParamsFromResult = (
+  result: GenerationResult,
+): Partial<GenerationFormState> => {
+  const updates: Partial<GenerationFormState> = {
+    negative_prompt:
+      typeof result.negative_prompt === 'string'
+        ? result.negative_prompt
+        : DEFAULT_FORM_STATE.negative_prompt,
+  };
+
+  if (typeof result.prompt === 'string') {
+    updates.prompt = result.prompt;
+  }
+  if (typeof result.width === 'number') {
+    updates.width = result.width;
+  }
+  if (typeof result.height === 'number') {
+    updates.height = result.height;
+  }
+  if (typeof result.steps === 'number') {
+    updates.steps = result.steps;
+  }
+  if (typeof result.cfg_scale === 'number') {
+    updates.cfg_scale = result.cfg_scale;
+  }
+  if (typeof result.seed === 'number') {
+    updates.seed = result.seed;
+  }
+
+  return updates;
+};
+
 export const useGenerationFormStore = defineStore('generation-form', () => {
   const params = ref<GenerationFormState>(createInitialParams());
   const isGenerating = ref(false);
@@ -60,6 +92,10 @@ export const useGenerationFormStore = defineStore('generation-form', () => {
     params.value = createInitialParams();
   };
 
+  const applyResultParameters = (result: GenerationResult): void => {
+    updateParams(extractParamsFromResult(result));
+  };
+
   const reset = (): void => {
     resetParams();
     isGenerating.value = false;
@@ -79,6 +115,7 @@ export const useGenerationFormStore = defineStore('generation-form', () => {
     toggleHistory,
     setShowModal,
     selectResult,
+    applyResultParameters,
     updateParams,
     resetParams,
     reset,
