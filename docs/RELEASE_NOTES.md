@@ -1,5 +1,14 @@
 # Release Notes
 
+## Unreleased – Generation Studio Hardening
+
+- **Shared orchestrator lifecycle:** The new manager store provisions a single generation orchestrator instance, tracks consumer subscriptions, and exposes queue state so views reuse one transport binding.【F:app/frontend/src/features/generation/composables/useGenerationOrchestratorManager.ts†L1-L223】【F:app/frontend/src/features/generation/stores/useGenerationOrchestratorStore.ts†L30-L608】
+- **Queue visibility refinements:** Result retention honours configurable history limits and refreshes after backend reconnections or history toggles, keeping the UI in sync without exhausting API quotas.【F:app/frontend/src/features/generation/stores/useGenerationOrchestratorStore.ts†L267-L606】【F:app/frontend/src/features/history/composables/useGenerationHistory.ts†L33-L340】
+- **Catalog & recommendation alignment:** A shared adapter catalog store now powers both gallery and recommendation views, reusing async resource caching and exposing summary helpers for other features.【F:app/frontend/src/features/lora/stores/adapterCatalog.ts†L19-L246】【F:app/frontend/src/features/recommendations/composables/useLoraSummaries.ts†L1-L52】
+- **Runtime validation coverage:** Generation payloads, history responses, and queue updates are parsed through Zod schemas before reaching stores to stabilise transport behaviour across browsers and deployments.【F:app/frontend/src/schemas/generation.ts†L1-L111】【F:app/frontend/src/features/history/services/historyService.ts†L22-L139】
+- **Networking resilience:** The async resource composable deduplicates pending fetches and `useApi` automatically aborts superseded calls, eliminating race-induced state thrashing on rapid filter changes.【F:app/frontend/src/composables/shared/useAsyncResource.ts†L129-L256】【F:app/frontend/src/composables/shared/useApi.ts†L62-L132】
+- **Deployment-friendly defaults:** Polling intervals resolve from runtime config or backend settings, and Vue Router consumes the Vite base URL so sub-path hosting works without manual patches.【F:app/frontend/src/features/generation/config/polling.ts†L1-L153】【F:app/frontend/src/router/index.ts†L1-L75】
+
 ## 2.1.0 – Vue SPA Consolidation
 
 - **SPA Everywhere:** Dashboard, generation studio, LoRA management, history review, and admin tools are now served exclusively through Vue Router views backed by shared Pinia stores.
