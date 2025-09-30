@@ -8,8 +8,14 @@ import {
 } from './generationService';
 import { requestJson } from '@/services/apiClient';
 import { normalizeJobStatus } from '@/utils/status';
-import { SystemStatusPayloadSchema } from '@/schemas';
-import type {
+
+import { ensureArray } from './validation';
+import {
+  GenerationJobStatusSchema,
+  GenerationResultSchema,
+  SystemStatusPayloadSchema,
+} from '@/schemas';
+
   GenerationCompleteMessage,
   GenerationErrorMessage,
   GenerationJob,
