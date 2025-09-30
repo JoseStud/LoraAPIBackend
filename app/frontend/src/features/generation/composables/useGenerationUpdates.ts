@@ -5,10 +5,8 @@ import {
   useGenerationOrchestratorManager,
   type GenerationOrchestratorBinding,
 } from './useGenerationOrchestratorManager';
-import type {
-  GenerationQueueClient,
-  GenerationWebSocketManager,
-} from '@/features/generation/services';
+import type { GenerationQueueClient } from '../services/queueClient';
+import type { GenerationWebSocketManager } from '../services/websocketManager';
 import type {
   GenerationJob,
   GenerationRequestPayload,

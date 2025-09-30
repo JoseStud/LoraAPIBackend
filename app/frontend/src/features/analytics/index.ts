@@ -1,4 +1,9 @@
-export * from './components';
-export * from './composables';
-export * from './services';
-export * from './stores';
+export {
+  PerformanceAnalyticsChartGrid,
+  PerformanceAnalyticsExportToolbar,
+  PerformanceAnalyticsInsights,
+  PerformanceAnalyticsKpiGrid,
+  usePerformanceAnalytics,
+  usePerformanceAnalyticsStore,
+} from './public';
+export type { PerformanceAnalyticsStore } from './public';

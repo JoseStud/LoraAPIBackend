@@ -82,7 +82,7 @@ import { computed, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import { RouterLink } from 'vue-router';
 
-import { useAdapterCatalogStore } from '@/features/lora';
+import { useAdapterCatalogStore } from '@/features/lora/public';
 import { formatRelativeTime } from '@/utils/format';
 
 const SUMMARY_QUERY = Object.freeze({ perPage: 12, sort: 'last_updated_desc' as const });

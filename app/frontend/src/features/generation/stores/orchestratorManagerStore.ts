@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
 import { effectScope, markRaw, ref, shallowRef, type EffectScope } from 'vue';
 
-import type { GenerationNotificationAdapter, GenerationOrchestrator } from '@/features/generation';
+import type { GenerationOrchestrator } from '../composables/createGenerationOrchestrator';
+import type { GenerationNotificationAdapter } from '../composables/useGenerationTransport';
 import type { SystemStatusController, SystemStatusControllerHandle } from './systemStatusController';
 
 export interface GenerationOrchestratorConsumer {

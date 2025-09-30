@@ -1,10 +1,8 @@
 import { shallowRef } from 'vue';
 
-import {
-  createGenerationWebSocketManager,
-  ensureArray,
-  type GenerationWebSocketManager,
-} from '@/features/generation/services';
+import { createGenerationWebSocketManager, type GenerationWebSocketManager } from '../services/websocketManager';
+import { ensureArray } from '../services/validation';
+import type { GenerationJobInput } from '../stores/queue';
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,
@@ -12,7 +10,6 @@ import type {
   SystemStatusPayload,
   SystemStatusState,
 } from '@/types';
-import type { GenerationJobInput } from '@/features/generation';
 
 interface SocketBridgeOptions {
   getBackendUrl: () => string | null | undefined;

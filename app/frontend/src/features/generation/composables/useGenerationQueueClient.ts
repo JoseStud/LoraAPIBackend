@@ -1,12 +1,9 @@
 import { ref, shallowRef } from 'vue';
 
-import {
-  DEFAULT_POLL_INTERVAL,
-  createGenerationQueueClient,
-  parseGenerationJobStatuses,
-  parseGenerationResults,
-  type GenerationQueueClient,
-} from '@/features/generation/services';
+import { createGenerationQueueClient, type GenerationQueueClient } from '../services/queueClient';
+import { DEFAULT_POLL_INTERVAL } from '../services/updates';
+import { parseGenerationJobStatuses, parseGenerationResults } from '../services/validation';
+import type { GenerationJobInput } from '../stores/queue';
 import type {
   GenerationJobStatus,
   GenerationRequestPayload,
@@ -16,7 +13,6 @@ import type {
   SystemStatusPayload,
   SystemStatusState,
 } from '@/types';
-import type { GenerationJobInput } from '@/features/generation';
 import { SystemStatusPayloadSchema } from '@/schemas';
 import { normalizeJobStatus } from '@/utils/status';
 

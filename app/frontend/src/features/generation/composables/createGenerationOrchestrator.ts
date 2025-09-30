@@ -5,16 +5,13 @@ import {
   useGenerationTransport,
   type GenerationNotificationAdapter,
 } from './useGenerationTransport';
-import type {
-  GenerationQueueClient,
-  GenerationWebSocketManager,
-} from '@/features/generation/services';
-import { acquireSystemStatusController, DEFAULT_HISTORY_LIMIT } from '@/features/generation';
-import type {
-  GenerationConnectionStore,
-  GenerationQueueStore,
-  GenerationResultsStore,
-} from '@/features/generation';
+import type { GenerationQueueClient } from '../services/queueClient';
+import type { GenerationWebSocketManager } from '../services/websocketManager';
+import { acquireSystemStatusController } from '../stores/systemStatusController';
+import { DEFAULT_HISTORY_LIMIT } from '../stores/results';
+import type { GenerationConnectionStore } from '../stores/connection';
+import type { GenerationQueueStore } from '../stores/queue';
+import type { GenerationResultsStore } from '../stores/results';
 import type {
   GenerationJob,
   GenerationRequestPayload,

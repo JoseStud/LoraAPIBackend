@@ -26,5 +26,5 @@ import { RouterLink } from 'vue-router';
 import { GenerationHistory } from '@/features/history';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { RecommendationsPanel } from '@/features/recommendations';
-import { SystemStatusCard } from '@/features/generation';
+import { SystemStatusCard } from '@/features/generation/public';
 </script>

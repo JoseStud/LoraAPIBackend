@@ -1,8 +1,7 @@
-import {
-  extractGenerationErrorMessage,
-  type GenerationQueueClient,
-  type GenerationWebSocketManager,
-} from '@/features/generation/services';
+import { extractGenerationErrorMessage } from '../services/updates';
+import type { GenerationQueueClient } from '../services/queueClient';
+import type { GenerationWebSocketManager } from '../services/websocketManager';
+import type { GenerationJobInput } from '../stores/queue';
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,
@@ -13,7 +12,6 @@ import type {
   SystemStatusState,
   NotificationType,
 } from '@/types';
-import type { GenerationJobInput } from '@/features/generation';
 
 import { useGenerationQueueClient } from './useGenerationQueueClient';
 import { useGenerationSocketBridge } from './useGenerationSocketBridge';
