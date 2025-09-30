@@ -2,18 +2,14 @@
  * Types shared by analytics-related components and composables.
  */
 
-export type PerformanceTimeRange = '24h' | '7d' | '30d';
+import type { BackendSchemas } from './generated';
 
-export interface PerformanceKpiSummary {
-  total_generations: number;
-  generation_growth: number;
-  avg_generation_time: number;
-  time_improvement: number;
-  success_rate: number;
-  total_failed: number;
-  active_loras: number;
-  total_loras: number;
-}
+type Schemas = BackendSchemas;
+type ExportConfigSchema = Schemas['ExportConfig'];
+
+export type PerformanceTimeRange = Schemas['PerformanceAnalyticsSummary']['time_range'];
+
+export type PerformanceKpiSummary = Schemas['PerformanceKpiSummary'];
 
 export interface TopLoraPerformance {
   id: string | number;
@@ -24,43 +20,17 @@ export interface TopLoraPerformance {
   avg_time: number;
 }
 
-export interface ErrorAnalysisEntry {
-  type: string;
-  count: number;
-  percentage: number;
-  description: string;
-}
+export type ErrorAnalysisEntry = Schemas['ErrorAnalysisEntry'];
 
-export interface PerformanceInsightEntry {
-  id: string | number;
-  title: string;
-  description: string;
-  severity: 'low' | 'medium' | 'high' | string;
-  recommendation?: string;
-}
+export type PerformanceInsightEntry = Schemas['PerformanceInsightEntry'];
 
-export interface GenerationVolumePoint {
-  timestamp: string;
-  count: number;
-}
+export type GenerationVolumePoint = Schemas['GenerationVolumePoint'];
 
-export interface PerformanceSeriesPoint {
-  timestamp: string;
-  avg_time: number;
-  success_rate: number;
-}
+export type PerformanceSeriesPoint = Schemas['PerformanceSeriesPoint'];
 
-export interface LoraUsageSlice {
-  name: string;
-  usage_count: number;
-}
+export type LoraUsageSlice = Schemas['LoraUsageSlice'];
 
-export interface ResourceUsagePoint {
-  timestamp: string;
-  cpu_percent: number;
-  memory_percent: number;
-  gpu_percent: number;
-}
+export type ResourceUsagePoint = Schemas['ResourceUsagePoint'];
 
 export interface PerformanceAnalyticsCharts {
   generationVolume: GenerationVolumePoint[];
@@ -69,12 +39,7 @@ export interface PerformanceAnalyticsCharts {
   resourceUsage: ResourceUsagePoint[];
 }
 
-export interface AnalyticsExportOptions {
-  format: string;
-  loras?: boolean;
-  generations?: boolean;
-  [key: string]: unknown;
-}
+export type AnalyticsExportOptions = Partial<ExportConfigSchema>;
 
 export interface AnalyticsExportResult {
   blob: Blob;
