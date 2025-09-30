@@ -9,7 +9,7 @@
           <span class="text-sm text-gray-600">Status:</span>
           <span
             class="text-sm font-medium"
-            :class="getSystemStatusClasses(systemStatus.status)"
+            :class="getSystemStatusClasses(systemStatus.status ?? 'unknown')"
           >
             {{ systemStatus.status || 'Unknown' }}
           </span>

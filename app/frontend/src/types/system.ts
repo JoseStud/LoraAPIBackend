@@ -24,8 +24,8 @@ export interface SystemImporterStatus {
 }
 
 export interface RecommendationRuntimeStatus {
-  models_loaded: boolean;
-  gpu_available: boolean;
+  models_loaded?: boolean | null;
+  gpu_available?: boolean | null;
   [key: string]: unknown;
 }
 
@@ -91,11 +91,11 @@ export interface SystemResourceStatsSummary {
 export interface GpuTelemetry {
   id: string | number;
   name: string;
-  memory_total?: number;
-  memory_used?: number;
-  memory_percent?: number;
-  temperature?: number;
-  utilization?: number;
+  memory_total?: number | null;
+  memory_used?: number | null;
+  memory_percent?: number | null;
+  temperature?: number | null;
+  utilization?: number | null;
   fan_speed?: number | null;
   power_draw_watts?: number | null;
   [key: string]: unknown;
@@ -112,16 +112,16 @@ export interface CpuTelemetry {
 export interface MemoryTelemetry {
   total: number;
   used: number;
-  available?: number;
+  available?: number | null;
   percent: number;
   [key: string]: unknown;
 }
 
 export interface DiskTelemetry {
-  total?: number;
-  used?: number;
-  percent?: number;
-  path?: string;
+  total?: number | null;
+  used?: number | null;
+  percent?: number | null;
+  path?: string | null;
   [key: string]: unknown;
 }
 
@@ -130,9 +130,9 @@ export interface SystemMetricsSnapshot {
   memory_percent: number;
   memory_used: number;
   memory_total: number;
-  disk_percent?: number;
-  disk_used?: number;
-  disk_total?: number;
+  disk_percent?: number | null;
+  disk_used?: number | null;
+  disk_total?: number | null;
   cpu?: CpuTelemetry | null;
   memory?: MemoryTelemetry | null;
   disk?: DiskTelemetry | null;
@@ -143,6 +143,15 @@ export interface SystemMetricsSnapshot {
 }
 
 export interface SystemStatusPayload extends Partial<SystemStatusState> {
+  gpu_available?: boolean | null;
+  queue_length?: number | null;
+  status?: string | null;
+  gpu_status?: string | null;
+  memory_used?: number | null;
+  memory_total?: number | null;
+  active_workers?: number | null;
+  queue_eta_seconds?: number | null;
+  last_updated?: string | null;
   metrics?: SystemMetricsSnapshot | null;
   message?: string | null;
   updated_at?: string | null;

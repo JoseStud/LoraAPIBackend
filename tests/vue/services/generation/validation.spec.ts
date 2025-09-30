@@ -62,6 +62,7 @@ describe('generation validation helpers', () => {
         negative_prompt: null,
         image_url: null,
         thumbnail_url: null,
+        seed: null,
         created_at: iso,
         finished_at: null,
         generation_info: null,

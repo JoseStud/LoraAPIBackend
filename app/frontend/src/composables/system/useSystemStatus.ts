@@ -6,12 +6,13 @@ import {
   useGenerationConnectionStore,
 } from '@/stores/generation';
 
-const formatMemory = (used: number, total: number) => {
+const formatMemory = (used: number | null | undefined, total: number | null | undefined) => {
   if (!total) {
     return 'N/A';
   }
 
-  const safeUsed = Number.isFinite(used) && used > 0 ? used : 0;
+  const numericUsed = typeof used === 'number' ? used : 0;
+  const safeUsed = Number.isFinite(numericUsed) && numericUsed > 0 ? numericUsed : 0;
   const usedGb = (safeUsed / 1024).toFixed(1);
   const totalGb = (total / 1024).toFixed(1);
   const percentage = total > 0 ? ((safeUsed / total) * 100).toFixed(0) : '0';
@@ -41,7 +42,7 @@ const formatLastUpdateLabel = (lastUpdate: Date | null) => {
   return `${diffHours}h ago`;
 };
 
-const getStatusIcon = (status: string) => {
+const getStatusIcon = (status: string | null | undefined) => {
   switch (status?.toLowerCase()) {
     case 'healthy':
       return '✅';
@@ -54,7 +55,7 @@ const getStatusIcon = (status: string) => {
   }
 };
 
-const getGpuStatusClass = (gpuStatus: string) => {
+const getGpuStatusClass = (gpuStatus: string | null | undefined) => {
   const value = gpuStatus?.toLowerCase() ?? '';
 
   if (value.includes('available')) {
@@ -93,10 +94,14 @@ export const useSystemStatus = () => {
     formatMemory(systemStatus.value.memory_used, systemStatus.value.memory_total),
   );
   const hasMemoryData = computed<boolean>(() =>
-    Boolean(systemStatus.value.memory_used && systemStatus.value.memory_total),
+    systemStatus.value.memory_used != null && systemStatus.value.memory_total != null,
   );
   const memoryPercent = computed<number>(() => {
-    if (!systemStatus.value.memory_used || !systemStatus.value.memory_total) {
+    if (
+      systemStatus.value.memory_used == null ||
+      systemStatus.value.memory_total == null ||
+      systemStatus.value.memory_total === 0
+    ) {
       return 0;
     }
 

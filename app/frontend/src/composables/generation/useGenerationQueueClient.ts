@@ -36,7 +36,6 @@ const toQueueJobInput = (status: GenerationJobStatus): GenerationJobInput => ({
   error: status.error ?? undefined,
   created_at: status.created_at,
   startTime: status.startTime ?? undefined,
-  finished_at: status.finished_at ?? undefined,
 });
 
 interface QueueClientOptions {
