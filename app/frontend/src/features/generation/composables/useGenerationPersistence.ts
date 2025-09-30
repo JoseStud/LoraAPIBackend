@@ -1,7 +1,7 @@
 import { onUnmounted, watch, type Ref } from 'vue'
 
 import { PERSISTENCE_KEYS, usePersistence } from '@/composables/shared'
-import { useGenerationFormStore } from '@/features/generation'
+import { useGenerationFormStore } from '../stores/form'
 import type { UseDialogServiceReturn } from '@/composables/shared'
 import type { GenerationFormState, NotificationType } from '@/types'
 

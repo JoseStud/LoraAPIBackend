@@ -166,14 +166,14 @@
 import { computed, onMounted, onUnmounted } from 'vue';
 
 import PageHeader from '@/components/layout/PageHeader.vue';
-import { SystemStatusCard, SystemStatusPanel } from '@/features/generation';
+import { SystemStatusCard, SystemStatusPanel } from '@/features/generation/public';
 import {
   PerformanceAnalyticsChartGrid,
   PerformanceAnalyticsExportToolbar,
   PerformanceAnalyticsInsights,
   PerformanceAnalyticsKpiGrid,
   usePerformanceAnalytics,
-} from '@/features/analytics';
+} from '@/features/analytics/public';
 import { useNotifications } from '@/composables/shared';
 import { downloadFile } from '@/utils/browser';
 import { successRateClass } from '@/utils/analyticsFormatting';

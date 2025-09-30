@@ -4,7 +4,7 @@ import { useGenerationPersistence } from './useGenerationPersistence'
 import { useGenerationUI } from './useGenerationUI'
 import { useGenerationStudioController } from './useGenerationStudioController'
 import { useGenerationStudioNotifications } from './useGenerationStudioNotifications'
-import { useGenerationFormStore } from '@/features/generation'
+import { useGenerationFormStore } from '../stores/form'
 import type { GenerationFormState } from '@/types'
 
 export const useGenerationStudio = () => {

@@ -1,7 +1,5 @@
-import type {
-  GenerationQueueClient,
-  GenerationWebSocketManager,
-} from '@/features/generation/services';
+import type { GenerationQueueClient } from '../services/queueClient';
+import type { GenerationWebSocketManager } from '../services/websocketManager';
 
 import type { GenerationNotificationAdapter } from './useGenerationTransport';
 import {

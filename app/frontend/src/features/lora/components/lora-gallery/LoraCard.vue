@@ -32,7 +32,7 @@
 import { computed, toRef } from 'vue';
 import LoraCardGrid from './LoraCardGrid.vue';
 import LoraCardList from './LoraCardList.vue';
-import { useLoraCardActions } from '@/features/lora/composables';
+import { useLoraCardActions } from '../../composables/lora-gallery/useLoraCardActions';
 import type { LoraGallerySelectionState, LoraListItem, LoraUpdatePayload } from '@/types';
 
 type LoraCardViewModel = {

@@ -1,11 +1,11 @@
 import { onMounted, onUnmounted, shallowRef, type Ref } from 'vue'
 
-import { toGenerationRequestPayload } from '@/features/generation/services'
+import { toGenerationRequestPayload } from '../services/generationService'
 import {
   useGenerationOrchestratorManager,
   type GenerationOrchestratorBinding,
 } from './useGenerationOrchestratorManager'
-import { useGenerationFormStore } from '@/features/generation'
+import { useGenerationFormStore } from '../stores/form'
 import type { GenerationFormState, NotificationType, GenerationJob } from '@/types'
 
 export interface UseGenerationStudioControllerOptions {

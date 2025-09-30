@@ -22,7 +22,7 @@
 import { defineAsyncComponent, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 
-import { JobQueue, SystemStatusPanel } from '@/features/generation';
+import { JobQueue, SystemStatusPanel } from '@/features/generation/public';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import ImportExportSkeleton from '@/components/import-export/ImportExportSkeleton.vue';
 

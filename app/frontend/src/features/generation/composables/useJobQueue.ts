@@ -1,11 +1,9 @@
 import { computed, unref, type MaybeRefOrGetter } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import {
-  useGenerationConnectionStore,
-  useGenerationQueueStore,
-  useGenerationResultsStore,
-} from '@/features/generation';
+import { useGenerationConnectionStore } from '../stores/connection';
+import { useGenerationQueueStore } from '../stores/queue';
+import { useGenerationResultsStore } from '../stores/results';
 import { useBackendBase } from '@/utils/backend';
 import type { GenerationJob, GenerationJobStatus, GenerationResult } from '@/types';
 import { normalizeJobStatus } from '@/utils/status';

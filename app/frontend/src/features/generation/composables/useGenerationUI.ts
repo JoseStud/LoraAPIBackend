@@ -1,10 +1,8 @@
 import { storeToRefs } from 'pinia'
 
-import {
-  useGenerationFormStore,
-  useGenerationResultsStore,
-  useGenerationStudioUiStore,
-} from '@/features/generation'
+import { useGenerationFormStore } from '../stores/form'
+import { useGenerationResultsStore } from '../stores/results'
+import { useGenerationStudioUiStore } from '../stores/ui'
 import type { GenerationResult, NotificationType } from '@/types'
 
 const STATUS_CLASS_MAP = {

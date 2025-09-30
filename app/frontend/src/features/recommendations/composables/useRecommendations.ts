@@ -2,7 +2,7 @@ import { computed, ref, watch, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { useRecommendationApi } from '@/composables/shared';
-import { useAdapterCatalogStore } from '@/features/lora';
+import { useAdapterCatalogStore } from '@/features/lora/public';
 import { useBackendEnvironmentSubscription } from '@/services';
 import { useBackendEnvironment, useSettingsStore } from '@/stores';
 import type { AdapterSummary, RecommendationItem, RecommendationResponse } from '@/types';

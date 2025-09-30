@@ -1,8 +1,9 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 
-import { fetchTopAdapters, useBackendClient, useBackendEnvironmentSubscription } from '@/services';
-import { exportAnalyticsReport, fetchPerformanceAnalytics } from '@/features/analytics/services';
+import { useBackendClient, useBackendEnvironmentSubscription } from '@/services';
+import { fetchTopAdapters } from '@/features/lora/public';
+import { exportAnalyticsReport, fetchPerformanceAnalytics } from '../services/analyticsService';
 import { formatDuration as formatDurationLabel } from '@/utils/format';
 
 import type {

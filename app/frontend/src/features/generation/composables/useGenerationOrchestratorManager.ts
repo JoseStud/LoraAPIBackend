@@ -6,18 +6,16 @@ import {
   type GenerationOrchestrator,
 } from './createGenerationOrchestrator';
 import type { GenerationNotificationAdapter } from './useGenerationTransport';
-import type {
-  GenerationQueueClient,
-  GenerationWebSocketManager,
-} from '@/features/generation/services';
+import type { GenerationQueueClient } from '../services/queueClient';
+import type { GenerationWebSocketManager } from '../services/websocketManager';
+import { useGenerationConnectionStore } from '../stores/connection';
+import { useGenerationQueueStore } from '../stores/queue';
+import { useGenerationResultsStore } from '../stores/results';
 import {
-  useGenerationConnectionStore,
-  useGenerationQueueStore,
-  useGenerationResultsStore,
   useGenerationOrchestratorManagerStore,
-  useGenerationStudioUiStore,
   type GenerationOrchestratorConsumer,
-} from '@/features/generation';
+} from '../stores/orchestratorManagerStore';
+import { useGenerationStudioUiStore } from '../stores/ui';
 import { useSettingsStore } from '@/stores';
 import type {
   GenerationJob,
