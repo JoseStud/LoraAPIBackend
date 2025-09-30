@@ -29,17 +29,17 @@ export interface SettingsState {
 }
 
 export interface SystemStatusState {
-  gpu_available: boolean;
-  queue_length: number;
-  status: string;
-  gpu_status: string;
-  memory_used: number;
-  memory_total: number;
-  active_workers?: number;
+  gpu_available: boolean | null;
+  queue_length: number | null;
+  status: string | null;
+  gpu_status: string | null;
+  memory_used: number | null;
+  memory_total: number | null;
+  active_workers?: number | null;
   backend?: string | null;
   queue_eta_seconds?: number | null;
   last_updated?: string | null;
-  warnings?: string[];
+  warnings?: string[] | null;
   sdnext?: SystemSdNextStatus | null;
   importer?: SystemImporterStatus | null;
   recommendations?: RecommendationRuntimeStatus | null;

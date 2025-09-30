@@ -11,30 +11,24 @@ const NullableString = z.union([z.string(), z.null()]).optional();
 
 const NullableIsoString = z.union([z.string(), z.null()]).optional();
 
-const RequiredIdSchema = z.preprocess(
-  (value) => {
-    if (typeof value === 'number' || typeof value === 'string') {
-      return String(value);
-    }
-    return value;
-  },
-  z.string(),
-);
+const RequiredIdSchema = z
+  .union([z.string(), z.number()])
+  .transform((value): string => String(value));
 
-const OptionalJobIdSchema = z.preprocess(
-  (value) => {
-    if (value == null) {
+const OptionalJobIdSchema = z
+  .union([z.string(), z.number(), z.null()])
+  .optional()
+  .transform((value): string | null | undefined => {
+    if (value === undefined) {
+      return undefined;
+    }
+    if (value === null) {
       return null;
     }
-    if (typeof value === 'number' || typeof value === 'string') {
-      return String(value);
-    }
-    return value;
-  },
-  z.union([z.string(), z.null()]).optional(),
-);
+    return String(value);
+  });
 
-export const GenerationJobStatusSchema = z
+const GenerationJobStatusObject = z
   .object({
     id: RequiredIdSchema,
     jobId: OptionalJobIdSchema,
@@ -50,8 +44,10 @@ export const GenerationJobStatusSchema = z
     finished_at: NullableIsoString,
     result: JsonObjectSchema.nullish(),
   })
-  .passthrough()
-  .transform((value) => ({
+  .passthrough();
+
+export const GenerationJobStatusSchema = GenerationJobStatusObject.transform(
+  (value): GenerationJobStatus => ({
     ...value,
     jobId: value.jobId ?? null,
     prompt: value.prompt ?? null,
@@ -62,21 +58,23 @@ export const GenerationJobStatusSchema = z
     startTime: value.startTime ?? null,
     finished_at: value.finished_at ?? null,
     result: value.result ?? null,
-  })) satisfies z.ZodType<GenerationJobStatus>;
+  }),
+);
 
-export const GenerationResultSchema = z
+const OptionalJobIdStringSchema = z
+  .union([z.string(), z.number()])
+  .optional()
+  .transform((value): string | undefined => {
+    if (value === undefined) {
+      return undefined;
+    }
+    return String(value);
+  });
+
+const GenerationResultObject = z
   .object({
     id: z.union([z.string(), z.number()]),
-    job_id: z
-      .preprocess((value) => {
-        if (value == null) {
-          return undefined;
-        }
-        if (typeof value === 'number' || typeof value === 'string') {
-          return String(value);
-        }
-        return value;
-      }, z.string().optional()),
+    job_id: OptionalJobIdStringSchema,
     result_id: z.union([z.string(), z.number()]).optional(),
     prompt: z.string().optional(),
     negative_prompt: NullableString,
@@ -92,8 +90,10 @@ export const GenerationResultSchema = z
     status: NormalizedStatusSchema.optional(),
     generation_info: JsonObjectSchema.nullish(),
   })
-  .passthrough()
-  .transform((value) => ({
+  .passthrough();
+
+export const GenerationResultSchema = GenerationResultObject.transform(
+  (value): GenerationResult => ({
     ...value,
     negative_prompt: value.negative_prompt ?? null,
     image_url: value.image_url ?? null,
@@ -101,4 +101,5 @@ export const GenerationResultSchema = z
     seed: value.seed ?? null,
     finished_at: value.finished_at ?? null,
     generation_info: value.generation_info ?? null,
-  })) satisfies z.ZodType<GenerationResult>;
+  }),
+);

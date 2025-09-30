@@ -8,11 +8,7 @@ import {
 } from './generationService';
 import { requestJson } from '@/services/apiClient';
 import { normalizeJobStatus } from '@/utils/status';
-import {
-  GenerationJobStatusSchema,
-  GenerationResultSchema,
-  SystemStatusPayloadSchema,
-} from '@/schemas';
+import { SystemStatusPayloadSchema } from '@/schemas';
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,
@@ -26,6 +22,12 @@ import type {
   SystemStatusPayload,
   WebSocketMessage,
 } from '@/types';
+import {
+  ensureArray,
+  logValidationIssues,
+  parseGenerationJobStatuses,
+  parseGenerationResults,
+} from './validation';
 
 const DEFAULT_POLL_INTERVAL = 2000;
 const RECONNECT_DELAY = 3000;
@@ -67,8 +69,6 @@ const resolveWebSocketUrl = (backendUrl?: string | null): string => {
   return `${protocol}//${window.location.host}${normalizedPath}`;
 };
 
-const ensureArray = <T>(value: unknown): T[] => (Array.isArray(value) ? value : []);
-
 export const extractGenerationErrorMessage = (message: GenerationErrorMessage): string => {
   if (typeof message.error === 'string' && message.error.trim()) {
     return message.error;
@@ -91,21 +91,6 @@ export interface GenerationQueueClient {
   fetchActiveJobs(): Promise<GenerationJobStatus[]>;
   fetchRecentResults(limit: number): Promise<GenerationResult[]>;
 }
-
-const logValidationIssues = (
-  context: string,
-  error: unknown,
-  payload: unknown,
-) => {
-  if (error && typeof error === 'object' && 'issues' in error) {
-    console.warn(`[generation] ${context} validation failed`, {
-      issues: (error as { issues: unknown }).issues,
-      payload,
-    });
-  } else {
-    console.warn(`[generation] ${context} validation failed`, { payload, error });
-  }
-};
 
 export const createGenerationQueueClient = (
   options: GenerationQueueClientOptions,
@@ -141,16 +126,7 @@ export const createGenerationQueueClient = (
         buildGenerationUrl('jobs/active'),
         withCredentials(),
       );
-      const statuses = ensureArray(result.data);
-      const parsed: GenerationJobStatus[] = [];
-      statuses.forEach((entry, index) => {
-        const validation = GenerationJobStatusSchema.safeParse(entry);
-        if (validation.success) {
-          parsed.push(validation.data);
-        } else {
-          logValidationIssues(`active job #${index}`, validation.error, entry);
-        }
-      });
+      const parsed = parseGenerationJobStatuses(result.data, 'active job');
       return parsed.map((status) => ({
         ...status,
         status: normalizeJobStatus(status.status),
@@ -168,17 +144,7 @@ export const createGenerationQueueClient = (
         buildGenerationUrl(`results?limit=${normalizedLimit}`),
         withCredentials(),
       );
-      const entries = ensureArray(result.data);
-      const parsed: GenerationResult[] = [];
-      entries.forEach((entry, index) => {
-        const validation = GenerationResultSchema.safeParse(entry);
-        if (validation.success) {
-          parsed.push(validation.data);
-        } else {
-          logValidationIssues(`recent result #${index}`, validation.error, entry);
-        }
-      });
-      return parsed;
+      return parseGenerationResults(result.data, 'recent result');
     } catch (error) {
       console.error('Failed to load recent results:', error);
       throw error;
