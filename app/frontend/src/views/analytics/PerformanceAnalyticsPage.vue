@@ -166,8 +166,7 @@
 import { computed, onMounted, onUnmounted } from 'vue';
 
 import PageHeader from '@/components/layout/PageHeader.vue';
-import SystemStatusCard from '@/components/system/SystemStatusCard.vue';
-import SystemStatusPanel from '@/components/system/SystemStatusPanel.vue';
+import { SystemStatusCard, SystemStatusPanel } from '@/features/generation';
 import {
   PerformanceAnalyticsChartGrid,
   PerformanceAnalyticsExportToolbar,

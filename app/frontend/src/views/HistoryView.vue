@@ -24,7 +24,6 @@
 import { RouterLink } from 'vue-router';
 
 import { GenerationHistory } from '@/features/history';
-import { JobQueue } from '@/features/generation';
+import { JobQueue, SystemStatusCard } from '@/features/generation';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import SystemStatusCard from '@/components/system/SystemStatusCard.vue';
 </script>
