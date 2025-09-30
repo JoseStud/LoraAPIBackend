@@ -120,6 +120,7 @@ import { useRecommendationApi } from '@/composables/shared';
 import { useAdapterCatalogStore } from '@/stores';
 import type { AdapterSummary, RecommendationItem, RecommendationResponse } from '@/types';
 import { useBackendUrl } from '@/utils/backend';
+import { useSettingsStore, waitForSettingsHydration } from '@/stores';
 
 const WEIGHT_KEYS = ['semantic', 'artistic', 'technical'] as const;
 type WeightKey = (typeof WEIGHT_KEYS)[number];
@@ -142,7 +143,9 @@ const toErrorMessage = (error: unknown, fallback: string): string => {
 };
 
 const adapterCatalog = useAdapterCatalogStore();
+const settingsStore = useSettingsStore();
 const { adapters: catalogAdapters, error: lorasErr, isLoading: lorasLoading } = storeToRefs(adapterCatalog);
+const { isLoaded: settingsLoaded } = storeToRefs(settingsStore);
 
 void adapterCatalog.ensureLoaded({ perPage: 200 });
 
@@ -216,6 +219,8 @@ const fetchRecommendations = async (): Promise<void> => {
     return;
   }
 
+  await waitForSettingsHydration(settingsStore);
+
   if (!recommendationUrl.value) {
     recsError.value = 'Unable to resolve recommendation endpoint.';
     return;
@@ -247,13 +252,23 @@ watch(selectedLoraId, (nextId) => {
 });
 
 onMounted(async () => {
+  await waitForSettingsHydration(settingsStore);
   await adapterCatalog.ensureLoaded({ perPage: 200 });
 });
 
 watch([selectedLoraId, limit, similarityThreshold], () => {
-  if (selectedLora.value) {
+  if (selectedLora.value && settingsLoaded.value) {
     void fetchRecommendations();
   }
 });
+
+watch(
+  () => settingsLoaded.value,
+  (loaded) => {
+    if (loaded && selectedLora.value) {
+      void fetchRecommendations();
+    }
+  },
+);
 
 </script>

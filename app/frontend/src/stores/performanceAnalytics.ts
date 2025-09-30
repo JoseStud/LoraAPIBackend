@@ -1,5 +1,5 @@
-import { computed, ref } from 'vue';
-import { defineStore } from 'pinia';
+import { computed, ref, watch } from 'vue';
+import { defineStore, storeToRefs } from 'pinia';
 
 import {
   exportAnalyticsReport,
@@ -8,6 +8,7 @@ import {
   useBackendClient,
 } from '@/services';
 import { formatDuration as formatDurationLabel } from '@/utils/format';
+import { useSettingsStore, waitForSettingsHydration } from '@/stores/settings';
 
 import type {
   ErrorAnalysisEntry,
@@ -81,6 +82,8 @@ const createDevTopLoras = (): TopLoraPerformance[] => [
 ];
 
 export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', () => {
+  const settingsStore = useSettingsStore();
+  const { backendUrl, isLoaded: settingsLoaded } = storeToRefs(settingsStore);
   const backendClient = useBackendClient();
 
   const timeRange = ref<PerformanceTimeRange>('24h');
@@ -170,6 +173,7 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
 
     isLoading.value = true;
     try {
+      await waitForSettingsHydration(settingsStore);
       await loadAnalyticsSummary();
       await loadTopLoras();
       hasLoaded.value = true;
@@ -213,6 +217,18 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
   const formatDuration = (value: number): string => formatDurationLabel(value);
 
   const isInitialized = computed(() => hasLoaded.value);
+
+  watch(
+    backendUrl,
+    (next, previous) => {
+      if (next === previous || !settingsLoaded.value) {
+        return;
+      }
+
+      void loadAllData();
+    },
+    { flush: 'post' },
+  );
 
   return {
     timeRange,

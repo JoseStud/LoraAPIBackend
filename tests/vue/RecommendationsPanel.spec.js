@@ -34,7 +34,9 @@ describe('RecommendationsPanel.vue', () => {
   beforeEach(() => {
     useAppStore().$reset();
     useAdapterCatalogStore().reset();
-    useSettingsStore().reset();
+    const settingsStore = useSettingsStore();
+    settingsStore.reset();
+    settingsStore.setSettings({ backendUrl: '/api/v1' });
     const jsonResponse = (payload) => ({
       ok: true,
       status: 200,
@@ -101,5 +103,43 @@ describe('RecommendationsPanel.vue', () => {
       .map(([request]) => (typeof request === 'string' ? request : request?.url || ''));
     const recommendationCall = calledUrls.find((url) => url.includes('/recommendations/similar/1'));
     expect(recommendationCall).toContain('https://override.test/api/custom/recommendations/similar/1');
+  });
+
+  it('defers network calls until settings are loaded', async () => {
+    const settingsStore = useSettingsStore();
+    settingsStore.reset();
+
+    global.fetch.mockClear();
+    let resolveLoad;
+    const deferredLoad = new Promise((resolve) => {
+      resolveLoad = resolve;
+    });
+
+    const loadSpy = vi.spyOn(settingsStore, 'loadSettings').mockImplementation(() => {
+      settingsStore.$patch({ isLoading: true });
+      return deferredLoad.finally(() => {
+        settingsStore.$patch({ isLoading: false });
+      });
+    });
+
+    const wrapper = mount(RecommendationsPanel);
+    await flush();
+
+    const initialAdapterCall = global.fetch.mock.calls
+      .map(([request]) => (typeof request === 'string' ? request : request?.url || ''))
+      .find((url) => url.includes('/adapters'));
+    expect(initialAdapterCall).toBeUndefined();
+
+    settingsStore.setSettings({ backendUrl: '/api/v1' });
+    resolveLoad?.();
+    await flush();
+
+    const adapterCall = global.fetch.mock.calls
+      .map(([request]) => (typeof request === 'string' ? request : request?.url || ''))
+      .find((url) => url.includes('/adapters'));
+    expect(adapterCall).toBeTruthy();
+
+    loadSpy.mockRestore();
+    wrapper.unmount();
   });
 });

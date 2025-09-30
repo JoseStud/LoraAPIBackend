@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { RouterLink } from 'vue-router';
 
@@ -105,10 +105,13 @@ import type {
   GenerationHistoryResult,
   GenerationHistoryStats,
 } from '@/types';
+import { useSettingsStore, waitForSettingsHydration } from '@/stores';
 
 const SUMMARY_QUERY = Object.freeze({ page_size: 4, sort: 'created_at_desc' as const });
 
 const backendClient = useBackendClient();
+const settingsStore = useSettingsStore();
+const { isLoaded: settingsLoaded, backendUrl } = storeToRefs(settingsStore);
 const resultsStore = useGenerationResultsStore();
 const { recentResults: storeResults } = storeToRefs(resultsStore);
 
@@ -160,6 +163,8 @@ const refresh = async () => {
     return;
   }
 
+  await waitForSettingsHydration(settingsStore);
+
   isLoading.value = true;
   error.value = null;
 
@@ -178,7 +183,27 @@ const refresh = async () => {
   }
 };
 
-onMounted(async () => {
-  await refresh();
+onMounted(() => {
+  void refresh();
 });
+
+watch(
+  () => settingsLoaded.value,
+  (loaded) => {
+    if (loaded) {
+      void refresh();
+    }
+  },
+);
+
+watch(
+  backendUrl,
+  (next, previous) => {
+    if (next === previous || !settingsLoaded.value) {
+      return;
+    }
+
+    void refresh();
+  },
+);
 </script>

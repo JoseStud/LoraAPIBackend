@@ -1,5 +1,5 @@
-import { ref } from 'vue';
-import { defineStore } from 'pinia';
+import { ref, watch } from 'vue';
+import { defineStore, storeToRefs } from 'pinia';
 
 import {
   deriveMetricsFromDashboard,
@@ -15,6 +15,7 @@ import {
   mergeStatusLevels,
   normaliseStatus,
 } from '@/utils/systemMetrics';
+import { useSettingsStore, waitForSettingsHydration } from '@/stores/settings';
 
 import type {
   DashboardStatsSummary,
@@ -28,6 +29,8 @@ interface RefreshOptions {
 }
 
 export const useAdminMetricsStore = defineStore('adminMetrics', () => {
+  const settingsStore = useSettingsStore();
+  const { backendUrl, isLoaded: settingsLoaded } = storeToRefs(settingsStore);
   const backendClient = useBackendClient();
 
   const summary = ref<DashboardStatsSummary | null>(null);
@@ -76,6 +79,7 @@ export const useAdminMetricsStore = defineStore('adminMetrics', () => {
     }
 
     try {
+      await waitForSettingsHydration(settingsStore);
       const payload = await fetchDashboardStats(backendClient);
       applySummary(payload);
     } catch (err) {
@@ -108,6 +112,18 @@ export const useAdminMetricsStore = defineStore('adminMetrics', () => {
     refresh,
     applySummary,
   };
+
+  watch(
+    backendUrl,
+    (next, previous) => {
+      if (next === previous || !settingsLoaded.value) {
+        return;
+      }
+
+      void refresh({ showLoader: false });
+    },
+    { flush: 'post' },
+  );
 });
 
 export type AdminMetricsStore = ReturnType<typeof useAdminMetricsStore>;
