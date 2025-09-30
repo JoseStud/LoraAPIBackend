@@ -1,4 +1,4 @@
-import { onScopeDispose, ref } from 'vue';
+import { ref } from 'vue';
 import { defineStore } from 'pinia';
 
 import {
@@ -6,6 +6,7 @@ import {
   emptyMetricsSnapshot,
   fetchDashboardStats,
   useBackendClient,
+  useBackendEnvironmentSubscription,
 } from '@/services';
 import {
   buildResourceStats,
@@ -15,7 +16,6 @@ import {
   mergeStatusLevels,
   normaliseStatus,
 } from '@/utils/systemMetrics';
-import { useBackendEnvironment } from '@/stores';
 
 import type {
   DashboardStatsSummary,
@@ -30,7 +30,6 @@ interface RefreshOptions {
 
 export const useAdminMetricsStore = defineStore('adminMetrics', () => {
   const backendClient = useBackendClient();
-  const backendEnvironment = useBackendEnvironment();
 
   const summary = ref<DashboardStatsSummary | null>(null);
   const metrics = ref<SystemMetricsSnapshot>(emptyMetricsSnapshot());
@@ -65,22 +64,6 @@ export const useAdminMetricsStore = defineStore('adminMetrics', () => {
     lastUpdated.value = new Date();
   };
 
-  let stopBackendSubscription: (() => void) | null = null;
-
-  const detachBackendSubscription = () => {
-    if (stopBackendSubscription) {
-      stopBackendSubscription();
-      stopBackendSubscription = null;
-    }
-  };
-
-  const attachBackendSubscription = () => {
-    detachBackendSubscription();
-    stopBackendSubscription = backendEnvironment.onBackendUrlChange(() => {
-      void refresh({ showLoader: false });
-    });
-  };
-
   const refresh = async (options: RefreshOptions = {}): Promise<void> => {
     if (isRefreshing.value) {
       return;
@@ -112,9 +95,9 @@ export const useAdminMetricsStore = defineStore('adminMetrics', () => {
     }
   };
 
-  attachBackendSubscription();
-
-  onScopeDispose(detachBackendSubscription);
+  useBackendEnvironmentSubscription(() => {
+    void refresh({ showLoader: false });
+  });
 
   return {
     summary,

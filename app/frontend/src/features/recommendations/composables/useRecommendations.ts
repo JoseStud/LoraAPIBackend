@@ -1,8 +1,9 @@
-import { computed, onScopeDispose, ref, watch, type Ref } from 'vue';
+import { computed, ref, watch, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { useRecommendationApi } from '@/composables/shared';
 import { useAdapterCatalogStore } from '@/features/lora';
+import { useBackendEnvironmentSubscription } from '@/services';
 import { useBackendEnvironment, useSettingsStore } from '@/stores';
 import type { AdapterSummary, RecommendationItem, RecommendationResponse } from '@/types';
 
@@ -182,14 +183,10 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
     }
   });
 
-  const stopBackendSubscription = backendEnvironment.onBackendUrlChange(() => {
+  useBackendEnvironmentSubscription(() => {
     if (selectedLora.value) {
       void fetchRecommendations();
     }
-  });
-
-  onScopeDispose(() => {
-    stopBackendSubscription();
   });
 
   void adapterCatalog.ensureLoaded({ perPage: 200 });

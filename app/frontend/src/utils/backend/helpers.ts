@@ -126,7 +126,3 @@ export const joinBackendPath = (base: string, path: string): string => {
   return `${combined}${suffix}`;
 };
 
-export const resolveGenerationRoute = (path = ''): string => {
-  const trimmed = trimLeadingSlash(path);
-  return `/generation${trimmed ? `/${trimmed}` : ''}`;
-};

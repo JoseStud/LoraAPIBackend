@@ -1,10 +1,9 @@
-import { computed, onScopeDispose, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 
-import { fetchTopAdapters, useBackendClient } from '@/services';
+import { fetchTopAdapters, useBackendClient, useBackendEnvironmentSubscription } from '@/services';
 import { exportAnalyticsReport, fetchPerformanceAnalytics } from '@/features/analytics/services';
 import { formatDuration as formatDurationLabel } from '@/utils/format';
-import { useBackendEnvironment } from '@/stores';
 
 import type {
   ErrorAnalysisEntry,
@@ -79,7 +78,6 @@ const createDevTopLoras = (): TopLoraPerformance[] => [
 
 export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', () => {
   const backendClient = useBackendClient();
-  const backendEnvironment = useBackendEnvironment();
 
   const timeRange = ref<PerformanceTimeRange>('24h');
   const autoRefresh = ref(false);
@@ -197,23 +195,9 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
     timeRange.value = range;
   };
 
-  let stopBackendSubscription: (() => void) | null = null;
-
-  const detachBackendSubscription = () => {
-    if (stopBackendSubscription) {
-      stopBackendSubscription();
-      stopBackendSubscription = null;
-    }
-  };
-
-  const attachBackendSubscription = () => {
-    detachBackendSubscription();
-    stopBackendSubscription = backendEnvironment.onBackendUrlChange(() => {
-      void loadAllData();
-    });
-  };
-
-  attachBackendSubscription();
+  useBackendEnvironmentSubscription(() => {
+    void loadAllData();
+  });
 
   const cleanup = (): void => {
     stopAutoRefresh();
@@ -229,8 +213,6 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
   const formatDuration = (value: number): string => formatDurationLabel(value);
 
   const isInitialized = computed(() => hasLoaded.value);
-
-  onScopeDispose(detachBackendSubscription);
 
   return {
     timeRange,
