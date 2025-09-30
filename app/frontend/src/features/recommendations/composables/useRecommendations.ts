@@ -2,7 +2,10 @@ import { computed, ref, watch, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { useRecommendationApi } from '@/composables/shared';
-import { useBackendEnvironmentSubscription } from '@/services';
+
+import { useAdapterCatalogStore } from '@/features/lora/public';
+import { useBackendRefresh } from '@/services';
+
 import { useBackendEnvironment, useSettingsStore } from '@/stores';
 import type { AdapterSummary, RecommendationItem, RecommendationResponse } from '@/types';
 
@@ -195,7 +198,7 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
     }
   });
 
-  useBackendEnvironmentSubscription(() => {
+  useBackendRefresh(() => {
     if (selectedLora.value) {
       void fetchRecommendations();
     }

@@ -3,7 +3,7 @@ import { defineStore } from 'pinia';
 
 import { ApiError } from '@/composables/shared';
 import { fetchAdapterList, fetchAdapterTags, performBulkLoraAction } from '../services/lora/loraService';
-import { useBackendClient, useBackendEnvironmentSubscription } from '@/services';
+import { useBackendClient, useBackendRefresh } from '@/services';
 
 import type {
   AdapterRead,
@@ -224,13 +224,13 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
     await fetchTags();
   };
 
-  const backendSubscription = useBackendEnvironmentSubscription(() => {
+  const backendRefresh = useBackendRefresh(() => {
     void refresh();
     void fetchTags();
   });
 
   const reset = () => {
-    backendSubscription.stop();
+    backendRefresh.stop();
     pendingFetch.value = null;
     lastFetchedAt.value = null;
     pendingTagFetch.value = null;
@@ -241,7 +241,7 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
     availableTags.value = [];
     tagError.value = null;
     Object.assign(query, { ...DEFAULT_QUERY });
-    backendSubscription.start();
+    backendRefresh.start();
   };
 
   return {

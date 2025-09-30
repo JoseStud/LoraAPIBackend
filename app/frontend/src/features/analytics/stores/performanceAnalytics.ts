@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 
-import { useBackendClient, useBackendEnvironmentSubscription } from '@/services';
+import { useBackendClient, useBackendRefresh } from '@/services';
 import { fetchTopAdapters } from '@/features/lora/public';
 import { exportAnalyticsReport, fetchPerformanceAnalytics } from '../services/analyticsService';
 import { formatDuration as formatDurationLabel } from '@/utils/format';
@@ -196,7 +196,7 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
     timeRange.value = range;
   };
 
-  useBackendEnvironmentSubscription(() => {
+  useBackendRefresh(() => {
     void loadAllData();
   });
 
