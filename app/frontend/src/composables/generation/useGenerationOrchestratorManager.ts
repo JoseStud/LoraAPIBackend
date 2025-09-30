@@ -9,7 +9,7 @@ import type { GenerationNotificationAdapter } from './useGenerationTransport';
 import type {
   GenerationQueueClient,
   GenerationWebSocketManager,
-} from '@/services/generation/updates';
+} from '@/services';
 import {
   useGenerationConnectionStore,
   useGenerationFormStore,
@@ -19,7 +19,7 @@ import {
 import {
   useGenerationOrchestratorManagerStore,
   type GenerationOrchestratorConsumer,
-} from '@/stores/generation/orchestratorManagerStore';
+} from '@/stores/generation';
 import { useSettingsStore } from '@/stores';
 import type {
   GenerationJob,

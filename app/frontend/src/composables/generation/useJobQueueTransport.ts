@@ -1,6 +1,6 @@
 import { ref, unref, type MaybeRefOrGetter, type Ref } from 'vue';
 
-import { fetchActiveGenerationJobs } from '@/services/generation/generationService';
+import { fetchActiveGenerationJobs } from '@/services';
 import { DEFAULT_BACKEND_BASE } from '@/utils/backend';
 import type { GenerationJobStatus } from '@/types';
 

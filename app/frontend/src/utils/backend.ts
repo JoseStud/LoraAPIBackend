@@ -5,7 +5,7 @@ import {
   getResolvedBackendUrl,
   tryGetSettingsStore,
   type SettingsStore,
-} from '@/stores/settings';
+} from '@/stores';
 
 import {
   DEFAULT_BACKEND_BASE,

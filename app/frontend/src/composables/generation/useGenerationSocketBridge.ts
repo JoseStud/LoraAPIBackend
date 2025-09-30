@@ -2,8 +2,9 @@ import { shallowRef } from 'vue';
 
 import {
   createGenerationWebSocketManager,
+  ensureArray,
   type GenerationWebSocketManager,
-} from '@/services/generation/updates';
+} from '@/services';
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,
@@ -12,8 +13,6 @@ import type {
   SystemStatusState,
 } from '@/types';
 import type { GenerationJobInput } from '@/stores/generation';
-
-const ensureArray = <T>(value: unknown): T[] => (Array.isArray(value) ? value : []);
 
 interface SocketBridgeOptions {
   getBackendUrl: () => string | null | undefined;
