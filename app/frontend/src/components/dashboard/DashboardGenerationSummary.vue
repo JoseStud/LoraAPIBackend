@@ -105,13 +105,13 @@ import type {
   GenerationHistoryResult,
   GenerationHistoryStats,
 } from '@/types';
-import { useSettingsStore, waitForSettingsHydration } from '@/stores';
+import { useSettingsStore } from '@/stores';
 
 const SUMMARY_QUERY = Object.freeze({ page_size: 4, sort: 'created_at_desc' as const });
 
 const backendClient = useBackendClient();
 const settingsStore = useSettingsStore();
-const { isLoaded: settingsLoaded, backendUrl } = storeToRefs(settingsStore);
+const { backendUrl } = storeToRefs(settingsStore);
 const resultsStore = useGenerationResultsStore();
 const { recentResults: storeResults } = storeToRefs(resultsStore);
 
@@ -163,8 +163,6 @@ const refresh = async () => {
     return;
   }
 
-  await waitForSettingsHydration(settingsStore);
-
   isLoading.value = true;
   error.value = null;
 
@@ -188,18 +186,9 @@ onMounted(() => {
 });
 
 watch(
-  () => settingsLoaded.value,
-  (loaded) => {
-    if (loaded) {
-      void refresh();
-    }
-  },
-);
-
-watch(
   backendUrl,
   (next, previous) => {
-    if (next === previous || !settingsLoaded.value) {
+    if (next === previous) {
       return;
     }
 

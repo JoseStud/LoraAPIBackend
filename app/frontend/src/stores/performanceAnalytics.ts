@@ -8,7 +8,7 @@ import {
   useBackendClient,
 } from '@/services';
 import { formatDuration as formatDurationLabel } from '@/utils/format';
-import { useSettingsStore, waitForSettingsHydration } from '@/stores/settings';
+import { useSettingsStore } from '@/stores/settings';
 
 import type {
   ErrorAnalysisEntry,
@@ -83,7 +83,7 @@ const createDevTopLoras = (): TopLoraPerformance[] => [
 
 export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', () => {
   const settingsStore = useSettingsStore();
-  const { backendUrl, isLoaded: settingsLoaded } = storeToRefs(settingsStore);
+  const { backendUrl } = storeToRefs(settingsStore);
   const backendClient = useBackendClient();
 
   const timeRange = ref<PerformanceTimeRange>('24h');
@@ -173,7 +173,6 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
 
     isLoading.value = true;
     try {
-      await waitForSettingsHydration(settingsStore);
       await loadAnalyticsSummary();
       await loadTopLoras();
       hasLoaded.value = true;
@@ -221,7 +220,7 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
   watch(
     backendUrl,
     (next, previous) => {
-      if (next === previous || !settingsLoaded.value) {
+      if (next === previous) {
         return;
       }
 
