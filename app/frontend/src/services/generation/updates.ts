@@ -22,7 +22,12 @@ import type {
   SystemStatusPayload,
   WebSocketMessage,
 } from '@/types';
-import { logValidationIssues, parseGenerationJobStatuses, parseGenerationResults } from './validation';
+import {
+  ensureArray,
+  logValidationIssues,
+  parseGenerationJobStatuses,
+  parseGenerationResults,
+} from './validation';
 
 const DEFAULT_POLL_INTERVAL = 2000;
 const RECONNECT_DELAY = 3000;
