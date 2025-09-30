@@ -1,4 +1,5 @@
 export * from './useGenerationStudio';
+export * from './useGenerationStudioDomain';
 export * from './useGenerationStudioController';
 export * from './createGenerationOrchestrator';
 export * from './useGenerationTransport';
