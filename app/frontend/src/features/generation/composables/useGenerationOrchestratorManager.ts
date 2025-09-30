@@ -217,9 +217,16 @@ export const createUseGenerationOrchestratorManager = (
       debug: options.debug,
     };
 
-    orchestratorManagerStore.registerConsumer(consumer);
-
-    const orchestrator = ensureOrchestrator(options);
+    const orchestrator = (() => {
+      try {
+        const created = ensureOrchestrator(options);
+        orchestratorManagerStore.registerConsumer(consumer);
+        return created;
+      } catch (error) {
+        orchestratorManagerStore.unregisterConsumer(consumer.id);
+        throw error;
+      }
+    })();
 
     const loadSystemStatusData = (): Promise<void> => orchestrator.loadSystemStatusData();
     const loadActiveJobsData = (): Promise<void> => orchestrator.loadActiveJobsData();

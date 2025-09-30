@@ -27,15 +27,30 @@ export const useGenerationOrchestratorManagerStore = defineStore('generation-orc
   const ensureOrchestrator = (factory: () => GenerationOrchestrator): GenerationOrchestrator => {
     if (!orchestrator.value) {
       const orchestratorScope = effectScope(true);
-      const created = orchestratorScope.run(factory);
+      let created: GenerationOrchestrator | undefined;
+      let succeeded = false;
 
-      if (!created) {
-        orchestratorScope.stop();
-        throw new Error('Failed to create generation orchestrator');
+      try {
+        created = orchestratorScope.run(factory) ?? undefined;
+
+        if (!created) {
+          throw new Error('Failed to create generation orchestrator');
+        }
+
+        scope.value = orchestratorScope;
+        orchestrator.value = markRaw(created);
+        succeeded = true;
+      } finally {
+        if (!succeeded) {
+          orchestratorScope.stop();
+          if (scope.value === orchestratorScope) {
+            scope.value = null;
+          }
+          if (orchestrator.value === created) {
+            orchestrator.value = null;
+          }
+        }
       }
-
-      scope.value = orchestratorScope;
-      orchestrator.value = markRaw(created);
     }
 
     return orchestrator.value;
