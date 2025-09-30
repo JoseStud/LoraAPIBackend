@@ -9,11 +9,11 @@ import { createGenerationOrchestratorFactory } from '@/composables/generation/cr
 import type { GenerationNotificationAdapter } from '@/composables/generation/useGenerationTransport';
 import type {
   GenerationConnectionStore,
-  GenerationFormStore,
   GenerationOrchestratorConsumer,
   GenerationOrchestratorManagerStore,
   GenerationQueueStore,
   GenerationResultsStore,
+  GenerationStudioUiStore,
 } from '@/stores/generation';
 import type { SettingsStore } from '@/stores';
 import type { GenerationOrchestrator } from '@/composables/generation/createGenerationOrchestrator';
@@ -125,9 +125,9 @@ const createDependencies = () => {
     pollIntervalMs: Ref<number>;
   };
 
-  const formStore = {
+  const uiStore = {
     showHistory: ref(false),
-  } satisfies Partial<GenerationFormStore> & {
+  } satisfies Partial<GenerationStudioUiStore> & {
     showHistory: Ref<boolean>;
   };
 
@@ -140,7 +140,7 @@ const createDependencies = () => {
     queueStore,
     resultsStore,
     connectionStore,
-    formStore,
+    uiStore,
     settingsStore,
     dependencies: {
       useGenerationOrchestratorManagerStore: () =>
@@ -149,7 +149,7 @@ const createDependencies = () => {
       useGenerationResultsStore: () => resultsStore as GenerationResultsStore,
       useGenerationConnectionStore: () =>
         connectionStore as GenerationConnectionStore,
-      useGenerationFormStore: () => formStore as GenerationFormStore,
+      useGenerationStudioUiStore: () => uiStore as GenerationStudioUiStore,
       useSettingsStore: () => settingsStore as SettingsStore,
     },
   };

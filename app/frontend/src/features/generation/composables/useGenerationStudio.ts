@@ -38,6 +38,7 @@ export const useGenerationStudio = () => {
     getJobStatusClasses,
     getJobStatusText,
     getSystemStatusClasses,
+    toggleHistory,
   } = useGenerationUI({ notify })
 
   const {
@@ -114,10 +115,6 @@ export const useGenerationStudio = () => {
 
   const updateParams = (value: GenerationFormState): void => {
     formStore.updateParams(value)
-  }
-
-  const toggleHistory = (): void => {
-    formStore.toggleHistory()
   }
 
   onMounted(async () => {

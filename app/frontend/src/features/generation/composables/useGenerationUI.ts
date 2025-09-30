@@ -1,6 +1,10 @@
 import { storeToRefs } from 'pinia'
 
-import { useGenerationFormStore, useGenerationResultsStore } from '@/features/generation'
+import {
+  useGenerationFormStore,
+  useGenerationResultsStore,
+  useGenerationStudioUiStore,
+} from '@/features/generation'
 import type { GenerationResult, NotificationType } from '@/types'
 
 const STATUS_CLASS_MAP = {
@@ -23,9 +27,11 @@ export interface UseGenerationUIOptions {
 
 export const useGenerationUI = ({ notify }: UseGenerationUIOptions) => {
   const formStore = useGenerationFormStore()
+  const uiStore = useGenerationStudioUiStore()
   const resultsStore = useGenerationResultsStore()
 
-  const { params, isGenerating, showHistory, showModal, selectedResult } = storeToRefs(formStore)
+  const { params, isGenerating } = storeToRefs(formStore)
+  const { showHistory, showModal, selectedResult } = storeToRefs(uiStore)
   const { recentResults } = storeToRefs(resultsStore)
 
   const showImageModal = (result: GenerationResult | null): void => {
@@ -33,11 +39,11 @@ export const useGenerationUI = ({ notify }: UseGenerationUIOptions) => {
       return
     }
 
-    formStore.selectResult(result)
+    uiStore.selectResult(result)
   }
 
   const hideImageModal = (): void => {
-    formStore.setShowModal(false)
+    uiStore.setShowModal(false)
   }
 
   const reuseParameters = (result: GenerationResult): void => {
@@ -96,6 +102,8 @@ export const useGenerationUI = ({ notify }: UseGenerationUIOptions) => {
     getJobStatusClasses,
     getJobStatusText,
     getSystemStatusClasses,
+    toggleHistory: uiStore.toggleHistory,
+    setShowHistory: uiStore.setShowHistory,
   }
 }
 
