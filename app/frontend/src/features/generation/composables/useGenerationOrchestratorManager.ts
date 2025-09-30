@@ -74,9 +74,14 @@ export const createUseGenerationOrchestratorManager = (
 
   const { showHistory } = storeToRefs(uiStore);
   const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
-  const { recentResults, systemStatus, isConnected, activeJobs, sortedActiveJobs } = storeToRefs(
-    orchestratorStore,
-  );
+  const {
+    recentResults,
+    systemStatus,
+    isConnected,
+    activeJobs,
+    sortedActiveJobs,
+    queueManagerActive,
+  } = storeToRefs(orchestratorStore);
 
   const notifyAll: GenerationNotificationAdapter['notify'] = (
     message,
@@ -209,6 +214,8 @@ export const createUseGenerationOrchestratorManager = (
     recentResults,
     systemStatus,
     isConnected,
+    queueManagerActive,
+    isInitialized,
     acquire,
   };
 };

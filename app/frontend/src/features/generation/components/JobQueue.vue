@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isReady" class="card" :class="cardClass">
+  <div class="card" :class="cardClass">
     <div class="card-header">
       <div class="flex items-center justify-between">
         <h3 class="card-title">{{ title }}</h3>
@@ -76,9 +76,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { storeToRefs } from 'pinia';
 
-import { useGenerationConnectionStore } from '../stores/connection';
 import { useJobQueue } from '../composables/useJobQueue';
 import { useJobQueueActions } from '../composables/useJobQueueActions';
 import { formatElapsedTime } from '@/utils/format';
@@ -90,8 +88,6 @@ interface Props {
   emptyStateTitle?: string;
   emptyStateMessage?: string;
   cardClass?: string;
-  pollingInterval?: number;
-  disabled?: boolean;
   showJobCount?: boolean;
   showClearCompleted?: boolean;
 }
@@ -101,26 +97,11 @@ const props = withDefaults(defineProps<Props>(), {
   emptyStateTitle: 'No active generations',
   emptyStateMessage: 'Start a generation to see progress here',
   cardClass: '',
-  pollingInterval: 2000,
   showJobCount: true,
   showClearCompleted: false,
 });
 
-const connectionStore = useGenerationConnectionStore();
-const { queueManagerActive } = storeToRefs(connectionStore);
-
-const resolvedDisabled = computed(() => {
-  if (props.disabled === undefined) {
-    return queueManagerActive.value;
-  }
-  return props.disabled;
-});
-
-const { jobs, isReady } = useJobQueue({
-  pollInterval: computed(() => props.pollingInterval),
-  disabled: resolvedDisabled,
-  managerActive: queueManagerActive,
-});
+const { jobs } = useJobQueue();
 
 const { isCancelling, clearCompletedJobs, cancelJob: cancelQueueJob } = useJobQueueActions();
 
