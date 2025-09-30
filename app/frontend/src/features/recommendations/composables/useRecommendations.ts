@@ -207,9 +207,11 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
       return;
     }
 
-    if (isHydrated.value) {
-      scheduleRecommendationsRefresh({ immediate: true });
+    if (!isHydrated.value) {
+      return;
     }
+
+    scheduleRecommendationsRefresh({ immediate: true });
   });
 
   watch(
