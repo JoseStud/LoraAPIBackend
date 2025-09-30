@@ -1,4 +1,4 @@
-import { type Ref } from 'vue';
+import { type Ref, effectScope, type EffectScope, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import type { GenerationNotificationAdapter } from './useGenerationTransport';
@@ -8,7 +8,10 @@ import {
   useGenerationOrchestratorManagerStore,
   type GenerationOrchestratorConsumer,
 } from '../stores/orchestratorManagerStore';
-import { useGenerationOrchestratorStore } from '../stores/useGenerationOrchestratorStore';
+import {
+  useGenerationOrchestratorStore,
+  DEFAULT_HISTORY_LIMIT,
+} from '../stores/useGenerationOrchestratorStore';
 import { useGenerationStudioUiStore } from '../stores/ui';
 import { useSettingsStore } from '@/stores';
 import type {
@@ -62,6 +65,11 @@ export interface GenerationOrchestratorBinding {
   release: () => void;
 }
 
+export const HISTORY_LIMIT_WHEN_SHOWING = 50;
+
+const resolveHistoryLimit = (showHistory: boolean): number =>
+  showHistory ? HISTORY_LIMIT_WHEN_SHOWING : DEFAULT_HISTORY_LIMIT;
+
 export const createUseGenerationOrchestratorManager = (
   dependencies: UseGenerationOrchestratorManagerDependencies = defaultDependencies,
 ) => () => {
@@ -101,6 +109,48 @@ export const createUseGenerationOrchestratorManager = (
   const ensureOrchestrator = (): ReturnType<typeof useGenerationOrchestratorStore> =>
     orchestratorManagerStore.ensureOrchestrator(() => orchestratorStore);
 
+  let watcherScope: EffectScope | null = null;
+
+  const stopWatcherScope = (): void => {
+    watcherScope?.stop();
+    watcherScope = null;
+  };
+
+  const ensureWatcherScope = (): void => {
+    if (watcherScope) {
+      return;
+    }
+
+    watcherScope = effectScope();
+    watcherScope.run(() => {
+      watch(
+        showHistory,
+        (next, previous) => {
+          if (!isInitialized.value || next === previous) {
+            return;
+          }
+
+          const orchestrator = ensureOrchestrator();
+          const nextLimit = resolveHistoryLimit(next);
+          orchestrator.setHistoryLimit(nextLimit);
+          void orchestrator.loadRecentResults();
+        },
+      );
+
+      watch(
+        configuredBackendUrl,
+        (next, previous) => {
+          if (!isInitialized.value || next === previous) {
+            return;
+          }
+
+          const orchestrator = ensureOrchestrator();
+          void orchestrator.handleBackendUrlChange();
+        },
+      );
+    });
+  };
+
   const ensureInitialized = async (
     options: GenerationOrchestratorAcquireOptions,
   ): Promise<void> => {
@@ -112,8 +162,8 @@ export const createUseGenerationOrchestratorManager = (
       const orchestrator = ensureOrchestrator();
       const promise = orchestrator
         .initialize({
-          showHistory,
-          configuredBackendUrl,
+          historyLimit: resolveHistoryLimit(showHistory.value),
+          getBackendUrl: () => configuredBackendUrl.value ?? null,
           notificationAdapter: {
             notify: notifyAll,
             debug: debugAll,
@@ -123,9 +173,11 @@ export const createUseGenerationOrchestratorManager = (
         })
         .then(() => {
           isInitialized.value = true;
+          ensureWatcherScope();
         })
         .catch((error) => {
           isInitialized.value = false;
+          stopWatcherScope();
           throw error;
         })
         .finally(() => {
@@ -146,6 +198,7 @@ export const createUseGenerationOrchestratorManager = (
     orchestratorManagerStore.unregisterConsumer(id);
 
     if (consumers.value.size === 0) {
+      stopWatcherScope();
       orchestratorManagerStore.destroyOrchestrator();
     }
   };
