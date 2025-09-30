@@ -147,3 +147,7 @@ export const useGenerationOrchestratorManagerStore = defineStore('generation-orc
     reset,
   };
 });
+
+export type GenerationOrchestratorManagerStore = ReturnType<
+  typeof useGenerationOrchestratorManagerStore
+>;
