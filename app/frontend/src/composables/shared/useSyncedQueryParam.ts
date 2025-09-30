@@ -36,6 +36,33 @@ export function useSyncedQueryParam(key = 'q'): Ref<string> {
     }
   );
 
+  let pendingNavigation: Promise<void> | null = null;
+  let scheduledLocation: { path: string; query: LocationQueryRaw } | null = null;
+
+  const flushNavigation = () => {
+    const location = scheduledLocation;
+    pendingNavigation = null;
+    scheduledLocation = null;
+
+    if (!location) {
+      return;
+    }
+
+    router.replace(location).catch(error => {
+      if (!isNavigationFailure(error, NavigationFailureType.duplicated)) {
+        console.error(`Failed to update "${key}" query parameter`, error);
+      }
+    });
+  };
+
+  const scheduleNavigation = (location: { path: string; query: LocationQueryRaw }) => {
+    scheduledLocation = location;
+
+    if (!pendingNavigation) {
+      pendingNavigation = Promise.resolve().then(flushNavigation);
+    }
+  };
+
   watch(value, newValue => {
     const currentQueryValue = normalizeQueryValue(route.query[key]);
 
@@ -51,11 +78,7 @@ export function useSyncedQueryParam(key = 'q'): Ref<string> {
       delete nextQuery[key];
     }
 
-    router.push({ path: route.path, query: nextQuery }).catch(error => {
-      if (!isNavigationFailure(error, NavigationFailureType.duplicated)) {
-        console.error(`Failed to update "${key}" query parameter`, error);
-      }
-    });
+    scheduleNavigation({ path: route.path, query: nextQuery });
   });
 
   syncFromRoute();
