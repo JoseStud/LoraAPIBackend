@@ -1,43 +1,14 @@
-
-import {
-  cancelGenerationJob,
-  deleteGenerationResult,
-  resolveBackendUrl,
-  resolveGenerationBaseUrl,
-  resolveGenerationRoute,
-  startGeneration,
-} from './generationService';
-import { requestJson } from '@/services/apiClient';
-import { normalizeJobStatus } from '@/utils/status';
-import { withSameOrigin } from '@/utils/backend';
-
-import {
-  GenerationJobStatusSchema,
-  GenerationResultSchema,
-  SystemStatusPayloadSchema,
-} from '@/schemas';
-
+import { resolveGenerationBaseUrl } from './generationService';
+import { ensureArray } from './validation';
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,
   GenerationJob,
-  GenerationJobStatus,
   GenerationProgressMessage,
-  GenerationRequestPayload,
-  GenerationResult,
-  GenerationStartResponse,
   GenerationSystemStatusMessage,
-  SystemStatusPayload,
   WebSocketMessage,
 } from '@/types';
-import {
-  ensureArray,
-  logValidationIssues,
-  parseGenerationJobStatuses,
-  parseGenerationResults,
-} from './validation';
 
-const DEFAULT_POLL_INTERVAL = 2000;
 const RECONNECT_DELAY = 3000;
 
 const appendWebSocketPath = (path: string): string => {
@@ -70,104 +41,6 @@ const resolveWebSocketUrl = (backendUrl?: string | null): string => {
   const normalizedPath = wsPath.startsWith('/') ? wsPath : `/${wsPath}`;
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${protocol}//${window.location.host}${normalizedPath}`;
-};
-
-
-export const extractGenerationErrorMessage = (message: GenerationErrorMessage): string => {
-  if (typeof message.error === 'string' && message.error.trim()) {
-    return message.error;
-  }
-  if (typeof message.status === 'string' && message.status.trim()) {
-    return message.status;
-  }
-  return 'Unknown error';
-};
-
-export interface GenerationQueueClientOptions {
-  getBackendUrl: () => string | null | undefined;
-}
-
-export interface GenerationQueueClient {
-  startGeneration(payload: GenerationRequestPayload): Promise<GenerationStartResponse>;
-  cancelJob(jobId: string): Promise<void>;
-  deleteResult(resultId: string | number): Promise<void>;
-  fetchSystemStatus(): Promise<SystemStatusPayload | null>;
-  fetchActiveJobs(): Promise<GenerationJobStatus[]>;
-  fetchRecentResults(limit: number): Promise<GenerationResult[]>;
-}
-
-export const createGenerationQueueClient = (
-  options: GenerationQueueClientOptions,
-): GenerationQueueClient => {
-  const resolveBackend = () => options.getBackendUrl?.() ?? null;
-
-  const buildUrl = (path: string): string => resolveBackendUrl(path, resolveBackend() ?? undefined);
-
-  const buildGenerationUrl = (path: string): string =>
-    resolveGenerationRoute(path, resolveBackend() ?? undefined);
-
-  const fetchSystemStatus = async (): Promise<SystemStatusPayload | null> => {
-    try {
-      const result = await requestJson<unknown>(buildUrl('/system/status'), withSameOrigin());
-      if (result.data == null) {
-        return null;
-      }
-      const parsed = SystemStatusPayloadSchema.safeParse(result.data);
-      if (parsed.success) {
-        return parsed.data;
-      }
-      logValidationIssues('system status', parsed.error, result.data);
-      return null;
-    } catch (error) {
-      console.error('Failed to load system status:', error);
-      throw error;
-    }
-  };
-
-  const fetchActiveJobs = async (): Promise<GenerationJobStatus[]> => {
-    try {
-      const result = await requestJson<unknown>(
-        buildGenerationUrl('jobs/active'),
-        withSameOrigin(),
-      );
-      const parsed = parseGenerationJobStatuses(result.data, 'active job');
-      return parsed.map((status) => ({
-        ...status,
-        status: normalizeJobStatus(status.status),
-      }));
-    } catch (error) {
-      console.error('Failed to load active jobs:', error);
-      throw error;
-    }
-  };
-
-  const fetchRecentResults = async (limit: number): Promise<GenerationResult[]> => {
-    const normalizedLimit = Math.max(1, Number(limit) || 1);
-    try {
-      const result = await requestJson<unknown>(
-        buildGenerationUrl(`results?limit=${normalizedLimit}`),
-        withSameOrigin(),
-      );
-      return parseGenerationResults(result.data, 'recent result');
-    } catch (error) {
-      console.error('Failed to load recent results:', error);
-      throw error;
-    }
-  };
-
-  return {
-    startGeneration: async (payload: GenerationRequestPayload) =>
-      startGeneration(payload, resolveBackend() ?? undefined),
-    cancelJob: async (jobId: string) => {
-      await cancelGenerationJob(jobId, resolveBackend() ?? undefined);
-    },
-    deleteResult: async (resultId: string | number) => {
-      await deleteGenerationResult(resultId, resolveBackend() ?? undefined);
-    },
-    fetchSystemStatus,
-    fetchActiveJobs,
-    fetchRecentResults,
-  };
 };
 
 export interface GenerationWebSocketManagerOptions {
@@ -339,6 +212,4 @@ export const createGenerationWebSocketManager = (
     },
   };
 };
-
-export { DEFAULT_POLL_INTERVAL };
 
