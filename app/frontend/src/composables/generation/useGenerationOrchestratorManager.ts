@@ -6,10 +6,8 @@ import {
   type GenerationOrchestrator,
 } from './createGenerationOrchestrator';
 import type { GenerationNotificationAdapter } from './useGenerationTransport';
-import type {
-  GenerationQueueClient,
-  GenerationWebSocketManager,
-} from '@/services';
+import type { GenerationQueueClient } from '@/services/generation/queueClient';
+import type { GenerationWebSocketManager } from '@/services/generation/websocketManager';
 import {
   useGenerationConnectionStore,
   useGenerationFormStore,
