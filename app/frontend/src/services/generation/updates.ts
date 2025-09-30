@@ -8,6 +8,7 @@ import {
 } from './generationService';
 import { requestJson } from '@/services/apiClient';
 import { normalizeJobStatus } from '@/utils/status';
+import { ensureArray } from './validation';
 import {
   GenerationJobStatusSchema,
   GenerationResultSchema,
@@ -66,8 +67,6 @@ const resolveWebSocketUrl = (backendUrl?: string | null): string => {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${protocol}//${window.location.host}${normalizedPath}`;
 };
-
-const ensureArray = <T>(value: unknown): T[] => (Array.isArray(value) ? value : []);
 
 export const extractGenerationErrorMessage = (message: GenerationErrorMessage): string => {
   if (typeof message.error === 'string' && message.error.trim()) {
