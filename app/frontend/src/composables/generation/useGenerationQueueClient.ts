@@ -1,14 +1,12 @@
 import { ref, shallowRef } from 'vue';
 
-import { DEFAULT_POLL_INTERVAL } from '@/services/generation/updates';
 import {
+  DEFAULT_POLL_INTERVAL,
   createGenerationQueueClient,
-  type GenerationQueueClient,
-} from '@/services/generation/queueClient';
-import {
   parseGenerationJobStatuses,
   parseGenerationResults,
-} from '@/services/generation/validation';
+  type GenerationQueueClient,
+} from '@/services';
 import type {
   GenerationJobStatus,
   GenerationRequestPayload,
