@@ -65,6 +65,19 @@ const dialogServiceMocks = vi.hoisted(() => {
   }
 })
 
+const notificationMocks = vi.hoisted(() => ({
+  notify: vi.fn(),
+  showSuccess: vi.fn(),
+  showError: vi.fn(),
+  showWarning: vi.fn(),
+  showInfo: vi.fn(),
+  showToast: vi.fn(),
+  showToastSuccess: vi.fn(),
+  showToastError: vi.fn(),
+  showToastWarning: vi.fn(),
+  showToastInfo: vi.fn(),
+}))
+
 vi.mock('@/composables/generation/useGenerationOrchestratorManager', () => ({
   useGenerationOrchestratorManager: () => orchestratorManagerMocks,
 }))
@@ -72,6 +85,36 @@ vi.mock('@/composables/generation/useGenerationOrchestratorManager', () => ({
 vi.mock('@/composables/shared/useDialogService', () => ({
   useDialogService: () => dialogServiceMocks,
 }))
+
+vi.mock('@/composables/shared', async (importOriginal) => {
+  const actual = await importOriginal()
+
+  return {
+    ...actual,
+    useNotifications: () => ({
+      notifications: { value: [] },
+      addNotification: vi.fn(),
+      notify: notificationMocks.notify,
+      removeNotification: vi.fn(),
+      clearAll: vi.fn(),
+      showSuccess: notificationMocks.showSuccess,
+      showError: notificationMocks.showError,
+      showWarning: notificationMocks.showWarning,
+      showInfo: notificationMocks.showInfo,
+      toastVisible: { value: false },
+      toastMessage: { value: '' },
+      toastType: { value: 'info' },
+      toastDuration: { value: 0 },
+      showToast: notificationMocks.showToast,
+      showToastSuccess: notificationMocks.showToastSuccess,
+      showToastError: notificationMocks.showToastError,
+      showToastWarning: notificationMocks.showToastWarning,
+      showToastInfo: notificationMocks.showToastInfo,
+      hideToast: vi.fn(),
+      clearToastTimer: vi.fn(),
+    }),
+  }
+})
 
 const localStorageMock = {
   getItem: vi.fn(),
@@ -151,5 +194,21 @@ describe('useGenerationStudio integration', () => {
 
     expect(dialogServiceMocks.confirm).toHaveBeenCalled()
     expect(orchestratorBindingMocks.deleteResult).toHaveBeenCalledWith('result-789')
+  })
+
+  it('surfaces initialization failures through notifications', async () => {
+    wrapper.unmount()
+    orchestratorBindingMocks.initialize.mockRejectedValueOnce(new Error('boom'))
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    wrapper = await mountComposable()
+    await flushPromises()
+
+    expect(notificationMocks.notify).toHaveBeenCalledWith(
+      'Failed to initialize the generation studio: boom',
+      'error',
+    )
+
+    consoleError.mockRestore()
   })
 })

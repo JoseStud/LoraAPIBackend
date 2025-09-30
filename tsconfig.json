@@ -4,7 +4,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["app/frontend/src/*"],
-      "@/features/*": ["app/frontend/src/features/*"]
+      "@/features/*": ["app/frontend/src/features/*"],
+      "@/composables/generation/*": ["app/frontend/src/features/generation/composables/*"],
+      "@/stores/generation": ["app/frontend/src/features/generation/stores/form.ts"]
     },
     "types": ["vite/client"],
     "allowJs": false,

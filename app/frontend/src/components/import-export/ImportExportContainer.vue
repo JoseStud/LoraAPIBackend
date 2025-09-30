@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { useAsyncLifecycleTask, useNotifications } from '@/composables/shared';
 
 import ImportExport from './ImportExport.vue';
 
@@ -13,8 +13,22 @@ const emit = defineEmits<{ (event: 'initialized'): void }>();
 
 const { initialize } = provideImportExportContext();
 
-onMounted(async () => {
-  await initialize();
-  emit('initialized');
-});
+const { showError } = useNotifications();
+
+useAsyncLifecycleTask(
+  async () => {
+    await initialize();
+    emit('initialized');
+  },
+  {
+    errorMessage: (error) =>
+      error instanceof Error
+        ? `Failed to initialize the import/export interface: ${error.message}`
+        : 'Failed to initialize the import/export interface.',
+    notifyError: (message) => {
+      showError(message, 8000);
+    },
+    logLabel: '[ImportExport] Initialization',
+  },
+);
 </script>

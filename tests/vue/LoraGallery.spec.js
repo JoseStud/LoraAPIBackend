@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
-import { reactive } from 'vue';
+import { reactive, ref } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import LoraGallery from '@/features/lora/components/lora-gallery/LoraGallery.vue';
 import { useSettingsStore } from '@/stores/settings';
+import * as loraGalleryDataModule from '@/features/lora/composables/lora-gallery/useLoraGalleryData';
 
 vi.mock('@/services', async (importOriginal) => {
   const actual = await importOriginal();
@@ -92,14 +93,51 @@ const notificationMocks = vi.hoisted(() => ({
 
 vi.mock('@/composables/shared', async (importOriginal) => {
   const actual = await importOriginal();
+
+  const runLifecycleTask = async (task, options = {}) => {
+    try {
+      await task();
+    } catch (error) {
+      const message =
+        typeof options.errorMessage === 'function'
+          ? options.errorMessage(error)
+          : options.errorMessage ?? 'An unexpected error occurred. Please try again.';
+
+      if (options.notifyError !== null) {
+        const notify =
+          options.notifyError ?? ((msg) => notificationMocks.showError(msg, options.notificationDuration));
+        notify(message, error);
+      }
+
+      if (typeof options.onError === 'function') {
+        await options.onError(error);
+      }
+
+      if (options.rethrow) {
+        throw error;
+      }
+    } finally {
+      if (typeof options.onFinally === 'function') {
+        await options.onFinally();
+      }
+    }
+  };
+
+  const useAsyncLifecycleTask = (task, options = {}) => {
+    const runner = () => runLifecycleTask(task, options);
+    void runner();
+    return { run: runner };
+  };
+
   return {
     ...actual,
     useDialogService: () => dialogServiceMocks,
     useNotifications: () => notificationMocks,
+    useAsyncLifecycleTask,
   };
 });
 
-vi.mock('@/features/lora/services', async (importOriginal) => {
+vi.mock('@/features/lora/services/lora/loraService', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -200,6 +238,35 @@ describe('LoraGallery', () => {
   it('renders properly', async () => {
     const wrapper = await mountGallery();
     expect(wrapper.find('.loras-page-container').exists()).toBe(true);
+  });
+
+  it('surfaces initialization failures through notifications', async () => {
+    const initializeMock = vi.fn().mockRejectedValue(new Error('fetch failed'));
+    const dataSpy = vi
+      .spyOn(loraGalleryDataModule, 'useLoraGalleryData')
+      .mockReturnValue({
+        isInitialized: ref(false),
+        isLoading: ref(false),
+        loras: ref([]),
+        availableTags: ref([]),
+        initialize: initializeMock,
+        performBulkAction: vi.fn(),
+        applyLoraUpdate: vi.fn(),
+        removeLora: vi.fn(),
+      });
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const wrapper = await mountGallery();
+    await flushPromises();
+
+    expect(notificationMocks.showError).toHaveBeenCalledWith(
+      'Failed to load the LoRA gallery: fetch failed',
+      8000,
+    );
+
+    consoleError.mockRestore();
+    dataSpy.mockRestore();
+    wrapper.unmount();
   });
 
   it('loads LoRAs on mount', async () => {

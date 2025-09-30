@@ -8,14 +8,28 @@ const vendorDir = resolve(frontendSrc, 'vendor');
 export default defineConfig({
   plugins: [vue()],
   resolve: {
-    alias: {
-      '@': frontendSrc,
-      'vue-virtual-scroller': resolve(vendorDir, 'vue-virtual-scroller.ts'),
-      'vue-virtual-scroller/dist/vue-virtual-scroller.css': resolve(
-        vendorDir,
-        'vue-virtual-scroller.css',
-      ),
-    },
+    alias: [
+      {
+        find: '@/composables/generation',
+        replacement: resolve(frontendSrc, 'features/generation/composables'),
+      },
+      {
+        find: '@/stores/generation',
+        replacement: resolve(frontendSrc, 'features/generation/stores/form.ts'),
+      },
+      {
+        find: '@',
+        replacement: frontendSrc,
+      },
+      {
+        find: 'vue-virtual-scroller',
+        replacement: resolve(vendorDir, 'vue-virtual-scroller.ts'),
+      },
+      {
+        find: 'vue-virtual-scroller/dist/vue-virtual-scroller.css',
+        replacement: resolve(vendorDir, 'vue-virtual-scroller.css'),
+      },
+    ],
   },
   test: {
     environment: 'jsdom',
