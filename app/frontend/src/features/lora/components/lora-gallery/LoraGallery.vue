@@ -69,9 +69,9 @@ import LoraGalleryFilters from './LoraGalleryFilters.vue';
 import LoraGalleryGrid from './LoraGalleryGrid.vue';
 import LoraGalleryHeader from './LoraGalleryHeader.vue';
 import LoraGalleryTagModal from './LoraGalleryTagModal.vue';
-import { useLoraGalleryData } from '@/composables/lora-gallery';
-import { useLoraGalleryFilters } from '@/composables/lora-gallery';
-import { useLoraGallerySelection } from '@/composables/lora-gallery';
+import { useLoraGalleryData } from '@/features/lora/composables';
+import { useLoraGalleryFilters } from '@/features/lora/composables';
+import { useLoraGallerySelection } from '@/features/lora/composables';
 import { useDialogService, useNotifications, useSyncedQueryParam } from '@/composables/shared';
 import type {
   LoraBulkAction,

@@ -142,7 +142,7 @@ const panelConfigs = [
     placeholder:
       'Quickly browse the gallery inline or open the dedicated gallery for the full management toolkit.',
     fallback: 'Loading LoRA gallery…',
-    loader: () => import('@/components/lora-gallery/LoraGallery.vue').then((module) => module.default),
+    loader: () => import('@/features/lora/components/lora-gallery/LoraGallery.vue').then((module) => module.default),
   },
   {
     key: 'history',

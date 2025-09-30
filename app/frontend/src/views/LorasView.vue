@@ -17,6 +17,6 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
 
-import LoraGallery from '@/components/lora-gallery/LoraGallery.vue';
+import { LoraGallery } from '@/features/lora';
 import PageHeader from '@/components/layout/PageHeader.vue';
 </script>

@@ -2,7 +2,8 @@ import { computed, onScopeDispose, reactive, ref } from 'vue';
 import { defineStore } from 'pinia';
 
 import { ApiError } from '@/composables/shared';
-import { fetchAdapterList, fetchAdapterTags, performBulkLoraAction, useBackendClient } from '@/services';
+import { fetchAdapterList, fetchAdapterTags, performBulkLoraAction } from '@/features/lora/services';
+import { useBackendClient } from '@/services';
 import { useBackendEnvironment } from '@/stores';
 
 import type {
