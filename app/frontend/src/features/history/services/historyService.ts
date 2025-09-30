@@ -19,6 +19,7 @@ import type {
   GenerationHistoryPayload,
   GenerationRatingUpdate,
 } from '@/types';
+import { parseHistoryListPayload, parseHistoryResult } from './historySchemas';
 
 const historyPaths = createBackendPathResolver('generation');
 const historyPath = historyPaths.path;
@@ -134,7 +135,8 @@ export const listResults = async (
     target,
     withSameOrigin({ signal: options.signal }),
   );
-  return toListOutput((result.data as GenerationHistoryListPayload | null) ?? null);
+  const parsed = parseHistoryListPayload(result.data, 'generation history list response');
+  return toListOutput(parsed);
 };
 
 export const rateResult = async (
@@ -148,7 +150,7 @@ export const rateResult = async (
     { rating },
     withSameOrigin(),
   );
-  return (result.data as GenerationHistoryResult | null) ?? null;
+  return parseHistoryResult(result.data, 'generation history rating response');
 };
 
 export const favoriteResult = async (
@@ -162,7 +164,7 @@ export const favoriteResult = async (
     { is_favorite: isFavorite },
     withSameOrigin(),
   );
-  return (result.data as GenerationHistoryResult | null) ?? null;
+  return parseHistoryResult(result.data, 'generation history favorite response');
 };
 
 export const favoriteResults = async (
