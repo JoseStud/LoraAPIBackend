@@ -6,10 +6,9 @@ import { useAsyncResource } from '@/composables/shared';
 import { useBackendClient } from '@/services';
 
 import { useBackendEnvironment, useSettingsStore } from '@/stores';
+import { useAdapterCatalogStore } from '@/features/lora/public';
 import type { AdapterSummary, RecommendationItem, RecommendationResponse } from '@/types';
 import { debounce, type DebouncedFunction } from '@/utils/async';
-
-import { useLoraSummaries } from './useLoraSummaries';
 
 const WEIGHT_KEYS = ['semantic', 'artistic', 'technical'] as const;
 type WeightKey = (typeof WEIGHT_KEYS)[number];
@@ -65,16 +64,29 @@ const normaliseRecommendations = (
   return [];
 };
 
+const unwrapMaybeRef = <T>(input: T | Ref<T>): T => {
+  if (typeof input === 'object' && input !== null && 'value' in input) {
+    return (input as Ref<T>).value;
+  }
+  return input as T;
+};
+
 export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
   const backendClient = useBackendClient();
   const settingsStore = useSettingsStore();
   const backendEnvironment = useBackendEnvironment();
 
-  const { loras, error: lorasErrorRaw, isLoading: lorasLoading, ensureLoaded: ensureLorasLoaded } = useLoraSummaries();
+  const catalogStore = useAdapterCatalogStore();
+  const loras = computed<AdapterSummary[]>(() => {
+    const adapters = unwrapMaybeRef(catalogStore.adapters);
+    return Array.isArray(adapters) ? adapters : [];
+  });
+  const catalogError = computed(() => unwrapMaybeRef(catalogStore.error));
+  const catalogIsLoading = computed(() => Boolean(unwrapMaybeRef(catalogStore.isLoading)));
   const { isLoaded: settingsLoaded } = storeToRefs(settingsStore);
 
   const lorasError = computed<string>(() =>
-    lorasErrorRaw.value ? toErrorMessage(lorasErrorRaw.value, 'Unable to load available LoRAs') : '',
+    catalogError.value ? toErrorMessage(catalogError.value, 'Unable to load available LoRAs') : '',
   );
 
   const selectedLoraId = ref<AdapterSummary['id'] | ''>(options.initialLoraId ?? '');
@@ -258,12 +270,12 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
     }
   });
 
-  void ensureLorasLoaded();
+  void catalogStore.ensureLoaded();
 
   return {
     loras,
     lorasError,
-    isLoadingLoras: computed<boolean>(() => lorasLoading.value),
+    isLoadingLoras: catalogIsLoading,
     selectedLoraId,
     selectedLora,
     limit,

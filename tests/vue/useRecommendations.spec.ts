@@ -1,11 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { computed } from 'vue';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 
 import * as services from '@/services';
 import * as stores from '@/stores';
-import * as loraSummariesModule from '@/features/recommendations/composables/useLoraSummaries';
+import * as loraCatalogModule from '@/features/lora/public';
 import { useRecommendations } from '@/features/recommendations/composables/useRecommendations';
 import { useSettingsStore } from '@/stores';
 
@@ -18,7 +17,7 @@ const backendClientMock = {
 const useBackendClientSpy = vi.spyOn(services, 'useBackendClient');
 const useBackendRefreshSpy = vi.spyOn(services, 'useBackendRefresh');
 const useBackendEnvironmentSpy = vi.spyOn(stores, 'useBackendEnvironment');
-const useLoraSummariesSpy = vi.spyOn(loraSummariesModule, 'useLoraSummaries');
+const useAdapterCatalogStoreSpy = vi.spyOn(loraCatalogModule, 'useAdapterCatalogStore');
 
 describe('useRecommendations', () => {
   beforeEach(() => {
@@ -45,15 +44,23 @@ describe('useRecommendations', () => {
       readyPromise: Promise.resolve(),
       onBackendUrlChange: vi.fn(),
     } as never);
-    useLoraSummariesSpy.mockReset().mockReturnValue({
-      loras: computed(() => [
-        { id: 'alpha', name: 'Alpha', description: 'First', active: true },
-        { id: 'beta', name: 'Beta', description: 'Second', active: true },
-      ]),
-      error: computed(() => null),
-      isLoading: computed(() => false),
-      ensureLoaded: vi.fn(),
-    });
+    const adapterSummaries = [
+      { id: 'alpha', name: 'Alpha', description: 'First', active: true },
+      { id: 'beta', name: 'Beta', description: 'Second', active: true },
+    ];
+
+    useAdapterCatalogStoreSpy.mockReset().mockReturnValue({
+      get adapters() {
+        return adapterSummaries;
+      },
+      get error() {
+        return null;
+      },
+      get isLoading() {
+        return false;
+      },
+      ensureLoaded: vi.fn().mockResolvedValue(adapterSummaries),
+    } as never);
 
     const settingsStore = useSettingsStore();
     settingsStore.reset();
