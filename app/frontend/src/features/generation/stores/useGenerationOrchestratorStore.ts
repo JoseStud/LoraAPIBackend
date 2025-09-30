@@ -27,7 +27,7 @@ export type GenerationJobInput = Partial<GenerationJob> & {
   jobId?: string | number;
 };
 
-export const MAX_RESULTS = 20;
+export const MAX_RESULTS = 200;
 export const DEFAULT_HISTORY_LIMIT = 10;
 
 const HISTORY_LIMIT_WHEN_SHOWING = 50;
@@ -264,13 +264,24 @@ export const useGenerationOrchestratorStore = defineStore(
       jobs.value = [];
     };
 
+    const resolveResultsLimit = (): number => {
+      const normalized = Math.max(1, Math.floor(historyLimit.value || HISTORY_LIMIT_DEFAULT));
+      return Math.min(normalized, MAX_RESULTS);
+    };
+
+    const clampResults = (list: GenerationResult[]): GenerationResult[] => {
+      const limit = resolveResultsLimit();
+      return list.slice(0, limit);
+    };
+
     const addResult = (result: GenerationResult): void => {
       const sanitized = sanitizeResult(result);
-      results.value = [sanitized, ...results.value].slice(0, MAX_RESULTS);
+      results.value = clampResults([sanitized, ...results.value]);
     };
 
     const setResults = (list: GenerationResult[]): void => {
-      results.value = list.slice(0, MAX_RESULTS).map(sanitizeResult);
+      const sanitized = list.map(sanitizeResult);
+      results.value = clampResults(sanitized);
     };
 
     const removeResult = (resultId: string | number): void => {
@@ -278,8 +289,10 @@ export const useGenerationOrchestratorStore = defineStore(
     };
 
     const setHistoryLimit = (limit: number): void => {
-      const normalized = Math.max(1, Math.floor(Number(limit) || 0));
-      historyLimit.value = Number.isFinite(normalized) && normalized > 0 ? normalized : HISTORY_LIMIT_DEFAULT;
+      const normalized = Math.floor(Number(limit));
+      const resolved = Number.isFinite(normalized) && normalized > 0 ? normalized : HISTORY_LIMIT_DEFAULT;
+      historyLimit.value = resolved;
+      results.value = clampResults(results.value);
     };
 
     const resetResults = (): void => {

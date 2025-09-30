@@ -10,6 +10,7 @@ import { createGenerationTransportAdapter } from '@/features/generation/composab
 import {
   useGenerationOrchestratorStore,
   DEFAULT_HISTORY_LIMIT,
+  MAX_RESULTS,
 } from '@/features/generation/stores/useGenerationOrchestratorStore';
 
 vi.mock('@/features/generation/stores/systemStatusController', () => ({
@@ -134,5 +135,39 @@ describe('useGenerationOrchestratorStore', () => {
     store.cleanup();
     expect(transport.clear).toHaveBeenCalled();
     expect(store.queueManagerActive).toBe(false);
+  });
+
+  it('applies history limits to results immediately', () => {
+    const store = useGenerationOrchestratorStore();
+
+    const initialResults = Array.from({ length: 8 }, (_, index) => ({
+      id: `result-${index}`,
+      created_at: new Date().toISOString(),
+    }));
+
+    store.setResults(initialResults as any);
+    expect(store.recentResults).toHaveLength(initialResults.length);
+
+    store.setHistoryLimit(3);
+    expect(store.historyLimit).toBe(3);
+    expect(store.recentResults).toHaveLength(3);
+
+    store.addResult({ id: 'new-result', created_at: new Date().toISOString() } as any);
+    expect(store.recentResults).toHaveLength(3);
+    expect(store.recentResults[0]?.id).toBe('new-result');
+
+    store.setHistoryLimit(50);
+    const expandedResults = Array.from({ length: 60 }, (_, index) => ({
+      id: `bulk-${index}`,
+      created_at: new Date(Date.now() + index * 1000).toISOString(),
+    }));
+
+    store.setResults(expandedResults as any);
+    expect(store.historyLimit).toBe(50);
+    expect(store.recentResults).toHaveLength(50);
+
+    store.setHistoryLimit(MAX_RESULTS + 10);
+    store.setResults(expandedResults as any);
+    expect(store.recentResults).toHaveLength(Math.min(MAX_RESULTS, expandedResults.length));
   });
 });
