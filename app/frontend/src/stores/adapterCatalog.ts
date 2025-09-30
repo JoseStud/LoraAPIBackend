@@ -1,9 +1,9 @@
-import { computed, reactive, ref, watch } from 'vue';
-import { defineStore, storeToRefs } from 'pinia';
+import { computed, onScopeDispose, reactive, ref } from 'vue';
+import { defineStore } from 'pinia';
 
 import { ApiError } from '@/composables/shared';
 import { fetchAdapterList, fetchAdapterTags, performBulkLoraAction, useBackendClient } from '@/services';
-import { useSettingsStore } from '@/stores/settings';
+import { useBackendEnvironment } from '@/stores/settings';
 
 import type {
   AdapterRead,
@@ -56,10 +56,8 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
   const lastError = ref<ApiError | unknown | null>(null);
   const isLoading = ref(false);
 
-  const settingsStore = useSettingsStore();
-  const { backendUrl } = storeToRefs(settingsStore);
-
   const backendClient = useBackendClient();
+  const backendEnvironment = useBackendEnvironment();
   const query = reactive<AdapterListQuery>({ ...DEFAULT_QUERY });
   const loras = computed<GalleryLora[]>(() => loraItems.value.map((item: GalleryLora) => ({ ...item })));
   const adapters = computed<AdapterSummary[]>(() => loraItems.value.map(toSummary));
@@ -227,7 +225,27 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
     await fetchTags();
   };
 
+  let stopBackendSubscription: (() => void) | null = null;
+
+  const detachBackendSubscription = () => {
+    if (stopBackendSubscription) {
+      stopBackendSubscription();
+      stopBackendSubscription = null;
+    }
+  };
+
+  const attachBackendSubscription = () => {
+    detachBackendSubscription();
+    stopBackendSubscription = backendEnvironment.onBackendUrlChange(() => {
+      void refresh();
+      void fetchTags();
+    });
+  };
+
+  attachBackendSubscription();
+
   const reset = () => {
+    detachBackendSubscription();
     pendingFetch.value = null;
     lastFetchedAt.value = null;
     pendingTagFetch.value = null;
@@ -238,20 +256,10 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
     availableTags.value = [];
     tagError.value = null;
     Object.assign(query, { ...DEFAULT_QUERY });
+    attachBackendSubscription();
   };
 
-  watch(
-    backendUrl,
-    (next, previous) => {
-      if (next === previous) {
-        return;
-      }
-
-      void refresh();
-      void fetchTags();
-    },
-    { flush: 'post' },
-  );
+  onScopeDispose(detachBackendSubscription);
 
   return {
     isInitialized,
