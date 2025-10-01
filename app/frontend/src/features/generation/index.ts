@@ -1,4 +1,5 @@
 export {
+  GenerationShell,
   GenerationStudio,
   JobQueue,
   SystemAdminStatusCard,

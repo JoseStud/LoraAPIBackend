@@ -1,4 +1,6 @@
+/** @deprecated Use GenerationShell instead. */
 export { default as GenerationStudio } from './components/GenerationStudio.vue';
+export { default as GenerationShell } from './ui/GenerationShell.vue';
 export { default as JobQueue } from './components/JobQueue.vue';
 export { default as SystemAdminStatusCard } from './components/system/SystemAdminStatusCard.vue';
 export { default as SystemStatusCard } from './components/system/SystemStatusCard.vue';

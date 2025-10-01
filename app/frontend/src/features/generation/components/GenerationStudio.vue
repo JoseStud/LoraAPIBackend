@@ -126,13 +126,29 @@
 </template>
 
 <script setup lang="ts">
+import { storeToRefs } from 'pinia';
+
 import GenerationActiveJobsList from './GenerationActiveJobsList.vue';
 import GenerationParameterForm from './GenerationParameterForm.vue';
 import GenerationResultsGallery from './GenerationResultsGallery.vue';
 import GenerationSystemStatusCard from './GenerationSystemStatusCard.vue';
 import { useGenerationStudio } from '../composables/useGenerationStudio';
+import { HISTORY_LIMIT_WHEN_SHOWING } from '../composables/useGenerationOrchestratorManager';
+import { useGenerationStudioUiStore } from '../stores/ui';
+import { DEFAULT_HISTORY_LIMIT } from '../stores/useGenerationOrchestratorStore';
+import { useBackendUrl } from '@/utils/backend';
 
-const generationStudio = useGenerationStudio()
+/** @deprecated Use GenerationShell instead. */
+const uiStore = useGenerationStudioUiStore();
+const { showHistory: showHistoryState } = storeToRefs(uiStore);
+
+const backendBaseUrl = useBackendUrl('/')
+
+const generationStudio = useGenerationStudio({
+  getHistoryLimit: () =>
+    showHistoryState.value ? HISTORY_LIMIT_WHEN_SHOWING : DEFAULT_HISTORY_LIMIT,
+  getBackendUrl: () => backendBaseUrl.value || null,
+})
 
 const {
   params,

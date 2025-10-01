@@ -8,7 +8,15 @@ import { useGenerationFormStore } from '../stores/form'
 import { useAsyncLifecycleTask } from '@/composables/shared'
 import type { GenerationFormState } from '@/types'
 
-export const useGenerationStudio = () => {
+export interface UseGenerationStudioOptions {
+  getHistoryLimit: () => number
+  getBackendUrl: () => string | null
+}
+
+export const useGenerationStudio = ({
+  getHistoryLimit,
+  getBackendUrl,
+}: UseGenerationStudioOptions) => {
   const formStore = useGenerationFormStore()
 
   const { notify, confirm: requestConfirmation, prompt: requestPrompt, logDebug } =
@@ -49,6 +57,8 @@ export const useGenerationStudio = () => {
     debug: logDebug,
     onAfterStart: persistParams,
     onAfterInitialize: loadParams,
+    getHistoryLimit,
+    getBackendUrl,
   })
 
   const params = computed(() => uiParams.value)
@@ -100,8 +110,8 @@ export const useGenerationStudio = () => {
     await controller.deleteResult(resultId)
   }
 
-  const refreshResults = async (): Promise<void> => {
-    await controller.refreshResults(true)
+  const refreshResults = async (notifySuccess = true): Promise<void> => {
+    await controller.refreshResults(notifySuccess)
   }
 
   const updateParams = (value: GenerationFormState): void => {
@@ -154,6 +164,9 @@ export const useGenerationStudio = () => {
     getSystemStatusClasses,
     updateParams,
     toggleHistory,
+    setHistoryLimit: controller.setHistoryLimit,
+    handleBackendUrlChange: controller.handleBackendUrlChange,
+    isManagerInitialized: controller.isManagerInitialized,
   }
 }
 
