@@ -1,6 +1,7 @@
 import {
   createHttpClient,
   ensureData,
+  getFilenameFromContentDisposition,
   type ApiRequestInit,
   type ApiRequestResult,
   type BlobResult,
@@ -26,6 +27,7 @@ const defaultClient = createHttpClient();
 export {
   createHttpClient,
   ensureData,
+  getFilenameFromContentDisposition,
   type ApiRequestInit,
   type ApiRequestResult,
   type BlobResult,

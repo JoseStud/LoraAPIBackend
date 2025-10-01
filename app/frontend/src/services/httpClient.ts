@@ -437,6 +437,30 @@ export const ensureData = <T>(result: ApiResult<T>): T => {
   return result.data;
 };
 
+export const getFilenameFromContentDisposition = (
+  header?: string | null,
+): string | null => {
+  if (!header) {
+    return null;
+  }
+
+  const utf8Match = header.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return utf8Match[1];
+    }
+  }
+
+  const asciiMatch = header.match(/filename="?([^";]+)"?/i);
+  if (asciiMatch?.[1]) {
+    return asciiMatch[1];
+  }
+
+  return null;
+};
+
 export const createHttpClient = (options: HttpClientOptions = {}): HttpClient => {
   const fetchImpl = options.fetch ?? globalThis.fetch;
   if (typeof fetchImpl !== 'function') {
