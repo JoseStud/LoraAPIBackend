@@ -1,4 +1,4 @@
-import { computed, ref, watch } from 'vue';
+import { computed, onScopeDispose, ref, watch } from 'vue';
 import { defineStore } from 'pinia';
 
 import { useAsyncResource } from '@/composables/shared';
@@ -192,15 +192,6 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
   );
   const chartData = computed(() => analyticsResource.data.value?.chartData ?? fallbackState.chartData);
 
-  let refreshInterval: ReturnType<typeof setInterval> | null = null;
-
-  const stopAutoRefresh = () => {
-    if (refreshInterval) {
-      clearInterval(refreshInterval);
-      refreshInterval = null;
-    }
-  };
-
   const loadAllData = async (): Promise<void> => {
     await analyticsResource.refresh(timeRange.value);
   };
@@ -214,6 +205,15 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
     await analyticsResource.ensureLoaded(timeRange.value);
   };
 
+  let refreshInterval: ReturnType<typeof setInterval> | null = null;
+
+  const stopAutoRefresh = () => {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+    }
+  };
+
   const startAutoRefresh = () => {
     stopAutoRefresh();
     refreshInterval = setInterval(() => {
@@ -221,13 +221,27 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
     }, 30_000);
   };
 
-  const toggleAutoRefresh = (): void => {
-    if (autoRefresh.value) {
+  const stopAutoRefreshWatcher = watch(autoRefresh, (enabled) => {
+    if (enabled) {
       void ensureLoaded();
       startAutoRefresh();
     } else {
       stopAutoRefresh();
     }
+  });
+
+  onScopeDispose(() => {
+    stopAutoRefresh();
+    stopAutoRefreshWatcher();
+  });
+
+  const toggleAutoRefresh = (next?: boolean): void => {
+    if (typeof next === 'boolean') {
+      autoRefresh.value = next;
+      return;
+    }
+
+    autoRefresh.value = !autoRefresh.value;
   };
 
   const setTimeRange = (range: PerformanceTimeRange): void => {
