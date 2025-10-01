@@ -13,6 +13,10 @@ import { createTransportModule } from './orchestrator/transportModule';
 import { createAdapterHandlers } from './orchestrator/adapterHandlers';
 import { createTransportActions } from './orchestrator/transportActions';
 import type { GenerationJob, GenerationResult, SystemStatusState } from '@/types';
+import type {
+  GenerationTransportMetricsSnapshot,
+  GenerationWebSocketStateSnapshot,
+} from '../types/transport';
 
 export type { GenerationJobInput } from './orchestrator/queueModule';
 export { MAX_RESULTS, DEFAULT_HISTORY_LIMIT } from './orchestrator/resultsModule';
@@ -101,6 +105,7 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
       queue.resetQueue();
       results.resetResults();
       systemStatusModule.resetConnection();
+      transportModule.resetMetrics();
     };
 
     const transportActions = createTransportActions({
@@ -121,6 +126,7 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
     });
 
     const { createResultFromCompletion: _ignored, ...resultsPublic } = results;
+    const transportMetrics = transportModule.metrics as ComputedRef<GenerationTransportMetricsSnapshot>;
 
     const jobs = toImmutableJobs(queue.jobs);
     const activeJobs = toImmutableJobs(queue.activeJobs);
@@ -158,7 +164,15 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
         onComplete: (message) => adapterHandlers.onComplete(message),
         onError: adapterHandlers.onError,
         onRecentResults: adapterHandlers.onRecentResults,
-        onConnectionChange: adapterHandlers.onConnectionChange,
+        onConnectionChange: (connected) => {
+          adapterHandlers.onConnectionChange(connected);
+        },
+        onConnectionStateChange: (snapshot: GenerationWebSocketStateSnapshot) => {
+          transportModule.recordConnectionSnapshot(snapshot);
+        },
+        onTransportError: (error) => {
+          transportModule.recordTransportError(error);
+        },
         onHydrateSystemStatus: () => controller.ensureHydrated(),
         onReleaseSystemStatus: () => {
           systemStatusRelease.value?.();
@@ -195,6 +209,17 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
       cleanup,
       destroy,
       resetState,
+      transportMetrics,
+      transportPhase: transportModule.phase,
+      transportReconnectAttempt: transportModule.reconnectAttempt,
+      transportConsecutiveFailures: transportModule.consecutiveFailures,
+      transportNextRetryDelayMs: transportModule.nextRetryDelayMs,
+      transportLastConnectedAt: transportModule.lastConnectedAt,
+      transportLastDisconnectedAt: transportModule.lastDisconnectedAt,
+      transportDowntimeMs: transportModule.downtimeMs,
+      transportTotalDowntimeMs: transportModule.totalDowntimeMs,
+      transportLastError: transportModule.lastError,
+      transportLastSnapshot: transportModule.lastSnapshot,
     };
   });
 
