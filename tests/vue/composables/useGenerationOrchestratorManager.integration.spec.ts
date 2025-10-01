@@ -80,14 +80,20 @@ describe('useGenerationOrchestratorManager integration', () => {
     expect(resolveHistoryLimit()).toBe(HISTORY_LIMIT_WHEN_SHOWING);
     expect(transport.refreshRecentResults).toHaveBeenCalledWith(HISTORY_LIMIT_WHEN_SHOWING, false);
 
+    const initialReconnectCalls = transport.reconnect.mock.calls.length;
+    const initialRefreshAllCalls = transport.refreshAll.mock.calls.length;
+
     settingsStore.backendUrl = 'http://example.com';
     await nextTick();
     await Promise.resolve();
 
-    expect(transport.reconnect).toHaveBeenCalled();
-    expect(transport.refreshAll).toHaveBeenCalledWith(resolveHistoryLimit());
+    expect(transport.reconnect.mock.calls.length).toBe(initialReconnectCalls + 1);
+    expect(transport.refreshAll.mock.calls.length).toBe(initialRefreshAllCalls + 1);
+    expect(transport.refreshAll).toHaveBeenLastCalledWith(resolveHistoryLimit());
 
     const refreshCallCount = transport.refreshRecentResults.mock.calls.length;
+    const reconnectCallCount = transport.reconnect.mock.calls.length;
+    const refreshAllCallCount = transport.refreshAll.mock.calls.length;
     binding.release();
 
     uiStore.setShowHistory(false);
@@ -95,5 +101,12 @@ describe('useGenerationOrchestratorManager integration', () => {
     await Promise.resolve();
 
     expect(transport.refreshRecentResults.mock.calls.length).toBe(refreshCallCount);
+
+    settingsStore.backendUrl = 'http://release.example.com';
+    await nextTick();
+    await Promise.resolve();
+
+    expect(transport.reconnect.mock.calls.length).toBe(reconnectCallCount);
+    expect(transport.refreshAll.mock.calls.length).toBe(refreshAllCallCount);
   });
 });

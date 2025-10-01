@@ -1,9 +1,6 @@
-import { onScopeDispose } from 'vue';
+import { getCurrentScope, onScopeDispose, watch, type WatchStopHandle } from 'vue';
 
-import {
-  type BackendEnvironmentSubscription,
-  useBackendEnvironmentSubscription,
-} from './backendEnvironmentBus';
+import { useBackendBase } from '@/utils/backend';
 
 export interface BackendRefreshOptions {
   /**
@@ -17,11 +14,15 @@ export interface BackendRefreshOptions {
   immediate?: boolean;
 }
 
-export interface BackendRefreshSubscription extends BackendEnvironmentSubscription {
+export interface BackendRefreshSubscription {
   /**
    * Manually request a refresh using the configured throttling rules.
    */
   trigger(): void;
+  start(): void;
+  stop(): void;
+  restart(): void;
+  isActive(): boolean;
 }
 
 export const useBackendRefresh = (
@@ -30,9 +31,12 @@ export const useBackendRefresh = (
 ): BackendRefreshSubscription => {
   const { throttleMs = 0, immediate = false } = options;
 
+  const backendBase = useBackendBase();
+
   let lastRunAt = 0;
   let pendingTimer: ReturnType<typeof setTimeout> | null = null;
-  let isSubscribed = true;
+  let isSubscribed = false;
+  let stopWatcher: WatchStopHandle | null = null;
 
   const clearPendingTimer = () => {
     if (pendingTimer) {
@@ -47,8 +51,26 @@ export const useBackendRefresh = (
     void refresh();
   };
 
+  const ensureWatcher = () => {
+    if (stopWatcher) {
+      return;
+    }
+
+    stopWatcher = watch(
+      backendBase,
+      (next, previous) => {
+        if (!isSubscribed || next === previous) {
+          return;
+        }
+
+        scheduleRefresh();
+      },
+      { flush: 'post' },
+    );
+  };
+
   const scheduleRefresh = () => {
-    if (!isSubscribed || !subscription.isActive()) {
+    if (!isSubscribed) {
       return;
     }
 
@@ -67,17 +89,16 @@ export const useBackendRefresh = (
     pendingTimer = setTimeout(runRefresh, throttleMs - elapsed);
   };
 
-  const subscription = useBackendEnvironmentSubscription(() => {
-    scheduleRefresh();
-  });
-
   const stop = () => {
     if (!isSubscribed) {
       return;
     }
     isSubscribed = false;
     clearPendingTimer();
-    subscription.stop();
+    if (stopWatcher) {
+      stopWatcher();
+      stopWatcher = null;
+    }
   };
 
   const start = () => {
@@ -86,7 +107,7 @@ export const useBackendRefresh = (
     }
     isSubscribed = true;
     lastRunAt = 0;
-    subscription.start();
+    ensureWatcher();
     if (immediate) {
       scheduleRefresh();
     }
@@ -101,16 +122,15 @@ export const useBackendRefresh = (
     scheduleRefresh();
   };
 
-  const isActive = () => isSubscribed && subscription.isActive();
+  const isActive = () => isSubscribed;
 
-  onScopeDispose(() => {
-    clearPendingTimer();
-    isSubscribed = false;
-  });
-
-  if (immediate) {
-    scheduleRefresh();
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      stop();
+    });
   }
+
+  start();
 
   return {
     start,
