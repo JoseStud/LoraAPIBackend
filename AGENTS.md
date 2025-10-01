@@ -84,7 +84,11 @@ This document provides a comprehensive assessment of the LoRA Manager project as
 
 ## 🧭 Architecture Orientation (Actionable Notes from Recent PRs)
 
-Multiple late-stage PRs refactored key subsystems (e.g. the orchestrator manager, gallery virtualization, and backend settings overhaul). Use the following map before opening new changes so that we do not regress those integrations.
+Multiple late-stage PRs refactored key subsystems (e.g. the orchestrator manager, gallery virtualization, and backend settings overhaul). Use the following map before opening new changes so that we do not regress those integrations. Keep the most recent documentation at hand:
+
+- **ADR 007 – Generation Orchestrator as Thin Façade** (`docs/architecture/adr-generation-orchestrator-thin-facade.md`) is the contract for how the orchestrator store/composable/helpers divide responsibilities. Stay within that boundary when adding orchestration features.
+- **Effect Scope Ownership Playbook** (`docs/frontend/effect-scope-ownership-playbook.md`) specifies where timers/watchers/event handlers belong. Long-lived effects live in managers or component scopes that dispose them.
+- **Generation Architecture Acceptance Checklist** (`docs/frontend/generation-architecture-acceptance.md`) is the regression list for the refactor. New work must keep those acceptance criteria green.
 
 ### Backend contract map
 
