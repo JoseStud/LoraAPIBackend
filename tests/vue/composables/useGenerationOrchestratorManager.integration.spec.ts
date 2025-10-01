@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createPinia, setActivePinia, defineStore } from 'pinia';
-import { nextTick, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 
 vi.mock('@/features/generation/composables/createGenerationTransportAdapter', () => ({
   createGenerationTransportAdapter: vi.fn(),
@@ -11,6 +11,7 @@ import { createUseGenerationOrchestratorManager, HISTORY_LIMIT_WHEN_SHOWING } fr
 import { useGenerationOrchestratorStore, DEFAULT_HISTORY_LIMIT } from '@/features/generation/stores/useGenerationOrchestratorStore';
 import { useGenerationOrchestratorManagerStore } from '@/features/generation/stores/orchestratorManagerStore';
 import { useGenerationStudioUiStore } from '@/features/generation/stores/ui';
+import { useBackendUrl } from '@/utils/backend';
 
 const useStubSettingsStore = defineStore('stub-settings', () => {
   const backendUrl = ref('http://localhost');
@@ -48,11 +49,13 @@ describe('useGenerationOrchestratorManager integration', () => {
     const uiStore = useGenerationStudioUiStore();
     const settingsStore = useStubSettingsStore();
 
+    const backendUrlRef = computed(() => settingsStore.backendUrl as string);
+
     const useManager = createUseGenerationOrchestratorManager({
       useGenerationOrchestratorManagerStore: () => managerStore,
       useGenerationOrchestratorStore: () => orchestratorStore,
       useGenerationStudioUiStore: () => uiStore,
-      useSettingsStore: () => settingsStore as any,
+      useBackendUrl: (() => backendUrlRef) as unknown as typeof useBackendUrl,
     });
 
     const manager = useManager();

@@ -14,8 +14,6 @@ export interface UseGenerationStudioControllerOptions {
   debug?: (...args: unknown[]) => void
   onAfterStart?: (params: GenerationFormState) => void
   onAfterInitialize?: () => void | Promise<void>
-  getHistoryLimit: () => number
-  getBackendUrl: () => string | null
 }
 
 export const useGenerationStudioController = ({
@@ -24,8 +22,6 @@ export const useGenerationStudioController = ({
   debug,
   onAfterStart,
   onAfterInitialize,
-  getHistoryLimit,
-  getBackendUrl,
 }: UseGenerationStudioControllerOptions) => {
   const formStore = useGenerationFormStore()
   const orchestratorManager = useGenerationOrchestratorManager()
@@ -36,8 +32,6 @@ export const useGenerationStudioController = ({
       orchestratorBinding.value = orchestratorManager.acquire({
         notify,
         debug,
-        historyLimit: getHistoryLimit(),
-        getBackendUrl,
       })
     }
 

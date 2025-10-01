@@ -1,4 +1,4 @@
-import { type Ref } from 'vue';
+import { computed, effectScope, watch, type ComputedRef, type EffectScope, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import type { GenerationNotificationAdapter } from './useGenerationTransport';
@@ -8,7 +8,12 @@ import {
   useGenerationOrchestratorManagerStore,
   type GenerationOrchestratorConsumer,
 } from '../stores/orchestratorManagerStore';
-import { useGenerationOrchestratorStore } from '../stores/useGenerationOrchestratorStore';
+import {
+  useGenerationOrchestratorStore,
+  DEFAULT_HISTORY_LIMIT,
+} from '../stores/useGenerationOrchestratorStore';
+import { useGenerationStudioUiStore } from '../stores/ui';
+import { useBackendUrl } from '@/utils/backend';
 import type {
   GenerationJob,
   GenerationRequestPayload,
@@ -20,8 +25,6 @@ import type {
 export interface GenerationOrchestratorAcquireOptions {
   notify: GenerationNotificationAdapter['notify'];
   debug?: GenerationNotificationAdapter['debug'];
-  historyLimit: number;
-  getBackendUrl: () => string | null;
   queueClient?: GenerationQueueClient;
   websocketManager?: GenerationWebSocketManager;
 }
@@ -31,11 +34,15 @@ export interface UseGenerationOrchestratorManagerDependencies {
     typeof useGenerationOrchestratorManagerStore
   >;
   useGenerationOrchestratorStore: () => ReturnType<typeof useGenerationOrchestratorStore>;
+  useGenerationStudioUiStore: () => ReturnType<typeof useGenerationStudioUiStore>;
+  useBackendUrl: typeof useBackendUrl;
 }
 
 const defaultDependencies: UseGenerationOrchestratorManagerDependencies = {
   useGenerationOrchestratorManagerStore,
   useGenerationOrchestratorStore,
+  useGenerationStudioUiStore,
+  useBackendUrl,
 };
 
 export interface GenerationOrchestratorBinding {
@@ -68,6 +75,17 @@ export const createUseGenerationOrchestratorManager = (
   const orchestratorManagerStore = dependencies.useGenerationOrchestratorManagerStore();
   const orchestratorStore = dependencies.useGenerationOrchestratorStore();
   const { initializationPromise, isInitialized, consumers } = storeToRefs(orchestratorManagerStore);
+  const generationUiStore = dependencies.useGenerationStudioUiStore();
+  const { showHistory } = storeToRefs(generationUiStore);
+
+  const backendUrl = dependencies.useBackendUrl('/') as ComputedRef<string>;
+  const getBackendUrl = (): string | null => backendUrl.value || null;
+
+  const historyLimit = computed<number>(() =>
+    showHistory.value ? HISTORY_LIMIT_WHEN_SHOWING : DEFAULT_HISTORY_LIMIT,
+  );
+
+  let lifecycleScope: EffectScope | null = null;
 
   const {
     recentResults,
@@ -96,6 +114,49 @@ export const createUseGenerationOrchestratorManager = (
   const ensureOrchestrator = (): ReturnType<typeof useGenerationOrchestratorStore> =>
     orchestratorManagerStore.ensureOrchestrator(() => orchestratorStore);
 
+  const ensureLifecycleScope = (): void => {
+    if (lifecycleScope) {
+      return;
+    }
+
+    lifecycleScope = effectScope();
+    lifecycleScope.run(() => {
+      watch(
+        historyLimit,
+        (next, previous) => {
+          if (!isInitialized.value || previous === next) {
+            return;
+          }
+
+          const orchestrator = ensureOrchestrator();
+          orchestrator.setHistoryLimit(next);
+          void orchestrator.loadRecentResults(false);
+        },
+      );
+
+      watch(
+        backendUrl,
+        (next, previous) => {
+          if (!isInitialized.value || next === previous) {
+            return;
+          }
+
+          const orchestrator = ensureOrchestrator();
+          void orchestrator.handleBackendUrlChange();
+        },
+      );
+    });
+  };
+
+  const stopLifecycleScope = (): void => {
+    if (!lifecycleScope) {
+      return;
+    }
+
+    lifecycleScope.stop();
+    lifecycleScope = null;
+  };
+
   const ensureInitialized = async (
     options: GenerationOrchestratorAcquireOptions,
   ): Promise<void> => {
@@ -105,10 +166,11 @@ export const createUseGenerationOrchestratorManager = (
 
     if (!initializationPromise.value) {
       const orchestrator = ensureOrchestrator();
+      ensureLifecycleScope();
       const promise = orchestrator
         .initialize({
-          historyLimit: options.historyLimit,
-          getBackendUrl: options.getBackendUrl,
+          historyLimit: historyLimit.value,
+          getBackendUrl,
           notificationAdapter: {
             notify: notifyAll,
             debug: debugAll,
@@ -142,6 +204,7 @@ export const createUseGenerationOrchestratorManager = (
 
     if (consumers.value.size === 0) {
       orchestratorManagerStore.destroyOrchestrator();
+      stopLifecycleScope();
     }
   };
 

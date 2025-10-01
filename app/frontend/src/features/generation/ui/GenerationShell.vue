@@ -129,8 +129,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue';
-import { storeToRefs } from 'pinia';
+import { computed } from 'vue';
 
 import GenerationActiveJobsList from '../components/GenerationActiveJobsList.vue';
 import GenerationParameterForm from '../components/GenerationParameterForm.vue';
@@ -139,25 +138,8 @@ import GenerationSystemStatusCard from '../components/GenerationSystemStatusCard
 import JobQueue from '../components/JobQueue.vue';
 import SystemStatusCard from '../components/system/SystemStatusCard.vue';
 import { useGenerationStudio } from '../composables/useGenerationStudio';
-import { HISTORY_LIMIT_WHEN_SHOWING } from '../composables/useGenerationOrchestratorManager';
-import { useGenerationStudioUiStore } from '../stores/ui';
-import { DEFAULT_HISTORY_LIMIT } from '../stores/useGenerationOrchestratorStore';
-import { useBackendUrl } from '@/utils/backend';
 
-const uiStore = useGenerationStudioUiStore();
-const { showHistory: uiShowHistory } = storeToRefs(uiStore);
-
-const backendBaseUrl = useBackendUrl('/');
-
-const getHistoryLimit = () =>
-  uiShowHistory.value ? HISTORY_LIMIT_WHEN_SHOWING : DEFAULT_HISTORY_LIMIT;
-
-const generationStudio = useGenerationStudio({
-  getHistoryLimit,
-  getBackendUrl: () => backendBaseUrl.value || null,
-});
-
-const historyLimit = computed(getHistoryLimit);
+const generationStudio = useGenerationStudio();
 
 const {
   params,
@@ -188,33 +170,7 @@ const {
   getSystemStatusClasses,
   updateParams,
   toggleHistory,
-  setHistoryLimit,
-  handleBackendUrlChange,
-  isManagerInitialized,
 } = generationStudio;
-
-watch(
-  historyLimit,
-  (next, previous) => {
-    if (!isManagerInitialized.value || previous === undefined || next === previous) {
-      return;
-    }
-
-    setHistoryLimit(next);
-    void refreshResults(false);
-  },
-);
-
-watch(
-  () => backendBaseUrl.value,
-  (next, previous) => {
-    if (!isManagerInitialized.value || next === previous) {
-      return;
-    }
-
-    void handleBackendUrlChange();
-  },
-);
 
 const showHistory = computed(() => showHistoryComputed.value);
 </script>

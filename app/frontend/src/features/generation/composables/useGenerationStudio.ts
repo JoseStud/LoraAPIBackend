@@ -8,15 +8,7 @@ import { useGenerationFormStore } from '../stores/form'
 import { useAsyncLifecycleTask } from '@/composables/shared'
 import type { GenerationFormState } from '@/types'
 
-export interface UseGenerationStudioOptions {
-  getHistoryLimit: () => number
-  getBackendUrl: () => string | null
-}
-
-export const useGenerationStudio = ({
-  getHistoryLimit,
-  getBackendUrl,
-}: UseGenerationStudioOptions) => {
+export const useGenerationStudio = () => {
   const formStore = useGenerationFormStore()
 
   const { notify, confirm: requestConfirmation, prompt: requestPrompt, logDebug } =
@@ -57,8 +49,6 @@ export const useGenerationStudio = ({
     debug: logDebug,
     onAfterStart: persistParams,
     onAfterInitialize: loadParams,
-    getHistoryLimit,
-    getBackendUrl,
   })
 
   const params = computed(() => uiParams.value)
