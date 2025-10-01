@@ -3,7 +3,7 @@ import { createPinia, setActivePinia, storeToRefs } from 'pinia'
 
 import { useGenerationUI } from '@/composables/generation/useGenerationUI'
 import { useGenerationFormStore } from '@/features/generation/stores/form'
-import { useGenerationResultsStore } from '@/features/generation/stores/results'
+import { useGenerationOrchestratorStore } from '@/features/generation/stores/useGenerationOrchestratorStore'
 import { useGenerationStudioUiStore } from '@/features/generation/stores/ui'
 import type { GenerationResult } from '@/types'
 
@@ -12,7 +12,7 @@ describe('useGenerationUI', () => {
     setActivePinia(createPinia())
     useGenerationFormStore().reset()
     useGenerationStudioUiStore().reset()
-    useGenerationResultsStore().reset()
+    useGenerationOrchestratorStore().resetState()
   })
 
   it('applies parameters through the store when reusing results', () => {

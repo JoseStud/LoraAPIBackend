@@ -2,7 +2,7 @@ import { shallowRef } from 'vue';
 
 import { createGenerationWebSocketManager, type GenerationWebSocketManager } from '../services/websocketManager';
 import { ensureArray } from '../services/validation';
-import type { GenerationJobInput } from '../stores/queue';
+import type { GenerationJobInput } from '../stores/useGenerationOrchestratorStore';
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,
