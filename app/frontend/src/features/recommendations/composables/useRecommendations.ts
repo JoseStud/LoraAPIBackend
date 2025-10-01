@@ -1,13 +1,16 @@
-import { computed, ref, watch, type Ref } from 'vue';
+import { computed, onScopeDispose, ref, watch, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { useAsyncResource } from '@/composables/shared';
 
-import { useBackendClient } from '@/services/backendClient';
-
 import { useBackendEnvironment, useSettingsStore } from '@/stores/settings';
 import { useAdapterCatalogStore } from '@/features/lora/public';
-import type { AdapterSummary, RecommendationItem, RecommendationResponse } from '@/types';
+import {
+  buildSimilarRecommendationsPath,
+  getRecommendations,
+  type SimilarRecommendationsQuery,
+} from '@/features/recommendations/services';
+import type { AdapterSummary, RecommendationItem } from '@/types';
 import { debounce, type DebouncedFunction } from '@/utils/async';
 
 const WEIGHT_KEYS = ['semantic', 'artistic', 'technical'] as const;
@@ -37,33 +40,6 @@ const toErrorMessage = (error: unknown, fallback: string): string => {
   return fallback;
 };
 
-const isRecommendationResponse = (
-  payload: unknown,
-): payload is RecommendationResponse =>
-  Boolean(
-    payload &&
-      typeof payload === 'object' &&
-      Array.isArray((payload as RecommendationResponse).recommendations),
-  );
-
-const normaliseRecommendations = (
-  payload: RecommendationResponse | RecommendationItem[] | null | undefined,
-): RecommendationItem[] => {
-  if (!payload) {
-    return [];
-  }
-
-  if (isRecommendationResponse(payload)) {
-    return payload.recommendations ?? [];
-  }
-
-  if (Array.isArray(payload)) {
-    return payload;
-  }
-
-  return [];
-};
-
 const unwrapMaybeRef = <T>(input: T | Ref<T>): T => {
   if (typeof input === 'object' && input !== null && 'value' in input) {
     return (input as Ref<T>).value;
@@ -71,8 +47,20 @@ const unwrapMaybeRef = <T>(input: T | Ref<T>): T => {
   return input as T;
 };
 
+interface RecommendationFetchArgs {
+  loraId: AdapterSummary['id'];
+  limit: number;
+  similarityThreshold: number;
+  weights: WeightState;
+}
+
+const toQuery = (args: RecommendationFetchArgs): SimilarRecommendationsQuery => ({
+  limit: args.limit,
+  similarityThreshold: args.similarityThreshold,
+  weights: { ...args.weights },
+});
+
 export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
-  const backendClient = useBackendClient();
   const settingsStore = useSettingsStore();
   const backendEnvironment = useBackendEnvironment();
 
@@ -108,64 +96,112 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
 
   const isHydrated = computed<boolean>(() => hydrationReady.value && settingsLoaded.value);
 
+  const resolveFetchArgs = (): RecommendationFetchArgs | null => {
+    if (!selectedLoraId.value) {
+      return null;
+    }
+    return {
+      loraId: selectedLoraId.value,
+      limit: limit.value,
+      similarityThreshold: similarityThreshold.value,
+      weights: { ...weights.value },
+    } satisfies RecommendationFetchArgs;
+  };
+
   const recommendationPath = computed<string | null>(() => {
     if (!selectedLoraId.value) {
       return null;
     }
-    const base = `/recommendations/similar/${encodeURIComponent(selectedLoraId.value)}`;
-    const params = new URLSearchParams();
-    params.set('limit', String(limit.value));
-    params.set('similarity_threshold', String(similarityThreshold.value));
-    WEIGHT_KEYS.forEach((key) => {
-      params.set(`weight_${key}`, weights.value[key].toString());
-    });
-    return `${base}?${params.toString()}`;
+    const args = resolveFetchArgs();
+    if (!args) {
+      return null;
+    }
+    return buildSimilarRecommendationsPath(args.loraId, toQuery(args));
   });
 
-  const recommendationResource = useAsyncResource<RecommendationItem[], string | null>(
-    async (path) => {
-      if (!path) {
-        return [];
+  let pendingController: AbortController | null = null;
+
+  const cancelPendingRequest = () => {
+    if (pendingController) {
+      pendingController.abort();
+      pendingController = null;
+    }
+  };
+
+  const recommendationResource = useAsyncResource<RecommendationItem[], RecommendationFetchArgs>(
+    async (args) => {
+      cancelPendingRequest();
+      const controller = new AbortController();
+      pendingController = controller;
+      try {
+        const response = await getRecommendations({
+          loraId: args.loraId,
+          limit: args.limit,
+          similarityThreshold: args.similarityThreshold,
+          weights: { ...args.weights },
+          signal: controller.signal,
+        });
+        return response.recommendations;
+      } finally {
+        if (pendingController === controller) {
+          pendingController = null;
+        }
       }
-      const payload = await backendClient.getJson<RecommendationResponse | RecommendationItem[] | null>(path);
-      return normaliseRecommendations(payload);
     },
     {
-      initialArgs: null,
       initialValue: [],
-      getKey: (value) => value ?? '',
+      getKey: (value) => {
+        if (!value) {
+          return '';
+        }
+        return JSON.stringify({
+          loraId: value.loraId,
+          limit: value.limit,
+          similarityThreshold: value.similarityThreshold,
+          weights: value.weights,
+        });
+      },
       backendRefresh: {
         enabled: () => Boolean(selectedLora.value),
-        getArgs: () => recommendationPath.value,
+        getArgs: () => resolveFetchArgs() ?? undefined,
       },
-      onError: (err) => {
+      onError: (err, { args }) => {
         if (import.meta.env.DEV) {
-          console.error('[recommendations] Failed to fetch recommendations', err);
+          console.error('[recommendations] Failed to fetch recommendations', err, args);
         }
       },
     },
   );
 
+  onScopeDispose(() => {
+    cancelPendingRequest();
+  });
+
   const recommendations = computed<RecommendationItem[]>(() => recommendationResource.data.value ?? []);
   const error = ref('');
   const isLoading = computed<boolean>(() => recommendationResource.isLoading.value);
 
+  const clearRecommendations = () => {
+    cancelPendingRequest();
+    recommendationResource.setData([], { markLoaded: false });
+    recommendationResource.clearError();
+    error.value = '';
+  };
+
   const fetchRecommendations = async (): Promise<RecommendationItem[]> => {
     if (!selectedLora.value || !isHydrated.value) {
-      recommendationResource.setData([], { markLoaded: false, args: null });
-      error.value = '';
+      clearRecommendations();
       return [];
     }
 
-    const path = recommendationPath.value;
-    if (!path) {
-      recommendationResource.setData([], { markLoaded: false, args: null });
-      error.value = '';
+    const args = resolveFetchArgs();
+    if (!args) {
+      clearRecommendations();
       return [];
     }
 
     try {
-      const payload = await recommendationResource.refresh(path);
+      const payload = await recommendationResource.refresh(args);
       error.value = '';
       return payload ?? [];
     } catch (err) {
@@ -213,9 +249,7 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
   watch(selectedLoraId, (next) => {
     if (!next) {
       debouncedFetchRecommendations.cancel();
-      recommendationResource.setData([], { markLoaded: false, args: null });
-      recommendationResource.clearError();
-      error.value = '';
+      clearRecommendations();
       return;
     }
 
@@ -230,9 +264,7 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
     () => selectedLora.value?.id ?? '',
     (next, previous) => {
       if (!next) {
-        recommendationResource.setData([], { markLoaded: false, args: null });
-        recommendationResource.clearError();
-        error.value = '';
+        clearRecommendations();
         return;
       }
 
