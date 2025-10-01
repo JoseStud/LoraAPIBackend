@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ref, shallowRef, type Ref } from 'vue';
+import { computed, ref, shallowRef, type Ref } from 'vue';
 
 import {
   createUseGenerationOrchestratorManager,
@@ -11,7 +11,7 @@ import type {
   GenerationOrchestratorStore,
   GenerationStudioUiStore,
 } from '@/features/generation/stores';
-import type { SettingsStore } from '@/stores';
+import { useBackendUrl } from '@/utils/backend';
 import type {
   GenerationJob,
   GenerationRequestPayload,
@@ -98,18 +98,17 @@ const createDependencies = () => {
     showHistory: ref(false),
   } satisfies Partial<GenerationStudioUiStore> & { showHistory: Ref<boolean> };
 
-  const settingsStore = {
-    backendUrl: ref<string | null>('http://localhost'),
-  } satisfies Partial<SettingsStore> & { backendUrl: Ref<string | null> };
+  const backendUrl = ref('http://localhost');
+  const backendUrlComputed = computed(() => backendUrl.value);
 
   const dependencies: UseGenerationOrchestratorManagerDependencies = {
     useGenerationOrchestratorManagerStore: () => orchestratorManagerStore as GenerationOrchestratorManagerStore,
     useGenerationOrchestratorStore: () => orchestratorStore as unknown as GenerationOrchestratorStore,
     useGenerationStudioUiStore: () => uiStore as GenerationStudioUiStore,
-    useSettingsStore: () => settingsStore as SettingsStore,
+    useBackendUrl: (() => backendUrlComputed) as unknown as typeof useBackendUrl,
   };
 
-  return { orchestratorStore, orchestratorManagerStore, uiStore, settingsStore, dependencies };
+  return { orchestratorStore, orchestratorManagerStore, uiStore, backendUrl, dependencies };
 };
 
 describe('createUseGenerationOrchestratorManager', () => {
