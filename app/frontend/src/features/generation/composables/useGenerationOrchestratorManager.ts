@@ -46,10 +46,10 @@ const defaultDependencies: UseGenerationOrchestratorManagerDependencies = {
 };
 
 export interface GenerationOrchestratorBinding {
-  activeJobs: Ref<GenerationJob[]>;
-  sortedActiveJobs: Ref<GenerationJob[]>;
-  recentResults: Ref<GenerationResult[]>;
-  systemStatus: Ref<SystemStatusState>;
+  activeJobs: Ref<readonly GenerationJob[]>;
+  sortedActiveJobs: Ref<readonly GenerationJob[]>;
+  recentResults: Ref<readonly GenerationResult[]>;
+  systemStatus: Ref<Readonly<SystemStatusState>>;
   isConnected: Ref<boolean>;
   initialize: () => Promise<void>;
   cleanup: () => void;
