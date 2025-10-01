@@ -122,7 +122,8 @@ const panelConfigs = [
     placeholder:
       'Activate the composer inline to reuse saved prompts or jump directly to the full composition workspace.',
     fallback: 'Loading prompt composer…',
-    loader: () => import('@/components/compose/PromptComposer.vue').then((module) => module.default),
+    loader: () =>
+      import('@/features/prompt-composer/ui/PromptComposer.vue').then((module) => module.default),
   },
   {
     key: 'studio',

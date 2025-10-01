@@ -7,14 +7,15 @@ import {
 } from '@/utils/promptCompositionPersistence';
 
 import type { CompositionEntry, SavedComposition } from '@/types';
+import { cloneCompositionEntries } from '../lib/composition';
 
-export interface PromptCompositionPersistenceBindings {
+export interface PromptComposerPersistenceBindings {
   lastSaved: Ref<SavedComposition | null>;
   saveComposition: () => void;
   loadComposition: () => void;
 }
 
-interface UsePromptCompositionPersistenceOptions {
+interface UsePromptComposerPersistenceOptions {
   activeLoras: Ref<CompositionEntry[]>;
   basePrompt: Ref<string>;
   negativePrompt: Ref<string>;
@@ -22,25 +23,23 @@ interface UsePromptCompositionPersistenceOptions {
   persistence?: PromptCompositionPersistence;
 }
 
-const cloneEntries = (entries: CompositionEntry[]): CompositionEntry[] => entries.map((entry) => ({ ...entry }));
-
 const buildPayload = (
   activeLoras: Ref<CompositionEntry[]>,
   basePrompt: Ref<string>,
   negativePrompt: Ref<string>,
 ): SavedComposition => ({
-  items: cloneEntries(activeLoras.value),
+  items: cloneCompositionEntries(activeLoras.value),
   base: basePrompt.value,
   neg: negativePrompt.value,
 });
 
-export const usePromptCompositionPersistence = ({
+export const usePromptComposerPersistence = ({
   activeLoras,
   basePrompt,
   negativePrompt,
   basePromptError,
   persistence = createPromptCompositionPersistence(),
-}: UsePromptCompositionPersistenceOptions): PromptCompositionPersistenceBindings => {
+}: UsePromptComposerPersistenceOptions): PromptComposerPersistenceBindings => {
   const lastSaved = ref<SavedComposition | null>(null);
 
   const persistPayload = (payload: SavedComposition) => {
@@ -65,7 +64,7 @@ export const usePromptCompositionPersistence = ({
       return;
     }
 
-    activeLoras.value = cloneEntries(parsed.items);
+    activeLoras.value = cloneCompositionEntries(parsed.items);
     basePrompt.value = parsed.base;
     negativePrompt.value = parsed.neg;
     basePromptError.value = '';
@@ -76,7 +75,7 @@ export const usePromptCompositionPersistence = ({
     [activeLoras, basePrompt, negativePrompt],
     ([items, base, neg]: [CompositionEntry[], string, string]) => {
       const payload: SavedComposition = {
-        items: cloneEntries(items),
+        items: cloneCompositionEntries(items),
         base,
         neg,
       };

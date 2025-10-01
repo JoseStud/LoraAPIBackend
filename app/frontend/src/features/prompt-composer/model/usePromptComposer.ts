@@ -2,13 +2,16 @@ import type { ComputedRef, Ref } from 'vue';
 
 import type { AdapterSummary, CompositionEntry } from '@/types';
 
-import { useAdapterCatalog, type AdapterCatalogApi } from './useAdapterCatalog';
-import { usePromptCompositionPersistence } from '../prompt-composer/usePromptCompositionPersistence';
-import { usePromptCompositionState } from '../prompt-composer/usePromptCompositionState';
-import { usePromptGenerationActions } from '../prompt-composer/usePromptGenerationActions';
+import {
+  usePromptComposerCatalog,
+  type PromptComposerCatalogApi,
+} from './usePromptComposerCatalog';
+import { usePromptComposerPersistence } from './usePromptComposerPersistence';
+import { usePromptComposerState } from './usePromptComposerState';
+import { usePromptComposerGeneration } from './usePromptComposerGeneration';
 
-export interface PromptCompositionState {
-  catalog: AdapterCatalogApi;
+export interface PromptComposerState {
+  catalog: PromptComposerCatalogApi;
   activeLoras: Ref<CompositionEntry[]>;
   basePrompt: Ref<string>;
   negativePrompt: Ref<string>;
@@ -19,7 +22,7 @@ export interface PromptCompositionState {
   canSave: ComputedRef<boolean>;
 }
 
-export interface PromptCompositionActions {
+export interface PromptComposerActions {
   addToComposition: (lora: AdapterSummary) => void;
   removeFromComposition: (index: number) => void;
   moveUp: (index: number) => void;
@@ -37,16 +40,16 @@ export interface PromptCompositionActions {
   isInComposition: (id: AdapterSummary['id']) => boolean;
 }
 
-export const usePromptComposition = (): PromptCompositionState & PromptCompositionActions => {
-  const catalog = useAdapterCatalog();
-  const state = usePromptCompositionState();
-  const persistence = usePromptCompositionPersistence({
+export const usePromptComposer = (): PromptComposerState & PromptComposerActions => {
+  const catalog = usePromptComposerCatalog();
+  const state = usePromptComposerState();
+  const persistence = usePromptComposerPersistence({
     activeLoras: state.activeLoras,
     basePrompt: state.basePrompt,
     negativePrompt: state.negativePrompt,
     basePromptError: state.basePromptError,
   });
-  const generation = usePromptGenerationActions({
+  const generation = usePromptComposerGeneration({
     finalPrompt: state.finalPrompt,
     negativePrompt: state.negativePrompt,
     activeLoras: state.activeLoras,

@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 
-import PromptComposer from '../../app/frontend/src/components/compose/PromptComposer.vue';
+import PromptComposer from '../../app/frontend/src/features/prompt-composer/ui/PromptComposer.vue';
 import { useAppStore } from '../../app/frontend/src/stores/app';
 import { useAdapterCatalogStore } from '../../app/frontend/src/stores/adapterCatalog';
 

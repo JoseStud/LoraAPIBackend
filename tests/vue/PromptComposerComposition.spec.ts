@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 
-import PromptComposerComposition from '../../app/frontend/src/components/compose/PromptComposerComposition.vue';
+import PromptComposerComposition from '../../app/frontend/src/features/prompt-composer/ui/PromptComposerComposition.vue';
 
 describe('PromptComposerComposition', () => {
   const items = [

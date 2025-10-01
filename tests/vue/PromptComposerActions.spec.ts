@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 
-import PromptComposerActions from '../../app/frontend/src/components/compose/PromptComposerActions.vue';
+import PromptComposerActions from '../../app/frontend/src/features/prompt-composer/ui/PromptComposerActions.vue';
 
 describe('PromptComposerActions', () => {
   const factory = (overrides = {}) =>
