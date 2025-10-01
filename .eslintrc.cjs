@@ -32,6 +32,23 @@ module.exports = {
     'no-restricted-imports': [
       'error',
       {
+        paths: [
+          {
+            name: '@/components/compose',
+            message:
+              'Import compose helpers from the prompt composer feature barrels instead of the legacy components path.',
+          },
+          {
+            name: '@/stores/generationQueue',
+            message:
+              'Import generation queue state via the orchestrator manager barrels rather than the legacy store entry.',
+          },
+          {
+            name: '@/stores/generationResults',
+            message:
+              'Import generation results state via the orchestrator manager barrels rather than the legacy store entry.',
+          },
+        ],
         patterns: [
           {
             group: ['@/composables/*/*', '@/composables/*/**'],
