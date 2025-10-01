@@ -76,19 +76,19 @@
 import { toRefs } from 'vue'
 
 import type { UseGenerationStudioReturn } from '../composables/useGenerationStudio'
-import type { GenerationResult } from '@/types'
+import type { ResultItemView, ReadonlyResults } from '@/features/generation/orchestrator'
 
 const props = defineProps<{
-  recentResults: GenerationResult[]
+  recentResults: ReadonlyResults
   showHistory: boolean
   formatTime: UseGenerationStudioReturn['formatTime']
 }>()
 
 const emit = defineEmits<{
   (event: 'refresh-results'): void
-  (event: 'reuse-parameters', result: GenerationResult): void
+  (event: 'reuse-parameters', result: ResultItemView): void
   (event: 'delete-result', resultId: string | number): void
-  (event: 'show-image-modal', result: GenerationResult): void
+  (event: 'show-image-modal', result: ResultItemView): void
 }>()
 
 const { recentResults, showHistory, formatTime } = toRefs(props)

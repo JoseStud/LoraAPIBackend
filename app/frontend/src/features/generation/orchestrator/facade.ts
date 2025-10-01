@@ -17,6 +17,11 @@ export type ReadonlyRef<T> = Readonly<Ref<T>>;
 export type ImmutableGenerationJob = DeepReadonly<GenerationJob>;
 export type ImmutableGenerationResult = DeepReadonly<GenerationResult>;
 
+export type QueueItemView = ImmutableGenerationJob;
+export type ResultItemView = ImmutableGenerationResult;
+export type ReadonlyQueue = ReadonlyArray<QueueItemView>;
+export type ReadonlyResults = ReadonlyArray<ResultItemView>;
+
 export interface GenerationHistoryRefreshOptions {
   readonly notifySuccess?: boolean;
 }
@@ -24,11 +29,13 @@ export interface GenerationHistoryRefreshOptions {
 export type GenerationHistoryLimit = number;
 
 export interface GenerationOrchestratorFacadeSelectors {
-  readonly jobs: ComputedRef<readonly ImmutableGenerationJob[]>;
+  readonly queue: ComputedRef<ReadonlyQueue>;
+  readonly jobs: ComputedRef<ReadonlyQueue>;
   readonly activeJobs: ComputedRef<readonly ImmutableGenerationJob[]>;
   readonly sortedActiveJobs: ComputedRef<readonly ImmutableGenerationJob[]>;
   readonly hasActiveJobs: ComputedRef<boolean>;
-  readonly recentResults: ComputedRef<readonly ImmutableGenerationResult[]>;
+  readonly results: ComputedRef<ReadonlyResults>;
+  readonly recentResults: ComputedRef<ReadonlyResults>;
   readonly historyLimit: ReadonlyRef<GenerationHistoryLimit>;
   readonly systemStatus: ComputedRef<DeepReadonly<SystemStatusState>>;
   readonly systemStatusReady: ReadonlyRef<boolean>;
@@ -54,6 +61,7 @@ export interface GenerationOrchestratorFacadeSelectors {
 export interface GenerationOrchestratorFacadeCommands {
   cancelJob(jobId: string): Promise<void>;
   removeJob(jobId: string | number): void;
+  clearCompletedJobs(): void;
   refreshHistory(options?: GenerationHistoryRefreshOptions): Promise<void>;
   reconnect(): void | Promise<void>;
   setHistoryLimit(limit: GenerationHistoryLimit): void;
@@ -68,6 +76,7 @@ export type GenerationOrchestratorFacadeFactory = () => GenerationOrchestratorFa
 export interface GenerationManager extends GenerationOrchestratorFacadeSelectors {
   cancelJob(jobId: string): Promise<void>;
   removeJob(jobId: string | number): void;
+  clearCompletedJobs(): void;
   refreshHistory(options?: GenerationHistoryRefreshOptions): Promise<void>;
   reconnect(): void | Promise<void>;
   setHistoryLimit(limit: GenerationHistoryLimit): void;
@@ -78,10 +87,12 @@ const normalizeJobId = (jobId: string | number): string => String(jobId);
 const createStoreBackedManager = (
   store: GenerationOrchestratorStore,
 ): GenerationManager => ({
+  queue: store.jobs,
   jobs: store.jobs,
   activeJobs: store.activeJobs,
   sortedActiveJobs: store.sortedActiveJobs,
   hasActiveJobs: store.hasActiveJobs,
+  results: store.recentResults,
   recentResults: store.recentResults,
   historyLimit: store.historyLimit,
   systemStatus: store.systemStatus,
@@ -109,6 +120,9 @@ const createStoreBackedManager = (
   removeJob: (jobId: string | number): void => {
     store.removeJob(normalizeJobId(jobId));
   },
+  clearCompletedJobs: (): void => {
+    store.clearCompletedJobs();
+  },
   refreshHistory: async (options?: GenerationHistoryRefreshOptions): Promise<void> => {
     await store.loadRecentResults(options?.notifySuccess ?? false);
   },
@@ -128,10 +142,12 @@ export interface CreateGenerationFacadeOptions {
 export const createGenerationFacade = ({
   manager,
 }: CreateGenerationFacadeOptions): GenerationOrchestratorFacade => ({
+  queue: manager.queue,
   jobs: manager.jobs,
   activeJobs: manager.activeJobs,
   sortedActiveJobs: manager.sortedActiveJobs,
   hasActiveJobs: manager.hasActiveJobs,
+  results: manager.results,
   recentResults: manager.recentResults,
   historyLimit: manager.historyLimit,
   systemStatus: manager.systemStatus,
@@ -155,6 +171,7 @@ export const createGenerationFacade = ({
   lastSnapshot: manager.lastSnapshot,
   cancelJob: (jobId: string): Promise<void> => manager.cancelJob(jobId),
   removeJob: (jobId: string | number): void => manager.removeJob(jobId),
+  clearCompletedJobs: (): void => manager.clearCompletedJobs(),
   refreshHistory: (options?: GenerationHistoryRefreshOptions): Promise<void> =>
     manager.refreshHistory(options),
   reconnect: (): void | Promise<void> => manager.reconnect(),

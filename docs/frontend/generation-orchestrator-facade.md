@@ -18,8 +18,8 @@ only public entry-point for orchestration capabilities. Raw Pinia stores (for ex
 
 All selectors are reactive Vue references that expose immutable snapshots:
 
-- `jobs`, `activeJobs`, `sortedActiveJobs`, `hasActiveJobs` – queue state, frozen per job.
-- `recentResults`, `historyLimit` – history summaries constrained by the configured limit.
+- `queue`, `jobs`, `activeJobs`, `sortedActiveJobs`, `hasActiveJobs` – queue state, frozen per job.
+- `results`, `recentResults`, `historyLimit` – history summaries constrained by the configured limit.
 - `systemStatus`, `systemStatusReady`, `systemStatusLastUpdated`, `systemStatusApiAvailable`,
   `queueManagerActive` – backend availability and health snapshots.
 - `isActive`, `isConnected`, `pollIntervalMs` – lifecycle markers for the orchestrator and
@@ -30,8 +30,9 @@ All selectors are reactive Vue references that expose immutable snapshots:
   transport telemetry.
 - `lastError`, `lastSnapshot` – the most recent transport error and websocket event snapshot.
 
-Each selector is typed as a `ComputedRef` or `ReadonlyRef`, guaranteeing that consumers cannot
-mutate orchestrator internals directly.
+Each selector is typed as a `ComputedRef` or `ReadonlyRef` that resolves to deeply immutable
+snapshots. Attempting to assign to `facade.queue.value` or `facade.results.value` fails at
+compile-time, preventing accidental mutations of orchestrator internals.
 
 ## Command methods
 

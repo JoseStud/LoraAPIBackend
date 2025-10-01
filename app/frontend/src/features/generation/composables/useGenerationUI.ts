@@ -1,9 +1,12 @@
 import { storeToRefs } from 'pinia'
 
 import { useGenerationFormStore } from '../stores/form'
-import { useGenerationResultsStore } from '../stores/results'
 import { useGenerationStudioUiStore } from '../stores/ui'
 import type { GenerationResult, NotificationType } from '@/types'
+import {
+  useGenerationOrchestratorFacade,
+  type ResultItemView,
+} from '@/features/generation/orchestrator'
 
 const STATUS_CLASS_MAP = {
   processing: 'bg-blue-100 text-blue-800',
@@ -26,26 +29,29 @@ export interface UseGenerationUIOptions {
 export const useGenerationUI = ({ notify }: UseGenerationUIOptions) => {
   const formStore = useGenerationFormStore()
   const uiStore = useGenerationStudioUiStore()
-  const resultsStore = useGenerationResultsStore()
+  const generationFacade = useGenerationOrchestratorFacade()
 
   const { params, isGenerating } = storeToRefs(formStore)
   const { showHistory, showModal, selectedResult } = storeToRefs(uiStore)
-  const { recentResults } = storeToRefs(resultsStore)
+  const recentResults = generationFacade.results
 
-  const showImageModal = (result: GenerationResult | null): void => {
+  const toMutableResult = (result: ResultItemView): GenerationResult =>
+    ({ ...result } as GenerationResult)
+
+  const showImageModal = (result: ResultItemView | null): void => {
     if (!result) {
       return
     }
 
-    uiStore.selectResult(result)
+    uiStore.selectResult(toMutableResult(result))
   }
 
   const hideImageModal = (): void => {
     uiStore.setShowModal(false)
   }
 
-  const reuseParameters = (result: GenerationResult): void => {
-    formStore.applyResultParameters(result)
+  const reuseParameters = (result: ResultItemView): void => {
+    formStore.applyResultParameters(toMutableResult(result))
 
     notify('Parameters loaded from result', 'success')
   }
