@@ -1,14 +1,14 @@
 import { getCurrentScope, onScopeDispose, ref, shallowRef } from 'vue';
 
 import { useGenerationOrchestratorManager, type GenerationOrchestratorBinding } from './useGenerationOrchestratorManager';
-import { useGenerationQueueStore } from '../stores/queue';
+import { useGenerationOrchestratorFacade } from '@/features/generation/orchestrator';
 import { useNotifications } from '@/composables/shared';
 import type { NotificationType } from '@/types';
 
 export interface UseJobQueueActionsOptions {}
 
 export const useJobQueueActions = (_options: UseJobQueueActionsOptions = {}) => {
-  const queueStore = useGenerationQueueStore();
+  const generationFacade = useGenerationOrchestratorFacade();
   const orchestratorManager = useGenerationOrchestratorManager();
   const notifications = useNotifications();
 
@@ -82,7 +82,7 @@ export const useJobQueueActions = (_options: UseJobQueueActionsOptions = {}) => 
   };
 
   const clearCompletedJobs = (): void => {
-    queueStore.clearCompletedJobs();
+    generationFacade.clearCompletedJobs();
   };
 
   return {

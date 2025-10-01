@@ -1,4 +1,5 @@
 import type { GenerationHistoryResult, GenerationResult } from '@/types';
+import type { DeepReadonly } from '@/utils/freezeDeep';
 
 const ensureCreatedAt = (timestamp?: string): string => {
   if (typeof timestamp === 'string' && timestamp.trim()) {
@@ -7,7 +8,9 @@ const ensureCreatedAt = (timestamp?: string): string => {
   return new Date().toISOString();
 };
 
-export const toHistoryResult = (result: GenerationResult): GenerationHistoryResult => ({
+export const toHistoryResult = (
+  result: DeepReadonly<GenerationResult> | GenerationResult,
+): GenerationHistoryResult => ({
   id: result.id,
   job_id: result.job_id ?? undefined,
   prompt: result.prompt ?? null,
@@ -44,7 +47,7 @@ export const toGenerationResult = (result: GenerationHistoryResult): GenerationR
 });
 
 export const mapGenerationResultsToHistory = (
-  results: readonly GenerationResult[],
+  results: readonly (DeepReadonly<GenerationResult> | GenerationResult)[],
 ): GenerationHistoryResult[] => results.map((result) => toHistoryResult(result));
 
 export const mapHistoryResultsToGeneration = (

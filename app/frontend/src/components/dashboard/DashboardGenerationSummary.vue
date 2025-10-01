@@ -99,9 +99,9 @@ import { RouterLink } from 'vue-router';
 
 import { useBackendClient } from '@/services/backendClient';
 import { listResults as listHistoryResults } from '@/features/history/services';
-import { useGenerationResultsStore } from '@/features/generation/public';
+import { useGenerationOrchestratorFacade } from '@/features/generation/orchestrator';
 import { formatFileSize, formatRelativeTime } from '@/utils/format';
-import { mapGenerationResultsToHistory, mapHistoryResultsToGeneration } from '@/utils/generationHistory';
+import { mapGenerationResultsToHistory } from '@/utils/generationHistory';
 import type {
   GenerationHistoryResult,
   GenerationHistoryStats,
@@ -113,8 +113,8 @@ const SUMMARY_QUERY = Object.freeze({ page_size: 4, sort: 'created_at_desc' as c
 const backendClient = useBackendClient();
 const settingsStore = useSettingsStore();
 const { backendUrl } = storeToRefs(settingsStore);
-const resultsStore = useGenerationResultsStore();
-const { recentResults: storeResults } = storeToRefs(resultsStore);
+const generationFacade = useGenerationOrchestratorFacade();
+const storeResults = generationFacade.results;
 
 const stats = ref<GenerationHistoryStats>({
   total_results: 0,
@@ -171,9 +171,6 @@ const refresh = async () => {
     const output = await listHistoryResults({ ...SUMMARY_QUERY }, {}, backendClient);
     stats.value = output.stats;
     fetchedResults.value = output.results;
-    if (!storeResults.value.length && output.results.length) {
-      resultsStore.setResults(mapHistoryResultsToGeneration(output.results));
-    }
   } catch (err) {
     error.value = err instanceof Error ? err : new Error('Failed to load generation summary');
     console.error('Failed to refresh generation summary', err);
