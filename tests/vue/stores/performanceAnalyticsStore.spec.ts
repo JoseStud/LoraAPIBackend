@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 
-import * as services from '@/services';
+import * as backendClient from '@/services/backendClient';
+import * as backendRefreshService from '@/services/system/backendRefresh';
 import * as analyticsService from '@/features/analytics/services/analyticsService';
 import * as loraPublic from '@/features/lora/public';
 import { usePerformanceAnalyticsStore } from '@/features/analytics/stores/performanceAnalytics';
 
 const backendRefreshCallbacks: Array<() => void> = [];
 
-const useBackendClientSpy = vi.spyOn(services, 'useBackendClient');
-const useBackendRefreshSpy = vi.spyOn(services, 'useBackendRefresh');
+const useBackendClientSpy = vi.spyOn(backendClient, 'useBackendClient');
+const useBackendRefreshSpy = vi.spyOn(backendRefreshService, 'useBackendRefresh');
 const fetchPerformanceAnalyticsSpy = vi.spyOn(analyticsService, 'fetchPerformanceAnalytics');
 const fetchTopAdaptersSpy = vi.spyOn(loraPublic, 'fetchTopAdapters');
 
@@ -109,5 +110,53 @@ describe('performanceAnalytics store', () => {
     await flushAsync();
 
     expect(fetchPerformanceAnalyticsSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('manages the auto refresh interval based on state changes', async () => {
+    vi.useFakeTimers();
+    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
+    const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval');
+
+    const store = usePerformanceAnalyticsStore();
+
+    await store.ensureLoaded();
+    fetchPerformanceAnalyticsSpy.mockClear().mockResolvedValue(createSummary());
+
+    store.toggleAutoRefresh(true);
+    await flushAsync();
+
+    expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+    expect(setIntervalSpy).toHaveBeenLastCalledWith(expect.any(Function), 30_000);
+
+    vi.advanceTimersByTime(30_000);
+    await flushAsync();
+
+    expect(fetchPerformanceAnalyticsSpy).toHaveBeenCalledTimes(1);
+
+    store.toggleAutoRefresh(false);
+    await flushAsync();
+    expect(clearIntervalSpy).toHaveBeenCalledTimes(1);
+
+    setIntervalSpy.mockRestore();
+    clearIntervalSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('clears the auto refresh interval when the store is disposed', async () => {
+    vi.useFakeTimers();
+    const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval');
+
+    const store = usePerformanceAnalyticsStore();
+    store.toggleAutoRefresh(true);
+    await flushAsync();
+
+    clearIntervalSpy.mockClear();
+
+    store.$dispose();
+
+    expect(clearIntervalSpy).toHaveBeenCalledTimes(1);
+
+    clearIntervalSpy.mockRestore();
+    vi.useRealTimers();
   });
 });
