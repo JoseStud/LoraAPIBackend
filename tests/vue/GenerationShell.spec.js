@@ -8,8 +8,7 @@ import { mount } from '@vue/test-utils'
 import GenerationShell from '@/features/generation/ui/GenerationShell.vue'
 import { useAppStore } from '../../app/frontend/src/stores/app'
 import { useGenerationFormStore } from '@/features/generation/stores/form'
-import { useGenerationQueueStore } from '@/features/generation/stores/queue'
-import { useGenerationResultsStore } from '@/features/generation/stores/results'
+import { useGenerationOrchestratorStore } from '@/features/generation/stores/useGenerationOrchestratorStore'
 import { useGenerationStudioUiStore } from '@/features/generation/stores/ui'
 import { useGenerationConnectionStore } from '@/features/generation/stores/connection'
 import { PERSISTENCE_KEYS } from '../../app/frontend/src/composables/shared/usePersistence'
@@ -138,8 +137,6 @@ global.fetch = vi.fn()
 describe('GenerationShell.vue', () => {
   let wrapper
   let appStore
-  let queueStore
-  let resultsStore
   let connectionStore
   let formStore
   let uiStore
@@ -148,13 +145,11 @@ describe('GenerationShell.vue', () => {
     vi.clearAllMocks()
     appStore = useAppStore()
     appStore.$reset()
-    queueStore = useGenerationQueueStore()
-    resultsStore = useGenerationResultsStore()
+    const orchestratorStore = useGenerationOrchestratorStore()
     connectionStore = useGenerationConnectionStore()
     formStore = useGenerationFormStore()
     uiStore = useGenerationStudioUiStore()
-    queueStore.resetState()
-    resultsStore.resetState()
+    orchestratorStore.resetState()
     connectionStore.resetState()
     formStore.reset()
     uiStore.reset()

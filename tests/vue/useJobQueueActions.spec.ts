@@ -1,12 +1,23 @@
 import { computed, effectScope, ref } from 'vue';
-import { storeToRefs } from 'pinia';
 
 import { useJobQueueActions } from '@/composables/generation/useJobQueueActions';
 import type {
   GenerationOrchestratorBinding,
   UseGenerationOrchestratorManagerReturn,
 } from '@/composables/generation/useGenerationOrchestratorManager';
-import { useGenerationQueueStore } from '@/features/generation/stores/queue';
+import type { GenerationJob } from '@/types';
+
+const activeJobs = ref<ReadonlyArray<GenerationJob>>([]);
+const queueManagerActive = ref(true);
+
+const generationFacade = {
+  activeJobs: computed(() => activeJobs.value),
+  sortedActiveJobs: computed(() => activeJobs.value),
+  queueManagerActive,
+  cancelJob: vi.fn(async (jobId: string) => cancelJobImpl(jobId)),
+  clearCompletedJobs: vi.fn(),
+  removeJob: vi.fn(),
+};
 
 const notificationMocks = vi.hoisted(() => ({
   notifications: { value: [] },
@@ -42,6 +53,10 @@ vi.mock('@/composables/generation/useGenerationOrchestratorManager', () => ({
   useGenerationOrchestratorManager: () => orchestratorMocks.manager!,
 }));
 
+vi.mock('@/features/generation/orchestrator', () => ({
+  useGenerationOrchestratorFacade: () => generationFacade,
+}));
+
 vi.mock('@/composables/shared', async () => {
   const actual = await vi.importActual('@/composables/shared');
   return {
@@ -51,12 +66,9 @@ vi.mock('@/composables/shared', async () => {
 });
 
 const createManagerMock = (): UseGenerationOrchestratorManagerReturn => {
-  const queueStore = useGenerationQueueStore();
-  const { activeJobs, sortedActiveJobs } = storeToRefs(queueStore);
-
   return {
-    activeJobs: computed(() => activeJobs.value),
-    sortedActiveJobs: computed(() => sortedActiveJobs.value),
+    activeJobs: computed(() => generationFacade.activeJobs.value),
+    sortedActiveJobs: computed(() => generationFacade.sortedActiveJobs.value),
     recentResults: ref([]),
     systemStatus: ref({ status: 'healthy' } as const),
     isConnected: ref(true),
@@ -67,24 +79,19 @@ const createManagerMock = (): UseGenerationOrchestratorManagerReturn => {
 };
 
 const createBindingMock = (): GenerationOrchestratorBinding => {
-  const queueStore = useGenerationQueueStore();
-  const { activeJobs, sortedActiveJobs, recentResults } = storeToRefs(queueStore);
-  const systemStatus = ref({ status: 'healthy' } as const);
-  const isConnected = ref(true);
-
   return {
-    activeJobs,
-    sortedActiveJobs,
-    recentResults,
-    systemStatus,
-    isConnected,
+    activeJobs: computed(() => generationFacade.activeJobs.value),
+    sortedActiveJobs: computed(() => generationFacade.sortedActiveJobs.value),
+    recentResults: ref([]),
+    systemStatus: ref({ status: 'healthy' } as const),
+    isConnected: ref(true),
     initialize: vi.fn(),
     cleanup: vi.fn(),
     loadSystemStatusData: vi.fn(),
     loadActiveJobsData: vi.fn(),
     loadRecentResultsData: vi.fn(),
     startGeneration: vi.fn(),
-    cancelJob: vi.fn((jobId: string) => cancelJobImpl(jobId)),
+    cancelJob: vi.fn(),
     clearQueue: vi.fn(),
     deleteResult: vi.fn(),
     refreshResults: vi.fn(),
@@ -117,8 +124,8 @@ describe('useJobQueueActions', () => {
     vi.clearAllMocks();
     cancelJobImpl = async () => {};
 
-    const queueStore = useGenerationQueueStore();
-    queueStore.resetQueue();
+    activeJobs.value = [];
+    queueManagerActive.value = true;
 
     orchestratorMocks.binding = createBindingMock();
     orchestratorMocks.manager = createManagerMock();
@@ -128,23 +135,31 @@ describe('useJobQueueActions', () => {
     notificationMocks.showToastInfo.mockClear();
     notificationMocks.showToastSuccess.mockClear();
     notificationMocks.notify.mockClear();
+    generationFacade.cancelJob.mockClear();
+    generationFacade.clearCompletedJobs.mockClear();
+    generationFacade.removeJob.mockClear();
   });
 
   it('cancels a job via the orchestrator binding', async () => {
     await withActions(async (actions) => {
-      const queueStore = useGenerationQueueStore();
-      const { jobs } = storeToRefs(queueStore);
-
-      queueStore.enqueueJob({ id: 'job-1', jobId: 'backend-1', status: 'processing' });
+      activeJobs.value = [
+        {
+          id: 'job-1',
+          jobId: 'backend-1',
+          status: 'processing',
+        } as GenerationJob,
+      ];
       cancelJobImpl = async (jobId) => {
-        queueStore.removeJob(jobId);
+        activeJobs.value = activeJobs.value.filter(
+          (item) => item.id !== jobId,
+        );
       };
 
       const result = await actions.cancelJob('job-1');
 
       expect(result).toBe(true);
-      expect(orchestratorMocks.binding.cancelJob).toHaveBeenCalledWith('job-1');
-      expect(jobs.value).toHaveLength(0);
+      expect(generationFacade.cancelJob).toHaveBeenCalledWith('job-1');
+      expect(activeJobs.value).toHaveLength(0);
     });
   });
 
@@ -163,15 +178,19 @@ describe('useJobQueueActions', () => {
     };
 
     await withActions(async (actions) => {
-      const queueStore = useGenerationQueueStore();
-      const { jobs } = storeToRefs(queueStore);
-      queueStore.enqueueJob({ id: 'job-3', jobId: 'backend-3', status: 'queued' });
+      activeJobs.value = [
+        {
+          id: 'job-3',
+          jobId: 'backend-3',
+          status: 'queued',
+        } as GenerationJob,
+      ];
 
       const result = await actions.cancelJob('job-3');
 
       expect(result).toBe(false);
       expect(notificationMocks.showToast).toHaveBeenCalledWith('Failed to cancel job', 'error');
-      expect(jobs.value).toHaveLength(1);
+      expect(activeJobs.value).toHaveLength(1);
     });
   });
 });

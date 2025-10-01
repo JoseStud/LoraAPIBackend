@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
 import { normalizeGenerationProgress } from '../../app/frontend/src/utils/progress.ts'
-import { useGenerationQueueStore } from '../../app/frontend/src/stores/generation/queue.ts'
+import { useGenerationOrchestratorStore } from '../../app/frontend/src/features/generation/stores/useGenerationOrchestratorStore'
 
 describe('normalizeGenerationProgress', () => {
   it('returns 0 for undefined and null values', () => {
@@ -39,7 +39,7 @@ describe('useGenerationQueueStore progress normalization', () => {
   })
 
   it('clamps progress values above 100 received from progress messages', () => {
-    const store = useGenerationQueueStore()
+    const store = useGenerationOrchestratorStore()
 
     store.handleProgressMessage({
       job_id: 'job-1',
@@ -52,7 +52,7 @@ describe('useGenerationQueueStore progress normalization', () => {
   })
 
   it('clamps progress values below 0 received from progress messages', () => {
-    const store = useGenerationQueueStore()
+    const store = useGenerationOrchestratorStore()
 
     store.enqueueJob({ id: 'job-2', status: 'processing', progress: 25 })
 

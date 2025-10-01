@@ -1,14 +1,14 @@
 import { computed } from 'vue';
 
-import { useGenerationOrchestratorManager } from './useGenerationOrchestratorManager';
+import { useGenerationOrchestratorFacade } from '@/features/generation/orchestrator';
 
 export const useJobQueue = () => {
-  const manager = useGenerationOrchestratorManager();
+  const facade = useGenerationOrchestratorFacade();
 
   return {
-    jobs: manager.sortedActiveJobs,
+    jobs: facade.sortedActiveJobs,
     isReady: computed(() => true),
-    queueManagerActive: manager.queueManagerActive,
+    queueManagerActive: facade.queueManagerActive,
   } as const;
 };
 

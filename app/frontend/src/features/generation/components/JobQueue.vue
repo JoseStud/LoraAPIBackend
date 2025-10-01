@@ -81,7 +81,7 @@ import { useJobQueue } from '../composables/useJobQueue';
 import { useJobQueueActions } from '../composables/useJobQueueActions';
 import { formatElapsedTime } from '@/utils/format';
 
-import type { GenerationJob } from '@/types';
+import type { QueueItemView } from '@/features/generation/orchestrator';
 
 interface Props {
   title?: string;
@@ -143,7 +143,7 @@ const getStatusColorClass = (status: string) => {
   }
 };
 
-const getJobDetailsText = (job: GenerationJob) => {
+const getJobDetailsText = (job: QueueItemView) => {
   if (job.params && typeof job.params === 'object') {
     const width = job.params.width ?? '—';
     const height = job.params.height ?? '—';
@@ -153,7 +153,7 @@ const getJobDetailsText = (job: GenerationJob) => {
   return 'Processing…';
 };
 
-const canCancelJob = (job: GenerationJob) => {
+const canCancelJob = (job: QueueItemView) => {
   return job.status === 'queued' || job.status === 'processing';
 };
 

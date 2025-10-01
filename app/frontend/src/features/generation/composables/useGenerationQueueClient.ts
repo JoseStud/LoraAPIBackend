@@ -3,7 +3,7 @@ import { ref, shallowRef } from 'vue';
 import { createGenerationQueueClient, type GenerationQueueClient } from '../services/queueClient';
 import { generationPollingConfig } from '../config/polling';
 import { parseGenerationJobStatuses, parseGenerationResults } from '../services/validation';
-import type { GenerationJobInput } from '../stores/queue';
+import type { GenerationJobInput } from '../stores/useGenerationOrchestratorStore';
 import type {
   GenerationJobStatus,
   GenerationRequestPayload,

@@ -1,7 +1,7 @@
 import { extractGenerationErrorMessage } from '../services/updates';
 import type { GenerationQueueClient } from '../services/queueClient';
 import type { GenerationWebSocketManager } from '../services/websocketManager';
-import type { GenerationJobInput } from '../stores/queue';
+import type { GenerationJobInput } from '../stores/useGenerationOrchestratorStore';
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,

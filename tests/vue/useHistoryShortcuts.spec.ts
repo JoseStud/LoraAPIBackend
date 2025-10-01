@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { computed, ref } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 
-import { useGenerationResultsStore } from '../../app/frontend/src/stores/generation/results';
+import { useGenerationOrchestratorStore } from '../../app/frontend/src/features/generation/stores/useGenerationOrchestratorStore';
 import { useHistoryShortcuts } from '../../app/frontend/src/composables/history/useHistoryShortcuts';
 
 describe('useHistoryShortcuts', () => {
@@ -11,7 +11,7 @@ describe('useHistoryShortcuts', () => {
   });
 
   it('selects all items when ctrl+a is pressed for large result sets', () => {
-    const store = useGenerationResultsStore();
+    const store = useGenerationOrchestratorStore();
     const results = Array.from({ length: 1000 }, (_, index) => ({
       id: index + 1,
       prompt: `item-${index + 1}`,

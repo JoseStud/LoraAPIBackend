@@ -1,6 +1,9 @@
 import { getCurrentScope, onScopeDispose, ref, shallowRef } from 'vue';
 
-import { useGenerationOrchestratorManager, type GenerationOrchestratorBinding } from './useGenerationOrchestratorManager';
+import {
+  useGenerationOrchestratorManager,
+  type GenerationOrchestratorBinding,
+} from './useGenerationOrchestratorManager';
 import { useGenerationOrchestratorFacade } from '@/features/generation/orchestrator';
 import { useNotifications } from '@/composables/shared';
 import type { NotificationType } from '@/types';
@@ -56,21 +59,27 @@ export const useJobQueueActions = (_options: UseJobQueueActionsOptions = {}) => 
       return false;
     }
 
-    const job = orchestratorManager.activeJobs.value.find(
-      (item) => item.id === jobId || String(item.jobId ?? '') === jobId,
-    );
+    ensureBinding();
+
+    const activeJobs = generationFacade.activeJobs.value;
+    const job = activeJobs.find((item) => {
+      const backendJobId = (item as { jobId?: string | number }).jobId;
+      return item.id === jobId || String(backendJobId ?? '') === jobId;
+    });
 
     if (!job) {
       dispatchToast('Job not found', 'error');
       return false;
     }
 
-    const queueJobId = typeof job.id === 'string' ? job.id : String(job.id ?? jobId);
+    const backendJobId = (job as { jobId?: string | number }).jobId;
+    const candidateId = backendJobId ?? job.id ?? jobId;
+    const resolvedJobId = typeof candidateId === 'string' ? candidateId : String(candidateId);
 
     isCancelling.value = true;
 
     try {
-      await ensureBinding().cancelJob(queueJobId);
+      await generationFacade.cancelJob(resolvedJobId);
       return true;
     } catch (error) {
       debug('Failed to cancel job', error);
@@ -82,13 +91,20 @@ export const useJobQueueActions = (_options: UseJobQueueActionsOptions = {}) => 
   };
 
   const clearCompletedJobs = (): void => {
+    ensureBinding();
     generationFacade.clearCompletedJobs();
+  };
+
+  const removeJob = (jobId: string | number): void => {
+    ensureBinding();
+    generationFacade.removeJob(jobId);
   };
 
   return {
     isCancelling,
     cancelJob,
     clearCompletedJobs,
+    removeJob,
   } as const;
 };
 
