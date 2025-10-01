@@ -25,4 +25,9 @@ This guide describes where reactive side-effects (watchers, timers, event handle
 - Performing API polling outside the orchestrator/manager, leading to duplicate requests and inconsistent error handling.
 - Relying on global event buses for backend configuration or connection state—stick with reactive stores.
 
+## Import boundaries
+
+- Generation stores are **internal-only**. Import `useGenerationOrchestratorFacade()` (or manager bindings) when a feature needs queue/results state or commands. Direct `@/features/generation/stores/**` imports are lint errors outside the generation feature tree, and the stores are marked `@internal` to reinforce the boundary.【F:app/frontend/src/features/generation/orchestrator/facade.ts†L1-L213】【F:.eslintrc.cjs†L1-L123】
+- When a view needs to trigger queue actions, call façade commands (`cancelJob`, `refreshHistory`, `setHistoryLimit`) instead of mutating Pinia stores. Command telemetry provides duration/error logging, while `pendingActionsCount` enables UI spinners without leaking implementation details.【F:app/frontend/src/features/generation/orchestrator/facade.ts†L94-L210】
+
 Following these rules keeps effects predictable, prevents leaks, and ensures future refactors remain straightforward.

@@ -8,8 +8,7 @@
         "app/frontend/src/features/generation/orchestrator/facade.ts"
       ],
       "@/features/*": ["app/frontend/src/features/*"],
-      "@/composables/generation/*": ["app/frontend/src/features/generation/composables/*"],
-      "@/stores/generation": ["app/frontend/src/features/generation/stores/form.ts"]
+      "@/composables/generation/*": ["app/frontend/src/features/generation/composables/*"]
     },
     "types": ["vite/client"],
     "allowJs": false,

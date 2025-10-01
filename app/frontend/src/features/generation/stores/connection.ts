@@ -1,3 +1,4 @@
+/** @internal */
 import { useGenerationOrchestratorStore } from './useGenerationOrchestratorStore';
 
 export { DEFAULT_SYSTEM_STATUS, createDefaultSystemStatus } from './useGenerationOrchestratorStore';

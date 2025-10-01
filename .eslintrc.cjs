@@ -1,4 +1,76 @@
 /* eslint-env node */
+
+const generationStoreRestriction = {
+  group: ['@/features/generation/stores/**'],
+  message:
+    'Generation stores are internal. Import `useGenerationOrchestratorFacade` from "@/features/generation/orchestrator" instead.',
+};
+
+const restrictedImportRuleConfig = {
+  paths: [
+    {
+      name: '@/components/compose',
+      message:
+        'Import compose helpers from the prompt composer feature barrels instead of the legacy components path.',
+    },
+    {
+      name: '@/stores/generationQueue',
+      message:
+        'Route generation queue access through the orchestrator facade instead of the legacy store entry.',
+    },
+    {
+      name: '@/stores/generationResults',
+      message:
+        'Route generation result access through the orchestrator facade instead of the legacy store entry.',
+    },
+  ],
+  patterns: [
+    {
+      group: ['@/composables/*/*', '@/composables/*/**'],
+      message: "Import composables via the feature barrel, e.g. '@/composables/<feature>'.",
+    },
+    {
+      group: ['@/services/generation/*'],
+      message: "Import from the generation services barrel: '@/services/generation'.",
+    },
+    {
+      group: [
+        '@/services/generation',
+        '@/services/system',
+        '@/services/lora',
+        '@/services/history',
+      ],
+      message: "Prefer the root services barrel: '@/services'.",
+    },
+    {
+      group: ['@/services/systemService'],
+      message: "Import from the system services barrel: '@/services/system'.",
+    },
+    {
+      group: ['@/services/loraService'],
+      message: "Import from the lora services barrel: '@/services/lora'.",
+    },
+    {
+      group: ['@/services/historyService'],
+      message: "Import from the history services barrel: '@/services/history'.",
+    },
+    {
+      group: [
+        '@/stores/adminMetrics',
+        '@/stores/settings',
+        '@/stores/app',
+      ],
+      message: "Import stores from the root barrel: '@/stores'.",
+    },
+    {
+      group: ['@/stores/generation/*'],
+      message:
+        'Generation stores are internal modules. Import the orchestrator facade from "@/features/generation/orchestrator".',
+    },
+    generationStoreRestriction,
+  ],
+};
+
 module.exports = {
   root: true,
   env: {
@@ -29,71 +101,7 @@ module.exports = {
     // Enforce barrel imports for composables and generation services
     // Prefer: '@/composables/<feature>' and '@/services/generation'
     // Avoid: '@/composables/<feature>/SomeFile' and '@/services/generation/<file>'
-    'no-restricted-imports': [
-      'error',
-      {
-        paths: [
-          {
-            name: '@/components/compose',
-            message:
-              'Import compose helpers from the prompt composer feature barrels instead of the legacy components path.',
-          },
-          {
-            name: '@/stores/generationQueue',
-            message:
-              'Import generation queue state via the orchestrator manager barrels rather than the legacy store entry.',
-          },
-          {
-            name: '@/stores/generationResults',
-            message:
-              'Import generation results state via the orchestrator manager barrels rather than the legacy store entry.',
-          },
-        ],
-        patterns: [
-          {
-            group: ['@/composables/*/*', '@/composables/*/**'],
-            message: 'Import composables via the feature barrel, e.g. \'@/composables/<feature>\'.',
-          },
-          {
-            group: ['@/services/generation/*'],
-            message: 'Import from the generation services barrel: \'@/services/generation\'.',
-          },
-          {
-            group: [
-              '@/services/generation',
-              '@/services/system',
-              '@/services/lora',
-              '@/services/history',
-            ],
-            message: 'Prefer the root services barrel: \'@/services\'.',
-          },
-          {
-            group: ['@/services/systemService'],
-            message: 'Import from the system services barrel: \'@/services/system\'.',
-          },
-          {
-            group: ['@/services/loraService'],
-            message: 'Import from the lora services barrel: \'@/services/lora\'.',
-          },
-          {
-            group: ['@/services/historyService'],
-            message: 'Import from the history services barrel: \'@/services/history\'.',
-          },
-          {
-            group: [
-              '@/stores/adminMetrics',
-              '@/stores/settings',
-              '@/stores/app',
-            ],
-            message: 'Import stores from the root barrel: \'@/stores\'.',
-          },
-          {
-            group: ['@/stores/generation/*'],
-            message: 'Import generation stores via the barrel: \'@/stores/generation\'.',
-          },
-        ],
-      },
-    ],
+    'no-restricted-imports': ['error', restrictedImportRuleConfig],
   },
   overrides: [
     {
@@ -124,6 +132,20 @@ module.exports = {
       rules: {
         'no-console': 'off',
         '@typescript-eslint/no-unused-vars': 'off',
+      },
+    },
+    {
+      files: ['app/frontend/src/features/generation/**/*.{ts,tsx,js,vue}'],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            ...restrictedImportRuleConfig,
+            patterns: restrictedImportRuleConfig.patterns.filter(
+              (pattern) => pattern !== generationStoreRestriction,
+            ),
+          },
+        ],
       },
     },
   ],

@@ -1,3 +1,4 @@
+/** @internal */
 import { reactive, readonly, ref } from 'vue';
 
 import { DEFAULT_POLL_INTERVAL } from '../../services/updates';

@@ -4,7 +4,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
 import { useGenerationStudio } from '@/composables/generation/useGenerationStudio'
-import { useGenerationFormStore } from '@/stores/generation'
+import { useGenerationFormStore } from '@/features/generation/stores/form'
 import type { UseGenerationStudioReturn } from '@/composables/generation'
 import { PERSISTENCE_KEYS } from '@/composables/shared'
 

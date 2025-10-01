@@ -1,3 +1,4 @@
+/** @internal */
 import { computed, readonly, ref } from 'vue';
 
 import { GenerationResultSchema } from '@/schemas';

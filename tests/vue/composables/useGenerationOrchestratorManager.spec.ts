@@ -5,12 +5,9 @@ import {
   createUseGenerationOrchestratorManager,
   type UseGenerationOrchestratorManagerDependencies,
 } from '@/features/generation/composables/useGenerationOrchestratorManager';
-import type {
-  GenerationOrchestratorConsumer,
-  GenerationOrchestratorManagerStore,
-  GenerationOrchestratorStore,
-  GenerationStudioUiStore,
-} from '@/features/generation/stores';
+import type { GenerationOrchestratorConsumer, GenerationOrchestratorManagerStore } from '@/features/generation/stores/orchestratorManagerStore';
+import type { GenerationOrchestratorStore } from '@/features/generation/stores/useGenerationOrchestratorStore';
+import type { GenerationStudioUiStore } from '@/features/generation/stores/ui';
 import { useBackendUrl } from '@/utils/backend';
 import type {
   GenerationJob,

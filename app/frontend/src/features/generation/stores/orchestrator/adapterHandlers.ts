@@ -1,3 +1,4 @@
+/** @internal */
 import type { QueueModule } from './queueModule';
 import type { ResultsModule } from './resultsModule';
 import type { SystemStatusModule } from './systemStatusModule';

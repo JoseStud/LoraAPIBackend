@@ -1,3 +1,4 @@
+/** @internal */
 import { defineStore } from 'pinia';
 import { ref, shallowRef } from 'vue';
 

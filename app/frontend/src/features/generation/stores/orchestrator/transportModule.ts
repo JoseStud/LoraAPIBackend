@@ -1,3 +1,4 @@
+/** @internal */
 import { computed, readonly, ref } from 'vue';
 
 import type { GenerationTransportAdapter } from '../../composables/createGenerationTransportAdapter';

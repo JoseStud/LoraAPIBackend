@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
-import { useGenerationFormStore } from '@/stores/generation'
+import { useGenerationFormStore } from '@/features/generation/stores/form'
 import type { GenerationResult } from '@/types'
 
 describe('generation form store', () => {
