@@ -30,56 +30,12 @@ def _parse_rg_output(output: str) -> list[tuple[Path, str, str]]:
         matches.append((Path(path_str), line_no, content))
     return matches
 
-
-def _ensure_generation_studio_imports_are_scoped() -> None:
-    """Fail if GenerationStudio.vue is imported outside the public barrels."""
-
-    allowed_files = {
-        Path("app/frontend/src/features/generation/components/index.ts"),
-        Path("app/frontend/src/features/generation/public.ts"),
-    }
-
-    result = subprocess.run(
-        (
-            "rg",
-            "--with-filename",
-            "--line-number",
-            "--no-heading",
-            "GenerationStudio\\.vue",
-            "app/frontend/src",
-        ),
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-
-    if result.returncode not in (0, 1):
-        raise RuntimeError("Failed to scan for GenerationStudio.vue imports")
-
-    matches = _parse_rg_output(result.stdout)
-    violations = [
-        (path, line_no, content)
-        for path, line_no, content in matches
-        if path not in allowed_files
-    ]
-
-    if violations:
-        formatted = "\n".join(
-            f"- {path}:{line_no}: {content.strip()}" for path, line_no, content in violations
-        )
-        raise SystemExit(
-            "GenerationStudio.vue may only be imported via the feature barrel.\n"
-            f"Remove the direct import(s):\n{formatted}"
-        )
-
-
 def _ensure_cancel_job_usage_is_guarded() -> None:
     """Ensure cancelGenerationJob is only used within the orchestrator manager surface."""
 
     allowed_files = {
         Path("app/frontend/src/features/generation/services/generationService.ts"),
         Path("app/frontend/src/features/generation/services/queueClient.ts"),
-        Path("app/frontend/src/features/generation/composables/useJobQueueActions.ts"),
     }
 
     result = subprocess.run(
@@ -167,7 +123,6 @@ def _ensure_generation_stores_are_private() -> None:
 def run_guardrail_checks() -> None:
     """Run repository guardrail validations prior to full CI checks."""
 
-    _ensure_generation_studio_imports_are_scoped()
     _ensure_cancel_job_usage_is_guarded()
     _ensure_generation_stores_are_private()
 

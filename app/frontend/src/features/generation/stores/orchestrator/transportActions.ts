@@ -73,8 +73,15 @@ export const createTransportActions = ({
 
   const cancelJob = async (jobId: string): Promise<void> => {
     const adapter = ensureTransport();
-    await adapter.cancelJob(jobId);
-    queue.removeJob(jobId);
+    const job = queue.activeJobs.value.find(
+      (item) => item.id === jobId || String(item.jobId ?? '') === jobId,
+    );
+    const backendJobId = job?.jobId != null && String(job.jobId)
+      ? String(job.jobId)
+      : jobId;
+
+    await adapter.cancelJob(backendJobId);
+    queue.removeJob(job?.id ?? jobId);
   };
 
   const clearQueue = async (): Promise<void> => {

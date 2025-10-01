@@ -1,19 +1,17 @@
 /**
- * Unit tests for GenerationStudio Vue component
+ * Unit tests for GenerationShell Vue component
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 
-import GenerationStudio from '../../app/frontend/src/components/generation/GenerationStudio.vue'
+import GenerationShell from '@/features/generation/ui/GenerationShell.vue'
 import { useAppStore } from '../../app/frontend/src/stores/app'
-import {
-  useGenerationConnectionStore,
-  useGenerationFormStore,
-  useGenerationQueueStore,
-  useGenerationResultsStore,
-  useGenerationStudioUiStore,
-} from '../../app/frontend/src/stores/generation'
+import { useGenerationFormStore } from '@/features/generation/stores/form'
+import { useGenerationQueueStore } from '@/features/generation/stores/queue'
+import { useGenerationResultsStore } from '@/features/generation/stores/results'
+import { useGenerationStudioUiStore } from '@/features/generation/stores/ui'
+import { useGenerationConnectionStore } from '@/features/generation/stores/connection'
 import { PERSISTENCE_KEYS } from '../../app/frontend/src/composables/shared/usePersistence'
 
 const mockStatusController = vi.hoisted(() => ({
@@ -137,7 +135,7 @@ global.console = {
 // Mock fetch
 global.fetch = vi.fn()
 
-describe('GenerationStudio.vue', () => {
+describe('GenerationShell.vue', () => {
   let wrapper
   let appStore
   let queueStore
@@ -155,9 +153,9 @@ describe('GenerationStudio.vue', () => {
     connectionStore = useGenerationConnectionStore()
     formStore = useGenerationFormStore()
     uiStore = useGenerationStudioUiStore()
-    queueStore.reset()
-    resultsStore.reset()
-    connectionStore.reset()
+    queueStore.resetState()
+    resultsStore.resetState()
+    connectionStore.resetState()
     formStore.reset()
     uiStore.reset()
     localStorageMock.getItem.mockReturnValue(null)
@@ -188,7 +186,7 @@ describe('GenerationStudio.vue', () => {
   })
 
   it('renders the main structure correctly', () => {
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
     // Check main elements
     expect(wrapper.find('.generation-page-container').exists()).toBe(true)
@@ -197,7 +195,7 @@ describe('GenerationStudio.vue', () => {
   })
 
   it('has correct initial state', () => {
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
     // Check initial parameter values
     const promptInput = wrapper.find('textarea[placeholder="Enter your prompt..."]')
@@ -210,7 +208,7 @@ describe('GenerationStudio.vue', () => {
   })
 
   it('updates parameters when user inputs change', async () => {
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
     const promptInput = wrapper.find('textarea[placeholder="Enter your prompt..."]')
     await promptInput.setValue('test prompt')
@@ -220,14 +218,14 @@ describe('GenerationStudio.vue', () => {
   })
 
   it('disables generate button when prompt is empty', () => {
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
     const generateButton = wrapper.find('.btn-primary')
     expect(generateButton.attributes('disabled')).toBeDefined()
   })
 
   it('enables generate button when prompt is provided', async () => {
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
     const promptInput = wrapper.find('textarea[placeholder="Enter your prompt..."]')
     await promptInput.setValue('test prompt')
@@ -237,22 +235,22 @@ describe('GenerationStudio.vue', () => {
   })
 
   it('shows empty state when no active jobs', () => {
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
-    expect(wrapper.text()).toContain('No active jobs')
-    expect(wrapper.text()).toContain('Generation queue is empty')
+    expect(wrapper.text()).toContain('No active generations')
+    expect(wrapper.text()).toContain('Start a generation to see progress here')
   })
 
   it('shows empty state when no recent results', () => {
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
     expect(wrapper.text()).toContain('No results yet')
     expect(wrapper.text()).toContain('Generated images will appear here')
   })
 
   it('initializes the generation controller when multiple studios mount', async () => {
-    const first = mount(GenerationStudio)
-    const second = mount(GenerationStudio)
+    const first = mount(GenerationShell)
+    const second = mount(GenerationShell)
 
     await nextTick()
 
@@ -264,7 +262,7 @@ describe('GenerationStudio.vue', () => {
   })
 
   it('handles random prompt generation', async () => {
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
     const randomButton = wrapper.findAll('.btn-secondary').find(btn =>
       btn.text().includes('Random Prompt')
@@ -280,7 +278,7 @@ describe('GenerationStudio.vue', () => {
   })
 
   it('reflects random seed updates in the input field', async () => {
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
     const seedInput = wrapper.find('input[type="number"][placeholder="-1 for random"]')
     await seedInput.setValue('12345')
@@ -296,7 +294,7 @@ describe('GenerationStudio.vue', () => {
   })
 
   it('handles job status classes correctly', () => {
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
     const component = wrapper.vm
 
@@ -308,7 +306,7 @@ describe('GenerationStudio.vue', () => {
   })
 
   it('formats time correctly', () => {
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
     const component = wrapper.vm
     const now = new Date()
@@ -322,7 +320,7 @@ describe('GenerationStudio.vue', () => {
   })
 
   it('determines job cancellation eligibility correctly', () => {
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
     const component = wrapper.vm
 
@@ -333,7 +331,7 @@ describe('GenerationStudio.vue', () => {
   })
 
   it('handles system status classes correctly', () => {
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
     const component = wrapper.vm
 
@@ -345,7 +343,7 @@ describe('GenerationStudio.vue', () => {
 
   it('saves parameters to localStorage when changed', async () => {
     vi.useFakeTimers()
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
     const promptInput = wrapper.find('textarea[placeholder="Enter your prompt..."]')
     await promptInput.setValue('test prompt for saving')
@@ -363,7 +361,7 @@ describe('GenerationStudio.vue', () => {
   })
 
   it('attempts to start generation when button is clicked', async () => {
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
     const promptInput = wrapper.find('textarea[placeholder="Enter your prompt..."]')
     await promptInput.setValue('test prompt')
@@ -385,7 +383,7 @@ describe('GenerationStudio.vue', () => {
         }),
     )
 
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
     const promptInput = wrapper.find('textarea[placeholder="Enter your prompt..."]')
     await promptInput.setValue('test prompt')
@@ -405,7 +403,7 @@ describe('GenerationStudio.vue', () => {
   })
 
   it('shows clear queue button as disabled when no jobs', () => {
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
     const clearButton = wrapper.findAll('.btn-secondary').find(btn => 
       btn.text().includes('Clear Queue')
@@ -415,7 +413,7 @@ describe('GenerationStudio.vue', () => {
   })
 
   it('handles keyboard input for range sliders', async () => {
-    wrapper = mount(GenerationStudio)
+    wrapper = mount(GenerationShell)
 
     const stepsSlider = wrapper.find('input[type="range"]')
     await stepsSlider.setValue('50')
