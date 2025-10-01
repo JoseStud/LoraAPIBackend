@@ -4,6 +4,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
 import { useGenerationStudio } from '@/composables/generation/useGenerationStudio'
+import type { UseGenerationStudioOptions } from '@/composables/generation/useGenerationStudio'
 import { useGenerationFormStore } from '@/features/generation/stores/form'
 import type { UseGenerationStudioReturn } from '@/composables/generation'
 import { PERSISTENCE_KEYS } from '@/composables/shared'
@@ -28,6 +29,8 @@ const orchestratorBindingMocks = vi.hoisted(() => {
     deleteResult: vi.fn().mockResolvedValue(undefined),
     refreshResults: vi.fn().mockResolvedValue(undefined),
     canCancelJob: vi.fn().mockReturnValue(true),
+    setHistoryLimit: vi.fn(),
+    handleBackendUrlChange: vi.fn().mockResolvedValue(undefined),
     release: vi.fn(),
   }
 })
@@ -38,7 +41,11 @@ const orchestratorManagerMocks = vi.hoisted(() => ({
   recentResults: orchestratorBindingMocks.recentResults,
   systemStatus: orchestratorBindingMocks.systemStatus,
   isConnected: orchestratorBindingMocks.isConnected,
-  acquire: vi.fn(() => orchestratorBindingMocks),
+  lastOptions: null as unknown,
+  acquire: vi.fn((options) => {
+    orchestratorManagerMocks.lastOptions = options
+    return orchestratorBindingMocks
+  }),
 }))
 
 const dialogServiceMocks = vi.hoisted(() => {
@@ -123,10 +130,10 @@ const localStorageMock = {
   clear: vi.fn(),
 }
 
-const mountComposable = async () => {
+const mountComposable = async (options?: UseGenerationStudioOptions) => {
   const TestComponent = defineComponent({
     setup(_, { expose }) {
-      const studio = useGenerationStudio()
+      const studio = useGenerationStudio(options)
       expose({ studio })
       return () => null
     },
@@ -151,6 +158,7 @@ describe('useGenerationStudio integration', () => {
     localStorageMock.getItem.mockReturnValue(null)
     dialogServiceMocks.confirm.mockClear()
     dialogServiceMocks.confirm.mockResolvedValue(true)
+    orchestratorManagerMocks.lastOptions = null
     wrapper = await mountComposable()
   })
 
@@ -163,6 +171,22 @@ describe('useGenerationStudio integration', () => {
   it('initializes the controller on mount', () => {
     expect(orchestratorManagerMocks.acquire).toHaveBeenCalled()
     expect(orchestratorBindingMocks.initialize).toHaveBeenCalled()
+  })
+
+  it('passes auto-sync options through to the orchestrator manager', async () => {
+    expect(orchestratorManagerMocks.lastOptions?.autoSync).toBe(true)
+
+    wrapper.unmount()
+    orchestratorManagerMocks.acquire.mockClear()
+    orchestratorManagerMocks.lastOptions = null
+
+    wrapper = await mountComposable({ autoSync: { historyLimit: false, backendUrl: false } })
+
+    expect(orchestratorManagerMocks.acquire).toHaveBeenCalled()
+    expect(orchestratorManagerMocks.lastOptions?.autoSync).toEqual({
+      historyLimit: false,
+      backendUrl: false,
+    })
   })
 
   it('starts a generation job and persists parameters', async () => {

@@ -3,12 +3,17 @@ import { computed } from 'vue'
 import { useGenerationPersistence } from './useGenerationPersistence'
 import { useGenerationUI } from './useGenerationUI'
 import { useGenerationStudioController } from './useGenerationStudioController'
+import type { GenerationOrchestratorAutoSyncOptions } from './useGenerationOrchestratorManager'
 import { useGenerationStudioNotifications } from './useGenerationStudioNotifications'
 import { useGenerationFormStore } from '../stores/form'
 import { useAsyncLifecycleTask } from '@/composables/shared'
 import type { GenerationFormState } from '@/types'
 
-export const useGenerationStudio = () => {
+export interface UseGenerationStudioOptions {
+  autoSync?: boolean | GenerationOrchestratorAutoSyncOptions
+}
+
+export const useGenerationStudio = ({ autoSync = true }: UseGenerationStudioOptions = {}) => {
   const formStore = useGenerationFormStore()
 
   const { notify, confirm: requestConfirmation, prompt: requestPrompt, logDebug } =
@@ -49,6 +54,7 @@ export const useGenerationStudio = () => {
     debug: logDebug,
     onAfterStart: persistParams,
     onAfterInitialize: loadParams,
+    autoSync,
   })
 
   const params = computed(() => uiParams.value)

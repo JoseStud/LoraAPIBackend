@@ -4,6 +4,7 @@ import { toGenerationRequestPayload } from '../services/generationService'
 import {
   useGenerationOrchestratorManager,
   type GenerationOrchestratorBinding,
+  type GenerationOrchestratorAutoSyncOptions,
 } from './useGenerationOrchestratorManager'
 import { useGenerationFormStore } from '../stores/form'
 import type { GenerationFormState, NotificationType, GenerationJob } from '@/types'
@@ -14,6 +15,7 @@ export interface UseGenerationStudioControllerOptions {
   debug?: (...args: unknown[]) => void
   onAfterStart?: (params: GenerationFormState) => void
   onAfterInitialize?: () => void | Promise<void>
+  autoSync?: boolean | GenerationOrchestratorAutoSyncOptions
 }
 
 export const useGenerationStudioController = ({
@@ -22,6 +24,7 @@ export const useGenerationStudioController = ({
   debug,
   onAfterStart,
   onAfterInitialize,
+  autoSync = true,
 }: UseGenerationStudioControllerOptions) => {
   const formStore = useGenerationFormStore()
   const orchestratorManager = useGenerationOrchestratorManager()
@@ -32,6 +35,7 @@ export const useGenerationStudioController = ({
       orchestratorBinding.value = orchestratorManager.acquire({
         notify,
         debug,
+        autoSync,
       })
     }
 

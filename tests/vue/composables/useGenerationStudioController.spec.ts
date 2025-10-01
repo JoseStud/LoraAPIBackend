@@ -37,6 +37,8 @@ const orchestratorBindings = vi.hoisted(() => {
     refreshResults: vi.fn(async (_notify?: boolean) => {}),
     deleteResult: vi.fn(async (_resultId: string | number) => {}),
     canCancelJob: vi.fn(() => true),
+    setHistoryLimit: vi.fn(),
+    handleBackendUrlChange: vi.fn(async () => {}),
     release: vi.fn(() => {}),
   }
 
@@ -73,7 +75,7 @@ const servicesMock = vi.hoisted(() => ({
   })),
 }))
 
-vi.mock('@/services', () => servicesMock)
+vi.mock('@/features/generation/services/generationService', () => servicesMock)
 
 const toGenerationRequestPayload = servicesMock.toGenerationRequestPayload
 
@@ -131,6 +133,9 @@ describe('useGenerationStudioController', () => {
     expect(orchestratorBindings.acquire).toHaveBeenCalledTimes(1)
     expect(orchestratorBindings.binding.initialize).toHaveBeenCalledTimes(1)
     expect(afterInitialize).toHaveBeenCalledTimes(1)
+
+    const acquireOptions = orchestratorBindings.acquire.mock.calls[0]?.[0]
+    expect(acquireOptions?.autoSync).toBe(true)
   })
 
   it('forwards queue actions to the orchestrator binding', async () => {
@@ -216,6 +221,22 @@ describe('useGenerationStudioController', () => {
     expect(controller.systemStatus.value).toEqual({ status: 'degraded' })
     expect(controller.isConnected.value).toBe(false)
     expect(controller.canCancelJob({ id: 'job-1' } as GenerationJob)).toBe(true)
+  })
+
+  it('forwards custom auto-sync options to the manager acquisition', async () => {
+    const params = ref(createParams())
+    const notify = vi.fn()
+
+    const controller = useGenerationStudioController({
+      params,
+      notify,
+      autoSync: { historyLimit: false, backendUrl: true },
+    })
+
+    await controller.initialize()
+
+    const acquireOptions = orchestratorBindings.acquire.mock.calls[0]?.[0]
+    expect(acquireOptions?.autoSync).toEqual({ historyLimit: false, backendUrl: true })
   })
 
   it('releases the orchestrator binding when unmounted', async () => {

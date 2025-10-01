@@ -1,4 +1,12 @@
-import { computed, effectScope, watch, type ComputedRef, type EffectScope, type Ref } from 'vue';
+import {
+  computed,
+  effectScope,
+  watch,
+  type ComputedRef,
+  type EffectScope,
+  type Ref,
+  type WatchStopHandle,
+} from 'vue';
 import { storeToRefs } from 'pinia';
 
 import type { GenerationNotificationAdapter } from './useGenerationTransport';
@@ -28,7 +36,30 @@ export interface GenerationOrchestratorAcquireOptions {
   debug?: GenerationNotificationAdapter['debug'];
   queueClient?: GenerationQueueClient;
   websocketManager?: GenerationWebSocketManager;
+  autoSync?: boolean | GenerationOrchestratorAutoSyncOptions;
 }
+
+export interface GenerationOrchestratorAutoSyncOptions {
+  historyLimit?: boolean;
+  backendUrl?: boolean;
+}
+
+const normalizeAutoSyncOptions = (
+  value: GenerationOrchestratorAcquireOptions['autoSync'],
+): Required<GenerationOrchestratorAutoSyncOptions> => {
+  if (value === false) {
+    return { historyLimit: false, backendUrl: false };
+  }
+
+  if (value === true || value === undefined) {
+    return { historyLimit: true, backendUrl: true };
+  }
+
+  return {
+    historyLimit: value.historyLimit ?? true,
+    backendUrl: value.backendUrl ?? true,
+  };
+};
 
 export interface UseGenerationOrchestratorManagerDependencies {
   useGenerationOrchestratorManagerStore: () => ReturnType<
@@ -115,38 +146,15 @@ export const createUseGenerationOrchestratorManager = (
   const ensureOrchestrator = (): ReturnType<typeof useGenerationOrchestratorStore> =>
     orchestratorManagerStore.ensureOrchestrator(() => orchestratorStore);
 
-  const ensureLifecycleScope = (): void => {
-    if (lifecycleScope) {
-      return;
+  let historyWatcherStop: WatchStopHandle | null = null;
+  let backendWatcherStop: WatchStopHandle | null = null;
+
+  const ensureLifecycleScope = (): EffectScope => {
+    if (!lifecycleScope) {
+      lifecycleScope = effectScope();
     }
 
-    lifecycleScope = effectScope();
-    lifecycleScope.run(() => {
-      watch(
-        historyLimit,
-        (next, previous) => {
-          if (!isInitialized.value || previous === next) {
-            return;
-          }
-
-          const orchestrator = ensureOrchestrator();
-          orchestrator.setHistoryLimit(next);
-          void orchestrator.loadRecentResults(false);
-        },
-      );
-
-      watch(
-        backendUrl,
-        (next, previous) => {
-          if (!isInitialized.value || next === previous) {
-            return;
-          }
-
-          const orchestrator = ensureOrchestrator();
-          void orchestrator.handleBackendUrlChange();
-        },
-      );
-    });
+    return lifecycleScope;
   };
 
   const stopLifecycleScope = (): void => {
@@ -154,8 +162,107 @@ export const createUseGenerationOrchestratorManager = (
       return;
     }
 
+    historyWatcherStop?.();
+    backendWatcherStop?.();
+    historyWatcherStop = null;
+    backendWatcherStop = null;
     lifecycleScope.stop();
     lifecycleScope = null;
+  };
+
+  const hasHistoryAutoSync = (): boolean => {
+    for (const consumer of consumers.value.values()) {
+      if (consumer.autoSyncHistory) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const hasBackendAutoSync = (): boolean => {
+    for (const consumer of consumers.value.values()) {
+      if (consumer.autoSyncBackend) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const startHistoryWatcher = (): void => {
+    if (historyWatcherStop || !hasHistoryAutoSync()) {
+      return;
+    }
+
+    const scope = ensureLifecycleScope();
+    historyWatcherStop =
+      scope.run(
+        () =>
+          watch(historyLimit, (next, previous) => {
+            if (!isInitialized.value || previous === next) {
+              return;
+            }
+
+            const orchestrator = ensureOrchestrator();
+            orchestrator.setHistoryLimit(next);
+            void orchestrator.loadRecentResults(false);
+          }),
+      ) ?? null;
+  };
+
+  const stopHistoryWatcher = (): void => {
+    if (!historyWatcherStop) {
+      return;
+    }
+
+    historyWatcherStop();
+    historyWatcherStop = null;
+  };
+
+  const startBackendWatcher = (): void => {
+    if (backendWatcherStop || !hasBackendAutoSync()) {
+      return;
+    }
+
+    const scope = ensureLifecycleScope();
+    backendWatcherStop =
+      scope.run(
+        () =>
+          watch(backendUrl, (next, previous) => {
+            if (!isInitialized.value || next === previous) {
+              return;
+            }
+
+            const orchestrator = ensureOrchestrator();
+            void orchestrator.handleBackendUrlChange();
+          }),
+      ) ?? null;
+  };
+
+  const stopBackendWatcher = (): void => {
+    if (!backendWatcherStop) {
+      return;
+    }
+
+    backendWatcherStop();
+    backendWatcherStop = null;
+  };
+
+  const updateAutoSyncWatchers = (): void => {
+    if (hasHistoryAutoSync()) {
+      startHistoryWatcher();
+    } else {
+      stopHistoryWatcher();
+    }
+
+    if (hasBackendAutoSync()) {
+      startBackendWatcher();
+    } else {
+      stopBackendWatcher();
+    }
+
+    if (!historyWatcherStop && !backendWatcherStop && consumers.value.size === 0) {
+      stopLifecycleScope();
+    }
   };
 
   const ensureInitialized = async (
@@ -204,22 +311,34 @@ export const createUseGenerationOrchestratorManager = (
     orchestratorManagerStore.unregisterConsumer(id);
 
     if (consumers.value.size === 0) {
+      stopHistoryWatcher();
+      stopBackendWatcher();
       orchestratorManagerStore.destroyOrchestrator();
       stopLifecycleScope();
+      return;
     }
+
+    updateAutoSyncWatchers();
+
   };
 
   const acquire = (
     options: GenerationOrchestratorAcquireOptions,
   ): GenerationOrchestratorBinding => {
+    const autoSync = normalizeAutoSyncOptions(options.autoSync);
+
     const consumer: GenerationOrchestratorConsumer = {
       id: Symbol('generation-orchestrator-consumer'),
       notify: options.notify,
       debug: options.debug,
+      autoSyncHistory: autoSync.historyLimit,
+      autoSyncBackend: autoSync.backendUrl,
     };
 
     const orchestrator = ensureOrchestrator();
     orchestratorManagerStore.registerConsumer(consumer);
+
+    updateAutoSyncWatchers();
 
     const loadSystemStatusData = (): Promise<void> => orchestrator.loadSystemStatusData();
     const loadActiveJobsData = (): Promise<void> => orchestrator.loadActiveJobsData();

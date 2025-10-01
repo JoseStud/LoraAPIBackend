@@ -14,6 +14,10 @@ export default defineConfig({
         replacement: resolve(frontendSrc, 'features/generation/composables'),
       },
       {
+        find: '@/features/generation/orchestrator',
+        replacement: resolve(frontendSrc, 'features/generation/orchestrator/facade.ts'),
+      },
+      {
         find: '@',
         replacement: frontendSrc,
       },
