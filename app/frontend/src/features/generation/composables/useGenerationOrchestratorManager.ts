@@ -21,6 +21,7 @@ import type {
   GenerationStartResponse,
   SystemStatusState,
 } from '@/types';
+import type { DeepReadonly } from '@/utils/freezeDeep';
 
 export interface GenerationOrchestratorAcquireOptions {
   notify: GenerationNotificationAdapter['notify'];
@@ -46,10 +47,10 @@ const defaultDependencies: UseGenerationOrchestratorManagerDependencies = {
 };
 
 export interface GenerationOrchestratorBinding {
-  activeJobs: Ref<readonly GenerationJob[]>;
-  sortedActiveJobs: Ref<readonly GenerationJob[]>;
-  recentResults: Ref<readonly GenerationResult[]>;
-  systemStatus: Ref<Readonly<SystemStatusState>>;
+  activeJobs: Ref<ReadonlyArray<DeepReadonly<GenerationJob>>>;
+  sortedActiveJobs: Ref<ReadonlyArray<DeepReadonly<GenerationJob>>>;
+  recentResults: Ref<ReadonlyArray<DeepReadonly<GenerationResult>>>;
+  systemStatus: Ref<DeepReadonly<SystemStatusState>>;
   isConnected: Ref<boolean>;
   initialize: () => Promise<void>;
   cleanup: () => void;

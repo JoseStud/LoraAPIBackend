@@ -1,6 +1,7 @@
 import type { ComputedRef, Ref } from 'vue';
 
 import type { GenerationJob, GenerationResult, SystemStatusState } from '@/types';
+import type { DeepReadonly } from '@/utils/freezeDeep';
 import type {
   GenerationTransportError,
   GenerationTransportMetricsSnapshot,
@@ -10,8 +11,8 @@ import type {
 
 export type ReadonlyRef<T> = Readonly<Ref<T>>;
 
-export type ImmutableGenerationJob = Readonly<GenerationJob>;
-export type ImmutableGenerationResult = Readonly<GenerationResult>;
+export type ImmutableGenerationJob = DeepReadonly<GenerationJob>;
+export type ImmutableGenerationResult = DeepReadonly<GenerationResult>;
 
 export interface GenerationHistoryRefreshOptions {
   readonly notifySuccess?: boolean;
@@ -26,7 +27,7 @@ export interface GenerationOrchestratorFacadeSelectors {
   readonly hasActiveJobs: ComputedRef<boolean>;
   readonly recentResults: ComputedRef<readonly ImmutableGenerationResult[]>;
   readonly historyLimit: ReadonlyRef<GenerationHistoryLimit>;
-  readonly systemStatus: ComputedRef<Readonly<SystemStatusState>>;
+  readonly systemStatus: ComputedRef<DeepReadonly<SystemStatusState>>;
   readonly systemStatusReady: ReadonlyRef<boolean>;
   readonly systemStatusLastUpdated: ReadonlyRef<Date | null>;
   readonly systemStatusApiAvailable: ReadonlyRef<boolean>;
