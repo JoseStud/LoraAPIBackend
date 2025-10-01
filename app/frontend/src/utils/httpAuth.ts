@@ -1,6 +1,6 @@
 import runtimeConfig from '@/config/runtime';
 import { getBackendApiKey } from '@/config/backendSettings';
-import { normaliseBackendApiKey, tryGetSettingsStore } from '@/stores';
+import { normaliseBackendApiKey, tryGetSettingsStore } from '@/stores/settings';
 
 export const API_AUTH_HEADER = 'X-API-Key';
 

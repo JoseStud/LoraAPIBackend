@@ -1,16 +1,12 @@
 import type { MaybeRefOrGetter } from 'vue';
 
 import {
-  deleteRequest,
-  postJson as postJsonRequest,
-  putJson as putJsonRequest,
-  patchJson as patchJsonRequest,
-  requestBlob as requestBlobFromApi,
-  requestJson as requestJsonFromApi,
+  createHttpClient,
   type ApiRequestInit,
+  type ApiResult,
   type BlobResult,
-} from '@/services/apiClient';
-import type { ApiResult } from '@/types';
+  type HttpClient,
+} from '@/services/httpClient';
 import { resolveBackendBaseUrl, resolveBackendUrl, useBackendBase } from '@/utils/backend';
 
 export interface BackendClient {
@@ -42,31 +38,37 @@ export type BackendBaseOverride =
   | undefined
   | (() => string | null | undefined);
 
+const createBackendHttpClient = (resolveBase: () => string): HttpClient => {
+  return createHttpClient({
+    baseUrl: () => resolveBase(),
+  });
+};
+
 const createClientFromResolver = (resolveBase: () => string): BackendClient => {
+  const httpClient = createBackendHttpClient(resolveBase);
+
   const resolvePath = (path = ''): string => {
-    if (typeof path === 'string' && /^https?:\/\//i.test(path)) {
-      return path;
+    if (!path) {
+      return resolveBase();
     }
-    return resolveBackendUrl(path, resolveBase());
+    return httpClient.resolve(path);
   };
 
   return {
     resolve: resolvePath,
-    requestJson: <TPayload>(path: string, init?: ApiRequestInit) =>
-      requestJsonFromApi<TPayload>(resolvePath(path), init),
+    requestJson: <TPayload>(path: string, init?: ApiRequestInit) => httpClient.requestJson<TPayload>(path, init),
     getJson: async <TPayload>(path: string, init?: ApiRequestInit) => {
-      const result = await requestJsonFromApi<TPayload>(resolvePath(path), init);
+      const result = await httpClient.requestJson<TPayload>(path, init);
       return (result.data as TPayload | null) ?? null;
     },
     postJson: <TResponse, TBody>(path: string, body: TBody, init?: ApiRequestInit) =>
-      postJsonRequest<TResponse, TBody>(resolvePath(path), body, init),
+      httpClient.postJson<TResponse, TBody>(path, body, init),
     putJson: <TResponse, TBody>(path: string, body: TBody, init?: ApiRequestInit) =>
-      putJsonRequest<TResponse, TBody>(resolvePath(path), body, init),
+      httpClient.putJson<TResponse, TBody>(path, body, init),
     patchJson: <TResponse, TBody>(path: string, body: TBody, init?: ApiRequestInit) =>
-      patchJsonRequest<TResponse, TBody>(resolvePath(path), body, init),
-    delete: <TResponse>(path: string, init?: ApiRequestInit) =>
-      deleteRequest<TResponse>(resolvePath(path), init),
-    requestBlob: (path: string, init?: RequestInit) => requestBlobFromApi(resolvePath(path), init),
+      httpClient.patchJson<TResponse, TBody>(path, body, init),
+    delete: <TResponse>(path: string, init?: ApiRequestInit) => httpClient.delete<TResponse>(path, init),
+    requestBlob: (path: string, init?: RequestInit) => httpClient.requestBlob(path, init),
   } satisfies BackendClient;
 };
 
@@ -88,6 +90,13 @@ export const resolveBackendClient = (client?: BackendClient | null): BackendClie
 export const useBackendClient = (override?: MaybeRefOrGetter<string | null>): BackendClient => {
   const backendBase = useBackendBase(override);
   return createClientFromResolver(() => backendBase.value);
+};
+
+export const resolveBackendPath = (path: string, client?: BackendClient): string => {
+  if (client) {
+    return client.resolve(path);
+  }
+  return resolveBackendUrl(path);
 };
 
 export type { ApiRequestInit, ApiResult, BlobResult };

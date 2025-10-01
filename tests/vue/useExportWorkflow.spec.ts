@@ -84,7 +84,11 @@ describe('useExportWorkflow', () => {
     await workflow.initialize();
     await nextTick();
 
-    expect(postJson).toHaveBeenCalledWith('https://custom.example/api/v1/export/estimate', expect.any(Object));
+    expect(postJson).toHaveBeenCalledWith(
+      'https://custom.example/api/v1/export/estimate',
+      expect.any(Object),
+      undefined,
+    );
     expect(workflow.estimatedSize.value).toBe('10 MB');
     expect(workflow.estimatedTime.value).toBe('5 minutes');
   });
