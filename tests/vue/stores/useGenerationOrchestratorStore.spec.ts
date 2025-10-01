@@ -164,4 +164,44 @@ describe('useGenerationOrchestratorStore', () => {
     store.setResults(expandedResults as any);
     expect(store.recentResults).toHaveLength(Math.min(MAX_RESULTS, expandedResults.length));
   });
+
+  it('exposes immutable state snapshots to consumers', () => {
+    const store = useGenerationOrchestratorStore();
+
+    store.enqueueJob({ id: 'job-immutable', status: 'processing', progress: 0 } as any);
+    store.setResults([{ id: 'result-immutable', created_at: new Date().toISOString() } as any]);
+
+    const jobsSnapshot = store.activeJobs;
+    const resultsSnapshot = store.recentResults;
+    const statusSnapshot = store.systemStatus;
+
+    expect(Object.isFrozen(jobsSnapshot)).toBe(true);
+    expect(Object.isFrozen(jobsSnapshot[0]!)).toBe(true);
+    expect(() => {
+      (jobsSnapshot as unknown as any[]).push({ id: 'mutate' });
+    }).toThrow(TypeError);
+
+    expect(Object.isFrozen(resultsSnapshot)).toBe(true);
+    expect(Object.isFrozen(resultsSnapshot[0]!)).toBe(true);
+    expect(() => {
+      (resultsSnapshot[0] as unknown as { id: string }).id = 'mutated';
+    }).toThrow(TypeError);
+
+    expect(Object.isFrozen(statusSnapshot)).toBe(true);
+    expect(() => {
+      (statusSnapshot as unknown as { status: string }).status = 'changed';
+    }).toThrow(TypeError);
+  });
+
+  it('does not create transport adapters when reading reactive state', () => {
+    const store = useGenerationOrchestratorStore();
+
+    expect(createTransportAdapterMock).not.toHaveBeenCalled();
+
+    void store.activeJobs.length;
+    void store.recentResults.length;
+    void store.systemStatus.status;
+
+    expect(createTransportAdapterMock).not.toHaveBeenCalled();
+  });
 });

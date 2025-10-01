@@ -34,18 +34,18 @@ interface OrchestratorStoreMock
     | 'isJobCancellable'
     | 'destroy'
   > {
-  activeJobs: Ref<GenerationJob[]>;
-  sortedActiveJobs: Ref<GenerationJob[]>;
-  recentResults: Ref<GenerationResult[]>;
-  systemStatus: Ref<SystemStatusState>;
+  activeJobs: Ref<readonly GenerationJob[]>;
+  sortedActiveJobs: Ref<readonly GenerationJob[]>;
+  recentResults: Ref<readonly GenerationResult[]>;
+  systemStatus: Ref<Readonly<SystemStatusState>>;
   isConnected: Ref<boolean>;
 }
 
 const createOrchestratorStoreMock = (): OrchestratorStoreMock => ({
-  activeJobs: ref<GenerationJob[]>([]),
-  sortedActiveJobs: ref<GenerationJob[]>([]),
-  recentResults: ref<GenerationResult[]>([]),
-  systemStatus: ref<SystemStatusState>({} as SystemStatusState),
+  activeJobs: ref<GenerationJob[]>([]) as Ref<readonly GenerationJob[]>,
+  sortedActiveJobs: ref<GenerationJob[]>([]) as Ref<readonly GenerationJob[]>,
+  recentResults: ref<GenerationResult[]>([]) as Ref<readonly GenerationResult[]>,
+  systemStatus: ref<SystemStatusState>({} as SystemStatusState) as Ref<Readonly<SystemStatusState>>,
   isConnected: ref(false),
   initialize: vi.fn(),
   loadSystemStatusData: vi.fn().mockResolvedValue(undefined),
@@ -172,8 +172,12 @@ describe('createUseGenerationOrchestratorManager', () => {
     const manager = createUseGenerationOrchestratorManager(dependencies)();
     const binding = manager.acquire({ notify: vi.fn(), debug: vi.fn() });
 
-    orchestratorStore.activeJobs.value = [{ id: '1' } as GenerationJob];
-    orchestratorStore.systemStatus.value = { status: 'ok' } as SystemStatusState;
+    orchestratorStore.activeJobs.value = (
+      [{ id: '1' } as GenerationJob] as readonly GenerationJob[]
+    );
+    orchestratorStore.systemStatus.value = {
+      status: 'ok',
+    } as unknown as Readonly<SystemStatusState>;
 
     expect(binding.activeJobs.value).toHaveLength(1);
     expect(binding.systemStatus.value.status).toBe('ok');

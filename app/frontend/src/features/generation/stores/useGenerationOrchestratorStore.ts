@@ -1,4 +1,4 @@
-import { ref, type Ref } from 'vue';
+import { computed, readonly, ref, type ComputedRef, type Ref } from 'vue';
 import { defineStore } from 'pinia';
 
 import { createGenerationTransportAdapter } from '../composables/createGenerationTransportAdapter';
@@ -12,6 +12,7 @@ import { createSystemStatusModule } from './orchestrator/systemStatusModule';
 import { createTransportModule } from './orchestrator/transportModule';
 import { createAdapterHandlers } from './orchestrator/adapterHandlers';
 import { createTransportActions } from './orchestrator/transportActions';
+import type { GenerationJob, GenerationResult, SystemStatusState } from '@/types';
 
 export type { GenerationJobInput } from './orchestrator/queueModule';
 export { MAX_RESULTS, DEFAULT_HISTORY_LIMIT } from './orchestrator/resultsModule';
@@ -25,17 +26,52 @@ export interface GenerationOrchestratorInitializeOptions {
   websocketManager?: GenerationWebSocketManager;
 }
 
-export interface GenerationOrchestratorStoreDependencies {
-  createTransportAdapter?: typeof createGenerationTransportAdapter;
-}
+const freezeJob = (job: GenerationJob): Readonly<GenerationJob> =>
+  Object.freeze({ ...job });
 
-const defaultDependencies: GenerationOrchestratorStoreDependencies = {
-  createTransportAdapter: createGenerationTransportAdapter,
-};
+const freezeResult = (result: GenerationResult): Readonly<GenerationResult> =>
+  Object.freeze({ ...result });
 
-export const useGenerationOrchestratorStore = defineStore(
-  'generation-orchestrator',
-  (dependencies: GenerationOrchestratorStoreDependencies = defaultDependencies) => {
+const freezeSystemStatus = (
+  status: SystemStatusState,
+): Readonly<SystemStatusState> => Object.freeze({ ...status });
+
+type ImmutableJobs = readonly Readonly<GenerationJob>[];
+type ImmutableResults = readonly Readonly<GenerationResult>[];
+
+const toImmutableJobs = (
+  source: { readonly value: readonly GenerationJob[] | readonly Readonly<GenerationJob>[] },
+): ComputedRef<ImmutableJobs> =>
+  computed(() => Object.freeze(source.value.map((job) => freezeJob(job as GenerationJob))));
+
+const toImmutableResults = (
+  source: { readonly value: readonly GenerationResult[] | readonly Readonly<GenerationResult>[] },
+): ComputedRef<ImmutableResults> =>
+  computed(() => Object.freeze(source.value.map((result) => freezeResult(result as GenerationResult))));
+
+const toImmutableSystemStatus = (
+  source: () => SystemStatusState,
+): ComputedRef<Readonly<SystemStatusState>> => computed(() => freezeSystemStatus(source()));
+
+/**
+ * Thin façade that orchestrates generation transport, queue, and history state.
+ *
+ * Public contract:
+ * - Reactive state (`jobs`, `activeJobs`, `sortedActiveJobs`, `recentResults`, `systemStatus`,
+ *   `isConnected`, `queueManagerActive`, etc.) is exposed as immutable snapshots so consumers
+ *   cannot mutate internal state directly.
+ * - Lifecycle methods (`initialize`, `cleanup`, `destroy`, `resetState`) prepare and dispose of
+ *   transports without introducing background watchers. They must be invoked via the orchestrator
+ *   manager to guarantee a single shared instance.
+ * - Data loaders and queue actions (`loadSystemStatusData`, `loadActiveJobsData`,
+ *   `loadRecentResults`, `refreshAllData`, `handleBackendUrlChange`, `startGeneration`,
+ *   `cancelJob`, `clearQueue`, `deleteResult`) delegate to specialised helpers and never mutate
+ *   observable state outside of those helpers.
+ *
+ * Consumers should always obtain access through `useGenerationOrchestratorManager` so the façade
+ * remains the single source of truth for generation flows.
+ */
+export const useGenerationOrchestratorStore = defineStore('generation-orchestrator', () => {
     const queue = createQueueModule();
     const results = createResultsModule();
 
@@ -86,12 +122,20 @@ export const useGenerationOrchestratorStore = defineStore(
 
     const { createResultFromCompletion: _ignored, ...resultsPublic } = results;
 
+    const jobs = toImmutableJobs(queue.jobs);
+    const activeJobs = toImmutableJobs(queue.activeJobs);
+    const sortedActiveJobs = toImmutableJobs(queue.sortedActiveJobs);
+    const recentResults = toImmutableResults(resultsPublic.recentResults);
+    const systemStatus = toImmutableSystemStatus(
+      () => systemStatusModule.systemStatus as SystemStatusState,
+    );
+
+    const isActiveState = readonly(isActive);
+
     const initialize = async (options: GenerationOrchestratorInitializeOptions): Promise<void> => {
       if (isActive.value) {
         return;
       }
-
-      const createAdapter = dependencies.createTransportAdapter ?? createGenerationTransportAdapter;
 
       const { controller, release } = acquireSystemStatusController({
         getBackendUrl: options.getBackendUrl,
@@ -101,7 +145,7 @@ export const useGenerationOrchestratorStore = defineStore(
         release();
       };
 
-      const adapter = createAdapter({
+      const adapter = createGenerationTransportAdapter({
         getBackendUrl: options.getBackendUrl,
         notificationAdapter: options.notificationAdapter,
         queueClient: options.queueClient,
@@ -140,14 +184,18 @@ export const useGenerationOrchestratorStore = defineStore(
       ...queue,
       ...resultsPublic,
       ...systemStatusModule,
-      isActive,
+      jobs,
+      activeJobs,
+      sortedActiveJobs,
+      recentResults,
+      systemStatus,
+      isActive: isActiveState,
       initialize,
       ...transportActions,
       cleanup,
       destroy,
       resetState,
     };
-  },
-);
+  });
 
 export type GenerationOrchestratorStore = ReturnType<typeof useGenerationOrchestratorStore>;
