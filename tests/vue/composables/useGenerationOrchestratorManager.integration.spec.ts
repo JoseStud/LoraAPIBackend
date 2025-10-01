@@ -112,4 +112,67 @@ describe('useGenerationOrchestratorManager integration', () => {
     expect(transport.reconnect.mock.calls.length).toBe(reconnectCallCount);
     expect(transport.refreshAll.mock.calls.length).toBe(refreshAllCallCount);
   });
+
+  it('deduplicates auto-sync watchers across consumers and honors opt-out flags', async () => {
+    const managerStore = useGenerationOrchestratorManagerStore();
+    const orchestratorStore = useGenerationOrchestratorStore();
+    const uiStore = useGenerationStudioUiStore();
+    const settingsStore = useStubSettingsStore();
+
+    const backendUrlRef = computed(() => settingsStore.backendUrl as string);
+
+    const useManager = createUseGenerationOrchestratorManager({
+      useGenerationOrchestratorManagerStore: () => managerStore,
+      useGenerationOrchestratorStore: () => orchestratorStore,
+      useGenerationStudioUiStore: () => uiStore,
+      useBackendUrl: (() => backendUrlRef) as unknown as typeof useBackendUrl,
+    });
+
+    const manager = useManager();
+
+    const first = manager.acquire({ notify: vi.fn(), debug: vi.fn() });
+    const second = manager.acquire({ notify: vi.fn(), debug: vi.fn() });
+
+    await first.initialize();
+    await second.initialize();
+
+    uiStore.setShowHistory(true);
+    await nextTick();
+    await Promise.resolve();
+
+    const initialHistoryCalls = transport.refreshRecentResults.mock.calls.length;
+
+    uiStore.setShowHistory(false);
+    await nextTick();
+    await Promise.resolve();
+
+    expect(transport.refreshRecentResults.mock.calls.length).toBe(initialHistoryCalls + 1);
+
+    const initialRefreshAllCalls = transport.refreshAll.mock.calls.length;
+    settingsStore.backendUrl = 'http://multi.example.com';
+    await nextTick();
+    await Promise.resolve();
+
+    expect(transport.refreshAll.mock.calls.length).toBe(initialRefreshAllCalls + 1);
+
+    const third = manager.acquire({ notify: vi.fn(), debug: vi.fn(), autoSync: false });
+    await third.initialize();
+
+    first.release();
+    second.release();
+
+    const historyCallsBefore = transport.refreshRecentResults.mock.calls.length;
+    uiStore.setShowHistory(true);
+    await nextTick();
+    await Promise.resolve();
+    expect(transport.refreshRecentResults.mock.calls.length).toBe(historyCallsBefore);
+
+    const refreshAllCallsBefore = transport.refreshAll.mock.calls.length;
+    settingsStore.backendUrl = 'http://optout.example.com';
+    await nextTick();
+    await Promise.resolve();
+    expect(transport.refreshAll.mock.calls.length).toBe(refreshAllCallsBefore);
+
+    third.release();
+  });
 });

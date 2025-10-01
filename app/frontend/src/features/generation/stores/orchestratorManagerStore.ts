@@ -9,6 +9,8 @@ export interface GenerationOrchestratorConsumer {
   id: symbol;
   notify: GenerationNotificationAdapter['notify'];
   debug?: GenerationNotificationAdapter['debug'];
+  autoSyncHistory: boolean;
+  autoSyncBackend: boolean;
 }
 
 export const useGenerationOrchestratorManagerStore = defineStore('generation-orchestrator-manager', () => {
