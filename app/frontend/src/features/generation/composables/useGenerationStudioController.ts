@@ -14,6 +14,8 @@ export interface UseGenerationStudioControllerOptions {
   debug?: (...args: unknown[]) => void
   onAfterStart?: (params: GenerationFormState) => void
   onAfterInitialize?: () => void | Promise<void>
+  getHistoryLimit: () => number
+  getBackendUrl: () => string | null
 }
 
 export const useGenerationStudioController = ({
@@ -22,6 +24,8 @@ export const useGenerationStudioController = ({
   debug,
   onAfterStart,
   onAfterInitialize,
+  getHistoryLimit,
+  getBackendUrl,
 }: UseGenerationStudioControllerOptions) => {
   const formStore = useGenerationFormStore()
   const orchestratorManager = useGenerationOrchestratorManager()
@@ -32,6 +36,8 @@ export const useGenerationStudioController = ({
       orchestratorBinding.value = orchestratorManager.acquire({
         notify,
         debug,
+        historyLimit: getHistoryLimit(),
+        getBackendUrl,
       })
     }
 
@@ -93,12 +99,21 @@ export const useGenerationStudioController = ({
   const canCancelJob = (job: GenerationJob): boolean =>
     orchestratorBinding.value?.canCancelJob(job) ?? false
 
+  const setHistoryLimit = (limit: number): void => {
+    ensureBinding().setHistoryLimit(limit)
+  }
+
+  const handleBackendUrlChange = async (): Promise<void> => {
+    await ensureBinding().handleBackendUrlChange()
+  }
+
   return {
     activeJobs: orchestratorManager.activeJobs,
     sortedActiveJobs: orchestratorManager.sortedActiveJobs,
     recentResults: orchestratorManager.recentResults,
     systemStatus: orchestratorManager.systemStatus,
     isConnected: orchestratorManager.isConnected,
+    isManagerInitialized: orchestratorManager.isInitialized,
     initialize,
     startGeneration,
     cancelJob,
@@ -106,6 +121,8 @@ export const useGenerationStudioController = ({
     refreshResults,
     deleteResult,
     canCancelJob,
+    setHistoryLimit,
+    handleBackendUrlChange,
   }
 }
 

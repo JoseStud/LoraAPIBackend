@@ -1,4 +1,4 @@
-import { type Ref, effectScope, type EffectScope, watch } from 'vue';
+import { type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import type { GenerationNotificationAdapter } from './useGenerationTransport';
@@ -8,12 +8,7 @@ import {
   useGenerationOrchestratorManagerStore,
   type GenerationOrchestratorConsumer,
 } from '../stores/orchestratorManagerStore';
-import {
-  useGenerationOrchestratorStore,
-  DEFAULT_HISTORY_LIMIT,
-} from '../stores/useGenerationOrchestratorStore';
-import { useGenerationStudioUiStore } from '../stores/ui';
-import { useSettingsStore } from '@/stores/settings';
+import { useGenerationOrchestratorStore } from '../stores/useGenerationOrchestratorStore';
 import type {
   GenerationJob,
   GenerationRequestPayload,
@@ -25,6 +20,8 @@ import type {
 export interface GenerationOrchestratorAcquireOptions {
   notify: GenerationNotificationAdapter['notify'];
   debug?: GenerationNotificationAdapter['debug'];
+  historyLimit: number;
+  getBackendUrl: () => string | null;
   queueClient?: GenerationQueueClient;
   websocketManager?: GenerationWebSocketManager;
 }
@@ -34,15 +31,11 @@ export interface UseGenerationOrchestratorManagerDependencies {
     typeof useGenerationOrchestratorManagerStore
   >;
   useGenerationOrchestratorStore: () => ReturnType<typeof useGenerationOrchestratorStore>;
-  useGenerationStudioUiStore: () => ReturnType<typeof useGenerationStudioUiStore>;
-  useSettingsStore: () => ReturnType<typeof useSettingsStore>;
 }
 
 const defaultDependencies: UseGenerationOrchestratorManagerDependencies = {
   useGenerationOrchestratorManagerStore,
   useGenerationOrchestratorStore,
-  useGenerationStudioUiStore,
-  useSettingsStore,
 };
 
 export interface GenerationOrchestratorBinding {
@@ -62,13 +55,12 @@ export interface GenerationOrchestratorBinding {
   deleteResult: (resultId: string | number) => Promise<void>;
   refreshResults: (notifySuccess?: boolean) => Promise<void>;
   canCancelJob: (job: GenerationJob) => boolean;
+  setHistoryLimit: (limit: number) => void;
+  handleBackendUrlChange: () => Promise<void>;
   release: () => void;
 }
 
 export const HISTORY_LIMIT_WHEN_SHOWING = 50;
-
-const resolveHistoryLimit = (showHistory: boolean): number =>
-  showHistory ? HISTORY_LIMIT_WHEN_SHOWING : DEFAULT_HISTORY_LIMIT;
 
 export const createUseGenerationOrchestratorManager = (
   dependencies: UseGenerationOrchestratorManagerDependencies = defaultDependencies,
@@ -77,11 +69,6 @@ export const createUseGenerationOrchestratorManager = (
   const orchestratorStore = dependencies.useGenerationOrchestratorStore();
   const { initializationPromise, isInitialized, consumers } = storeToRefs(orchestratorManagerStore);
 
-  const uiStore = dependencies.useGenerationStudioUiStore();
-  const settingsStore = dependencies.useSettingsStore();
-
-  const { showHistory } = storeToRefs(uiStore);
-  const { backendUrl: configuredBackendUrl } = storeToRefs(settingsStore);
   const {
     recentResults,
     systemStatus,
@@ -109,48 +96,6 @@ export const createUseGenerationOrchestratorManager = (
   const ensureOrchestrator = (): ReturnType<typeof useGenerationOrchestratorStore> =>
     orchestratorManagerStore.ensureOrchestrator(() => orchestratorStore);
 
-  let watcherScope: EffectScope | null = null;
-
-  const stopWatcherScope = (): void => {
-    watcherScope?.stop();
-    watcherScope = null;
-  };
-
-  const ensureWatcherScope = (): void => {
-    if (watcherScope) {
-      return;
-    }
-
-    watcherScope = effectScope();
-    watcherScope.run(() => {
-      watch(
-        showHistory,
-        (next, previous) => {
-          if (!isInitialized.value || next === previous) {
-            return;
-          }
-
-          const orchestrator = ensureOrchestrator();
-          const nextLimit = resolveHistoryLimit(next);
-          orchestrator.setHistoryLimit(nextLimit);
-          void orchestrator.loadRecentResults();
-        },
-      );
-
-      watch(
-        configuredBackendUrl,
-        (next, previous) => {
-          if (!isInitialized.value || next === previous) {
-            return;
-          }
-
-          const orchestrator = ensureOrchestrator();
-          void orchestrator.handleBackendUrlChange();
-        },
-      );
-    });
-  };
-
   const ensureInitialized = async (
     options: GenerationOrchestratorAcquireOptions,
   ): Promise<void> => {
@@ -162,8 +107,8 @@ export const createUseGenerationOrchestratorManager = (
       const orchestrator = ensureOrchestrator();
       const promise = orchestrator
         .initialize({
-          historyLimit: resolveHistoryLimit(showHistory.value),
-          getBackendUrl: () => configuredBackendUrl.value ?? null,
+          historyLimit: options.historyLimit,
+          getBackendUrl: options.getBackendUrl,
           notificationAdapter: {
             notify: notifyAll,
             debug: debugAll,
@@ -173,11 +118,9 @@ export const createUseGenerationOrchestratorManager = (
         })
         .then(() => {
           isInitialized.value = true;
-          ensureWatcherScope();
         })
         .catch((error) => {
           isInitialized.value = false;
-          stopWatcherScope();
           throw error;
         })
         .finally(() => {
@@ -198,7 +141,6 @@ export const createUseGenerationOrchestratorManager = (
     orchestratorManagerStore.unregisterConsumer(id);
 
     if (consumers.value.size === 0) {
-      stopWatcherScope();
       orchestratorManagerStore.destroyOrchestrator();
     }
   };
@@ -227,6 +169,10 @@ export const createUseGenerationOrchestratorManager = (
       orchestrator.deleteResult(resultId);
     const refreshResults = (notifySuccess = false): Promise<void> =>
       orchestrator.loadRecentResults(notifySuccess);
+    const setHistoryLimit = (limit: number): void => {
+      orchestrator.setHistoryLimit(limit);
+    };
+    const handleBackendUrlChange = (): Promise<void> => orchestrator.handleBackendUrlChange();
 
     const initialize = async (): Promise<void> => {
       await ensureInitialized(options);
@@ -252,6 +198,8 @@ export const createUseGenerationOrchestratorManager = (
       clearQueue,
       deleteResult,
       refreshResults,
+      setHistoryLimit,
+      handleBackendUrlChange,
       canCancelJob: (job: GenerationJob) => orchestrator.isJobCancellable(job),
       release: () => {
         releaseConsumer(consumer.id);

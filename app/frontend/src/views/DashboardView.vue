@@ -134,7 +134,7 @@ const panelConfigs = [
     placeholder:
       'Use the inline studio for quick jobs or switch to the dedicated page for the full orchestrator experience.',
     fallback: 'Loading generation studio…',
-    loader: () => import('@/features/generation/components/GenerationStudio.vue').then((module) => module.default),
+    loader: () => import('@/features/generation/ui/GenerationShell.vue').then((module) => module.default),
   },
   {
     key: 'gallery',
