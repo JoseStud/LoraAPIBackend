@@ -16,6 +16,47 @@ import type { AdapterListResponse } from '@/types';
 
 const originalFetch = global.fetch;
 
+const createAdapterPayload = (
+  overrides: Partial<AdapterListResponse['items'][number]> = {},
+): AdapterListResponse['items'][number] => ({
+  id: 'adapter-1',
+  name: 'Adapter One',
+  version: '1.0',
+  canonical_version_name: null,
+  description: null,
+  author_username: null,
+  visibility: 'Public',
+  published_at: null,
+  tags: [],
+  trained_words: [],
+  triggers: [],
+  file_path: '/weights/adapter-1.safetensors',
+  weight: 0.5,
+  active: true,
+  ordinal: null,
+  archetype: null,
+  archetype_confidence: null,
+  primary_file_name: null,
+  primary_file_size_kb: null,
+  primary_file_sha256: null,
+  primary_file_download_url: null,
+  primary_file_local_path: null,
+  supports_generation: true,
+  sd_version: null,
+  nsfw_level: 0,
+  activation_text: null,
+  stats: null,
+  extra: null,
+  json_file_path: null,
+  json_file_mtime: null,
+  json_file_size: null,
+  last_ingested_at: null,
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-02T00:00:00Z',
+  last_updated: null,
+  ...overrides,
+});
+
 afterEach(() => {
   if (originalFetch) {
     global.fetch = originalFetch;
@@ -237,12 +278,7 @@ describe('loraService', () => {
   });
 
   it('updates LoRA weights using PATCH requests', async () => {
-    const payload = {
-      id: 'adapter-1',
-      name: 'Adapter One',
-      weight: 0.5,
-      active: true,
-    };
+    const payload = createAdapterPayload({ id: 'adapter-1', weight: 0.5 });
 
     const response = {
       ok: true,
@@ -267,10 +303,7 @@ describe('loraService', () => {
   });
 
   it('toggles LoRA active state via POST requests', async () => {
-    const payload = {
-      id: 'adapter-2',
-      active: true,
-    };
+    const payload = createAdapterPayload({ id: 'adapter-2', active: true });
 
     const response = {
       ok: true,

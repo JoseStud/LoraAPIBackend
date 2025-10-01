@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import type { GenerationJobStatus } from '@/types/generation';
-import type { GenerationResult } from '@/types';
+import type { GenerationRequestPayload, GenerationResult } from '@/types';
 import { normalizeJobStatus } from '@/utils/status';
 
 import { JsonObjectSchema } from './json';
@@ -109,3 +109,36 @@ export const GenerationResultSchema = GenerationResultObject.transform(
     created_at: value.created_at ?? new Date().toISOString(),
   }),
 );
+
+const NegativePromptSchema = z
+  .union([z.string(), z.null(), z.undefined()])
+  .transform((value): string | null => {
+    if (typeof value !== 'string') {
+      return value ?? null;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  });
+
+const NullableNumberSchema = z.union([z.number().finite(), z.null(), z.undefined()]).transform((value) => value ?? null);
+
+export const GenerationRequestPayloadSchema: z.ZodType<GenerationRequestPayload> = z
+  .object({
+    prompt: z.string(),
+    negative_prompt: NegativePromptSchema,
+    steps: z.number().finite(),
+    sampler_name: z.string(),
+    cfg_scale: z.number().finite(),
+    width: z.number().finite(),
+    height: z.number().finite(),
+    seed: z.number().finite(),
+    batch_size: z.number().finite(),
+    n_iter: z.number().finite(),
+    denoising_strength: NullableNumberSchema,
+  })
+  .passthrough()
+  .transform((value) => ({
+    ...value,
+    negative_prompt: value.negative_prompt,
+    denoising_strength: value.denoising_strength,
+  }));

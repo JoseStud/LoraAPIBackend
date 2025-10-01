@@ -17,6 +17,8 @@ import {
   withSameOrigin,
   type BackendClientInput,
 } from '@/services/shared/backendHelpers';
+import { GenerationRequestPayloadSchema } from '@/schemas';
+import { parseGenerationJobStatuses } from './validation';
 
 export type GenerationParamOverrides =
   & Pick<SDNextGenerationParams, 'prompt'>
@@ -42,28 +44,33 @@ export const resolveGenerationRoute = (path: string, input?: GenerationClientInp
 
 export const createGenerationParams = (
   overrides: GenerationParamOverrides,
-): SDNextGenerationParams => ({
-  prompt: overrides.prompt,
-  negative_prompt: overrides.negative_prompt ?? null,
-  steps: overrides.steps ?? 20,
-  sampler_name: overrides.sampler_name ?? 'DPM++ 2M',
-  cfg_scale: overrides.cfg_scale ?? 7.0,
-  width: overrides.width ?? 512,
-  height: overrides.height ?? 512,
-  seed: overrides.seed ?? -1,
-  batch_size: overrides.batch_size ?? 1,
-  n_iter: overrides.n_iter ?? 1,
-  denoising_strength: overrides.denoising_strength ?? null,
-});
+): SDNextGenerationParams =>
+  GenerationRequestPayloadSchema.parse({
+    prompt: overrides.prompt,
+    negative_prompt: overrides.negative_prompt,
+    steps: overrides.steps ?? 20,
+    sampler_name: overrides.sampler_name ?? 'DPM++ 2M',
+    cfg_scale: overrides.cfg_scale ?? 7.0,
+    width: overrides.width ?? 512,
+    height: overrides.height ?? 512,
+    seed: overrides.seed ?? -1,
+    batch_size: overrides.batch_size ?? 1,
+    n_iter: overrides.n_iter ?? 1,
+    denoising_strength: overrides.denoising_strength,
+  });
 
 export const requestGeneration = async (
   payload: GenerationRequestBody,
   input?: GenerationClientInput,
 ): Promise<SDNextGenerationResult | null> => {
   const backend = resolveClient(input);
+  const normalizedPayload = {
+    ...payload,
+    ...GenerationRequestPayloadSchema.parse(payload),
+  };
   const { data } = await backend.postJson<SDNextGenerationResult, GenerationRequestBody>(
     generationPath('generate'),
-    payload,
+    normalizedPayload,
     withSameOrigin(),
   );
   return data ?? null;
@@ -73,42 +80,39 @@ export const fetchActiveGenerationJobs = async (
   input?: GenerationClientInput,
 ): Promise<GenerationJobStatus[]> => {
   const backend = resolveClient(input);
-  const result = await backend.requestJson<GenerationJobStatus[]>(
+  const result = await backend.requestJson<unknown>(
     generationPath('jobs/active'),
     withSameOrigin(),
   );
-  return Array.isArray(result.data) ? result.data : [];
-};
-
-const sanitizeNegativePrompt = (value: string): string | null => {
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  return parseGenerationJobStatuses(result.data, 'active job');
 };
 
 export const toGenerationRequestPayload = (
   state: GenerationFormState,
-): GenerationRequestPayload => ({
-  prompt: state.prompt,
-  negative_prompt: sanitizeNegativePrompt(state.negative_prompt),
-  steps: state.steps,
-  sampler_name: state.sampler_name,
-  cfg_scale: state.cfg_scale,
-  width: state.width,
-  height: state.height,
-  seed: state.seed,
-  batch_size: state.batch_size,
-  n_iter: state.batch_count,
-  denoising_strength: state.denoising_strength ?? null,
-});
+): GenerationRequestPayload =>
+  GenerationRequestPayloadSchema.parse({
+    prompt: state.prompt,
+    negative_prompt: state.negative_prompt,
+    steps: state.steps,
+    sampler_name: state.sampler_name,
+    cfg_scale: state.cfg_scale,
+    width: state.width,
+    height: state.height,
+    seed: state.seed,
+    batch_size: state.batch_size,
+    n_iter: state.batch_count,
+    denoising_strength: state.denoising_strength,
+  });
 
 export const startGeneration = async (
   payload: GenerationRequestPayload,
   input?: GenerationClientInput,
 ): Promise<GenerationStartResponse> => {
   const backend = resolveClient(input);
+  const normalizedPayload = GenerationRequestPayloadSchema.parse(payload);
   const result = await backend.postJson<GenerationStartResponse, GenerationRequestPayload>(
     generationPath('generate'),
-    payload,
+    normalizedPayload,
     withSameOrigin(),
   );
   return ensureData(result);
