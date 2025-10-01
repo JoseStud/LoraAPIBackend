@@ -1,69 +1,19 @@
 import type { BackendClient } from '@/services/backendClient';
 import { createBackendPathResolver, resolveClient } from '@/services/shared/backendHelpers';
+import { parseAdapterListPayload, parseAdapterRead, parseAdapterTags } from '@/schemas';
 
 import type {
   AdapterListQuery,
   AdapterListResponse,
   AdapterRead,
-  AdapterStats,
-  AdapterStatsMetric,
   GalleryLora,
   LoraBulkActionRequest,
   LoraGalleryFilters,
   LoraGalleryState,
   LoraGallerySelectionState,
   LoraListItem,
-  LoraTagListResponse,
   TopLoraPerformance,
 } from '@/types';
-
-const ADAPTER_STATS_KEYS: readonly AdapterStatsMetric[] = [
-  'downloadCount',
-  'favoriteCount',
-  'commentCount',
-  'thumbsUpCount',
-  'rating',
-  'ratingCount',
-  'usage_count',
-  'generations',
-  'activations',
-  'success_rate',
-  'avg_time',
-  'avg_generation_time',
-];
-
-const coerceFiniteNumber = (value: unknown): number | undefined => {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : undefined;
-  }
-
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  return undefined;
-};
-
-const normalizeAdapterStats = (stats: AdapterRead['stats']): AdapterStats => {
-  if (!stats || typeof stats !== 'object') {
-    return {};
-  }
-
-  const normalized: AdapterStats = {};
-  const rawStats = stats as Record<string, unknown>;
-
-  for (const metric of ADAPTER_STATS_KEYS) {
-    const coerced = coerceFiniteNumber(rawStats[metric]);
-    if (typeof coerced === 'number') {
-      normalized[metric] = coerced;
-    }
-  }
-
-  return normalized;
-};
 
 export const buildAdapterListQuery = (query: AdapterListQuery = {}): string => {
   const params = new URLSearchParams();
@@ -101,77 +51,8 @@ const adaptersPath = adaptersPaths.path;
 
 export const fetchAdapterTags = async (client?: BackendClient | null): Promise<string[]> => {
   const backend = resolveClient(client);
-  const payload = await backend.getJson<LoraTagListResponse>(adaptersPath('/tags'));
-  return payload?.tags ?? [];
-};
-
-const getFallbackPerPage = (query: AdapterListQuery, items: AdapterRead[]): number => {
-  if (typeof query.perPage === 'number' && Number.isFinite(query.perPage)) {
-    return query.perPage;
-  }
-
-  if (items.length > 0) {
-    return items.length;
-  }
-
-  return 0;
-};
-
-const normalizeAdapterListResponse = (
-  payload: AdapterListResponse | AdapterRead[] | null | undefined,
-  query: AdapterListQuery,
-): AdapterListResponse => {
-  const fallbackPage = typeof query.page === 'number' ? query.page : 1;
-
-  if (!payload) {
-    const perPage = typeof query.perPage === 'number' ? query.perPage : 0;
-    return {
-      items: [],
-      total: 0,
-      filtered: 0,
-      page: fallbackPage,
-      pages: 0,
-      per_page: perPage,
-    } satisfies AdapterListResponse;
-  }
-
-  if (Array.isArray(payload)) {
-    const items = payload ?? [];
-    const perPage = getFallbackPerPage(query, items);
-    const total = items.length;
-    const pages = perPage > 0 ? Math.max(1, Math.ceil(total / perPage)) : total > 0 ? 1 : 0;
-
-    return {
-      items,
-      total,
-      filtered: total,
-      page: fallbackPage,
-      pages,
-      per_page: perPage,
-    } satisfies AdapterListResponse;
-  }
-
-  const items = Array.isArray(payload.items) ? payload.items : [];
-  const total = typeof payload.total === 'number' ? payload.total : items.length;
-  const filtered = typeof payload.filtered === 'number' ? payload.filtered : total;
-  const perPage = typeof payload.per_page === 'number' ? payload.per_page : getFallbackPerPage(query, items);
-  const page = typeof payload.page === 'number' ? payload.page : fallbackPage;
-  const pages = typeof payload.pages === 'number'
-    ? payload.pages
-    : perPage > 0
-      ? Math.max(1, Math.ceil(filtered / perPage))
-      : filtered > 0
-        ? 1
-        : 0;
-
-  return {
-    items,
-    total,
-    filtered,
-    page,
-    pages,
-    per_page: perPage,
-  } satisfies AdapterListResponse;
+  const payload = await backend.getJson<unknown>(adaptersPath('/tags'));
+  return parseAdapterTags(payload, 'adapter tag list');
 };
 
 export const fetchAdapterList = async (
@@ -179,14 +60,12 @@ export const fetchAdapterList = async (
   client?: BackendClient | null,
 ): Promise<AdapterListResponse> => {
   const backend = resolveClient(client);
-  const payload = await backend.getJson<AdapterListResponse | AdapterRead[]>(
-    adaptersPath(buildAdapterListQuery(query)),
-  );
-  const normalised = normalizeAdapterListResponse(payload, query);
+  const payload = await backend.getJson<unknown>(adaptersPath(buildAdapterListQuery(query)));
+  const parsed = parseAdapterListPayload(payload, query);
 
   return {
-    ...normalised,
-    items: normalised.items.map((item: AdapterRead) => ({ ...item })),
+    ...parsed,
+    items: parsed.items.map((item: AdapterRead) => ({ ...item })),
   } satisfies AdapterListResponse;
 };
 
@@ -205,7 +84,7 @@ export const fetchTopAdapters = async (
   const { items } = await fetchAdapterList({ perPage: limit }, client);
 
   return items.slice(0, limit).map((item: AdapterRead) => {
-    const stats = normalizeAdapterStats(item.stats);
+    const stats = item.stats ?? {};
 
     return {
       id: item.id,
@@ -236,7 +115,11 @@ export const updateLoraWeight = async (
     adaptersPath(`/${encodeURIComponent(loraId)}`),
     { weight },
   );
-  return (data ? { ...data } : null) as GalleryLora | null;
+  if (!data) {
+    return null;
+  }
+  const parsed = parseAdapterRead(data);
+  return { ...parsed } as GalleryLora;
 };
 
 export const toggleLoraActiveState = async (
@@ -250,7 +133,11 @@ export const toggleLoraActiveState = async (
     adaptersPath(`/${encodeURIComponent(loraId)}/${endpoint}`),
     { method: 'POST' },
   );
-  return (data ? { ...data } : null) as GalleryLora | null;
+  if (!data) {
+    return null;
+  }
+  const parsed = parseAdapterRead(data);
+  return { ...parsed } as GalleryLora;
 };
 
 export const deleteLora = async (

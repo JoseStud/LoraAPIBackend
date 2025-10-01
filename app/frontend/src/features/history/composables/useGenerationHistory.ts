@@ -65,17 +65,8 @@ export const useGenerationHistory = ({
   const filteredResults = computed(() => data.value);
 
   const stats = computed<GenerationHistoryStats>(() => {
-    const sanitize = (value: unknown): number =>
-      typeof value === 'number' && Number.isFinite(value) ? value : 0;
-
     if (serverStats.value) {
-      const snapshot = serverStats.value;
-      return {
-        total_results: sanitize(snapshot.total_results),
-        avg_rating: sanitize(snapshot.avg_rating),
-        total_favorites: sanitize(snapshot.total_favorites),
-        total_size: sanitize(snapshot.total_size),
-      };
+      return serverStats.value;
     }
 
     const results = filteredResults.value;

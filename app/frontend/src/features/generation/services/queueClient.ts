@@ -6,7 +6,6 @@ import {
   startGeneration,
 } from './generationService';
 import { requestJson } from '@/services/apiClient';
-import { normalizeJobStatus } from '@/utils/status';
 import {
   logValidationIssues,
   parseGenerationJobStatuses,
@@ -73,11 +72,7 @@ export const createGenerationQueueClient = (
         buildGenerationUrl('jobs/active'),
         withCredentials(),
       );
-      const parsed = parseGenerationJobStatuses(result.data, 'active job');
-      return parsed.map((status) => ({
-        ...status,
-        status: normalizeJobStatus(status.status),
-      }));
+      return parseGenerationJobStatuses(result.data, 'active job');
     } catch (error) {
       console.error('Failed to load active jobs:', error);
       throw error;
