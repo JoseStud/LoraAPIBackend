@@ -233,13 +233,25 @@ export const useGenerationQueueClient = (
   ): Promise<GenerationStartResponse> => getQueueClient().startGeneration(payload);
 
   const cancelJob = async (jobId: string): Promise<void> => {
-    await getQueueClient().cancelJob(jobId);
-    notify('Generation cancelled', 'success');
+    try {
+      await getQueueClient().cancelJob(jobId);
+      notify('Generation cancelled', 'success');
+    } catch (error) {
+      reportError('cancelJob', error, { jobId });
+      notify('Failed to cancel generation', 'error');
+      throw error;
+    }
   };
 
   const deleteResult = async (resultId: string | number): Promise<void> => {
-    await getQueueClient().deleteResult(resultId);
-    notify('Result deleted', 'success');
+    try {
+      await getQueueClient().deleteResult(resultId);
+      notify('Result deleted', 'success');
+    } catch (error) {
+      reportError('deleteResult', error, { resultId });
+      notify('Failed to delete result', 'error');
+      throw error;
+    }
   };
 
   const clear = (): void => {

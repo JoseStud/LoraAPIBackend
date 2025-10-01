@@ -1,76 +1,81 @@
-import { ref, unref, type MaybeRefOrGetter } from 'vue';
-import { storeToRefs } from 'pinia';
+import { getCurrentScope, onScopeDispose, ref, shallowRef } from 'vue';
 
-import { cancelGenerationJob } from '../services/generationService';
+import { useGenerationOrchestratorManager, type GenerationOrchestratorBinding } from './useGenerationOrchestratorManager';
 import { useGenerationQueueStore } from '../stores/queue';
 import { useNotifications } from '@/composables/shared';
-import { useBackendBase } from '@/utils/backend';
+import type { NotificationType } from '@/types';
 
-export interface UseJobQueueActionsOptions {
-  backendBase?: MaybeRefOrGetter<string>;
-}
+export interface UseJobQueueActionsOptions {}
 
-export const useJobQueueActions = (options: UseJobQueueActionsOptions = {}) => {
+export const useJobQueueActions = (_options: UseJobQueueActionsOptions = {}) => {
   const queueStore = useGenerationQueueStore();
+  const orchestratorManager = useGenerationOrchestratorManager();
   const notifications = useNotifications();
-  const backendBase = options.backendBase ?? useBackendBase();
-  const { activeJobs } = storeToRefs(queueStore);
 
+  const orchestratorBinding = shallowRef<GenerationOrchestratorBinding | null>(null);
   const isCancelling = ref(false);
 
-  const resolveBackendBase = (): string => {
-    try {
-      const resolved = typeof backendBase === 'function' ? backendBase() : unref(backendBase);
-      return typeof resolved === 'string' ? resolved : '';
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.warn('[JobQueue] Failed to resolve backend base for actions', error);
-      }
-      return '';
+  const dispatchToast = (message: string, type: NotificationType = 'info'): void => {
+    notifications.showToast(message, type);
+  };
+
+  const debug = (...args: unknown[]): void => {
+    if (import.meta.env.DEV) {
+      console.debug('[JobQueueActions]', ...args);
     }
   };
+
+  const ensureBinding = (): GenerationOrchestratorBinding => {
+    if (!orchestratorBinding.value) {
+      orchestratorBinding.value = orchestratorManager.acquire({
+        notify: dispatchToast,
+        debug,
+      });
+    }
+
+    return orchestratorBinding.value;
+  };
+
+  const releaseBinding = (): void => {
+    if (!orchestratorBinding.value) {
+      return;
+    }
+
+    orchestratorBinding.value.release();
+    orchestratorBinding.value = null;
+  };
+
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      releaseBinding();
+    });
+  }
 
   const cancelJob = async (jobId: string): Promise<boolean> => {
     if (!jobId || isCancelling.value) {
       return false;
     }
 
-    const job = activeJobs.value.find((item) => item.id === jobId);
+    const job = orchestratorManager.activeJobs.value.find(
+      (item) => item.id === jobId || String(item.jobId ?? '') === jobId,
+    );
+
     if (!job) {
-      notifications.showToastError('Job not found');
+      dispatchToast('Job not found', 'error');
       return false;
     }
 
-    const backendJobIdRaw = job.jobId ?? job.id;
-    if (!backendJobIdRaw) {
-      notifications.showToastError('Job not found');
-      return false;
-    }
-
-    const backendJobId = String(backendJobIdRaw);
+    const queueJobId = typeof job.id === 'string' ? job.id : String(job.id ?? jobId);
 
     isCancelling.value = true;
 
     try {
-      const backendBaseUrl = resolveBackendBase();
-      try {
-        const response = await cancelGenerationJob(backendJobId, backendBaseUrl);
-        const cancelled = response?.success !== false;
-        if (!cancelled) {
-          notifications.showToastError('Failed to cancel job');
-          return false;
-        }
-
-        queueStore.removeJob(jobId);
-        notifications.showToastInfo('Job cancelled');
-        return true;
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('[JobQueue] Failed to cancel generation job', error);
-        }
-        notifications.showToastError('Failed to cancel job');
-        return false;
-      }
+      await ensureBinding().cancelJob(queueJobId);
+      return true;
+    } catch (error) {
+      debug('Failed to cancel job', error);
+      dispatchToast('Failed to cancel job', 'error');
+      return false;
     } finally {
       isCancelling.value = false;
     }
