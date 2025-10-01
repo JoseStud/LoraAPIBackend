@@ -44,6 +44,10 @@ export const createTransportActions = ({
     await refreshAllData();
   };
 
+  const reconnect = (): void => {
+    transport.reconnect();
+  };
+
   const startGeneration = async (
     payload: GenerationRequestPayload,
   ): Promise<GenerationStartResponse> => {
@@ -105,6 +109,7 @@ export const createTransportActions = ({
     loadRecentResults,
     refreshAllData,
     handleBackendUrlChange,
+    reconnect,
     startGeneration,
     cancelJob,
     clearQueue,
