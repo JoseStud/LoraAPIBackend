@@ -12,6 +12,10 @@ import type {
   SystemStatusState,
   NotificationType,
 } from '@/types';
+import type {
+  GenerationTransportError,
+  GenerationWebSocketStateSnapshot,
+} from '../types/transport';
 
 import { useGenerationQueueClient } from './useGenerationQueueClient';
 import { useGenerationSocketBridge } from './useGenerationSocketBridge';
@@ -36,7 +40,9 @@ export interface GenerationTransportCallbacks {
   onComplete?: (message: GenerationCompleteMessage) => GenerationResult | void;
   onError?: (message: GenerationErrorMessage) => void;
   onRecentResults?: (results: GenerationResult[]) => void;
-  onConnectionChange?: (connected: boolean) => void;
+  onConnectionChange?: (connected: boolean, snapshot?: GenerationWebSocketStateSnapshot) => void;
+  onConnectionStateChange?: (snapshot: GenerationWebSocketStateSnapshot) => void;
+  onTransportError?: (error: GenerationTransportError) => void;
   shouldPollQueue?: () => boolean;
   onNotify?: (message: string, type?: NotificationType) => void;
   logger?: (...args: unknown[]) => void;
@@ -82,6 +88,9 @@ export const useGenerationTransport = (
       },
       onHydrateSystemStatus: callbacks.onHydrateSystemStatus,
       onReleaseSystemStatus: callbacks.onReleaseSystemStatus,
+      onTransportError: (error) => {
+        callbacks.onTransportError?.(error);
+      },
     },
   );
 
@@ -113,8 +122,14 @@ export const useGenerationTransport = (
       onSystemStatus: (payload) => {
         callbacks.onSystemStatus?.(payload);
       },
-      onConnectionChange: (connected) => {
-        callbacks.onConnectionChange?.(connected);
+      onConnectionChange: (connected, snapshot) => {
+        callbacks.onConnectionChange?.(connected, snapshot);
+      },
+      onConnectionStateChange: (snapshot) => {
+        callbacks.onConnectionStateChange?.(snapshot);
+      },
+      onTransportError: (error) => {
+        callbacks.onTransportError?.(error);
       },
     },
   );

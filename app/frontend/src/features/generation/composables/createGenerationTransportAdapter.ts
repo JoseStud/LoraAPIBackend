@@ -12,6 +12,10 @@ import type {
   SystemStatusPayload,
   SystemStatusState,
 } from '@/types';
+import type {
+  GenerationTransportError,
+  GenerationWebSocketStateSnapshot,
+} from '../types/transport';
 
 export interface GenerationTransportAdapterOptions {
   getBackendUrl: () => string | null | undefined;
@@ -26,7 +30,9 @@ export interface GenerationTransportAdapterOptions {
   onComplete: (message: GenerationCompleteMessage) => GenerationResult | void;
   onError: (message: GenerationErrorMessage) => void;
   onRecentResults: (results: GenerationResult[]) => void;
-  onConnectionChange: (connected: boolean) => void;
+  onConnectionChange: (connected: boolean, snapshot?: GenerationWebSocketStateSnapshot) => void;
+  onConnectionStateChange?: (snapshot: GenerationWebSocketStateSnapshot) => void;
+  onTransportError?: (error: GenerationTransportError) => void;
   onHydrateSystemStatus: () => Promise<void> | void;
   onReleaseSystemStatus: () => void;
 }
@@ -75,8 +81,14 @@ export const createGenerationTransportAdapter = (
       onRecentResults: (results) => {
         options.onRecentResults(results);
       },
-      onConnectionChange: (connected) => {
-        options.onConnectionChange(connected);
+      onConnectionChange: (connected, snapshot) => {
+        options.onConnectionChange(connected, snapshot);
+      },
+      onConnectionStateChange: (snapshot) => {
+        options.onConnectionStateChange?.(snapshot);
+      },
+      onTransportError: (error) => {
+        options.onTransportError?.(error);
       },
       shouldPollQueue: () => options.shouldPollQueue(),
       onNotify: (message, type = 'info') => {
@@ -87,6 +99,9 @@ export const createGenerationTransportAdapter = (
       },
       onHydrateSystemStatus: () => options.onHydrateSystemStatus(),
       onReleaseSystemStatus: () => options.onReleaseSystemStatus(),
+      onTransportError: (error) => {
+        options.onTransportError?.(error);
+      },
     },
   );
 

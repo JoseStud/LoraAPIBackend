@@ -10,6 +10,10 @@ import type {
   SystemStatusPayload,
   SystemStatusState,
 } from '@/types';
+import type {
+  GenerationTransportError,
+  GenerationWebSocketStateSnapshot,
+} from '../types/transport';
 
 interface SocketBridgeOptions {
   getBackendUrl: () => string | null | undefined;
@@ -23,7 +27,9 @@ interface SocketBridgeCallbacks {
   onError?: (message: GenerationErrorMessage) => void;
   onQueueUpdate?: (jobs: GenerationJobInput[]) => void;
   onSystemStatus?: (payload: SystemStatusPayload | Partial<SystemStatusState>) => void;
-  onConnectionChange?: (connected: boolean) => void;
+  onConnectionChange?: (connected: boolean, snapshot?: GenerationWebSocketStateSnapshot) => void;
+  onConnectionStateChange?: (snapshot: GenerationWebSocketStateSnapshot) => void;
+  onTransportError?: (error: GenerationTransportError) => void;
 }
 
 export const useGenerationSocketBridge = (
@@ -59,6 +65,12 @@ export const useGenerationSocketBridge = (
       },
       onConnectionChange: (connected) => {
         callbacks.onConnectionChange?.(connected);
+      },
+      onStateChange: (snapshot) => {
+        callbacks.onConnectionStateChange?.(snapshot);
+      },
+      onTransportError: (error) => {
+        callbacks.onTransportError?.(error);
       },
     });
 

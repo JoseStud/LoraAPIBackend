@@ -9,8 +9,15 @@ import type {
   GenerationSystemStatusMessage,
   WebSocketMessage,
 } from '@/types';
+import type {
+  GenerationTransportError,
+  GenerationWebSocketErrorDetails,
+  GenerationWebSocketStateSnapshot,
+} from '../types/transport';
 
 const RECONNECT_DELAY = generationPollingConfig.websocketRetryMs;
+const MAX_RECONNECT_DELAY = Math.min(60_000, RECONNECT_DELAY * 8);
+const BACKOFF_FACTOR = 2;
 
 const appendWebSocketPath = (path: string): string => {
   const trimmed = path.replace(/\/+$/, '');
@@ -52,7 +59,9 @@ export interface GenerationWebSocketManagerOptions {
   onError?: (message: GenerationErrorMessage) => void;
   onQueueUpdate?: (jobs: unknown) => void;
   onSystemStatus?: (message: GenerationSystemStatusMessage) => void;
-  onConnectionChange?: (connected: boolean) => void;
+  onConnectionChange?: (connected: boolean, snapshot?: GenerationWebSocketStateSnapshot) => void;
+  onStateChange?: (snapshot: GenerationWebSocketStateSnapshot) => void;
+  onTransportError?: (error: GenerationTransportError) => void;
 }
 
 export interface GenerationWebSocketManager {
@@ -69,6 +78,14 @@ export const createGenerationWebSocketManager = (
   let websocket: WebSocket | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let shouldReconnect = true;
+  let reconnectAttempt = 0;
+  let consecutiveFailures = 0;
+  let lastConnectedAt: number | null = null;
+  let lastDisconnectedAt: number | null = null;
+  let downtimeStartAt: number | null = null;
+  let nextRetryDelayMs: number | null = null;
+  let lastKnownUrl = '';
+  let lastError: GenerationWebSocketErrorDetails | null = null;
 
   const logDebug = (...args: unknown[]) => {
     if (typeof logger === 'function') {
@@ -83,23 +100,100 @@ export const createGenerationWebSocketManager = (
     }
   };
 
-  const notifyConnectionChange = (connected: boolean) => {
-    options.onConnectionChange?.(connected);
-    logDebug('WebSocket connection state changed:', connected);
+  const emitState = (
+    event: GenerationWebSocketStateSnapshot['event'],
+    overrides: Partial<GenerationWebSocketStateSnapshot> = {},
+  ): GenerationWebSocketStateSnapshot => {
+    const snapshot: GenerationWebSocketStateSnapshot = {
+      event,
+      timestamp: Date.now(),
+      url: lastKnownUrl,
+      connected: overrides.connected ?? (event === 'connect:success'),
+      reconnectAttempt,
+      consecutiveFailures,
+      nextRetryDelayMs,
+      lastConnectedAt,
+      lastDisconnectedAt,
+      downtimeMs: downtimeStartAt != null ? Date.now() - downtimeStartAt : null,
+      error: lastError,
+      ...overrides,
+    };
+
+    try {
+      options.onStateChange?.(snapshot);
+    } catch (error) {
+      console.error('Failed to notify WebSocket state change:', error);
+    }
+
+    logDebug('[generation:websocket]', snapshot);
+
+    return snapshot;
+  };
+
+  const reportTransportError = (
+    context: string,
+    errorDetails: GenerationWebSocketErrorDetails,
+  ): void => {
+    lastError = { ...errorDetails };
+    const payload: GenerationTransportError = {
+      source: 'websocket',
+      context,
+      message: errorDetails.message,
+      timestamp: Date.now(),
+      statusCode: errorDetails.code,
+      attempt: reconnectAttempt,
+      url: lastKnownUrl,
+      details: errorDetails,
+    };
+    try {
+      options.onTransportError?.(payload);
+    } catch (notifyError) {
+      console.error('Failed to notify WebSocket transport error:', notifyError);
+    }
+  };
+
+  const notifyConnectionChange = (
+    connected: boolean,
+    snapshot?: GenerationWebSocketStateSnapshot,
+  ): void => {
+    const resolved = snapshot
+      ?? emitState(connected ? 'connect:success' : 'disconnect', {
+        connected,
+      });
+
+    try {
+      options.onConnectionChange?.(connected, resolved);
+    } catch (error) {
+      console.error('Failed to notify WebSocket connection change:', error);
+    }
   };
 
   const scheduleReconnect = () => {
     if (!shouldReconnect || reconnectTimer != null) {
       return;
     }
+    reconnectAttempt += 1;
+    consecutiveFailures = Math.max(consecutiveFailures, reconnectAttempt);
+    const computedDelay = Math.min(
+      Math.floor(RECONNECT_DELAY * Math.pow(BACKOFF_FACTOR, reconnectAttempt - 1)),
+      MAX_RECONNECT_DELAY,
+    );
+    nextRetryDelayMs = computedDelay;
+
+    emitState('reconnect:scheduled', {
+      connected: false,
+      error: lastError,
+      nextRetryDelayMs: computedDelay,
+    });
+
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
       if (!shouldReconnect || websocket) {
         return;
       }
-      logDebug('Attempting to reconnect WebSocket...');
+      logDebug('Attempting to reconnect WebSocket...', reconnectAttempt);
       connectWebSocket();
-    }, RECONNECT_DELAY);
+    }, computedDelay);
   };
 
   const handleQueueUpdate = (jobs: unknown): void => {
@@ -144,6 +238,12 @@ export const createGenerationWebSocketManager = (
 
   const connectWebSocket = (): void => {
     const url = resolveWebSocketUrl(getBackendUrl?.());
+    lastKnownUrl = url;
+
+    emitState('connect:start', {
+      connected: false,
+      error: lastError,
+    });
 
     try {
       if (websocket) {
@@ -155,29 +255,83 @@ export const createGenerationWebSocketManager = (
       clearReconnectTimer();
 
       websocket.onopen = () => {
-        notifyConnectionChange(true);
+        const now = Date.now();
+        lastConnectedAt = now;
+        const snapshot = emitState('connect:success', {
+          connected: true,
+          downtimeMs: downtimeStartAt != null ? now - downtimeStartAt : null,
+        });
+        reconnectAttempt = 0;
+        consecutiveFailures = 0;
+        downtimeStartAt = null;
+        nextRetryDelayMs = null;
+        lastError = null;
+        notifyConnectionChange(true, snapshot);
         logDebug('WebSocket connected for generation updates');
       };
 
       websocket.onmessage = handleWebSocketMessage;
 
       websocket.onerror = (event) => {
+        const details: GenerationWebSocketErrorDetails = {
+          message: 'WebSocket error event',
+          cause: event,
+          attempt: reconnectAttempt,
+        };
+        reportTransportError('websocket:error', details);
+        emitState('error', {
+          connected: false,
+          error: details,
+        });
         console.error('WebSocket error:', event);
       };
 
-      websocket.onclose = () => {
+      websocket.onclose = (event) => {
         if (websocket) {
           websocket.onmessage = null;
           websocket.onerror = null;
           websocket.onclose = null;
           websocket = null;
         }
-        notifyConnectionChange(false);
+        const closeEvent = event as CloseEvent | undefined;
+        const message = closeEvent?.reason || 'WebSocket connection closed';
+        lastDisconnectedAt = Date.now();
+        if (downtimeStartAt == null) {
+          downtimeStartAt = lastDisconnectedAt;
+        }
+        const details: GenerationWebSocketErrorDetails = {
+          message,
+          code: closeEvent?.code,
+          reason: closeEvent?.reason,
+          wasClean: closeEvent?.wasClean,
+          attempt: reconnectAttempt,
+        };
+        lastError = details;
+        reportTransportError('websocket:close', details);
+        const snapshot = emitState('disconnect', {
+          connected: false,
+          error: details,
+        });
+        notifyConnectionChange(false, snapshot);
         scheduleReconnect();
       };
     } catch (error) {
       console.error('Failed to initialize WebSocket:', error);
-      notifyConnectionChange(false);
+      const message = error instanceof Error ? error.message : 'Unknown WebSocket error';
+      const details: GenerationWebSocketErrorDetails = {
+        message,
+        cause: error,
+        attempt: reconnectAttempt,
+      };
+      reportTransportError('websocket:init', details);
+      if (downtimeStartAt == null) {
+        downtimeStartAt = Date.now();
+      }
+      const snapshot = emitState('error', {
+        connected: false,
+        error: details,
+      });
+      notifyConnectionChange(false, snapshot);
       scheduleReconnect();
     }
   };
@@ -192,23 +346,35 @@ export const createGenerationWebSocketManager = (
       }
       websocket = null;
     }
+    downtimeStartAt = null;
+    lastError = null;
     notifyConnectionChange(false);
   };
 
   return {
     start: () => {
       shouldReconnect = true;
+      reconnectAttempt = 0;
+      consecutiveFailures = 0;
+      nextRetryDelayMs = null;
+      downtimeStartAt = null;
+      lastError = null;
       connectWebSocket();
     },
     stop: () => {
       shouldReconnect = false;
       clearReconnectTimer();
       disconnectWebSocket();
+      reconnectAttempt = 0;
+      nextRetryDelayMs = null;
+      downtimeStartAt = null;
     },
     reconnect: () => {
       shouldReconnect = true;
       clearReconnectTimer();
       disconnectWebSocket();
+      reconnectAttempt = 0;
+      nextRetryDelayMs = null;
       connectWebSocket();
     },
   };

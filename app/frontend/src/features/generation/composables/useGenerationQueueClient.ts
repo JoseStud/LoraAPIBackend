@@ -15,6 +15,8 @@ import type {
 } from '@/types';
 import { SystemStatusPayloadSchema } from '@/schemas';
 import { normalizeJobStatus } from '@/utils/status';
+import { ApiError } from '@/types/api';
+import type { GenerationTransportError } from '../types/transport';
 
 const logValidationIssues = (
   context: string,
@@ -62,6 +64,7 @@ interface QueueClientCallbacks {
   logger?: (...args: unknown[]) => void;
   onHydrateSystemStatus?: () => Promise<void> | void;
   onReleaseSystemStatus?: () => void;
+  onTransportError?: (error: GenerationTransportError) => void;
 }
 
 export const useGenerationQueueClient = (
@@ -79,6 +82,37 @@ export const useGenerationQueueClient = (
 
   const notify = (message: string, type: NotificationType = 'info'): void => {
     callbacks.onNotify?.(message, type);
+  };
+
+  const reportError = (
+    context: string,
+    error: unknown,
+    extras: Partial<GenerationTransportError> = {},
+  ): void => {
+    const timestamp = Date.now();
+    let message = 'Unknown error';
+    let statusCode: number | undefined;
+
+    if (error instanceof ApiError) {
+      message = error.message || `Request failed with status ${error.status}`;
+      statusCode = error.status;
+    } else if (error instanceof Error) {
+      message = error.message;
+    } else if (typeof error === 'string') {
+      message = error;
+    }
+
+    const payload: GenerationTransportError = {
+      source: 'http',
+      context,
+      message,
+      timestamp,
+      statusCode,
+      details: error,
+      ...extras,
+    };
+
+    callbacks.onTransportError?.(payload);
   };
 
   const getQueueClient = (): GenerationQueueClient => {
@@ -103,6 +137,7 @@ export const useGenerationQueueClient = (
       }
     } catch (error) {
       console.error('Failed to refresh system status:', error);
+      reportError('refreshSystemStatus', error);
       throw error;
     }
   };
@@ -115,6 +150,7 @@ export const useGenerationQueueClient = (
       callbacks.onQueueUpdate?.(normalized);
     } catch (error) {
       console.error('Failed to refresh active jobs:', error);
+      reportError('refreshActiveJobs', error);
       throw error;
     }
   };
@@ -129,6 +165,7 @@ export const useGenerationQueueClient = (
       }
     } catch (error) {
       console.error('Failed to refresh recent results:', error);
+      reportError('refreshRecentResults', error);
       if (notifySuccess) {
         notify('Failed to refresh results', 'error');
       }
@@ -157,6 +194,7 @@ export const useGenerationQueueClient = (
       } catch (error) {
         console.error('Failed to refresh generation data during polling:', error);
         logDebug('Queue polling cycle failed', error);
+        reportError('pollActiveJobs', error);
       }
     }, pollInterval.value);
   };
