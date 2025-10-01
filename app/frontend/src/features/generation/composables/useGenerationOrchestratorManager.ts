@@ -13,7 +13,7 @@ import {
   DEFAULT_HISTORY_LIMIT,
 } from '../stores/useGenerationOrchestratorStore';
 import { useGenerationStudioUiStore } from '../stores/ui';
-import { useSettingsStore } from '@/stores';
+import { useSettingsStore } from '@/stores/settings';
 import type {
   GenerationJob,
   GenerationRequestPayload,

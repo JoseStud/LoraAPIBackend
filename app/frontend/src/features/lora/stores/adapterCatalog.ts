@@ -3,7 +3,7 @@ import { defineStore } from 'pinia';
 
 import { ApiError, useAsyncResource } from '@/composables/shared';
 import { fetchAdapterList, fetchAdapterTags, performBulkLoraAction } from '../services/lora/loraService';
-import { useBackendClient } from '@/services';
+import { useBackendClient } from '@/services/backendClient';
 
 import type {
   AdapterRead,

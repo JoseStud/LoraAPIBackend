@@ -3,7 +3,7 @@ import type { Router } from 'vue-router';
 
 import { PERSISTENCE_KEYS, usePersistence } from '@/composables/shared';
 import { downloadFile } from '@/utils/browser';
-import { useBackendClient } from '@/services';
+import { useBackendClient } from '@/services/backendClient';
 import {
   deleteResult as deleteHistoryResult,
   deleteResults as deleteHistoryResults,

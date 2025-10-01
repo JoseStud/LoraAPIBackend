@@ -1,6 +1,6 @@
 import { storeToRefs } from 'pinia';
 
-import { useAppStore } from '@/stores';
+import { useAppStore } from '@/stores/app';
 
 import type { NotificationType } from '@/types';
 

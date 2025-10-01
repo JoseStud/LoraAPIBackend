@@ -3,12 +3,12 @@ import { defineStore } from 'pinia';
 
 import { useAsyncResource } from '@/composables/shared';
 
+import { useBackendClient } from '@/services/backendClient';
 import {
   deriveMetricsFromDashboard,
   emptyMetricsSnapshot,
   fetchDashboardStats,
-  useBackendClient,
-} from '@/services';
+} from '@/services/system/systemService';
 import {
   buildResourceStats,
   defaultResourceStats,

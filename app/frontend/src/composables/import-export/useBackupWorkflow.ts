@@ -1,7 +1,7 @@
 import { ref, type Ref } from 'vue';
 
 import { ensureData } from '@/services/apiClient';
-import { useBackendClient, type BackendClient } from '@/services';
+import { useBackendClient, type BackendClient } from '@/services/backendClient';
 import type { BackupCreateRequest, BackupHistoryItem } from '@/types';
 import type { NotifyFn } from './useExportWorkflow';
 

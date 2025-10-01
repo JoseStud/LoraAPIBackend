@@ -1,6 +1,10 @@
 import { computed, isRef, onScopeDispose, ref, type ComputedRef, type Ref } from 'vue';
 
-import { useBackendRefresh, type BackendRefreshOptions, type BackendRefreshSubscription } from '@/services';
+import {
+  useBackendRefresh,
+  type BackendRefreshOptions,
+  type BackendRefreshSubscription,
+} from '@/services/system/backendRefresh';
 
 export interface AsyncResourceBackendRefreshOptions<TArgs>
   extends BackendRefreshOptions {

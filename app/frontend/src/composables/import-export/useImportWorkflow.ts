@@ -1,7 +1,7 @@
 import { computed, reactive, ref, type ComputedRef } from 'vue';
 
 import { ensureData } from '@/services/apiClient';
-import { useBackendClient, type BackendClient } from '@/services';
+import { useBackendClient, type BackendClient } from '@/services/backendClient';
 import type { ImportConfig } from '@/types';
 import type { NotifyFn, ProgressCallbacks } from './useExportWorkflow';
 
