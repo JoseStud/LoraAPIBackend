@@ -17,6 +17,7 @@ import type {
   GenerationTransportMetricsSnapshot,
   GenerationWebSocketStateSnapshot,
 } from '../types/transport';
+import { freezeDeep, type DeepReadonly } from '@/utils/freezeDeep';
 
 export type { GenerationJobInput } from './orchestrator/queueModule';
 export { MAX_RESULTS, DEFAULT_HISTORY_LIMIT } from './orchestrator/resultsModule';
@@ -30,32 +31,11 @@ export interface GenerationOrchestratorInitializeOptions {
   websocketManager?: GenerationWebSocketManager;
 }
 
-const freezeJob = (job: GenerationJob): Readonly<GenerationJob> =>
-  Object.freeze({ ...job });
-
-const freezeResult = (result: GenerationResult): Readonly<GenerationResult> =>
-  Object.freeze({ ...result });
-
-const freezeSystemStatus = (
-  status: SystemStatusState,
-): Readonly<SystemStatusState> => Object.freeze({ ...status });
-
-type ImmutableJobs = readonly Readonly<GenerationJob>[];
-type ImmutableResults = readonly Readonly<GenerationResult>[];
-
-const toImmutableJobs = (
-  source: { readonly value: readonly GenerationJob[] | readonly Readonly<GenerationJob>[] },
-): ComputedRef<ImmutableJobs> =>
-  computed(() => Object.freeze(source.value.map((job) => freezeJob(job as GenerationJob))));
-
-const toImmutableResults = (
-  source: { readonly value: readonly GenerationResult[] | readonly Readonly<GenerationResult>[] },
-): ComputedRef<ImmutableResults> =>
-  computed(() => Object.freeze(source.value.map((result) => freezeResult(result as GenerationResult))));
-
-const toImmutableSystemStatus = (
-  source: () => SystemStatusState,
-): ComputedRef<Readonly<SystemStatusState>> => computed(() => freezeSystemStatus(source()));
+type ImmutableJob = DeepReadonly<GenerationJob>;
+type ImmutableJobs = ReadonlyArray<ImmutableJob>;
+type ImmutableResult = DeepReadonly<GenerationResult>;
+type ImmutableResults = ReadonlyArray<ImmutableResult>;
+type ImmutableSystemStatus = DeepReadonly<SystemStatusState>;
 
 /**
  * Thin façade that orchestrates generation transport, queue, and history state.
@@ -128,12 +108,18 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
     const { createResultFromCompletion: _ignored, ...resultsPublic } = results;
     const transportMetrics = transportModule.metrics as ComputedRef<GenerationTransportMetricsSnapshot>;
 
-    const jobs = toImmutableJobs(queue.jobs);
-    const activeJobs = toImmutableJobs(queue.activeJobs);
-    const sortedActiveJobs = toImmutableJobs(queue.sortedActiveJobs);
-    const recentResults = toImmutableResults(resultsPublic.recentResults);
-    const systemStatus = toImmutableSystemStatus(
-      () => systemStatusModule.systemStatus as SystemStatusState,
+    const jobs = computed(() => freezeDeep(queue.jobs.value as GenerationJob[]) as ImmutableJobs);
+    const activeJobs = computed(
+      () => freezeDeep(queue.activeJobs.value as GenerationJob[]) as ImmutableJobs,
+    );
+    const sortedActiveJobs = computed(
+      () => freezeDeep(queue.sortedActiveJobs.value as GenerationJob[]) as ImmutableJobs,
+    );
+    const recentResults = computed(() =>
+      freezeDeep(resultsPublic.recentResults.value as GenerationResult[]) as ImmutableResults,
+    );
+    const systemStatus = computed(
+      () => freezeDeep(systemStatusModule.systemStatus) as ImmutableSystemStatus,
     );
 
     const isActiveState = readonly(isActive);
