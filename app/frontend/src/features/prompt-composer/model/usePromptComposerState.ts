@@ -41,7 +41,7 @@ const normaliseWeight = (value: number): number => {
   return value;
 };
 
-export interface PromptCompositionStateBindings {
+export interface PromptComposerStateBindings {
   activeLoras: Ref<CompositionEntry[]>;
   basePrompt: Ref<string>;
   negativePrompt: Ref<string>;
@@ -62,7 +62,7 @@ export interface PromptCompositionStateBindings {
   validate: () => boolean;
 }
 
-export const usePromptCompositionState = (): PromptCompositionStateBindings => {
+export const usePromptComposerState = (): PromptComposerStateBindings => {
   const activeLoras = ref<CompositionEntry[]>([]);
   const basePrompt = ref('');
   const negativePrompt = ref('');

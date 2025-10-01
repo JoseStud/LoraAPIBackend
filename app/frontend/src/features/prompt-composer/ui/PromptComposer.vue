@@ -67,7 +67,7 @@ import PromptComposerActions from './PromptComposerActions.vue';
 import PromptComposerAvailableList from './PromptComposerAvailableList.vue';
 import PromptComposerComposition from './PromptComposerComposition.vue';
 
-import { usePromptComposition } from '@/composables/compose';
+import { usePromptComposer } from '../model/usePromptComposer';
 
 const {
   catalog,
@@ -94,7 +94,7 @@ const {
   loadComposition,
   generateImage,
   isInComposition,
-} = usePromptComposition();
+} = usePromptComposer();
 
 const {
   filteredAdapters: filteredLoras,

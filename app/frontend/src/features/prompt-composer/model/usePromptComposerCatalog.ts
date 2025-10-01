@@ -10,7 +10,7 @@ type AdapterCatalogQuery = {
   perPage?: number;
 };
 
-export interface AdapterCatalogState {
+export interface PromptComposerCatalogState {
   searchTerm: Ref<string>;
   activeOnly: Ref<boolean>;
   adapters: ComputedRef<AdapterSummary[]>;
@@ -19,15 +19,17 @@ export interface AdapterCatalogState {
   error: Ref<unknown>;
 }
 
-export interface AdapterCatalogActions {
+export interface PromptComposerCatalogActions {
   setSearchTerm: (value: string) => void;
   setActiveOnly: (value: boolean) => void;
   refresh: () => Promise<void>;
 }
 
-export type AdapterCatalogApi = AdapterCatalogState & AdapterCatalogActions;
+export type PromptComposerCatalogApi = PromptComposerCatalogState & PromptComposerCatalogActions;
 
-export const useAdapterCatalog = (query: AdapterCatalogQuery = {}): AdapterCatalogApi => {
+export const usePromptComposerCatalog = (
+  query: AdapterCatalogQuery = {},
+): PromptComposerCatalogApi => {
   const searchTerm = ref('');
   const activeOnly = ref(false);
 

@@ -3,14 +3,20 @@ import { computed, nextTick, ref } from 'vue';
 import { mount } from '@vue/test-utils';
 
 import type { AdapterSummary, SavedComposition } from '@/types';
-import type { AdapterCatalogApi } from '../../app/frontend/src/composables/compose/useAdapterCatalog';
+import type { PromptComposerCatalogApi } from '../../app/frontend/src/features/prompt-composer/model/usePromptComposerCatalog';
 
-import { usePromptComposition } from '../../app/frontend/src/composables/compose/usePromptComposition';
-import { usePromptCompositionState } from '../../app/frontend/src/composables/prompt-composer/usePromptCompositionState';
-import { usePromptCompositionPersistence } from '../../app/frontend/src/composables/prompt-composer/usePromptCompositionPersistence';
-import { usePromptGenerationActions } from '../../app/frontend/src/composables/prompt-composer/usePromptGenerationActions';
+import { usePromptComposer } from '../../app/frontend/src/features/prompt-composer/model/usePromptComposer';
+import { usePromptComposerState } from '../../app/frontend/src/features/prompt-composer/model/usePromptComposerState';
+import { usePromptComposerPersistence } from '../../app/frontend/src/features/prompt-composer/model/usePromptComposerPersistence';
+import { usePromptComposerGeneration } from '../../app/frontend/src/features/prompt-composer/model/usePromptComposerGeneration';
 
-type UsePromptCompositionReturn = ReturnType<typeof usePromptComposition>;
+type UsePromptComposerReturn = ReturnType<typeof usePromptComposer>;
+
+type OrchestratorBindingMock = {
+  initialize: ReturnType<typeof vi.fn<[], Promise<void>>>;
+  startGeneration: ReturnType<typeof vi.fn<[unknown], Promise<void>>>;
+  release: ReturnType<typeof vi.fn<[], void>>;
+};
 
 const adapterSource = ref<AdapterSummary[]>([]);
 const searchTermRef = ref('');
@@ -46,25 +52,25 @@ const refresh = vi.fn(async () => {
 });
 
 const catalogModuleMock = vi.hoisted(() => ({
-  useAdapterCatalog: vi.fn<[], AdapterCatalogApi>(),
+  usePromptComposerCatalog: vi.fn<[], PromptComposerCatalogApi>(),
 }));
 
-vi.mock('../../app/frontend/src/composables/compose/useAdapterCatalog', () => catalogModuleMock);
+vi.mock('../../app/frontend/src/features/prompt-composer/model/usePromptComposerCatalog', () => catalogModuleMock);
 
-const servicesModuleMock = vi.hoisted(() => {
-  const clipboard = { copy: vi.fn(async () => true) };
-  const generator = { trigger: vi.fn(async () => true) };
-  return {
-    clipboard,
-    generator,
-    createPromptClipboardService: vi.fn(() => clipboard),
-    createPromptGenerationService: vi.fn(() => generator),
-  };
-});
+const clipboardMock = vi.hoisted(() => ({
+  copy: vi.fn(async () => true),
+}));
 
-vi.mock('../../app/frontend/src/composables/prompt-composer/services', () => ({
-  createPromptClipboardService: servicesModuleMock.createPromptClipboardService,
-  createPromptGenerationService: servicesModuleMock.createPromptGenerationService,
+vi.mock('../../app/frontend/src/features/prompt-composer/lib/services', () => ({
+  createPromptClipboardService: vi.fn(() => clipboardMock),
+}));
+
+const tracerMock = vi.hoisted(() => ({
+  emit: vi.fn(),
+}));
+
+vi.mock('../../app/frontend/src/features/prompt-composer/lib/tracing', () => ({
+  createPromptComposerTracer: vi.fn(() => tracerMock),
 }));
 
 const persistenceState = {
@@ -91,6 +97,34 @@ vi.mock('../../app/frontend/src/utils/promptCompositionPersistence', async () =>
   };
 });
 
+const notificationsMock = vi.hoisted(() => ({
+  notify: vi.fn(),
+  showSuccess: vi.fn(),
+  showError: vi.fn(),
+}));
+
+vi.mock('../../app/frontend/src/composables/shared', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    useNotifications: vi.fn(() => notificationsMock),
+  };
+});
+
+const orchestratorBindingMock = vi.hoisted<OrchestratorBindingMock>(() => ({
+  initialize: vi.fn(async () => {}),
+  startGeneration: vi.fn(async () => {}),
+  release: vi.fn(() => {}),
+}));
+
+const orchestratorManagerMock = vi.hoisted(() => ({
+  acquire: vi.fn(() => orchestratorBindingMock),
+}));
+
+vi.mock('../../app/frontend/src/features/generation/composables/useGenerationOrchestratorManager', () => ({
+  useGenerationOrchestratorManager: vi.fn(() => orchestratorManagerMock),
+}));
+
 const flush = async () => {
   await Promise.resolve();
   await nextTick();
@@ -114,21 +148,21 @@ const mountComposable = <T>(factory: () => T) => {
   };
 };
 
-const withPromptComposition = (): UsePromptCompositionReturn => {
-  let result: UsePromptCompositionReturn | undefined;
+const withPromptComposer = (): UsePromptComposerReturn => {
+  let result: UsePromptComposerReturn | undefined;
   mount({
     template: '<div />',
     setup() {
-      result = usePromptComposition();
+      result = usePromptComposer();
       return {};
     },
   });
   return result!;
 };
 
-describe('usePromptCompositionState', () => {
+describe('usePromptComposerState', () => {
   it('tracks active LoRAs and builds the final prompt', () => {
-    const state = usePromptCompositionState();
+    const state = usePromptComposerState();
 
     const adapter: AdapterSummary = {
       id: 'alpha',
@@ -149,7 +183,7 @@ describe('usePromptCompositionState', () => {
   });
 
   it('validates base prompt and normalises weights', () => {
-    const state = usePromptCompositionState();
+    const state = usePromptComposerState();
 
     expect(state.validate()).toBe(false);
     expect(state.basePromptError.value).toBe('Base prompt is required');
@@ -173,7 +207,7 @@ describe('usePromptCompositionState', () => {
   });
 });
 
-describe('usePromptCompositionPersistence', () => {
+describe('usePromptComposerPersistence', () => {
   beforeEach(() => {
     persistenceState.saved.value = null;
     persistenceState.load.mockReset();
@@ -189,7 +223,7 @@ describe('usePromptCompositionPersistence', () => {
     const basePromptError = ref('error');
 
     const { bindings, unmount } = mountComposable(() =>
-      usePromptCompositionPersistence({
+      usePromptComposerPersistence({
         activeLoras,
         basePrompt,
         negativePrompt,
@@ -230,39 +264,52 @@ describe('usePromptCompositionPersistence', () => {
   });
 });
 
-describe('usePromptGenerationActions', () => {
+describe('usePromptComposerGeneration', () => {
+  beforeEach(() => {
+    clipboardMock.copy.mockClear();
+    orchestratorBindingMock.initialize.mockClear();
+    orchestratorBindingMock.startGeneration.mockClear();
+    orchestratorBindingMock.release.mockClear();
+    notificationsMock.notify.mockClear();
+    notificationsMock.showSuccess.mockClear();
+    notificationsMock.showError.mockClear();
+    tracerMock.emit.mockClear();
+  });
+
   it('copies prompt and triggers generation when valid', async () => {
     const finalPrompt = ref('Prompt with token');
     const negativePrompt = ref('');
     const activeLoras = ref([{ id: 'alpha', name: 'Alpha', weight: 1 }]);
     const validate = vi.fn(() => true);
-    const clipboard = { copy: vi.fn(async () => true) };
-    const generator = { trigger: vi.fn(async () => true) };
 
-    const { bindings } = mountComposable(() =>
-      usePromptGenerationActions({
+    const { bindings, unmount } = mountComposable(() =>
+      usePromptComposerGeneration({
         finalPrompt,
         negativePrompt,
         activeLoras,
         validate,
-        clipboard,
-        generator,
       }),
     );
 
     await bindings.copyPrompt();
-    expect(clipboard.copy).toHaveBeenCalledWith('Prompt with token');
+    expect(clipboardMock.copy).toHaveBeenCalledWith('Prompt with token');
 
-    await bindings.generateImage();
+    const result = await bindings.generateImage();
+    expect(result).toBe(true);
     expect(validate).toHaveBeenCalled();
-    expect(generator.trigger).toHaveBeenCalledWith(
-      expect.objectContaining({ prompt: 'Prompt with token', loras: activeLoras.value }),
+    expect(orchestratorBindingMock.initialize).toHaveBeenCalled();
+    expect(orchestratorBindingMock.startGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: 'Prompt with token', loras: expect.any(Array) }),
     );
+    expect(notificationsMock.showSuccess).toHaveBeenCalled();
+
+    unmount();
+    expect(orchestratorBindingMock.release).toHaveBeenCalled();
   });
 
   it('aborts generation when validation fails', async () => {
     const { bindings } = mountComposable(() =>
-      usePromptGenerationActions({
+      usePromptComposerGeneration({
         finalPrompt: ref(''),
         negativePrompt: ref('no'),
         activeLoras: ref([]),
@@ -273,10 +320,12 @@ describe('usePromptGenerationActions', () => {
     const result = await bindings.generateImage();
     expect(result).toBe(false);
     expect(bindings.isGenerating.value).toBe(false);
+    expect(orchestratorBindingMock.startGeneration).not.toHaveBeenCalled();
+    expect(notificationsMock.showError).not.toHaveBeenCalled();
   });
 });
 
-describe('usePromptComposition orchestrator', () => {
+describe('usePromptComposer orchestration', () => {
   beforeEach(() => {
     adapterSource.value = [
       { id: 'alpha', name: 'Alpha', description: 'First adapter', active: true },
@@ -289,10 +338,9 @@ describe('usePromptComposition orchestrator', () => {
     setSearchTerm.mockClear();
     setActiveOnly.mockClear();
     refresh.mockClear();
-    servicesModuleMock.clipboard.copy.mockClear();
-    servicesModuleMock.generator.trigger.mockClear();
-    servicesModuleMock.createPromptClipboardService.mockClear();
-    servicesModuleMock.createPromptGenerationService.mockClear();
+    clipboardMock.copy.mockClear();
+    orchestratorBindingMock.initialize.mockClear();
+    orchestratorBindingMock.startGeneration.mockClear();
     persistenceState.saved.value = null;
     persistenceState.load.mockImplementation(() => persistenceState.saved.value);
     persistenceState.save.mockImplementation((payload: SavedComposition) => {
@@ -305,8 +353,8 @@ describe('usePromptComposition orchestrator', () => {
     persistenceState.load.mockClear();
     persistenceState.save.mockClear();
     persistenceState.scheduleSave.mockClear();
-    catalogModuleMock.useAdapterCatalog.mockReset();
-    catalogModuleMock.useAdapterCatalog.mockImplementation(() => ({
+    catalogModuleMock.usePromptComposerCatalog.mockReset();
+    catalogModuleMock.usePromptComposerCatalog.mockImplementation(() => ({
       searchTerm: searchTermRef,
       activeOnly: activeOnlyRef,
       adapters: computed(() => adapterSource.value),
@@ -320,10 +368,10 @@ describe('usePromptComposition orchestrator', () => {
   });
 
   it('exposes catalog filters and updates composition weights', async () => {
-    const state = withPromptComposition();
+    const state = withPromptComposer();
     await flush();
 
-    expect(catalogModuleMock.useAdapterCatalog).toHaveBeenCalled();
+    expect(catalogModuleMock.usePromptComposerCatalog).toHaveBeenCalled();
     expect(state.catalog.filteredAdapters.value).toHaveLength(2);
 
     state.catalog.setSearchTerm('beta');
@@ -341,8 +389,8 @@ describe('usePromptComposition orchestrator', () => {
     expect(state.activeLoras.value[0].weight).toBe(2);
   });
 
-  it('builds final prompt, copies and triggers generation through services', async () => {
-    const state = withPromptComposition();
+  it('builds final prompt, copies and triggers generation through orchestrator', async () => {
+    const state = withPromptComposer();
     await flush();
 
     const first = adapterSource.value[0];
@@ -355,20 +403,20 @@ describe('usePromptComposition orchestrator', () => {
     expect(state.finalPrompt.value).toContain('<lora:Alpha:1.0>');
 
     await state.copyPrompt();
-    expect(servicesModuleMock.clipboard.copy).toHaveBeenCalledWith(state.finalPrompt.value);
+    expect(clipboardMock.copy).toHaveBeenCalledWith(state.finalPrompt.value);
 
     await state.generateImage();
-    expect(servicesModuleMock.generator.trigger).toHaveBeenCalledWith(
+    expect(orchestratorBindingMock.startGeneration).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: state.finalPrompt.value,
-        negativePrompt: 'blurry',
+        negative_prompt: 'blurry',
         loras: expect.any(Array),
       }),
     );
   });
 
   it('persists and reloads compositions using persistence helper', async () => {
-    const state = withPromptComposition();
+    const state = withPromptComposer();
     await flush();
 
     const first = adapterSource.value[0];
