@@ -57,7 +57,7 @@ describe('useBackupWorkflow', () => {
     const workflow = useBackupWorkflow({ notify, backendClient });
     await workflow.initialize();
 
-    expect(getJson).toHaveBeenCalledWith('https://custom.example/api/v1/backups/history');
+    expect(getJson).toHaveBeenCalledWith('https://custom.example/api/v1/backups/history', undefined);
     expect(workflow.backupHistory.value).toHaveLength(1);
     expect(workflow.backupHistory.value[0].id).toBe('b1');
   });
@@ -67,11 +67,19 @@ describe('useBackupWorkflow', () => {
     await workflow.initialize();
 
     await workflow.createFullBackup();
-    expect(postJson).toHaveBeenCalledWith('https://custom.example/api/v1/backup/create', { backup_type: 'full' });
+    expect(postJson).toHaveBeenCalledWith(
+      'https://custom.example/api/v1/backup/create',
+      { backup_type: 'full' },
+      undefined,
+    );
     expect(notify).toHaveBeenCalledWith('Full backup initiated: b2', 'success');
 
     await workflow.createQuickBackup();
-    expect(postJson).toHaveBeenCalledWith('https://custom.example/api/v1/backup/create', { backup_type: 'quick' });
+    expect(postJson).toHaveBeenCalledWith(
+      'https://custom.example/api/v1/backup/create',
+      { backup_type: 'quick' },
+      undefined,
+    );
     expect(notify).toHaveBeenCalledWith('Quick backup initiated: b2', 'success');
   });
 

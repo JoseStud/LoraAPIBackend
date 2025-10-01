@@ -30,9 +30,18 @@ export function useBackupWorkflow(options: UseBackupWorkflowOptions): UseBackupW
     try {
 
       const response = await backendClient.getJson<
-        BackupHistoryItem[] | { history?: BackupHistoryItem[] | null } | null
+        | BackupHistoryItem[]
+        | { history?: BackupHistoryItem[] | null }
+        | { data?: BackupHistoryItem[] | { history?: BackupHistoryItem[] | null } | null }
+        | null
       >('/api/v1/backups/history');
-      const data = response ?? null;
+
+      const payload =
+        response && typeof response === 'object' && 'data' in response
+          ? (response as { data?: unknown }).data ?? null
+          : response;
+
+      const data = payload ?? null;
 
       if (Array.isArray(data)) {
         history.value = data as BackupHistoryItem[];
