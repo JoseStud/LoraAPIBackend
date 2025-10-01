@@ -1,15 +1,9 @@
-import { computed, ref, watch } from 'vue';
-import { defineStore } from 'pinia';
+import { computed, ref, type ComputedRef } from 'vue';
+import { defineStore, storeToRefs } from 'pinia';
 
 import { runtimeConfig } from '@/config/runtime';
 import type { FrontendRuntimeSettings } from '@/types';
 
-import {
-  emitBackendUrlChanged,
-  subscribe,
-  unsubscribe,
-  type BackendEnvironmentBusHandler,
-} from '@/services/system/backendEnvironmentEventBus';
 import { sanitizeBackendBaseUrl } from '@/utils/backend/helpers';
 
 export const normaliseBackendApiKey = (value?: string | null): string | null => {
@@ -159,17 +153,6 @@ export const useSettingsStore = defineStore('app-settings', () => {
     error.value = null;
   };
 
-  watch(
-    backendUrl,
-    (next, previous) => {
-      if (next === previous) {
-        return;
-      }
-      emitBackendUrlChanged(next, previous ?? null);
-    },
-    { flush: 'post' },
-  );
-
   Promise.resolve().then(() => {
     backendEnvironmentReady.resolve();
   });
@@ -223,30 +206,17 @@ export const getResolvedBackendUrl = (): string => getResolvedBackendSettings().
 
 export const getResolvedBackendApiKey = (): string | null => getResolvedBackendSettings().backendApiKey;
 
-export type BackendUrlChangeHandler = (next: string, previous: string | null) => void;
-
-export const onBackendUrlChange = (handler: BackendUrlChangeHandler): (() => void) => {
-  useSettingsStore();
-  const busHandler: BackendEnvironmentBusHandler = ({ next, previous }) => {
-    handler(next, previous);
-  };
-  subscribe(busHandler);
-
-  return () => {
-    unsubscribe(busHandler);
-  };
-};
-
 export interface BackendEnvironmentBinding {
   readyPromise: Promise<void>;
-  onBackendUrlChange: (handler: BackendUrlChangeHandler) => () => void;
+  backendUrl: ComputedRef<string>;
 }
 
 export const useBackendEnvironment = (): BackendEnvironmentBinding => {
   const store = useSettingsStore();
+  const { backendUrl } = storeToRefs(store);
 
   return {
     readyPromise: store.backendEnvironmentReadyPromise,
-    onBackendUrlChange,
+    backendUrl: backendUrl as ComputedRef<string>,
   };
 };

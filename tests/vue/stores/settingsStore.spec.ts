@@ -1,9 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { effectScope, nextTick, onScopeDispose } from 'vue';
+import { effectScope, nextTick, watch } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 
 import { useBackendEnvironment, useSettingsStore } from '@/stores';
-import { resetBackendEnvironmentBus } from '@/services/system/backendEnvironmentEventBus';
 
 const flushBackendWatchers = async () => {
   await nextTick();
@@ -11,7 +10,7 @@ const flushBackendWatchers = async () => {
   await nextTick();
 };
 
-describe('backend environment notifier', () => {
+describe('backend environment binding', () => {
   let settingsStore: ReturnType<typeof useSettingsStore>;
 
   beforeEach(() => {
@@ -21,23 +20,50 @@ describe('backend environment notifier', () => {
   });
 
   afterEach(() => {
-    resetBackendEnvironmentBus();
     settingsStore.$dispose();
   });
 
-  it('notifies subscribers once per backend url change', async () => {
-    const { onBackendUrlChange, readyPromise } = useBackendEnvironment();
-    await readyPromise;
+  it('exposes backend url changes through reactive state', async () => {
+    const binding = useBackendEnvironment();
+    await binding.readyPromise;
 
-    const initialUrl = settingsStore.backendUrl;
+    const initialUrl = binding.backendUrl.value;
     const firstUrl = 'https://api.example.com/v1';
+
+    settingsStore.setSettings({ backendUrl: firstUrl });
+    await flushBackendWatchers();
+
+    expect(binding.backendUrl.value).toBe(firstUrl);
+
+    settingsStore.setSettings({ backendUrl: firstUrl });
+    await flushBackendWatchers();
+
+    expect(binding.backendUrl.value).toBe(firstUrl);
+
     const secondUrl = 'https://api.example.com/v2';
+    settingsStore.setSettings({ backendUrl: secondUrl });
+    await flushBackendWatchers();
+
+    expect(binding.backendUrl.value).toBe(secondUrl);
+    expect(binding.backendUrl.value).not.toBe(initialUrl);
+  });
+
+  it('allows consumers to watch backend changes within their own scope', async () => {
+    const binding = useBackendEnvironment();
+    await binding.readyPromise;
+
+    const initialUrl = binding.backendUrl.value;
+    const firstUrl = 'https://notify.example/v1';
+    const secondUrl = 'https://notify.example/v2';
 
     const handler = vi.fn();
-    const stop = onBackendUrlChange(handler);
+    const scope = effectScope();
 
-    await flushBackendWatchers();
-    expect(handler).not.toHaveBeenCalled();
+    scope.run(() => {
+      watch(binding.backendUrl, (next, previous) => {
+        handler(next, previous);
+      });
+    });
 
     settingsStore.setSettings({ backendUrl: firstUrl });
     await flushBackendWatchers();
@@ -56,54 +82,11 @@ describe('backend environment notifier', () => {
     expect(handler).toHaveBeenCalledTimes(2);
     expect(handler).toHaveBeenLastCalledWith(secondUrl, firstUrl);
 
-    stop();
-  });
-
-  it('stops notifying once subscribers detach', async () => {
-    const { onBackendUrlChange, readyPromise } = useBackendEnvironment();
-    await readyPromise;
-
-    const handler = vi.fn();
-    const stop = onBackendUrlChange(handler);
-
-    settingsStore.setSettings({ backendUrl: 'https://notify.example/api' });
-    await flushBackendWatchers();
-
-    expect(handler).toHaveBeenCalledTimes(1);
-
-    stop();
-
-    settingsStore.setSettings({ backendUrl: 'https://notify.example/api/v2' });
-    await flushBackendWatchers();
-
-    expect(handler).toHaveBeenCalledTimes(1);
-  });
-
-  it('restores backend change notifications after subscriber scope disposal', async () => {
-    const initialUrl = settingsStore.backendUrl;
-    const scope = effectScope();
-
-    scope.run(() => {
-      const { onBackendUrlChange } = useBackendEnvironment();
-      const stop = onBackendUrlChange(() => {});
-      onScopeDispose(stop);
-    });
-
     scope.stop();
 
-    const { onBackendUrlChange, readyPromise } = useBackendEnvironment();
-    await readyPromise;
-
-    const handler = vi.fn();
-    const stop = onBackendUrlChange(handler);
-
-    const nextUrl = 'https://scope-rebind.example/api';
-    settingsStore.setSettings({ backendUrl: nextUrl });
+    settingsStore.setSettings({ backendUrl: 'https://notify.example/v3' });
     await flushBackendWatchers();
 
-    expect(handler).toHaveBeenCalledTimes(1);
-    expect(handler).toHaveBeenLastCalledWith(nextUrl, initialUrl);
-
-    stop();
+    expect(handler).toHaveBeenCalledTimes(2);
   });
 });

@@ -1,33 +1,53 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
+import { nextTick } from 'vue';
 
-import { useBackendRefresh } from '@/services';
-import { emitBackendUrlChanged, resetBackendEnvironmentBus } from '@/services/system/backendEnvironmentEventBus';
+import { useBackendRefresh } from '@/services/system/backendRefresh';
+import { useSettingsStore } from '@/stores/settings';
+
+const flushBackendWatchers = async () => {
+  await nextTick();
+  await Promise.resolve();
+  await nextTick();
+};
 
 describe('useBackendRefresh', () => {
+  let settingsStore: ReturnType<typeof useSettingsStore>;
+
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    settingsStore = useSettingsStore();
+    settingsStore.reset();
+  });
+
   afterEach(() => {
-    resetBackendEnvironmentBus();
+    settingsStore.$dispose();
   });
 
-  it('invokes the refresh callback on backend url changes', () => {
+  it('invokes the refresh callback when the backend url changes', async () => {
     const refresh = vi.fn();
     const subscription = useBackendRefresh(refresh);
 
-    emitBackendUrlChanged('https://api.example/v1', null);
+    settingsStore.setSettings({ backendUrl: 'https://api.example/v1' });
+    await flushBackendWatchers();
 
     expect(refresh).toHaveBeenCalledTimes(1);
 
     subscription.stop();
   });
 
-  it('stops invoking the callback after stop is called', () => {
+  it('stops invoking the callback after stop is called', async () => {
     const refresh = vi.fn();
     const subscription = useBackendRefresh(refresh);
 
-    emitBackendUrlChanged('https://api.example/v1', null);
+    settingsStore.setSettings({ backendUrl: 'https://api.example/v1' });
+    await flushBackendWatchers();
+
     expect(refresh).toHaveBeenCalledTimes(1);
 
     subscription.stop();
-    emitBackendUrlChanged('https://api.example/v2', 'https://api.example/v1');
+    settingsStore.setSettings({ backendUrl: 'https://api.example/v2' });
+    await flushBackendWatchers();
 
     expect(refresh).toHaveBeenCalledTimes(1);
   });

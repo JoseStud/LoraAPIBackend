@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { computed } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 
 import * as services from '@/services';
@@ -42,7 +43,7 @@ describe('useRecommendations', () => {
     });
     useBackendEnvironmentSpy.mockReset().mockReturnValue({
       readyPromise: Promise.resolve(),
-      onBackendUrlChange: vi.fn(),
+      backendUrl: computed(() => '/api/v1'),
     } as never);
     const adapterSummaries = [
       { id: 'alpha', name: 'Alpha', description: 'First', active: true },
