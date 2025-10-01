@@ -53,3 +53,9 @@ We need an explicit decision record so future contributors preserve this archite
 - Document manager-owned effect patterns in the Effect Scope Ownership playbook.
 - Keep the orchestrator under ~200 lines by moving new responsibilities into helper modules.
 - Update tests when new helper methods are added to ensure the façade stays side-effect free.
+
+## Addendum 2025-03 – Queue/Results Read-only Façade
+
+- **Façade-only access.** External features (dashboard, summaries, admin views) must import `useGenerationOrchestratorFacade()` instead of reaching into Pinia stores. The façade now exposes immutable queue/result slices plus command helpers so consumers never mutate store internals directly.【F:app/frontend/src/features/generation/orchestrator/facade.ts†L1-L213】
+- **Command telemetry.** The façade tracks `pendingActionsCount`, `lastActionAt`, and `lastCommandError` while logging start/success/error events for operations such as `cancelJob`, `refreshHistory`, and `setHistoryLimit`. These signals surface command latency and failure context without leaking store mutations to the UI layer.【F:app/frontend/src/features/generation/orchestrator/facade.ts†L94-L210】
+- **Store encapsulation.** Generation store modules are marked `@internal` and no longer exported through public barrels. ESLint forbids `@/features/generation/stores/**` imports outside the feature directory so only façade consumers cross the boundary.【F:app/frontend/src/features/generation/stores/connection.ts†L1-L10】【F:.eslintrc.cjs†L1-L123】

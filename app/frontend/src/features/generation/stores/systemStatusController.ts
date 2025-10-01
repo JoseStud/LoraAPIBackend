@@ -1,3 +1,4 @@
+/** @internal */
 import { computed, ref, type ComputedRef } from 'vue';
 import { storeToRefs } from 'pinia';
 

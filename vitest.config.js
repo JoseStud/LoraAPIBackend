@@ -14,10 +14,6 @@ export default defineConfig({
         replacement: resolve(frontendSrc, 'features/generation/composables'),
       },
       {
-        find: '@/stores/generation',
-        replacement: resolve(frontendSrc, 'features/generation/stores/form.ts'),
-      },
-      {
         find: '@',
         replacement: frontendSrc,
       },

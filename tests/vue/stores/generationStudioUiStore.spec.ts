@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
-import { useGenerationStudioUiStore } from '@/stores/generation'
+import { useGenerationStudioUiStore } from '@/features/generation/stores/ui'
 import type { GenerationResult } from '@/types'
 
 describe('generation studio ui store', () => {

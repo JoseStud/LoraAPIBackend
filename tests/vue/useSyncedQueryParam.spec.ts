@@ -199,8 +199,7 @@ describe('useSyncedQueryParam', () => {
         preferences: { theme: 'light' },
       }),
     }));
-    vi.doMock('@/stores/generation', () => ({}));
-    vi.doMock('@/stores/generation/form', () => ({}));
+    vi.doMock('@/features/generation/stores/form', () => ({}));
     vi.doMock('@/composables/shared/useTheme', () => ({
       useTheme: () => ({
         currentTheme: { value: 'light' },
@@ -243,8 +242,7 @@ describe('useSyncedQueryParam', () => {
     wrapper.unmount();
     vi.doUnmock('@/composables/shared/useTheme');
     vi.doUnmock('@/stores');
-    vi.doUnmock('@/stores/generation');
-    vi.doUnmock('@/stores/generation/form');
+    vi.doUnmock('@/features/generation/stores/form');
   });
 
   it('propagates query updates through LoraGallery filters', async () => {

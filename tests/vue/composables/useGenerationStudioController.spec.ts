@@ -63,7 +63,7 @@ const formStore = vi.hoisted(() => ({
   setPrompt: vi.fn((_: string) => {}),
 }))
 
-vi.mock('@/stores/generation', () => ({
+vi.mock('@/features/generation/stores/form', () => ({
   useGenerationFormStore: () => formStore,
 }))
 

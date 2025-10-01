@@ -1,3 +1,4 @@
+/** @internal */
 import { useGenerationOrchestratorStore } from './useGenerationOrchestratorStore';
 
 export type { GenerationJobInput } from './useGenerationOrchestratorStore';

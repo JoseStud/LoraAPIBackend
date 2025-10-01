@@ -8,6 +8,7 @@
 - **Runtime validation coverage:** Generation payloads, history responses, and queue updates are parsed through Zod schemas before reaching stores to stabilise transport behaviour across browsers and deployments.【F:app/frontend/src/schemas/generation.ts†L1-L111】【F:app/frontend/src/features/history/services/historyService.ts†L22-L139】
 - **Networking resilience:** The async resource composable deduplicates pending fetches and `useApi` automatically aborts superseded calls, eliminating race-induced state thrashing on rapid filter changes.【F:app/frontend/src/composables/shared/useAsyncResource.ts†L129-L256】【F:app/frontend/src/composables/shared/useApi.ts†L62-L132】
 - **Deployment-friendly defaults:** Polling intervals resolve from runtime config or backend settings, and Vue Router consumes the Vite base URL so sub-path hosting works without manual patches.【F:app/frontend/src/features/generation/config/polling.ts†L1-L153】【F:app/frontend/src/router/index.ts†L1-L75】
+- **Generation façade hardened:** External consumers now rely on `useGenerationOrchestratorFacade()`, which exposes telemetry (`pendingActionsCount`, `lastActionAt`, `lastCommandError`) and logs for queue/history commands while generation stores are marked `@internal` and shielded by lint rules.【F:app/frontend/src/features/generation/orchestrator/facade.ts†L1-L213】【F:app/frontend/src/features/generation/stores/connection.ts†L1-L10】【F:.eslintrc.cjs†L1-L123】
 
 ## 2.1.0 – Vue SPA Consolidation
 
