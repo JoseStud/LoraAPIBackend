@@ -97,7 +97,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { RouterLink } from 'vue-router';
 
-import { useBackendClient } from '@/services';
+import { useBackendClient } from '@/services/backendClient';
 import { listResults as listHistoryResults } from '@/features/history/services';
 import { useGenerationResultsStore } from '@/features/generation/public';
 import { formatFileSize, formatRelativeTime } from '@/utils/format';
@@ -106,7 +106,7 @@ import type {
   GenerationHistoryResult,
   GenerationHistoryStats,
 } from '@/types';
-import { useSettingsStore } from '@/stores';
+import { useSettingsStore } from '@/stores/settings';
 
 const SUMMARY_QUERY = Object.freeze({ page_size: 4, sort: 'created_at_desc' as const });
 

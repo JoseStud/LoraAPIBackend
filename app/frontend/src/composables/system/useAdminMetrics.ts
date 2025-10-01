@@ -1,8 +1,8 @@
 import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { useAdminMetricsStore } from '@/stores';
-import type { AdminMetricsStore } from '@/stores';
+import { useAdminMetricsStore } from '@/stores/adminMetrics';
+import type { AdminMetricsStore } from '@/stores/adminMetrics';
 import { usePolling, type PollingController } from '../shared/usePolling';
 
 const formatRelativeTime = (input: Date | null): string => {

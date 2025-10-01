@@ -2,7 +2,7 @@ import { computed, ref, watch } from 'vue';
 import { defineStore } from 'pinia';
 
 import { useAsyncResource } from '@/composables/shared';
-import { useBackendClient } from '@/services';
+import { useBackendClient } from '@/services/backendClient';
 import { fetchTopAdapters } from '@/features/lora/public';
 import { exportAnalyticsReport, fetchPerformanceAnalytics } from '../services/analyticsService';
 import { formatDuration as formatDurationLabel } from '@/utils/format';

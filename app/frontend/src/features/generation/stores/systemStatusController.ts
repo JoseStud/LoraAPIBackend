@@ -2,7 +2,8 @@ import { computed, ref, type ComputedRef } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { ApiError } from '@/composables/shared';
-import { fetchSystemStatus, useBackendClient, type BackendClient } from '@/services';
+import { useBackendClient, type BackendClient } from '@/services/backendClient';
+import { fetchSystemStatus } from '@/services/system/systemService';
 import { resolveBackendBaseUrl } from '@/utils/backend';
 import { generationPollingConfig } from '../config/polling';
 import { useGenerationConnectionStore } from './connection';

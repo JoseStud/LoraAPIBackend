@@ -81,7 +81,7 @@
 import { computed } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 
-import { useAppStore } from '@/stores';
+import { useAppStore } from '@/stores/app';
 import { useSyncedQueryParam, useTheme } from '@/composables/shared';
 import { NAVIGATION_ITEMS } from '@/config/navigation';
 

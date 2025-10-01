@@ -2,7 +2,7 @@ import { computed, ref, type ComputedRef } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
 
 import { debounce, type DebouncedFunction } from '@/utils/async';
-import { useBackendClient } from '@/services';
+import { useBackendClient } from '@/services/backendClient';
 import { listResults as listHistoryResults } from '@/features/history/services';
 import type {
   GenerationHistoryQuery,

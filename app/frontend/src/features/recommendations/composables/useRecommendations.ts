@@ -3,9 +3,9 @@ import { storeToRefs } from 'pinia';
 
 import { useAsyncResource } from '@/composables/shared';
 
-import { useBackendClient } from '@/services';
+import { useBackendClient } from '@/services/backendClient';
 
-import { useBackendEnvironment, useSettingsStore } from '@/stores';
+import { useBackendEnvironment, useSettingsStore } from '@/stores/settings';
 import { useAdapterCatalogStore } from '@/features/lora/public';
 import type { AdapterSummary, RecommendationItem, RecommendationResponse } from '@/types';
 import { debounce, type DebouncedFunction } from '@/utils/async';
