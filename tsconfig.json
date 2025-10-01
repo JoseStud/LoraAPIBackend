@@ -4,6 +4,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["app/frontend/src/*"],
+      "@/features/generation/orchestrator": [
+        "app/frontend/src/features/generation/orchestrator/facade.ts"
+      ],
       "@/features/*": ["app/frontend/src/features/*"],
       "@/composables/generation/*": ["app/frontend/src/features/generation/composables/*"],
       "@/stores/generation": ["app/frontend/src/features/generation/stores/form.ts"]

@@ -116,11 +116,60 @@ def _ensure_cancel_job_usage_is_guarded() -> None:
         )
 
 
+def _ensure_generation_stores_are_private() -> None:
+    """Fail when generation stores are imported outside the feature boundary."""
+
+    feature_root = Path("app/frontend/src/features/generation")
+    forbidden_pattern = r"stores/(results|queue)"
+
+    result = subprocess.run(
+        (
+            "rg",
+            "--with-filename",
+            "--line-number",
+            "--no-heading",
+            forbidden_pattern,
+            "app/frontend/src",
+        ),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode not in (0, 1):
+        raise RuntimeError("Failed to scan for generation store imports")
+
+    matches = _parse_rg_output(result.stdout)
+
+    def _is_inside_feature(path: Path) -> bool:
+        try:
+            path.relative_to(feature_root)
+        except ValueError:
+            return False
+        return True
+
+    violations: list[tuple[Path, str, str]] = []
+    for path, line_no, content in matches:
+        if not _is_inside_feature(path) and ("import" in content or "from" in content or "export" in content):
+            violations.append((path, line_no, content))
+
+    if violations:
+        formatted = "\n".join(
+            f"- {path}:{line_no}: {content.strip()}" for path, line_no, content in violations
+        )
+        raise SystemExit(
+            "Generation stores must not be imported directly outside the feature.\n"
+            "Use the orchestrator facade instead:\n"
+            f"{formatted}"
+        )
+
+
 def run_guardrail_checks() -> None:
     """Run repository guardrail validations prior to full CI checks."""
 
     _ensure_generation_studio_imports_are_scoped()
     _ensure_cancel_job_usage_is_guarded()
+    _ensure_generation_stores_are_private()
 
 
 def run_command(command: Sequence[str]) -> None:

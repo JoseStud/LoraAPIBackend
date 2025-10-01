@@ -87,6 +87,12 @@ export default defineConfig(({ mode }) => {
       replacement: srcDirectory,
     },
     {
+      find: '@/features/generation/orchestrator',
+      replacement: fileURLToPath(
+        new URL('./app/frontend/src/features/generation/orchestrator/facade.ts', import.meta.url),
+      ),
+    },
+    {
       find: '@/features',
       replacement: fileURLToPath(new URL('./app/frontend/src/features', import.meta.url)),
     },
