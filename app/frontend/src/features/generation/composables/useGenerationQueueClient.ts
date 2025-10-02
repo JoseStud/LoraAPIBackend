@@ -2,7 +2,11 @@ import { ref, shallowRef } from 'vue';
 
 import { createGenerationQueueClient, type GenerationQueueClient } from '../services/queueClient';
 import { generationPollingConfig } from '../config/polling';
-import { parseGenerationJobStatuses, parseGenerationResults } from '../services/validation';
+import {
+  logValidationIssues,
+  parseGenerationJobStatuses,
+  parseGenerationResults,
+} from '../services/validation';
 import type { GenerationJobInput } from '../stores/useGenerationOrchestratorStore';
 import type {
   GenerationJobStatus,
@@ -17,22 +21,6 @@ import { SystemStatusPayloadSchema } from '@/schemas';
 import { normalizeJobStatus } from '@/utils/status';
 import { ApiError } from '@/types/api';
 import type { GenerationTransportError } from '../types/transport';
-
-const logValidationIssues = (
-  context: string,
-  error: unknown,
-  payload: unknown,
-) => {
-  if (error && typeof error === 'object' && 'issues' in error) {
-    console.warn(`[generation] ${context} validation failed`, {
-      issues: (error as { issues: unknown }).issues,
-      payload,
-    });
-  } else {
-    console.warn(`[generation] ${context} validation failed`, { payload, error });
-  }
-};
-
 
 const toQueueJobInput = (status: GenerationJobStatus): GenerationJobInput => ({
   id: status.id,

@@ -1,17 +1,8 @@
+import { cancelGenerationJob, deleteGenerationResult, startGeneration } from './generationService';
 import {
-  cancelGenerationJob,
-  deleteGenerationResult,
-  resolveBackendUrl,
-  resolveGenerationRoute,
-  startGeneration,
-} from './generationService';
-import { requestJson } from '@/services/apiClient';
-import {
-  logValidationIssues,
-  parseGenerationJobStatuses,
-  parseGenerationResults,
-} from './validation';
-import { SystemStatusPayloadSchema } from '@/schemas';
+  createGenerationBackendClient,
+  type GenerationBackendClientOptions,
+} from './generationBackendClient';
 import type {
   GenerationJobStatus,
   GenerationRequestPayload,
@@ -20,14 +11,7 @@ import type {
   SystemStatusPayload,
 } from '@/types';
 
-const withCredentials = (init: RequestInit = {}): RequestInit => ({
-  credentials: 'same-origin',
-  ...init,
-});
-
-export interface GenerationQueueClientOptions {
-  getBackendUrl: () => string | null | undefined;
-}
+export interface GenerationQueueClientOptions extends GenerationBackendClientOptions {}
 
 export interface GenerationQueueClient {
   startGeneration(payload: GenerationRequestPayload): Promise<GenerationStartResponse>;
@@ -41,70 +25,41 @@ export interface GenerationQueueClient {
 export const createGenerationQueueClient = (
   options: GenerationQueueClientOptions,
 ): GenerationQueueClient => {
-  const resolveBackend = () => options.getBackendUrl?.() ?? null;
-
-  const buildUrl = (path: string): string => resolveBackendUrl(path, resolveBackend() ?? undefined);
-
-  const buildGenerationUrl = (path: string): string =>
-    resolveGenerationRoute(path, resolveBackend() ?? undefined);
-
-  const fetchSystemStatus = async (): Promise<SystemStatusPayload | null> => {
-    try {
-      const result = await requestJson<unknown>(buildUrl('/system/status'), withCredentials());
-      if (result.data == null) {
-        return null;
-      }
-      const parsed = SystemStatusPayloadSchema.safeParse(result.data);
-      if (parsed.success) {
-        return parsed.data;
-      }
-      logValidationIssues('system status', parsed.error, result.data);
-      return null;
-    } catch (error) {
-      console.error('Failed to load system status:', error);
-      throw error;
-    }
-  };
-
-  const fetchActiveJobs = async (): Promise<GenerationJobStatus[]> => {
-    try {
-      const result = await requestJson<unknown>(
-        buildGenerationUrl('jobs/active'),
-        withCredentials(),
-      );
-      return parseGenerationJobStatuses(result.data, 'active job');
-    } catch (error) {
-      console.error('Failed to load active jobs:', error);
-      throw error;
-    }
-  };
-
-  const fetchRecentResults = async (limit: number): Promise<GenerationResult[]> => {
-    const normalizedLimit = Math.max(1, Number(limit) || 1);
-    try {
-      const result = await requestJson<unknown>(
-        buildGenerationUrl(`results?limit=${normalizedLimit}`),
-        withCredentials(),
-      );
-      return parseGenerationResults(result.data, 'recent result');
-    } catch (error) {
-      console.error('Failed to load recent results:', error);
-      throw error;
-    }
-  };
+  const backendClient = createGenerationBackendClient(options);
 
   return {
     startGeneration: async (payload: GenerationRequestPayload) =>
-      startGeneration(payload, resolveBackend() ?? undefined),
+      startGeneration(payload, backendClient.resolveClient()),
     cancelJob: async (jobId: string) => {
-      await cancelGenerationJob(jobId, resolveBackend() ?? undefined);
+      await cancelGenerationJob(jobId, backendClient.resolveClient());
     },
     deleteResult: async (resultId: string | number) => {
-      await deleteGenerationResult(resultId, resolveBackend() ?? undefined);
+      await deleteGenerationResult(resultId, backendClient.resolveClient());
     },
-    fetchSystemStatus,
-    fetchActiveJobs,
-    fetchRecentResults,
+    fetchSystemStatus: async () => {
+      try {
+        return await backendClient.fetchSystemStatus();
+      } catch (error) {
+        console.error('Failed to load system status:', error);
+        throw error;
+      }
+    },
+    fetchActiveJobs: async (): Promise<GenerationJobStatus[]> => {
+      try {
+        return await backendClient.fetchActiveJobs();
+      } catch (error) {
+        console.error('Failed to load active jobs:', error);
+        throw error;
+      }
+    },
+    fetchRecentResults: async (limit: number): Promise<GenerationResult[]> => {
+      try {
+        return await backendClient.fetchRecentResults(limit);
+      } catch (error) {
+        console.error('Failed to load recent results:', error);
+        throw error;
+      }
+    },
   };
 };
 
