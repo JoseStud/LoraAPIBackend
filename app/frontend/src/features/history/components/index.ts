@@ -9,6 +9,7 @@ export { default as HistoryGrid } from './HistoryGrid.vue';
 export { default as HistoryGridItem } from './HistoryGridItem.vue';
 export { default as HistoryList } from './HistoryList.vue';
 export { default as HistoryListItem } from './HistoryListItem.vue';
+export { default as HistoryRecentResultCard } from './HistoryRecentResultCard.vue';
 export { default as HistoryModal } from './HistoryModal.vue';
 export { default as HistoryModalController } from './HistoryModalController.vue';
 export { default as HistoryModalLauncher } from './HistoryModalLauncher.vue';
