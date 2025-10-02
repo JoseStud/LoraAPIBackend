@@ -62,7 +62,7 @@
         </div>
       </template>
 
-      <template #secondary="{ systemStatusCard, jobQueue }">
+      <template #aside="{ systemStatusCard, jobQueue }">
         <div class="flex flex-col gap-6">
           <component :is="systemStatusCard" variant="detailed" />
           <component :is="jobQueue" :show-clear-completed="true" />

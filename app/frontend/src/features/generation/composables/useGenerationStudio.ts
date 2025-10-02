@@ -1,4 +1,4 @@
-import { computed } from 'vue'
+import { computed, onScopeDispose } from 'vue'
 
 import { useGenerationPersistence } from './useGenerationPersistence'
 import { useGenerationUI } from './useGenerationUI'
@@ -6,9 +6,11 @@ import { useGenerationStudioController } from './useGenerationStudioController'
 import type { GenerationOrchestratorAutoSyncOptions } from './useGenerationOrchestratorManager'
 import { useGenerationStudioNotifications } from './useGenerationStudioNotifications'
 import { useGenerationFormStore } from '../stores/form'
+import { createGenerationStudioUiVm } from '../stores/ui'
 import { useAsyncLifecycleTask } from '@/composables/shared'
-import type { ReadonlyResults } from '@/features/generation/orchestrator'
-import type { GenerationFormState } from '@/types'
+import type { ReadonlyQueue, ReadonlyResults, ResultItemView } from '@/features/generation/orchestrator'
+import type { GenerationFormState, GenerationResult, SystemStatusState } from '@/types'
+import { freezeDeep, type DeepReadonly } from '@/utils/freezeDeep'
 
 export interface UseGenerationStudioOptions {
   autoSync?: boolean | GenerationOrchestratorAutoSyncOptions
@@ -19,6 +21,8 @@ export const useGenerationStudio = ({ autoSync = true }: UseGenerationStudioOpti
 
   const { notify, confirm: requestConfirmation, prompt: requestPrompt, logDebug } =
     useGenerationStudioNotifications()
+
+  const uiVm = createGenerationStudioUiVm()
 
   const {
     params: uiParams,
@@ -35,7 +39,7 @@ export const useGenerationStudio = ({ autoSync = true }: UseGenerationStudioOpti
     getJobStatusText,
     getSystemStatusClasses,
     toggleHistory,
-  } = useGenerationUI({ notify })
+  } = useGenerationUI({ notify, vm: uiVm })
 
   const {
     load: loadParams,
@@ -56,17 +60,24 @@ export const useGenerationStudio = ({ autoSync = true }: UseGenerationStudioOpti
     onAfterStart: persistParams,
     onAfterInitialize: loadParams,
     autoSync,
+    historyVisibility: showHistoryRef,
+  })
+
+  onScopeDispose(() => {
+    uiVm.dispose()
   })
 
   const params = computed(() => uiParams.value)
   const isGenerating = computed(() => isGeneratingRef.value)
   const showHistory = computed(() => showHistoryRef.value)
   const showModal = computed(() => showModalRef.value)
-  const selectedResult = computed(() => selectedResultRef.value)
+  const selectedResult = computed<ResultItemView | null>(() =>
+    selectedResultRef.value ? freezeDeep<GenerationResult>(selectedResultRef.value) : null,
+  )
   const recentResults = computed<ReadonlyResults>(() => recentResultsRef.value ?? ([] as ReadonlyResults))
-  const activeJobs = computed(() => controller.activeJobs.value)
-  const sortedActiveJobs = computed(() => controller.sortedActiveJobs.value)
-  const systemStatus = computed(() => controller.systemStatus.value)
+  const activeJobs = computed<ReadonlyQueue>(() => controller.activeJobs.value)
+  const sortedActiveJobs = computed<ReadonlyQueue>(() => controller.sortedActiveJobs.value)
+  const systemStatus = computed<DeepReadonly<SystemStatusState>>(() => controller.systemStatus.value)
   const isConnected = computed(() => controller.isConnected.value)
 
   const startGeneration = async (): Promise<void> => {

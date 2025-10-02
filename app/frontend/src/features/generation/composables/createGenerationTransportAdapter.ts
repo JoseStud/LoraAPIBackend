@@ -99,9 +99,6 @@ export const createGenerationTransportAdapter = (
       },
       onHydrateSystemStatus: () => options.onHydrateSystemStatus(),
       onReleaseSystemStatus: () => options.onReleaseSystemStatus(),
-      onTransportError: (error) => {
-        options.onTransportError?.(error);
-      },
     },
   );
 

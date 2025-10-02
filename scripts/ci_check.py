@@ -13,6 +13,7 @@ COMMANDS: Sequence[Sequence[str]] = (
     ("pytest",),
     ("npm", "run", "lint"),
     ("npm", "run", "build"),
+    ("npm", "run", "check:bundle"),
 )
 
 

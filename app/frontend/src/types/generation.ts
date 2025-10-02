@@ -77,7 +77,12 @@ export type GenerationJobStatus = Omit<
   seed?: number | null;
 };
 
-export type GenerationJob = GenerationJobStatus;
+export type GenerationJob = GenerationJobStatus & {
+  /** Stable identifier used by the UI layer and tests. */
+  uiId: string;
+  /** Backend identifier expected by transport commands. */
+  backendId: string;
+};
 
 export type GenerationHistoryResult = Omit<
   GenerationResultSummarySchema,

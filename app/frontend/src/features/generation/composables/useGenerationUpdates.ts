@@ -7,12 +7,11 @@ import {
 } from './useGenerationOrchestratorManager';
 import type { GenerationQueueClient } from '../services/queueClient';
 import type { GenerationWebSocketManager } from '../services/websocketManager';
+import type { GenerationRequestPayload, GenerationStartResponse } from '@/types';
 import type {
-  GenerationJob,
-  GenerationRequestPayload,
-  GenerationResult,
-  GenerationStartResponse,
-} from '@/types';
+  ReadonlyQueue,
+  ReadonlyResults,
+} from '@/features/generation/orchestrator';
 
 interface UseGenerationUpdatesOptions {
   notificationAdapter: GenerationNotificationAdapter;
@@ -21,9 +20,9 @@ interface UseGenerationUpdatesOptions {
 }
 
 export interface UseGenerationUpdatesReturn {
-  activeJobs: Ref<GenerationJob[]>;
-  recentResults: Ref<GenerationResult[]>;
-  sortedActiveJobs: ComputedRef<GenerationJob[]>;
+  activeJobs: Ref<ReadonlyQueue>;
+  recentResults: Ref<ReadonlyResults>;
+  sortedActiveJobs: ComputedRef<ReadonlyQueue>;
   isConnected: Ref<boolean>;
   initialize: () => Promise<void>;
   cleanup: () => void;
@@ -50,9 +49,9 @@ export const useGenerationUpdates = ({
   });
 
   return {
-    activeJobs: manager.activeJobs,
-    recentResults: manager.recentResults,
-    sortedActiveJobs: manager.sortedActiveJobs as ComputedRef<GenerationJob[]>,
+    activeJobs: manager.activeJobs as Ref<ReadonlyQueue>,
+    recentResults: manager.recentResults as Ref<ReadonlyResults>,
+    sortedActiveJobs: manager.sortedActiveJobs as ComputedRef<ReadonlyQueue>,
     isConnected: manager.isConnected,
     initialize: binding.initialize,
     cleanup: binding.cleanup,

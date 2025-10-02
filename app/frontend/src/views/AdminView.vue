@@ -15,7 +15,7 @@
       <SystemStatusPanel />
     </div>
     <div class="grid gap-6 xl:grid-cols-2">
-      <JobQueue :show-clear-completed="true" />
+      <JobQueueWidget :show-clear-completed="true" />
       <ImportExportContainer />
     </div>
     <div class="grid gap-6 xl:grid-cols-2">
@@ -31,7 +31,7 @@ import { RouterLink } from 'vue-router';
 import { defineAsyncComponent } from 'vue';
 
 import { ImportExportContainer } from '@/features/import-export/public';
-import { JobQueue, SystemAdminStatusCard, SystemStatusPanel } from '@/features/generation/public';
+import { JobQueueWidget, SystemAdminStatusCard, SystemStatusPanel } from '@/features/generation/public';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { RecommendationsPanel } from '@/features/recommendations/public';
 

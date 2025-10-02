@@ -1,0 +1,29 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`GenerationShellView > renders default layout 1`] = `
+"<div class="generation-shell grid gap-6 xl:grid-cols-[3fr_2fr]">
+  <div class="generation-page-container flex flex-col gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-1">
+        <div class="GenerationParameterForm-stub"></div>
+      </div>
+      <div class="lg:col-span-1">
+        <div class="space-y-6">
+          <div class="GenerationActiveJobsList-stub"></div>
+          <div class="GenerationSystemStatusCard-stub"></div>
+        </div>
+      </div>
+      <div class="lg:col-span-1">
+        <div class="GenerationResultsGallery-stub"></div>
+      </div>
+    </div>
+  </div>
+  <div class="generation-secondary flex flex-col gap-6">
+    <div class="flex flex-col gap-6">
+      <div class="SystemStatusCard-stub"></div>
+      <div class="JobQueue-stub"></div>
+    </div>
+  </div>
+</div>
+<!--v-if-->"
+`;

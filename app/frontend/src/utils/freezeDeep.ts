@@ -114,15 +114,72 @@ const freezeDeepInternal = <T>(value: T, seen = new WeakSet<object>()): DeepRead
   return Object.freeze(value) as DeepReadonly<T>;
 };
 
-export const freezeDeep = <T>(value: T): DeepReadonly<T> => {
-  if (!import.meta.env.DEV) {
-    return value as DeepReadonly<T>;
+const formatMutationPath = (segments: readonly PropertyKey[]): string => {
+  if (segments.length === 0) {
+    return '<root>';
   }
 
+  return segments
+    .map((segment) =>
+      typeof segment === 'symbol' ? segment.toString() : String(segment),
+    )
+    .join('.');
+};
+
+const createDevMutationGuard = <T>(
+  value: T,
+  seen = new WeakMap<object, unknown>(),
+  path: readonly PropertyKey[] = [],
+): T => {
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+
+  const existing = seen.get(value as object);
+  if (existing) {
+    return existing as T;
+  }
+
+  const guard = new Proxy(value as object, {
+    set(): never {
+      throw new Error(
+        `Attempted to mutate immutable snapshot at ${formatMutationPath(path)}`,
+      );
+    },
+    deleteProperty(): never {
+      throw new Error(
+        `Attempted to mutate immutable snapshot at ${formatMutationPath(path)}`,
+      );
+    },
+    defineProperty(): never {
+      throw new Error(
+        `Attempted to mutate immutable snapshot at ${formatMutationPath(path)}`,
+      );
+    },
+    get(target, property, receiver) {
+      const result = Reflect.get(target, property, receiver);
+      if (result === null || typeof result !== 'object') {
+        return result;
+      }
+
+      return createDevMutationGuard(result, seen, [...path, property]);
+    },
+  });
+
+  seen.set(value as object, guard);
+  return guard as T;
+};
+
+export const freezeDeep = <T>(value: T): DeepReadonly<T> => {
   if (value === null || typeof value !== 'object') {
     return value as DeepReadonly<T>;
   }
 
   const cloned = cloneDeep(value);
-  return freezeDeepInternal(cloned);
+
+  if (!import.meta.env.DEV) {
+    return cloned as DeepReadonly<T>;
+  }
+
+  return createDevMutationGuard(cloned) as DeepReadonly<T>;
 };

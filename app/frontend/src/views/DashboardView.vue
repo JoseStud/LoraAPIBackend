@@ -22,7 +22,7 @@
     </section>
 
     <section class="grid gap-6 lg:grid-cols-2">
-      <JobQueue :show-clear-completed="true" />
+      <JobQueueWidget :show-clear-completed="true" />
       <RecommendationsPanel />
     </section>
 
@@ -74,12 +74,7 @@ import { RouterLink } from 'vue-router';
 import DashboardGenerationSummary from '@/components/dashboard/DashboardGenerationSummary.vue';
 import DashboardLazyModuleCard from '@/components/dashboard/DashboardLazyModuleCard.vue';
 import DashboardLoraSummary from '@/components/dashboard/DashboardLoraSummary.vue';
-import {
-  JobQueue,
-  SystemAdminStatusCard,
-  SystemStatusCard,
-  SystemStatusPanel,
-} from '@/features/generation/public';
+import { SystemAdminStatusCard, SystemStatusCard, SystemStatusPanel } from '@/features/generation/public';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { RecommendationsPanel } from '@/features/recommendations/public';
 import { usePerformanceAnalyticsStore } from '@/features/analytics/public';
@@ -171,6 +166,11 @@ const panelConfigs = [
       import('@/features/import-export/public').then((module) => module.ImportExportContainer),
   },
 ] satisfies PanelConfig[];
+
+const JobQueueWidget = defineAsyncComponent({
+  loader: () => import('@/features/generation/public/jobQueueWidget').then((module) => module.default),
+  suspensible: false,
+});
 
 const panels = panelConfigs.map((panel) => ({
   ...panel,

@@ -43,6 +43,8 @@ const transportMetrics: GenerationTransportMetricsSnapshot = {
 const createManagerStub = () => {
   const cancelJob = vi.fn(async (_jobId: string) => {});
   const removeJob = vi.fn((_jobId: string | number) => {});
+  const cancelJobByBackendId = vi.fn(async (_jobId: string) => {});
+  const removeJobLocal = vi.fn((_jobId: string) => {});
   const refreshHistory = vi.fn(async (_options?: GenerationHistoryRefreshOptions) => {});
   const setHistoryLimit = vi.fn((_limit: GenerationHistoryLimit) => {});
   const reconnect = vi.fn(() => {});
@@ -76,7 +78,9 @@ const createManagerStub = () => {
       () => transportMetrics.lastEvent,
     ),
     cancelJob,
+    cancelJobByBackendId,
     removeJob,
+    removeJobLocal,
     refreshHistory,
     reconnect,
     setHistoryLimit,
@@ -85,7 +89,9 @@ const createManagerStub = () => {
   return {
     manager,
     cancelJob,
+    cancelJobByBackendId,
     removeJob,
+    removeJobLocal,
     refreshHistory,
     reconnect,
     setHistoryLimit,

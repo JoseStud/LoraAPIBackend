@@ -5,9 +5,9 @@ import type {
   GenerationOrchestratorBinding,
   UseGenerationOrchestratorManagerReturn,
 } from '@/composables/generation/useGenerationOrchestratorManager';
-import type { GenerationJob } from '@/types';
+import type { GenerationJobView } from '@/features/generation/orchestrator';
 
-const activeJobs = ref<ReadonlyArray<GenerationJob>>([]);
+const activeJobs = ref<ReadonlyArray<GenerationJobView>>([]);
 const queueManagerActive = ref(true);
 
 const generationFacade = {
@@ -143,11 +143,13 @@ describe('useJobQueueActions', () => {
   it('cancels a job via the orchestrator binding', async () => {
     await withActions(async (actions) => {
       activeJobs.value = [
-        {
+        Object.freeze({
           id: 'job-1',
           jobId: 'backend-1',
+          uiId: 'job-1',
+          backendId: 'backend-1',
           status: 'processing',
-        } as GenerationJob,
+        }) as GenerationJobView,
       ];
       cancelJobImpl = async (jobId) => {
         activeJobs.value = activeJobs.value.filter(
@@ -179,11 +181,13 @@ describe('useJobQueueActions', () => {
 
     await withActions(async (actions) => {
       activeJobs.value = [
-        {
+        Object.freeze({
           id: 'job-3',
           jobId: 'backend-3',
+          uiId: 'job-3',
+          backendId: 'backend-3',
           status: 'queued',
-        } as GenerationJob,
+        }) as GenerationJobView,
       ];
 
       const result = await actions.cancelJob('job-3');

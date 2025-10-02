@@ -1,30 +1,37 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 
-import type { GenerationJob } from '@/types';
+import type { GenerationJobView, ReadonlyQueue } from '@/features/generation/orchestrator';
 
-const orchestratorRefs = {
-  sortedActiveJobs: ref<GenerationJob[]>([]),
-  queueManagerActive: ref(false),
-  activeJobs: ref<GenerationJob[]>([]),
-  recentResults: ref([]),
-  systemStatus: ref({}),
-  isConnected: ref(false),
-  isInitialized: ref(false),
-  acquire: vi.fn(),
-};
+const sortedActiveJobs = ref<ReadonlyQueue>(Object.freeze([] as GenerationJobView[]));
+const queueManagerActive = ref(false);
+const ensureInitialized = vi.fn().mockResolvedValue(undefined);
+const releaseIfLastConsumer = vi.fn();
 
-vi.mock('@/composables/generation/useGenerationOrchestratorManager', () => ({
-  useGenerationOrchestratorManager: () => orchestratorRefs,
+vi.mock('@/features/generation/orchestrator', () => ({
+  useGenerationOrchestratorFacade: () => ({
+    sortedActiveJobs,
+    queueManagerActive,
+    ensureInitialized,
+    releaseIfLastConsumer,
+  }),
 }));
 
 describe('useJobQueue', () => {
   beforeEach(() => {
-    orchestratorRefs.sortedActiveJobs.value = [
-      { id: 'job-1', status: 'processing', progress: 10 } as GenerationJob,
-    ];
-    orchestratorRefs.queueManagerActive.value = false;
-    orchestratorRefs.acquire.mockReset();
+    sortedActiveJobs.value = Object.freeze([
+      Object.freeze({
+        id: 'job-1',
+        uiId: 'job-1',
+        backendId: 'backend-1',
+        jobId: 'backend-1',
+        status: 'processing',
+        progress: 10,
+      }) as GenerationJobView,
+    ]) as ReadonlyQueue;
+    queueManagerActive.value = false;
+    ensureInitialized.mockClear();
+    releaseIfLastConsumer.mockClear();
   });
 
   it('mirrors the orchestrator manager job list', async () => {
@@ -34,9 +41,16 @@ describe('useJobQueue', () => {
       expect.objectContaining({ id: 'job-1', status: 'processing', progress: 10 }),
     ]);
 
-    orchestratorRefs.sortedActiveJobs.value = [
-      { id: 'job-2', status: 'queued', progress: 0 } as GenerationJob,
-    ];
+    sortedActiveJobs.value = Object.freeze([
+      Object.freeze({
+        id: 'job-2',
+        uiId: 'job-2',
+        backendId: 'backend-2',
+        jobId: 'backend-2',
+        status: 'queued',
+        progress: 0,
+      }) as GenerationJobView,
+    ]) as ReadonlyQueue;
 
     expect(queue.jobs.value).toEqual([
       expect.objectContaining({ id: 'job-2', status: 'queued', progress: 0 }),
@@ -48,7 +62,7 @@ describe('useJobQueue', () => {
     const queue = useJobQueue();
     expect(queue.queueManagerActive.value).toBe(false);
 
-    orchestratorRefs.queueManagerActive.value = true;
+    queueManagerActive.value = true;
     expect(queue.queueManagerActive.value).toBe(true);
   });
 
@@ -57,7 +71,7 @@ describe('useJobQueue', () => {
     const queue = useJobQueue();
     expect(queue.isReady.value).toBe(true);
 
-    orchestratorRefs.queueManagerActive.value = true;
+    queueManagerActive.value = true;
     expect(queue.isReady.value).toBe(true);
   });
 });

@@ -70,15 +70,15 @@
 import { toRefs } from 'vue'
 
 import type { UseGenerationStudioReturn } from '../composables/useGenerationStudio'
-import type { GenerationJob } from '@/types'
+import type { QueueItemView, ReadonlyQueue } from '@/features/generation/orchestrator'
 
 const props = defineProps<{
-  activeJobs: GenerationJob[]
-  sortedActiveJobs: GenerationJob[]
+  activeJobs: ReadonlyQueue
+  sortedActiveJobs: ReadonlyQueue
   formatTime: UseGenerationStudioReturn['formatTime']
   getJobStatusClasses: UseGenerationStudioReturn['getJobStatusClasses']
   getJobStatusText: UseGenerationStudioReturn['getJobStatusText']
-  canCancelJob: UseGenerationStudioReturn['canCancelJob']
+  canCancelJob: (job: QueueItemView) => boolean
 }>()
 
 const emit = defineEmits<{

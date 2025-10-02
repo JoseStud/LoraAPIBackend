@@ -1,7 +1,14 @@
+/** @internal */
 import { readonly, ref, type ComputedRef, type Ref } from 'vue';
+import { storeToRefs } from 'pinia';
 
 import { useGenerationOrchestratorStore } from '../stores/useGenerationOrchestratorStore';
 import type { GenerationOrchestratorStore } from '../stores/useGenerationOrchestratorStore';
+import {
+  useGenerationOrchestratorManagerStore,
+  type GenerationOrchestratorManagerStore,
+} from '../stores/orchestratorManagerStore';
+import type { GenerationNotificationAdapter } from '../composables/useGenerationTransport';
 
 import type { GenerationJob, GenerationResult, SystemStatusState } from '@/types';
 import type { DeepReadonly } from '@/utils/freezeDeep';
@@ -11,16 +18,20 @@ import type {
   GenerationTransportPhase,
   GenerationWebSocketStateSnapshot,
 } from '../types/transport';
+import { useBackendUrl } from '@/utils/backend';
 
 export type ReadonlyRef<T> = Readonly<Ref<T>>;
 
 export type ImmutableGenerationJob = DeepReadonly<GenerationJob>;
 export type ImmutableGenerationResult = DeepReadonly<GenerationResult>;
 
-export type QueueItemView = ImmutableGenerationJob;
-export type ResultItemView = ImmutableGenerationResult;
-export type ReadonlyQueue = ReadonlyArray<QueueItemView>;
-export type ReadonlyResults = ReadonlyArray<ResultItemView>;
+export type GenerationJobView = ImmutableGenerationJob;
+export type GenerationResultView = ImmutableGenerationResult;
+
+export type QueueItemView = GenerationJobView;
+export type ResultItemView = GenerationResultView;
+export type ReadonlyQueue = ReadonlyArray<GenerationJobView>;
+export type ReadonlyResults = ReadonlyArray<GenerationResultView>;
 
 export interface GenerationHistoryRefreshOptions {
   readonly notifySuccess?: boolean;
@@ -31,8 +42,8 @@ export type GenerationHistoryLimit = number;
 export interface GenerationOrchestratorFacadeSelectors {
   readonly queue: ComputedRef<ReadonlyQueue>;
   readonly jobs: ComputedRef<ReadonlyQueue>;
-  readonly activeJobs: ComputedRef<readonly ImmutableGenerationJob[]>;
-  readonly sortedActiveJobs: ComputedRef<readonly ImmutableGenerationJob[]>;
+  readonly activeJobs: ComputedRef<readonly GenerationJobView[]>;
+  readonly sortedActiveJobs: ComputedRef<readonly GenerationJobView[]>;
   readonly hasActiveJobs: ComputedRef<boolean>;
   readonly results: ComputedRef<ReadonlyResults>;
   readonly recentResults: ComputedRef<ReadonlyResults>;
@@ -68,6 +79,8 @@ export interface GenerationOrchestratorFacadeCommands {
   refreshHistory(options?: GenerationHistoryRefreshOptions): Promise<void>;
   reconnect(): void | Promise<void>;
   setHistoryLimit(limit: GenerationHistoryLimit): void;
+  ensureInitialized(options?: GenerationOrchestratorEnsureOptions): Promise<void>;
+  releaseIfLastConsumer(): void;
 }
 
 export interface GenerationOrchestratorFacade
@@ -78,21 +91,63 @@ export type GenerationOrchestratorFacadeFactory = () => GenerationOrchestratorFa
 
 export interface GenerationManager extends GenerationOrchestratorFacadeSelectors {
   cancelJob(jobId: string): Promise<void>;
+  cancelJobByBackendId(jobId: string): Promise<void>;
   removeJob(jobId: string | number): void;
+  removeJobLocal(jobId: string): void;
   clearCompletedJobs(): void;
   refreshHistory(options?: GenerationHistoryRefreshOptions): Promise<void>;
   reconnect(): void | Promise<void>;
   setHistoryLimit(limit: GenerationHistoryLimit): void;
+  ensureInitialized(options?: GenerationOrchestratorEnsureOptions): Promise<void>;
+  releaseIfLastConsumer(): void;
 }
 
-const normalizeJobId = (jobId: string | number): string => String(jobId);
+export interface GenerationOrchestratorEnsureOptions {
+  readonly readOnly?: boolean;
+}
+
+interface StoreBackedManagerOptions {
+  readonly managerStore: GenerationOrchestratorManagerStore;
+  readonly getBackendUrl: () => string | null;
+}
+
+const createLifecycleNotificationAdapter = (): GenerationNotificationAdapter => ({
+  notify: (message, type = 'info') => {
+    const entry = {
+      message,
+      type,
+      timestamp: new Date().toISOString(),
+    };
+
+    if (type === 'error') {
+      console.error('[GenerationOrchestratorFacade]', entry);
+      return;
+    }
+
+    if (type === 'warning') {
+      console.warn('[GenerationOrchestratorFacade]', entry);
+      return;
+    }
+
+    console.info('[GenerationOrchestratorFacade]', entry);
+  },
+  debug: (...args: unknown[]) => {
+    console.debug('[GenerationOrchestratorFacade]', ...args);
+  },
+});
+
+const normalizeJobId = (jobId: string | number): string => String(jobId).trim();
 
 const createStoreBackedManager = (
   store: GenerationOrchestratorStore,
+  options: StoreBackedManagerOptions,
 ): GenerationManager => {
   const pendingActionsCount = ref(0);
   const lastActionAt = ref<Date | null>(null);
   const lastCommandError = ref<Error | null>(null);
+  const { initializationPromise, isInitialized } = storeToRefs(options.managerStore);
+  const lifecycleNotificationAdapter = createLifecycleNotificationAdapter();
+  let readOnlyConsumerId: symbol | null = null;
 
   const pendingActionsCountReadonly = readonly(pendingActionsCount);
   const lastActionAtReadonly = readonly(lastActionAt);
@@ -122,6 +177,51 @@ const createStoreBackedManager = (
 
     return new Error('Generation orchestrator command failed');
   };
+
+  const resolveBackendJobId = (
+    jobId: string,
+    options: { strict?: boolean } = {},
+  ): string => {
+    const normalized = jobId.trim();
+
+    if (!normalized) {
+      throw new Error('Job identifier is required');
+    }
+
+    const backendMap = store.jobsByBackendId.value;
+    if (backendMap.has(normalized)) {
+      return normalized;
+    }
+
+    const job = store.jobsByUiId.value.get(normalized);
+    if (job) {
+      return job.backendId;
+    }
+
+    if (!options.strict || normalized.startsWith('backend-')) {
+      return normalized;
+    }
+
+    throw new Error(`Job not found for UI id: ${normalized}`);
+  };
+
+  const performCancel = (
+    backendJobId: string,
+    metadata: Record<string, unknown>,
+  ): Promise<void> =>
+    runCommand('cancelJob', () => store.cancelJob(backendJobId), metadata);
+
+  const performRemove = (
+    backendJobId: string,
+    metadata: Record<string, unknown>,
+  ): void =>
+    runSyncCommand(
+      'removeJob',
+      () => {
+        store.removeJob(backendJobId);
+      },
+      metadata,
+    );
 
   const logTelemetry = (
     stage: 'start' | 'success' | 'error',
@@ -225,6 +325,91 @@ const createStoreBackedManager = (
     }
   };
 
+  const ensureReadOnlyRegistration = (): void => {
+    if (readOnlyConsumerId) {
+      return;
+    }
+
+    readOnlyConsumerId = Symbol('generation-orchestrator-read-only-consumer');
+    options.managerStore.registerReadOnlyConsumer(readOnlyConsumerId);
+  };
+
+  const releaseReadOnlyRegistration = (): void => {
+    if (!readOnlyConsumerId) {
+      return;
+    }
+
+    options.managerStore.unregisterReadOnlyConsumer(readOnlyConsumerId);
+    readOnlyConsumerId = null;
+  };
+
+  const destroyIfUnused = (): void => {
+    if (!options.managerStore.hasActiveConsumers()) {
+      options.managerStore.destroyOrchestrator();
+    }
+  };
+
+  const ensureInitialized = async (
+    ensureOptions: GenerationOrchestratorEnsureOptions = { readOnly: true },
+  ): Promise<void> => {
+    const { readOnly = true } = ensureOptions;
+
+    if (readOnly) {
+      ensureReadOnlyRegistration();
+    }
+
+    const orchestrator = options.managerStore.ensureOrchestrator(() => store);
+
+    if (store.isActive.value) {
+      return;
+    }
+
+    if (!initializationPromise.value) {
+      const initialization = orchestrator
+        .initialize({
+          historyLimit: store.historyLimit.value,
+          getBackendUrl: options.getBackendUrl,
+          notificationAdapter: lifecycleNotificationAdapter,
+        })
+        .then(() => {
+          isInitialized.value = true;
+        })
+        .catch((error) => {
+          isInitialized.value = false;
+          if (readOnly) {
+            releaseReadOnlyRegistration();
+          }
+          throw error;
+        })
+        .finally(() => {
+          initializationPromise.value = null;
+        });
+
+      initializationPromise.value = initialization;
+    }
+
+    await initializationPromise.value;
+  };
+
+  const releaseIfLastConsumer = (): void => {
+    const pendingInitialization = initializationPromise.value;
+
+    releaseReadOnlyRegistration();
+
+    if (pendingInitialization) {
+      void pendingInitialization
+        .catch(() => {
+          // Swallow to ensure cleanup still runs after failure.
+        })
+        .finally(() => {
+          destroyIfUnused();
+        });
+      return;
+    }
+
+    destroyIfUnused();
+  };
+
   return {
     queue: store.jobs,
     jobs: store.jobs,
@@ -256,17 +441,23 @@ const createStoreBackedManager = (
     lastCommandError: lastCommandErrorReadonly,
     lastActionAt: lastActionAtReadonly,
     pendingActionsCount: pendingActionsCountReadonly,
-    cancelJob: (jobId: string): Promise<void> =>
-      runCommand('cancelJob', () => store.cancelJob(jobId), { jobId }),
+    cancelJob: (jobId: string): Promise<void> => {
+      const normalizedJobId = normalizeJobId(jobId);
+      const backendJobId = resolveBackendJobId(normalizedJobId, { strict: true });
+      return performCancel(backendJobId, { jobId: normalizedJobId, backendJobId });
+    },
+    cancelJobByBackendId: (jobId: string): Promise<void> => {
+      const backendJobId = normalizeJobId(jobId);
+      return performCancel(backendJobId, { backendJobId });
+    },
     removeJob: (jobId: string | number): void => {
       const normalizedJobId = normalizeJobId(jobId);
-      runSyncCommand(
-        'removeJob',
-        () => {
-          store.removeJob(normalizedJobId);
-        },
-        { jobId: normalizedJobId },
-      );
+      const backendJobId = resolveBackendJobId(normalizedJobId);
+      performRemove(backendJobId, { jobId: normalizedJobId, backendJobId });
+    },
+    removeJobLocal: (jobId: string): void => {
+      const backendJobId = normalizeJobId(jobId);
+      performRemove(backendJobId, { backendJobId });
     },
     clearCompletedJobs: (): void => {
       runSyncCommand('clearCompletedJobs', () => {
@@ -295,6 +486,8 @@ const createStoreBackedManager = (
         { limit },
       );
     },
+    ensureInitialized,
+    releaseIfLastConsumer,
   };
 };
 
@@ -342,11 +535,20 @@ export const createGenerationFacade = ({
     manager.refreshHistory(options),
   reconnect: (): void | Promise<void> => manager.reconnect(),
   setHistoryLimit: (limit: GenerationHistoryLimit): void => manager.setHistoryLimit(limit),
+  ensureInitialized: (options?: GenerationOrchestratorEnsureOptions): Promise<void> =>
+    manager.ensureInitialized(options),
+  releaseIfLastConsumer: (): void => manager.releaseIfLastConsumer(),
 });
 
 export const useGenerationOrchestratorFacade: GenerationOrchestratorFacadeFactory = () => {
   const store = useGenerationOrchestratorStore();
-  const manager = createStoreBackedManager(store);
+  const managerStore = useGenerationOrchestratorManagerStore();
+  const backendUrl = useBackendUrl('/') as ComputedRef<string>;
+  const getBackendUrl = (): string | null => backendUrl.value || null;
+  const manager = createStoreBackedManager(store, {
+    managerStore,
+    getBackendUrl,
+  });
   return createGenerationFacade({ manager });
 };
 

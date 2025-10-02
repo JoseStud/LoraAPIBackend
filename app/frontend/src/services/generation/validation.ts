@@ -1,1 +1,1 @@
-export * from '@/features/generation/services/validation';
+export * from '../../features/generation/services/validation';

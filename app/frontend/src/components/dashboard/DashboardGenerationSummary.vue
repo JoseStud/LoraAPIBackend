@@ -99,7 +99,7 @@ import { RouterLink } from 'vue-router';
 
 import { useBackendClient } from '@/services/backendClient';
 import { listResults as listHistoryResults } from '@/features/history/services';
-import { useGenerationOrchestratorFacade } from '@/features/generation/orchestrator';
+import { useGenerationOrchestratorFacade } from '@/features/generation/public';
 import { formatFileSize, formatRelativeTime } from '@/utils/format';
 import { mapGenerationResultsToHistory } from '@/utils/generationHistory';
 import type {

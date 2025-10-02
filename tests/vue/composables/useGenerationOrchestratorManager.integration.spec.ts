@@ -10,7 +10,6 @@ import { createGenerationTransportAdapter } from '@/features/generation/composab
 import { createUseGenerationOrchestratorManager, HISTORY_LIMIT_WHEN_SHOWING } from '@/features/generation/composables/useGenerationOrchestratorManager';
 import { useGenerationOrchestratorStore, DEFAULT_HISTORY_LIMIT } from '@/features/generation/stores/useGenerationOrchestratorStore';
 import { useGenerationOrchestratorManagerStore } from '@/features/generation/stores/orchestratorManagerStore';
-import { useGenerationStudioUiStore } from '@/features/generation/stores/ui';
 import { useBackendUrl } from '@/utils/backend';
 
 const useStubSettingsStore = defineStore('stub-settings', () => {
@@ -46,21 +45,20 @@ describe('useGenerationOrchestratorManager integration', () => {
   it('reacts to UI and backend changes through orchestrator watchers', async () => {
     const managerStore = useGenerationOrchestratorManagerStore();
     const orchestratorStore = useGenerationOrchestratorStore();
-    const uiStore = useGenerationStudioUiStore();
     const settingsStore = useStubSettingsStore();
+    const historyVisibility = ref(false);
 
     const backendUrlRef = computed(() => settingsStore.backendUrl as string);
 
     const useManager = createUseGenerationOrchestratorManager({
       useGenerationOrchestratorManagerStore: () => managerStore,
       useGenerationOrchestratorStore: () => orchestratorStore,
-      useGenerationStudioUiStore: () => uiStore,
       useBackendUrl: (() => backendUrlRef) as unknown as typeof useBackendUrl,
     });
 
     const manager = useManager();
 
-    const binding = manager.acquire({ notify: vi.fn(), debug: vi.fn() });
+    const binding = manager.acquire({ notify: vi.fn(), debug: vi.fn(), historyVisibility });
     await binding.initialize();
 
     const resolveHistoryLimit = (): number | undefined => {
@@ -76,7 +74,7 @@ describe('useGenerationOrchestratorManager integration', () => {
 
     expect(resolveHistoryLimit()).toBe(DEFAULT_HISTORY_LIMIT);
 
-    uiStore.setShowHistory(true);
+    historyVisibility.value = true;
     await nextTick();
     await Promise.resolve();
 
@@ -99,7 +97,7 @@ describe('useGenerationOrchestratorManager integration', () => {
     const refreshAllCallCount = transport.refreshAll.mock.calls.length;
     binding.release();
 
-    uiStore.setShowHistory(false);
+    historyVisibility.value = false;
     await nextTick();
     await Promise.resolve();
 
@@ -116,33 +114,42 @@ describe('useGenerationOrchestratorManager integration', () => {
   it('deduplicates auto-sync watchers across consumers and honors opt-out flags', async () => {
     const managerStore = useGenerationOrchestratorManagerStore();
     const orchestratorStore = useGenerationOrchestratorStore();
-    const uiStore = useGenerationStudioUiStore();
     const settingsStore = useStubSettingsStore();
+    const firstHistoryVisibility = ref(false);
+    const secondHistoryVisibility = ref(false);
+    const thirdHistoryVisibility = ref(false);
 
     const backendUrlRef = computed(() => settingsStore.backendUrl as string);
 
     const useManager = createUseGenerationOrchestratorManager({
       useGenerationOrchestratorManagerStore: () => managerStore,
       useGenerationOrchestratorStore: () => orchestratorStore,
-      useGenerationStudioUiStore: () => uiStore,
       useBackendUrl: (() => backendUrlRef) as unknown as typeof useBackendUrl,
     });
 
     const manager = useManager();
 
-    const first = manager.acquire({ notify: vi.fn(), debug: vi.fn() });
-    const second = manager.acquire({ notify: vi.fn(), debug: vi.fn() });
+    const first = manager.acquire({
+      notify: vi.fn(),
+      debug: vi.fn(),
+      historyVisibility: firstHistoryVisibility,
+    });
+    const second = manager.acquire({
+      notify: vi.fn(),
+      debug: vi.fn(),
+      historyVisibility: secondHistoryVisibility,
+    });
 
     await first.initialize();
     await second.initialize();
 
-    uiStore.setShowHistory(true);
+    firstHistoryVisibility.value = true;
     await nextTick();
     await Promise.resolve();
 
     const initialHistoryCalls = transport.refreshRecentResults.mock.calls.length;
 
-    uiStore.setShowHistory(false);
+    firstHistoryVisibility.value = false;
     await nextTick();
     await Promise.resolve();
 
@@ -155,14 +162,19 @@ describe('useGenerationOrchestratorManager integration', () => {
 
     expect(transport.refreshAll.mock.calls.length).toBe(initialRefreshAllCalls + 1);
 
-    const third = manager.acquire({ notify: vi.fn(), debug: vi.fn(), autoSync: false });
+    const third = manager.acquire({
+      notify: vi.fn(),
+      debug: vi.fn(),
+      autoSync: false,
+      historyVisibility: thirdHistoryVisibility,
+    });
     await third.initialize();
 
     first.release();
     second.release();
 
     const historyCallsBefore = transport.refreshRecentResults.mock.calls.length;
-    uiStore.setShowHistory(true);
+    thirdHistoryVisibility.value = true;
     await nextTick();
     await Promise.resolve();
     expect(transport.refreshRecentResults.mock.calls.length).toBe(historyCallsBefore);
@@ -174,5 +186,41 @@ describe('useGenerationOrchestratorManager integration', () => {
     expect(transport.refreshAll.mock.calls.length).toBe(refreshAllCallsBefore);
 
     third.release();
+  });
+
+  it('translates UI job ids to backend ids when cancelling through the binding', async () => {
+    const managerStore = useGenerationOrchestratorManagerStore();
+    const orchestratorStore = useGenerationOrchestratorStore();
+    const settingsStore = useStubSettingsStore();
+    const historyVisibility = ref(false);
+
+    const backendUrlRef = computed(() => settingsStore.backendUrl as string);
+
+    const useManager = createUseGenerationOrchestratorManager({
+      useGenerationOrchestratorManagerStore: () => managerStore,
+      useGenerationOrchestratorStore: () => orchestratorStore,
+      useBackendUrl: (() => backendUrlRef) as unknown as typeof useBackendUrl,
+    });
+
+    const manager = useManager();
+    const binding = manager.acquire({ notify: vi.fn(), debug: vi.fn(), historyVisibility });
+    await binding.initialize();
+
+    orchestratorStore.enqueueJob({
+      id: 'job-99',
+      uiId: 'job-99',
+      jobId: 'backend-99',
+      backendId: 'backend-99',
+      status: 'queued',
+      progress: 0,
+    });
+
+    transport.cancelJob.mockClear();
+
+    await binding.cancelJob('job-99');
+
+    expect(transport.cancelJob).toHaveBeenCalledWith('backend-99');
+
+    binding.release();
   });
 });
