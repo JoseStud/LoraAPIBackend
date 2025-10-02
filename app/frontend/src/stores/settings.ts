@@ -38,6 +38,7 @@ export const useSettingsStore = defineStore('app-settings', () => {
   const isLoaded = ref(false);
   const error = ref<unknown>(null);
 
+
   const backendUrl = computed<string>(() => {
     if (!settings.value) {
       return runtimeBackendDefaults.backendUrl;
@@ -90,11 +91,13 @@ export const useSettingsStore = defineStore('app-settings', () => {
 
     settings.value = merged;
     isLoaded.value = true;
+
     publishBackendEnvironment({
       backendUrl: nextBackendUrl,
       backendApiKey: nextBackendApiKey,
       hasExplicitBackendApiKey: nextBackendApiKeyExplicit,
     });
+
   };
 
   const loadSettings = async (force = false) => {
@@ -128,7 +131,9 @@ export const useSettingsStore = defineStore('app-settings', () => {
     isLoaded.value = false;
     isLoading.value = false;
     error.value = null;
+
     resetBackendEnvironment();
+
   };
 
   return {
@@ -142,7 +147,9 @@ export const useSettingsStore = defineStore('app-settings', () => {
     setSettings,
     loadSettings,
     reset,
+
     backendEnvironmentReadyPromise: backendEnvironmentReadyPromise,
+
   };
 });
 
@@ -167,3 +174,4 @@ export const getResolvedBackendSettings = (): {
 export const getResolvedBackendUrl = (): string => getResolvedBackendSettings().backendUrl;
 
 export const getResolvedBackendApiKey = (): string | null => getResolvedBackendSettings().backendApiKey;
+

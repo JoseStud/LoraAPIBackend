@@ -91,7 +91,7 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
   const weights = ref<WeightState>({ ...DEFAULT_WEIGHTS, ...(options.initialWeights ?? {}) });
 
   const hydrationReady = ref(false);
-  void backendEnvironment.readyPromise.then(() => {
+  void backendEnvironment.ensureReady().then(() => {
     hydrationReady.value = true;
   });
 
