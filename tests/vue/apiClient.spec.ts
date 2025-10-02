@@ -5,7 +5,8 @@ import {
   performRequest,
   requestConfiguredJson,
   requestJson,
-} from '@/services/apiClient';
+  resetDefaultHttpClient,
+} from '@/services/shared/http';
 import { ApiError } from '@/types';
 
 const originalFetch = global.fetch;
@@ -32,6 +33,7 @@ const createJsonResponse = <T>(
 afterEach(() => {
   global.fetch = originalFetch;
   vi.resetAllMocks();
+  resetDefaultHttpClient();
 });
 
 describe('apiClient helpers', () => {

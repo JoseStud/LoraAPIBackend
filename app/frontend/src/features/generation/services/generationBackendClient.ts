@@ -1,4 +1,4 @@
-import type { BackendClient } from '@/services/backendClient';
+import type { BackendClient } from '@/services/shared/http/backendClient';
 import {
   createBackendPathResolver,
   resolveClient,

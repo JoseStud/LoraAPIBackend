@@ -1,5 +1,5 @@
-import { getFilenameFromContentDisposition } from '@/services/apiClient';
-import { resolveBackendClient, type BackendClient } from '@/services/backendClient';
+import { getFilenameFromContentDisposition } from '@/services/shared/http';
+import { resolveBackendClient, type BackendClient } from '@/services/shared/http/backendClient';
 
 import type {
   AnalyticsExportOptions,

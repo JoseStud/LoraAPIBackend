@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { useImportWorkflow, type ProgressCallbacks } from '../../app/frontend/src/composables/import-export/useImportWorkflow';
-import type { BackendClient } from '../../app/frontend/src/services/backendClient';
+import type { BackendClient } from '../../app/frontend/src/services/shared/http/backendClient';
 
 const requestJson = vi.fn();
 
@@ -30,8 +30,8 @@ const createBackendClientMock = (base = 'https://api.example'): BackendClient =>
   } as unknown as BackendClient;
 };
 
-vi.mock('@/services/apiClient', async () => {
-  const actual = await vi.importActual<typeof import('@/services/apiClient')>('@/services/apiClient');
+vi.mock('@/services/shared/http', async () => {
+  const actual = await vi.importActual<typeof import('@/services/shared/http')>('@/services/shared/http');
   return {
     ...actual,
     ensureData: (value: unknown) => value

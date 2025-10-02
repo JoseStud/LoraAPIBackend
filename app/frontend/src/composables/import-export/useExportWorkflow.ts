@@ -1,7 +1,7 @@
 import { computed, reactive, ref, watch, type ComputedRef } from 'vue';
 
-import { ensureData, getFilenameFromContentDisposition } from '@/services/apiClient';
-import { useBackendClient, type BackendClient } from '@/services/backendClient';
+import { ensureData, getFilenameFromContentDisposition } from '@/services/shared/http';
+import { useBackendClient, type BackendClient } from '@/services/shared/http/backendClient';
 import { downloadFile } from '@/utils/browser';
 import { formatFileSize as formatBytes } from '@/utils/format';
 import type { ExportConfig, ExportEstimate } from '@/types';

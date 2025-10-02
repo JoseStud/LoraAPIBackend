@@ -9,9 +9,9 @@ import { useRecommendations } from '@/features/recommendations/composables/useRe
 import * as recommendationsService from '@/features/recommendations/services';
 import { useSettingsStore } from '@/stores';
 import * as backendEnvironmentModule from '@/services/backendEnvironment';
-import * as backendClientModule from '@/services/backendClient';
+import * as backendClientModule from '@/services/shared/http/backendClient';
 import * as backendRefreshModule from '@/services/system/backendRefresh';
-import * as apiClientModule from '@/services/apiClient';
+import * as apiClientModule from '@/services/shared/http';
 
 const backendRefreshCallbacks: Array<() => void> = [];
 

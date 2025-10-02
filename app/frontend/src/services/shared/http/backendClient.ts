@@ -1,11 +1,15 @@
+import type { MaybeRefOrGetter } from 'vue';
+
 import { createHttpClient, type CreateHttpClientConfig, type HttpClient } from './createHttpClient';
-import { resolveBackendBaseUrl } from '@/utils/backend';
+import { resolveBackendBaseUrl, resolveBackendUrl, useBackendBase } from '@/utils/backend';
 
 export type BackendHttpClientInput = HttpClient | string | null | undefined;
 
 export interface BackendHttpClientOptions extends Omit<CreateHttpClientConfig, 'baseURL'> {
   baseURL?: string | (() => string | null | undefined);
 }
+
+export type BackendBaseOverride = string | null | undefined | (() => string | null | undefined);
 
 const normaliseBaseResolver = (
   baseURL?: BackendHttpClientOptions['baseURL'],
@@ -42,4 +46,35 @@ export const createBackendHttpClient = (options: BackendHttpClientOptions = {}):
     ...rest,
     baseURL: resolveBase,
   });
+};
+
+export type BackendClient = HttpClient;
+
+const defaultBackendClient = createBackendHttpClient();
+
+export const createBackendClient = (override?: BackendBaseOverride): BackendClient =>
+  createBackendHttpClient({ baseURL: override });
+
+export const resolveBackendClient = (client?: BackendHttpClientInput): BackendClient => {
+  if (typeof client === 'string') {
+    return createBackendClient(client);
+  }
+
+  if (!client) {
+    return defaultBackendClient;
+  }
+
+  return client;
+};
+
+export const useBackendClient = (override?: MaybeRefOrGetter<string | null>): BackendClient => {
+  const backendBase = useBackendBase(override);
+  return createBackendClient(() => backendBase.value);
+};
+
+export const resolveBackendPath = (path: string, client?: BackendClient): string => {
+  if (client) {
+    return client.resolve(path);
+  }
+  return resolveBackendUrl(path);
 };

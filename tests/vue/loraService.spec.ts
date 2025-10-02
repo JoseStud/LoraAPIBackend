@@ -11,7 +11,7 @@ import {
   deleteLora,
   triggerPreviewGeneration,
 } from '@/services';
-import { createBackendClient } from '@/services/backendClient';
+import { createBackendClient } from '@/services/shared/http/backendClient';
 import type { AdapterListResponse } from '@/types';
 
 const originalFetch = global.fetch;

@@ -24,6 +24,13 @@ const normaliseMethod = (method?: string): string => (method ?? 'GET').toUpperCa
 
 const isFunction = <T>(value: T | (() => T)): value is () => T => typeof value === 'function';
 
+const isAbortError = (error: unknown): boolean => {
+  if (typeof DOMException !== 'undefined' && error instanceof DOMException) {
+    return error.name === 'AbortError';
+  }
+  return error instanceof Error && error.name === 'AbortError';
+};
+
 const resolveHeaders = (input?: HeadersInit | (() => HeadersInit | null | undefined)):
   | HeadersInit
   | undefined => {
@@ -76,6 +83,7 @@ export interface CreateHttpClientConfig {
 
 export interface HttpClient {
   resolve: (path?: string) => string;
+  request: <TPayload = unknown>(path: string, init?: ApiRequestInit) => Promise<ApiRequestResult<TPayload>>;
   requestJson: <TPayload = unknown>(path: string, init?: ApiRequestInit) => Promise<ApiResult<TPayload>>;
   getJson: <TPayload = unknown>(path: string, init?: ApiRequestInit) => Promise<TPayload | null>;
   postJson: <TResponse = unknown, TBody = unknown>(
@@ -94,6 +102,10 @@ export interface HttpClient {
     init?: ApiRequestInit,
   ) => Promise<ApiResult<TResponse>>;
   delete: <TResponse = unknown>(path: string, init?: ApiRequestInit) => Promise<ApiResult<TResponse>>;
+  fetchParsed: <TPayload = unknown>(path: string, init?: ApiRequestInit) => Promise<TPayload>;
+  fetchJson: <TPayload = unknown>(path: string, init?: ApiRequestInit) => Promise<TPayload>;
+  fetchText: (path: string, init?: ApiRequestInit) => Promise<string | null>;
+  fetchVoid: (path: string, init?: ApiRequestInit) => Promise<void>;
   requestBlob: (path: string, init?: RequestInit) => Promise<BlobResult>;
 }
 
@@ -327,6 +339,9 @@ export const createHttpClient = (config: CreateHttpClientConfig = {}): HttpClien
       return await operation();
     } catch (error) {
       const url = coreClient.resolve(target);
+      if (isAbortError(error)) {
+        throw error;
+      }
       throw createError(url, init, error);
     }
   };
@@ -350,6 +365,10 @@ export const createHttpClient = (config: CreateHttpClientConfig = {}): HttpClien
 
   return {
     resolve: (path?: string) => coreClient.resolve(path ?? ''),
+    request: <TPayload>(path: string, init: ApiRequestInit = {}) => {
+      const prepared = applyInit(init);
+      return run(path, prepared, () => coreClient.request<TPayload>(path, prepared));
+    },
     requestJson: <TPayload>(path: string, init: ApiRequestInit = {}) => requestJson(path, init),
     getJson: <TPayload>(path: string, init: ApiRequestInit = {}) => getJson<TPayload>(path, init),
     postJson: <TResponse, TBody>(path: string, body: TBody, init: ApiRequestInit = {}) => {
@@ -367,6 +386,22 @@ export const createHttpClient = (config: CreateHttpClientConfig = {}): HttpClien
     delete: <TResponse>(path: string, init: ApiRequestInit = {}) => {
       const prepared = applyInit({ ...init, method: 'DELETE' });
       return run(path, prepared, () => coreClient.delete<TResponse>(path, prepared));
+    },
+    fetchParsed: <TPayload>(path: string, init: ApiRequestInit = {}) => {
+      const prepared = applyInit(init);
+      return run(path, prepared, () => coreClient.fetchParsed<TPayload>(path, prepared));
+    },
+    fetchJson: <TPayload>(path: string, init: ApiRequestInit = {}) => {
+      const prepared = applyInit(init);
+      return run(path, prepared, () => coreClient.fetchJson<TPayload>(path, prepared));
+    },
+    fetchText: (path: string, init: ApiRequestInit = {}) => {
+      const prepared = applyInit(init);
+      return run(path, prepared, () => coreClient.fetchText(path, prepared));
+    },
+    fetchVoid: (path: string, init: ApiRequestInit = {}) => {
+      const prepared = applyInit(init);
+      return run(path, prepared, () => coreClient.fetchVoid(path, prepared));
     },
     requestBlob: (path: string, init: RequestInit = {}) => {
       const prepared = applyInit(init as ApiRequestInit);

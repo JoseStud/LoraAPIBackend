@@ -3,7 +3,7 @@ import { computed, ref, type ComputedRef } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { ApiError } from '@/composables/shared';
-import { useBackendClient, type BackendClient } from '@/services/backendClient';
+import { useBackendClient, type BackendClient } from '@/services/shared/http/backendClient';
 import { fetchSystemStatus } from '@/services';
 import { resolveBackendBaseUrl } from '@/utils/backend';
 import { generationPollingConfig } from '../config/polling';

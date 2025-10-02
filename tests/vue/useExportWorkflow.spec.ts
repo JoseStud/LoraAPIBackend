@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { nextTick } from 'vue';
 
 import { useExportWorkflow, type ProgressCallbacks } from '../../app/frontend/src/composables/import-export/useExportWorkflow';
-import type { BackendClient } from '../../app/frontend/src/services/backendClient';
+import type { BackendClient } from '../../app/frontend/src/services/shared/http/backendClient';
 
 const postJson = vi.fn();
 const requestBlob = vi.fn();
@@ -34,8 +34,8 @@ const createBackendClientMock = (base = 'https://api.example'): BackendClient =>
   } as unknown as BackendClient;
 };
 
-vi.mock('@/services/apiClient', async () => {
-  const actual = await vi.importActual<typeof import('@/services/apiClient')>('@/services/apiClient');
+vi.mock('@/services/shared/http', async () => {
+  const actual = await vi.importActual<typeof import('@/services/shared/http')>('@/services/shared/http');
   return {
     ...actual,
     ensureData: (value: unknown) => value,

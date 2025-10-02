@@ -2,7 +2,7 @@ import {
   createBackendClient,
   resolveBackendClient,
   type BackendClient,
-} from '@/services/backendClient';
+} from '@/services/shared/http/backendClient';
 import {
   createBackendPathBuilder,
   type BackendPathBuilder,

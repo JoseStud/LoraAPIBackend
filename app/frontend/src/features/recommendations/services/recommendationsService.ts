@@ -1,4 +1,4 @@
-import { createHttpClient, ensureData, type HttpClient } from '@/services/apiClient';
+import { createHttpClient, ensureData, type HttpClient } from '@/services/shared/http';
 import { createBackendPathResolver } from '@/services/shared/backendHelpers';
 import { resolveBackendBaseUrl } from '@/utils/backend';
 import type { RecommendationResponse } from '@/types';
@@ -37,8 +37,7 @@ export interface GetRecommendationsParams extends SimilarRecommendationsQuery {
 
 const createRecommendationsHttpClient = (): HttpClient =>
   createHttpClient({
-    baseUrl: () => resolveBackendBaseUrl(),
-    credentials: 'same-origin',
+    baseURL: () => resolveBackendBaseUrl(),
     retry: {
       attempts: 2,
       baseDelayMs: 150,

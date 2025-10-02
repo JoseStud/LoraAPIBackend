@@ -40,7 +40,7 @@ describe('backend environment consumers', () => {
     const fetchAdapterList = vi.fn().mockResolvedValue({ items: [] });
     const fetchAdapterTags = vi.fn().mockResolvedValue([]);
 
-    vi.doMock('@/services/backendClient', () => ({
+    vi.doMock('@/services/shared/http/backendClient', () => ({
       useBackendClient: () => createMockBackendClient(),
       createBackendClient: () => createMockBackendClient(),
       resolveBackendClient: () => createMockBackendClient(),
@@ -94,7 +94,7 @@ describe('backend environment consumers', () => {
     });
     const fetchTopAdapters = vi.fn().mockResolvedValue([]);
 
-    vi.doMock('@/services/backendClient', () => ({
+    vi.doMock('@/services/shared/http/backendClient', () => ({
       useBackendClient: () => createMockBackendClient(),
       createBackendClient: () => createMockBackendClient(),
       resolveBackendClient: () => createMockBackendClient(),
@@ -156,7 +156,7 @@ describe('backend environment consumers', () => {
 
     const fetchDashboardStats = vi.fn().mockResolvedValue(null);
 
-    vi.doMock('@/services/backendClient', () => ({
+    vi.doMock('@/services/shared/http/backendClient', () => ({
       useBackendClient: () => createMockBackendClient(),
       createBackendClient: () => createMockBackendClient(),
       resolveBackendClient: () => createMockBackendClient(),

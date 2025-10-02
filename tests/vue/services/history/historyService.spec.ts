@@ -6,7 +6,7 @@ import {
   rateResult,
 } from '@/features/history/services/historyService';
 import { HistoryServiceParseError } from '@/features/history/services/historySchemas';
-import type { BackendClient } from '@/services/backendClient';
+import type { BackendClient } from '@/services/shared/http/backendClient';
 import type { GenerationHistoryResult } from '@/types';
 
 const iso = '2024-01-01T00:00:00Z';

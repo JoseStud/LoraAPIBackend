@@ -1,5 +1,5 @@
-import { getFilenameFromContentDisposition } from '@/services/apiClient';
-import type { BackendClient } from '@/services/backendClient';
+import { getFilenameFromContentDisposition } from '@/services/shared/http';
+import type { BackendClient } from '@/services/shared/http/backendClient';
 import {
   createBackendPathResolver,
   resolveClient,

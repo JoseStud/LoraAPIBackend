@@ -1,5 +1,5 @@
 import { createBackendHttpClient, type BackendHttpClientInput } from '@/services/shared/http/backendClient';
-import type { HttpClient } from '@/services/shared/http/createHttpClient';
+import type { HttpClient } from '@/services/shared/http';
 import { createBackendPathBuilder } from '@/utils/backend';
 import { parseAdapterListPayload, parseAdapterRead, parseAdapterTags } from '@/schemas';
 

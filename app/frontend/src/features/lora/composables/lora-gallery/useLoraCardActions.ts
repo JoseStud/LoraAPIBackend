@@ -2,7 +2,7 @@ import { computed, ref, watch, type Ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { useNotifications } from '@/composables/shared';
-import { useBackendClient } from '@/services/backendClient';
+import { useBackendClient } from '@/services/shared/http/backendClient';
 import {
   buildRecommendationsUrl,
   deleteLora as deleteLoraRequest,
