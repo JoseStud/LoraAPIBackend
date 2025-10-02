@@ -20,7 +20,8 @@ import type {
   GenerationTransportResumePayload,
   GenerationWebSocketStateSnapshot,
 } from '../types/transport';
-import { freezeDeep, type DeepReadonly } from '@/utils/freezeDeep';
+import type { DeepReadonly } from '@/utils/freezeDeep';
+import { createImmutableArraySnapshot, createImmutableObjectSnapshot } from '../orchestrator/utils/immutableSnapshots';
 
 export type { GenerationJobInput } from './orchestrator/queueModule';
 export { MAX_RESULTS, DEFAULT_HISTORY_LIMIT } from './orchestrator/resultsModule';
@@ -126,20 +127,32 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
     const transportLastPauseEvent = transportModule.lastPauseEvent;
     const transportLastResumeEvent = transportModule.lastResumeEvent;
 
-    const jobs = computed(() => freezeDeep(queue.jobs.value as GenerationJob[]) as ImmutableJobs);
+    const jobs = computed(() =>
+      createImmutableArraySnapshot(queue.jobs.value as GenerationJob[], 'generation-orchestrator.jobs') as ImmutableJobs,
+    );
     const jobsByUiId = computed(() => queue.jobsByUiId.value);
     const jobsByBackendId = computed(() => queue.jobsByBackendId.value);
-    const activeJobs = computed(
-      () => freezeDeep(queue.activeJobs.value as GenerationJob[]) as ImmutableJobs,
+    const activeJobs = computed(() =>
+      createImmutableArraySnapshot(queue.activeJobs.value as GenerationJob[], 'generation-orchestrator.activeJobs') as ImmutableJobs,
     );
-    const sortedActiveJobs = computed(
-      () => freezeDeep(queue.sortedActiveJobs.value as GenerationJob[]) as ImmutableJobs,
+    const sortedActiveJobs = computed(() =>
+      createImmutableArraySnapshot(
+        queue.sortedActiveJobs.value as GenerationJob[],
+        'generation-orchestrator.sortedActiveJobs',
+      ) as ImmutableJobs,
     );
     const recentResults = computed(() =>
-      freezeDeep(resultsPublic.recentResults.value as GenerationResult[]) as ImmutableResults,
+      createImmutableArraySnapshot(
+        resultsPublic.recentResults.value as GenerationResult[],
+        'generation-orchestrator.recentResults',
+      ) as ImmutableResults,
     );
     const systemStatus = computed(
-      () => freezeDeep(systemStatusModule.systemStatus) as ImmutableSystemStatus,
+      () =>
+        createImmutableObjectSnapshot(
+          systemStatusModule.systemStatus as SystemStatusState,
+          'generation-orchestrator.systemStatus',
+        ) as ImmutableSystemStatus,
     );
 
     const isActiveState = readonly(isActive);
