@@ -3,9 +3,9 @@ import { computed, ref, shallowRef, type Ref } from 'vue';
 
 import {
   createUseGenerationOrchestratorManager,
-  HISTORY_LIMIT_WHEN_SHOWING,
   type UseGenerationOrchestratorManagerDependencies,
 } from '@/features/generation/composables/useGenerationOrchestratorManager';
+import { HISTORY_LIMIT_WHEN_SHOWING } from '@/features/generation/composables/useOrchestratorConsumers';
 import type { GenerationOrchestratorConsumer, GenerationOrchestratorManagerStore } from '@/features/generation/stores/orchestratorManagerStore';
 import type { GenerationOrchestratorStore } from '@/features/generation/stores/useGenerationOrchestratorStore';
 import { DEFAULT_HISTORY_LIMIT } from '@/features/generation/stores/useGenerationOrchestratorStore';
@@ -22,6 +22,7 @@ import type {
   ReadonlyQueue,
   ReadonlyResults,
 } from '@/features/generation/orchestrator';
+import type { GenerationTransportPauseReason } from '@/features/generation/types/transport';
 
 interface OrchestratorStoreMock
   extends Pick<
@@ -35,6 +36,9 @@ interface OrchestratorStoreMock
     | 'clearQueue'
     | 'deleteResult'
     | 'isJobCancellable'
+    | 'handleBackendUrlChange'
+    | 'pauseTransport'
+    | 'resumeTransport'
     | 'destroy'
   > {
   activeJobs: Ref<ReadonlyQueue>;
@@ -42,6 +46,10 @@ interface OrchestratorStoreMock
   recentResults: Ref<ReadonlyResults>;
   systemStatus: Ref<Readonly<SystemStatusState>>;
   isConnected: Ref<boolean>;
+  queueManagerActive: Ref<boolean>;
+  transportPaused: Ref<boolean>;
+  transportPauseReasons: Ref<GenerationTransportPauseReason[]>;
+  transportPauseSince: Ref<number | null>;
 }
 
 const createOrchestratorStoreMock = (): OrchestratorStoreMock => ({
@@ -50,11 +58,16 @@ const createOrchestratorStoreMock = (): OrchestratorStoreMock => ({
   recentResults: ref<ReadonlyResults>(Object.freeze([] as GenerationResultView[])),
   systemStatus: ref<SystemStatusState>({} as SystemStatusState) as Ref<Readonly<SystemStatusState>>,
   isConnected: ref(false),
+  queueManagerActive: ref(false),
+  transportPaused: ref(false),
+  transportPauseReasons: ref<GenerationTransportPauseReason[]>([]),
+  transportPauseSince: ref<number | null>(null),
   initialize: vi.fn(),
   loadSystemStatusData: vi.fn().mockResolvedValue(undefined),
   loadActiveJobsData: vi.fn().mockResolvedValue(undefined),
   loadRecentResults: vi.fn().mockResolvedValue(undefined),
   setHistoryLimit: vi.fn(),
+  handleBackendUrlChange: vi.fn().mockResolvedValue(undefined),
   startGeneration: vi
     .fn<[GenerationRequestPayload], Promise<GenerationStartResponse>>()
     .mockResolvedValue({} as GenerationStartResponse),
@@ -62,6 +75,8 @@ const createOrchestratorStoreMock = (): OrchestratorStoreMock => ({
   clearQueue: vi.fn<[], Promise<void>>().mockResolvedValue(undefined),
   deleteResult: vi.fn<[string | number], Promise<void>>().mockResolvedValue(undefined),
   isJobCancellable: vi.fn<(job: QueueItemView) => boolean>().mockReturnValue(true),
+  pauseTransport: vi.fn(),
+  resumeTransport: vi.fn().mockResolvedValue(undefined),
   destroy: vi.fn(),
 });
 

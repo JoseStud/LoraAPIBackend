@@ -22,6 +22,9 @@ describe('transportActions', () => {
       enqueueJob: vi.fn(),
       removeJob: vi.fn(),
       getCancellableJobs: vi.fn(() => [{ id: 'job-1' }, { id: 'job-2' }]),
+      getJobByIdentifier: vi.fn((identifier: string) =>
+        identifier === 'job-1' ? { backendId: 'job-1' } : undefined,
+      ),
     } as any;
     const results = {
       historyLimit: { value: 5 },

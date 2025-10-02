@@ -8,7 +8,7 @@ import {
   type GenerationHistoryLimit,
   type ImmutableGenerationJob,
   type ImmutableGenerationResult,
-} from '@/features/generation/orchestrator/facade';
+} from '@/features/generation/orchestrator';
 import type { DeepReadonly } from '@/utils/freezeDeep';
 import type { SystemStatusState } from '@/types';
 import type {
