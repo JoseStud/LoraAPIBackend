@@ -90,4 +90,29 @@ describe('backend environment binding', () => {
 
     expect(handler).toHaveBeenCalledTimes(2);
   });
+
+  it('rejects stale ready promises and resolves the latest environment after settings updates', async () => {
+    const binding = useBackendEnvironment();
+    await binding.readyPromise;
+
+    settingsStore.setSettings({ backendUrl: 'https://epoch-one.example/v1' });
+    const firstEpochPromise = binding.readyPromise;
+
+    settingsStore.setSettings({ backendUrl: 'https://epoch-two.example/v2' });
+
+    await expect(firstEpochPromise).rejects.toThrow(
+      'Backend environment readiness promise superseded by a newer update',
+    );
+
+    await binding.readyPromise;
+    await flushBackendWatchers();
+
+    expect(binding.backendUrl.value).toBe('https://epoch-two.example/v2');
+
+    settingsStore.setSettings({ backendUrl: 'https://epoch-three.example/v3' });
+    await binding.readyPromise;
+    await flushBackendWatchers();
+
+    expect(binding.backendUrl.value).toBe('https://epoch-three.example/v3');
+  });
 });

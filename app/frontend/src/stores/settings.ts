@@ -3,34 +3,16 @@ import { defineStore } from 'pinia';
 
 import type { FrontendRuntimeSettings } from '@/types';
 
-import { sanitizeBackendBaseUrl } from '@/utils/backend/helpers';
+import { normalizeBackendConfig } from '@/shared/config/backendConfig';
 import {
   backendEnvironmentReadyPromise,
   getBackendEnvironmentSnapshot,
   getRuntimeBackendDefaults,
-  normaliseBackendApiKey,
   publishBackendEnvironment,
   resetBackendEnvironment,
 } from '@/services';
 
 const runtimeBackendDefaults = Object.freeze(getRuntimeBackendDefaults());
-
-const ensureBackendUrl = (value: unknown): string => {
-  if (typeof value === 'string') {
-    return sanitizeBackendBaseUrl(value);
-  }
-  if (value == null) {
-    return runtimeBackendDefaults.backendUrl;
-  }
-  return sanitizeBackendBaseUrl(String(value));
-};
-
-const ensureBackendApiKey = (value: unknown): string | null => {
-  if (value == null) {
-    return null;
-  }
-  return normaliseBackendApiKey(value as string | null | undefined);
-};
 
 export const useSettingsStore = defineStore('app-settings', () => {
   const settings = ref<FrontendRuntimeSettings | null>(null);
@@ -44,21 +26,24 @@ export const useSettingsStore = defineStore('app-settings', () => {
       return runtimeBackendDefaults.backendUrl;
     }
 
-    const candidate = ensureBackendUrl(settings.value.backendUrl ?? runtimeBackendDefaults.backendUrl);
-    return candidate || runtimeBackendDefaults.backendUrl;
+    return (
+      normalizeBackendConfig({
+        baseURL: settings.value.backendUrl ?? runtimeBackendDefaults.backendUrl,
+      }).baseURL || runtimeBackendDefaults.backendUrl
+    );
   });
 
   const backendApiKey = computed<string | null>(() => {
     if (!settings.value) {
-      return runtimeBackendDefaults.backendApiKey ?? null;
+      return runtimeBackendDefaults.backendApiKey;
     }
 
     const hasExplicitKey = Object.prototype.hasOwnProperty.call(settings.value, 'backendApiKey');
     if (!hasExplicitKey) {
-      return runtimeBackendDefaults.backendApiKey ?? null;
+      return runtimeBackendDefaults.backendApiKey;
     }
 
-    return normaliseBackendApiKey(settings.value.backendApiKey ?? null);
+    return normalizeBackendConfig({ apiKey: settings.value.backendApiKey }).apiKey;
   });
 
   const rawSettings = computed<FrontendRuntimeSettings | null>(() => settings.value);
@@ -67,34 +52,40 @@ export const useSettingsStore = defineStore('app-settings', () => {
     const previousSettings: Partial<FrontendRuntimeSettings> = settings.value ?? {};
 
     const hasBackendUrl = Object.prototype.hasOwnProperty.call(partial, 'backendUrl');
-    const backendUrlSource = hasBackendUrl
-      ? partial.backendUrl
-      : previousSettings.backendUrl ?? runtimeBackendDefaults.backendUrl;
-    const nextBackendUrl = ensureBackendUrl(backendUrlSource);
-
     const hasBackendApiKey = Object.prototype.hasOwnProperty.call(partial, 'backendApiKey');
-    const previousBackendApiKey = Object.prototype.hasOwnProperty.call(previousSettings, 'backendApiKey')
-      ? ensureBackendApiKey(previousSettings.backendApiKey)
-      : runtimeBackendDefaults.backendApiKey ?? null;
+
+    const previousBackendConfig = normalizeBackendConfig({
+      baseURL: previousSettings.backendUrl ?? runtimeBackendDefaults.backendUrl,
+      apiKey: Object.prototype.hasOwnProperty.call(previousSettings, 'backendApiKey')
+        ? previousSettings.backendApiKey
+        : runtimeBackendDefaults.backendApiKey,
+    });
+
+    const nextBackendConfig = normalizeBackendConfig({
+      baseURL: hasBackendUrl
+        ? partial.backendUrl ?? previousBackendConfig.baseURL
+        : previousBackendConfig.baseURL,
+      apiKey: hasBackendApiKey ? partial.backendApiKey ?? null : previousBackendConfig.apiKey,
+    });
+
     const previousBackendApiKeyExplicit = Object.prototype.hasOwnProperty.call(previousSettings, 'backendApiKey')
       ? true
       : runtimeBackendDefaults.hasExplicitBackendApiKey;
-    const nextBackendApiKey = hasBackendApiKey ? ensureBackendApiKey(partial.backendApiKey) : previousBackendApiKey;
     const nextBackendApiKeyExplicit = hasBackendApiKey ? true : previousBackendApiKeyExplicit;
 
     const merged: FrontendRuntimeSettings = {
       ...(settings.value ?? {}),
       ...partial,
-      backendUrl: nextBackendUrl,
-      backendApiKey: nextBackendApiKey,
+      backendUrl: nextBackendConfig.baseURL,
+      backendApiKey: nextBackendConfig.apiKey,
     };
 
     settings.value = merged;
     isLoaded.value = true;
 
     publishBackendEnvironment({
-      backendUrl: nextBackendUrl,
-      backendApiKey: nextBackendApiKey,
+      backendUrl: nextBackendConfig.baseURL,
+      backendApiKey: nextBackendConfig.apiKey,
       hasExplicitBackendApiKey: nextBackendApiKeyExplicit,
     });
 
@@ -148,7 +139,9 @@ export const useSettingsStore = defineStore('app-settings', () => {
     loadSettings,
     reset,
 
-    backendEnvironmentReadyPromise: backendEnvironmentReadyPromise,
+    get backendEnvironmentReadyPromise() {
+      return backendEnvironmentReadyPromise;
+    },
 
   };
 });

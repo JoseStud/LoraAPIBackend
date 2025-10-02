@@ -1,7 +1,7 @@
 import { computed, ref, type ComputedRef } from 'vue';
 
 import { runtimeConfig } from '@/config/runtime';
-import { sanitizeBackendBaseUrl } from '@/utils/backend/helpers';
+import { normalizeBackendConfig } from '@/shared/config/backendConfig';
 
 export type BackendEnvironmentValue = {
   backendUrl: string;
@@ -11,74 +11,71 @@ export type BackendEnvironmentValue = {
 
 export type BackendEnvironmentOverrides = Partial<BackendEnvironmentValue>;
 
+const createStaleReadyPromiseError = (epoch: number): Error =>
+  new Error(`Backend environment readiness promise superseded by a newer update (epoch ${epoch}).`);
+
 type Deferred = {
   promise: Promise<void>;
   resolve: () => void;
+  reject: (error: unknown) => void;
+  isSettled: () => boolean;
 };
 
 const createDeferred = (): Deferred => {
-  let resolved = false;
+  let settled = false;
   let resolveFn: (() => void) | null = null;
+  let rejectFn: ((reason?: unknown) => void) | null = null;
 
-  const promise = new Promise<void>((resolve) => {
+  const promise = new Promise<void>((resolve, reject) => {
     resolveFn = resolve;
+    rejectFn = reject;
   });
 
   return {
     promise,
     resolve: () => {
-      if (resolved) {
+      if (settled) {
         return;
       }
-      resolved = true;
+      settled = true;
       resolveFn?.();
       resolveFn = null;
+      rejectFn = null;
     },
+    reject: (error: unknown) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      rejectFn?.(error ?? createStaleReadyPromiseError(0));
+      resolveFn = null;
+      rejectFn = null;
+    },
+    isSettled: () => settled,
   };
 };
 
-export const normaliseBackendApiKey = (value?: string | null): string | null => {
-  if (value == null) {
-    return null;
-  }
-  const trimmed = `${value}`.trim();
-  return trimmed.length > 0 ? trimmed : null;
-};
-
-const runtimeDefaults = Object.freeze({
-  backendUrl: sanitizeBackendBaseUrl(runtimeConfig.backendBasePath),
-  backendApiKey: normaliseBackendApiKey(runtimeConfig.backendApiKey),
+const runtimeNormalized = normalizeBackendConfig({
+  baseURL: runtimeConfig.backendBasePath,
+  apiKey: runtimeConfig.backendApiKey,
 });
 
-const ensureBackendUrl = (value: unknown): string => {
-  if (typeof value === 'string') {
-    const candidate = sanitizeBackendBaseUrl(value);
-    return candidate || runtimeDefaults.backendUrl;
-  }
-  if (value == null) {
-    return runtimeDefaults.backendUrl;
-  }
-  const candidate = sanitizeBackendBaseUrl(String(value));
-  return candidate || runtimeDefaults.backendUrl;
-};
-
-const ensureBackendApiKey = (value: unknown): string | null => {
-  if (value == null) {
-    return null;
-  }
-  return normaliseBackendApiKey(value as string | null | undefined);
-};
+const runtimeDefaults: BackendEnvironmentValue = Object.freeze({
+  backendUrl: runtimeNormalized.baseURL,
+  backendApiKey: runtimeNormalized.apiKey,
+  hasExplicitBackendApiKey: runtimeNormalized.apiKey != null,
+});
 
 const baseBackendUrl = ref<string>(runtimeDefaults.backendUrl);
-const baseBackendApiKey = ref<string | null>(runtimeDefaults.backendApiKey ?? null);
-const baseBackendApiKeyExplicit = ref<boolean>(runtimeDefaults.backendApiKey != null);
+const baseBackendApiKey = ref<string | null>(runtimeDefaults.backendApiKey);
+const baseBackendApiKeyExplicit = ref<boolean>(runtimeDefaults.hasExplicitBackendApiKey);
 
 const overrides = ref<BackendEnvironmentOverrides | null>(null);
 
 const resolvedBackendUrl = computed<string>(() => {
   const currentOverrides = overrides.value;
   if (currentOverrides && Object.prototype.hasOwnProperty.call(currentOverrides, 'backendUrl')) {
-    return ensureBackendUrl(currentOverrides.backendUrl);
+    return (currentOverrides.backendUrl as string | undefined) ?? runtimeDefaults.backendUrl;
   }
   return baseBackendUrl.value;
 });
@@ -86,7 +83,7 @@ const resolvedBackendUrl = computed<string>(() => {
 const resolvedBackendApiKey = computed<string | null>(() => {
   const currentOverrides = overrides.value;
   if (currentOverrides && Object.prototype.hasOwnProperty.call(currentOverrides, 'backendApiKey')) {
-    return ensureBackendApiKey(currentOverrides.backendApiKey);
+    return (currentOverrides.backendApiKey as string | null | undefined) ?? null;
   }
   return baseBackendApiKey.value;
 });
@@ -102,57 +99,99 @@ const resolvedHasExplicitBackendApiKey = computed<boolean>(() => {
   return baseBackendApiKeyExplicit.value;
 });
 
-const readiness = createDeferred();
-Promise.resolve().then(() => {
-  readiness.resolve();
-});
+let readinessEpoch = 0;
+let readiness = createDeferred();
+export let backendEnvironmentReadyPromise = readiness.promise;
 
-export const backendEnvironmentReadyPromise = readiness.promise;
+const beginEnvironmentUpdate = () => {
+  if (!readiness.isSettled()) {
+    readiness.reject(createStaleReadyPromiseError(readinessEpoch));
+  }
+  readinessEpoch += 1;
+  readiness = createDeferred();
+  backendEnvironmentReadyPromise = readiness.promise;
+};
+
+const completeEnvironmentUpdate = () => {
+  queueMicrotask(() => {
+    readiness.resolve();
+  });
+};
+
+completeEnvironmentUpdate();
+
+export const normaliseBackendApiKey = (value?: string | null): string | null => {
+  const { apiKey } = normalizeBackendConfig({ apiKey: value });
+  return apiKey;
+};
+
+const applyBaseEnvironment = (value: BackendEnvironmentValue) => {
+  const normalised = normalizeBackendConfig({
+    baseURL: value.backendUrl,
+    apiKey: value.backendApiKey,
+  });
+  baseBackendUrl.value = normalised.baseURL;
+  baseBackendApiKey.value = normalised.apiKey;
+  baseBackendApiKeyExplicit.value = Boolean(value.hasExplicitBackendApiKey);
+};
 
 export const publishBackendEnvironment = (value: BackendEnvironmentValue): BackendEnvironmentValue => {
-  baseBackendUrl.value = ensureBackendUrl(value.backendUrl);
-  baseBackendApiKey.value = ensureBackendApiKey(value.backendApiKey);
-  baseBackendApiKeyExplicit.value = Boolean(value.hasExplicitBackendApiKey);
-  readiness.resolve();
+  beginEnvironmentUpdate();
+  applyBaseEnvironment(value);
+  completeEnvironmentUpdate();
   return getBackendEnvironmentSnapshot();
 };
 
 export const resetBackendEnvironment = (): BackendEnvironmentValue => {
+  beginEnvironmentUpdate();
   baseBackendUrl.value = runtimeDefaults.backendUrl;
-  baseBackendApiKey.value = runtimeDefaults.backendApiKey ?? null;
-  baseBackendApiKeyExplicit.value = runtimeDefaults.backendApiKey != null;
+  baseBackendApiKey.value = runtimeDefaults.backendApiKey;
+  baseBackendApiKeyExplicit.value = runtimeDefaults.hasExplicitBackendApiKey;
   overrides.value = null;
-  readiness.resolve();
+  completeEnvironmentUpdate();
   return getBackendEnvironmentSnapshot();
 };
 
 export const setBackendEnvironmentOverrides = (
   overrideValue: BackendEnvironmentOverrides | null | undefined,
 ): BackendEnvironmentValue => {
+  beginEnvironmentUpdate();
   if (overrideValue && typeof overrideValue === 'object') {
     const nextOverrides: BackendEnvironmentOverrides = {};
-    if (Object.prototype.hasOwnProperty.call(overrideValue, 'backendUrl')) {
-      nextOverrides.backendUrl = ensureBackendUrl(overrideValue.backendUrl);
+    const hasBackendUrl = Object.prototype.hasOwnProperty.call(overrideValue, 'backendUrl');
+    const hasBackendApiKey = Object.prototype.hasOwnProperty.call(overrideValue, 'backendApiKey');
+
+    if (hasBackendUrl || hasBackendApiKey) {
+      const normalised = normalizeBackendConfig({
+        baseURL: hasBackendUrl ? overrideValue.backendUrl : resolvedBackendUrl.value,
+        apiKey: hasBackendApiKey ? overrideValue.backendApiKey : resolvedBackendApiKey.value,
+      });
+      if (hasBackendUrl) {
+        nextOverrides.backendUrl = normalised.baseURL;
+      }
+      if (hasBackendApiKey) {
+        nextOverrides.backendApiKey = normalised.apiKey;
+      }
     }
-    if (Object.prototype.hasOwnProperty.call(overrideValue, 'backendApiKey')) {
-      nextOverrides.backendApiKey = ensureBackendApiKey(overrideValue.backendApiKey);
-    }
+
     if (Object.prototype.hasOwnProperty.call(overrideValue, 'hasExplicitBackendApiKey')) {
       nextOverrides.hasExplicitBackendApiKey = Boolean(overrideValue.hasExplicitBackendApiKey);
-    } else if (Object.prototype.hasOwnProperty.call(overrideValue, 'backendApiKey')) {
+    } else if (hasBackendApiKey) {
       nextOverrides.hasExplicitBackendApiKey = true;
     }
+
     overrides.value = nextOverrides;
   } else {
     overrides.value = null;
   }
-  readiness.resolve();
+  completeEnvironmentUpdate();
   return getBackendEnvironmentSnapshot();
 };
 
 export const clearBackendEnvironmentOverrides = (): BackendEnvironmentValue => {
+  beginEnvironmentUpdate();
   overrides.value = null;
-  readiness.resolve();
+  completeEnvironmentUpdate();
   return getBackendEnvironmentSnapshot();
 };
 
@@ -170,7 +209,9 @@ export interface BackendEnvironmentBinding {
 }
 
 export const useBackendEnvironment = (): BackendEnvironmentBinding => ({
-  readyPromise: backendEnvironmentReadyPromise,
+  get readyPromise() {
+    return backendEnvironmentReadyPromise;
+  },
   backendUrl: resolvedBackendUrl,
   backendApiKey: resolvedBackendApiKey,
   hasExplicitBackendApiKey: resolvedHasExplicitBackendApiKey,
@@ -180,17 +221,17 @@ export const withBackendEnvironmentOverrides = async <T>(
   overrideValue: BackendEnvironmentOverrides | null | undefined,
   callback: () => T | Promise<T>,
 ): Promise<T> => {
-  const previous = overrides.value;
+  const previous = overrides.value ? { ...overrides.value } : null;
   setBackendEnvironmentOverrides(overrideValue);
   try {
     return await callback();
   } finally {
-    overrides.value = previous;
+    setBackendEnvironmentOverrides(previous);
   }
 };
 
 export const getRuntimeBackendDefaults = (): BackendEnvironmentValue => ({
   backendUrl: runtimeDefaults.backendUrl,
-  backendApiKey: runtimeDefaults.backendApiKey ?? null,
-  hasExplicitBackendApiKey: runtimeDefaults.backendApiKey != null,
+  backendApiKey: runtimeDefaults.backendApiKey,
+  hasExplicitBackendApiKey: runtimeDefaults.hasExplicitBackendApiKey,
 });

@@ -1,10 +1,8 @@
-const normaliseApiKey = (value?: string | null): string | null => {
-  if (value == null) {
-    return null;
-  }
+import { normalizeBackendConfig } from '@/shared/config/backendConfig';
 
-  const trimmed = `${value}`.trim();
-  return trimmed.length > 0 ? trimmed : null;
+const normaliseApiKey = (value?: string | null): string | null => {
+  const { apiKey } = normalizeBackendConfig({ apiKey: value });
+  return apiKey;
 };
 
 let backendApiKey: string | null = null;
