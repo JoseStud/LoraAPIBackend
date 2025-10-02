@@ -57,18 +57,33 @@ Key concepts:
 ```
 app/frontend/
 ├── src/
-│   ├── components/         # Feature-oriented component families
-│   ├── composables/        # Shared logic for queues, analytics, etc.
-│   ├── stores/             # Pinia stores coordinating state
-│   ├── views/              # Route-level pages (dashboard, history, admin)
-│   └── router/             # SPA router configuration
+│   ├── features/           # Self-contained feature packages (generation, lora, history, etc.)
+│   │   ├── components/     # Feature-scoped components
+│   │   ├── composables/    # Feature-specific logic (orchestrator, catalog helpers, ...)
+│   │   └── stores/         # Pinia stores marked @internal to the feature
+│   ├── components/         # Cross-feature UI primitives
+│   ├── composables/        # Shared logic (import/export, API helpers)
+│   ├── services/           # HTTP clients and SDK-like helpers
+│   ├── router/             # SPA router configuration
+│   ├── views/              # Route-level shells that assemble feature packages
+│   └── utils/              # Generic utilities shared across the SPA
 ├── static/                 # Tailwind input files and service worker
 └── public/                 # Static assets served by Vite
 ```
 
-Composables such as `useJobQueue`, `usePerformanceAnalytics`, and
-`useImportExport` reuse backend endpoints, while views stitch together feature
-components to deliver the dashboard and admin experience.【F:app/frontend/src/composables/generation/useJobQueue.ts†L1-L207】【F:app/frontend/src/views/DashboardView.vue†L1-L49】
+Feature packages encapsulate their stores and orchestration logic so consumers import
+from the feature barrel (for example, `@/features/generation/orchestrator`). Composables such as
+`useJobQueue`, `useGenerationStudio`, and `useImportExport` reuse backend endpoints, while views
+stitch together feature components to deliver the dashboard and admin experience.【F:app/frontend/src/features/generation/composables/useJobQueue.ts†L1-L46】【F:app/frontend/src/features/generation/composables/useGenerationStudio.ts†L1-L118】【F:app/frontend/src/views/DashboardView.vue†L1-L49】
+
+### Generation orchestrator architecture
+
+The generation feature exposes queue, history, and transport state through a dedicated façade and
+manager pair. `useGenerationOrchestratorManager()` provisions a single orchestrator instance,
+attaches watchers for backend URL changes and history toggles, and tears everything down when the
+last consumer releases the binding. Downstream code accesses read-only queue/results snapshots and
+command helpers via `useGenerationOrchestratorFacade()`, which adds telemetry such as
+`pendingActionsCount` and `lastCommandError` for UI feedback.【F:app/frontend/src/features/generation/composables/useGenerationOrchestratorManager.ts†L1-L223】【F:app/frontend/src/features/generation/orchestrator/facade.ts†L1-L212】
 
 ### Frontend API client conventions
 
