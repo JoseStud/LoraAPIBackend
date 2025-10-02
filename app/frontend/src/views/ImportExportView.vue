@@ -12,7 +12,7 @@
     </PageHeader>
     <LazyImportExportContainer @initialized="handleImportExportInitialized" />
     <div v-if="arePanelsReady" class="grid gap-6 xl:grid-cols-2">
-      <JobQueue :show-clear-completed="true" />
+      <JobQueueWidget :show-clear-completed="true" />
       <SystemStatusPanel />
     </div>
   </div>
@@ -22,7 +22,7 @@
 import { defineAsyncComponent, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 
-import { JobQueue, SystemStatusPanel } from '@/features/generation/public';
+import { JobQueueWidget, SystemStatusPanel } from '@/features/generation/public';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { ImportExportSkeleton } from '@/features/import-export/public';
 

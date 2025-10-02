@@ -1,1 +1,1 @@
-export * from '@/features/generation/services/queueClient';
+export * from '../../features/generation/services/queueClient';

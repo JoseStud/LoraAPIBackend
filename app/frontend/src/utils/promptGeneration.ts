@@ -1,4 +1,4 @@
-import { createGenerationParams, requestGeneration } from '@/features/generation/services';
+import { createGenerationParams, requestGeneration } from '@/services/generation/generationService';
 
 import type { CompositionEntry } from '@/types';
 

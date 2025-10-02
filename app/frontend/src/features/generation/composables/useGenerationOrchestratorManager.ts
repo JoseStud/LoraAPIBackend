@@ -1,3 +1,4 @@
+/** @internal */
 import {
   computed,
   effectScope,

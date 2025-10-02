@@ -12,6 +12,11 @@ const featureUiRestriction = {
     'Import feature UI modules via the public surface, e.g. "@/features/<feature>/public".',
 };
 
+const generationPublicRestriction = {
+  group: ['@/features/generation/!(public)', '@/features/generation/!(public)/**'],
+  message: 'Generation internals are private. Import from "@/features/generation/public" instead.',
+};
+
 const restrictedImportRuleConfig = {
   paths: [
     {
@@ -85,6 +90,7 @@ const restrictedImportRuleConfig = {
     },
     generationStoreRestriction,
     featureUiRestriction,
+    generationPublicRestriction,
   ],
 };
 
@@ -159,7 +165,8 @@ module.exports = {
           {
             ...restrictedImportRuleConfig,
             patterns: restrictedImportRuleConfig.patterns.filter(
-              (pattern) => pattern !== generationStoreRestriction,
+              (pattern) =>
+                pattern !== generationStoreRestriction && pattern !== generationPublicRestriction,
             ),
           },
         ],

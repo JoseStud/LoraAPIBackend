@@ -4,8 +4,8 @@ import { useNotifications } from '@/composables/shared';
 import {
   useGenerationOrchestratorManager,
   type GenerationOrchestratorBinding,
-} from '@/features/generation/composables/useGenerationOrchestratorManager';
-import { createGenerationParams } from '@/features/generation/services';
+} from '@/features/generation/public';
+import { createGenerationParams } from '@/services/generation/generationService';
 import type { CompositionEntry, GenerationRequestPayload } from '@/types';
 
 import { cloneCompositionEntries } from '../lib/composition';

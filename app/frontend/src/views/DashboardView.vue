@@ -22,7 +22,7 @@
     </section>
 
     <section class="grid gap-6 lg:grid-cols-2">
-      <JobQueue :show-clear-completed="true" />
+      <JobQueueWidget :show-clear-completed="true" />
       <RecommendationsPanel />
     </section>
 
@@ -75,7 +75,7 @@ import DashboardGenerationSummary from '@/components/dashboard/DashboardGenerati
 import DashboardLazyModuleCard from '@/components/dashboard/DashboardLazyModuleCard.vue';
 import DashboardLoraSummary from '@/components/dashboard/DashboardLoraSummary.vue';
 import {
-  JobQueue,
+  JobQueueWidget,
   SystemAdminStatusCard,
   SystemStatusCard,
   SystemStatusPanel,

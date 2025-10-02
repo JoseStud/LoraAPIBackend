@@ -13,7 +13,7 @@
     <div class="grid gap-6 xl:grid-cols-[2fr_1fr]">
       <GenerationHistory />
       <div class="flex flex-col gap-6">
-        <JobQueue :show-clear-completed="true" />
+        <JobQueueWidget :show-clear-completed="true" />
         <SystemStatusCard variant="detailed" />
       </div>
     </div>
@@ -24,6 +24,6 @@
 import { RouterLink } from 'vue-router';
 
 import { GenerationHistory } from '@/features/history/public';
-import { JobQueue, SystemStatusCard } from '@/features/generation/public';
+import { JobQueueWidget, SystemStatusCard } from '@/features/generation/public';
 import PageHeader from '@/components/layout/PageHeader.vue';
 </script>
