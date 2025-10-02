@@ -4,7 +4,8 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useGenerationUI } from '@/composables/generation/useGenerationUI'
 import { useGenerationFormStore } from '@/features/generation/stores/form'
 import { useGenerationOrchestratorStore } from '@/features/generation/stores/useGenerationOrchestratorStore'
-import { createGenerationStudioUiVm } from '@/features/generation/stores/ui'
+import { createGalleryModalVm } from '@/features/generation/vm/createGalleryModalVm'
+import { createStudioVm } from '@/features/generation/vm/createStudioVm'
 import type { GenerationResult } from '@/types'
 
 describe('useGenerationUI', () => {
@@ -33,8 +34,9 @@ describe('useGenerationUI', () => {
 
   it('clears the modal when hiding image modal', () => {
     const notify = vi.fn()
-    const vm = createGenerationStudioUiVm()
-    const ui = useGenerationUI({ notify, vm })
+    const studioVm = createStudioVm()
+    const galleryVm = createGalleryModalVm()
+    const ui = useGenerationUI({ notify, studioVm, galleryModalVm: galleryVm })
 
     const result = {
       id: 'test',
@@ -44,13 +46,14 @@ describe('useGenerationUI', () => {
     } as unknown as GenerationResult
 
     ui.showImageModal(result)
-    expect(vm.selectedResult.value).not.toBeNull()
+    expect(galleryVm.selectedResult.value).not.toBeNull()
 
     ui.hideImageModal()
 
-    expect(vm.showModal.value).toBe(false)
-    expect(vm.selectedResult.value).toBeNull()
+    expect(galleryVm.isOpen.value).toBe(false)
+    expect(galleryVm.selectedResult.value).toBeNull()
 
-    vm.dispose()
+    studioVm.dispose()
+    galleryVm.dispose()
   })
 })

@@ -3,13 +3,13 @@ import { onMounted, onUnmounted, shallowRef, type Ref } from 'vue'
 import { toGenerationRequestPayload } from '../services/generationService'
 import {
   useGenerationOrchestratorManager,
-  type GenerationOrchestratorBinding,
   type GenerationOrchestratorAutoSyncOptions,
-} from './useGenerationOrchestratorManager'
+  type GenerationOrchestratorBinding,
+} from '../composables/useGenerationOrchestratorManager'
 import { useGenerationFormStore } from '../stores/form'
 import type { GenerationFormState, NotificationType } from '@/types'
 import type { QueueItemView } from '@/features/generation/orchestrator'
-import type { ReadonlyRef } from '../stores/ui'
+import type { ReadonlyRef } from '../vm/createStudioVm'
 
 export interface UseGenerationStudioControllerOptions {
   params: Ref<GenerationFormState>

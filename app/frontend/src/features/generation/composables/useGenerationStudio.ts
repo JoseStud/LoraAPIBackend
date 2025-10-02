@@ -2,13 +2,18 @@ import { computed, onScopeDispose } from 'vue'
 
 import { useGenerationPersistence } from './useGenerationPersistence'
 import { useGenerationUI } from './useGenerationUI'
-import { useGenerationStudioController } from './useGenerationStudioController'
+import { useGenerationStudioController } from '../controller/useGenerationStudioController'
 import type { GenerationOrchestratorAutoSyncOptions } from './useGenerationOrchestratorManager'
 import { useGenerationStudioNotifications } from './useGenerationStudioNotifications'
 import { useGenerationFormStore } from '../stores/form'
-import { createGenerationStudioUiVm } from '../stores/ui'
+import { createStudioVm } from '../vm/createStudioVm'
+import { createGalleryModalVm } from '../vm/createGalleryModalVm'
 import { useAsyncLifecycleTask } from '@/composables/shared'
-import type { ReadonlyQueue, ReadonlyResults, ResultItemView } from '@/features/generation/orchestrator'
+import type {
+  ReadonlyQueue,
+  ReadonlyResults,
+  ResultItemView,
+} from '@/features/generation/orchestrator'
 import type { GenerationFormState, GenerationResult, SystemStatusState } from '@/types'
 import { freezeDeep, type DeepReadonly } from '@/utils/freezeDeep'
 
@@ -22,7 +27,8 @@ export const useGenerationStudio = ({ autoSync = true }: UseGenerationStudioOpti
   const { notify, confirm: requestConfirmation, prompt: requestPrompt, logDebug } =
     useGenerationStudioNotifications()
 
-  const uiVm = createGenerationStudioUiVm()
+  const studioVm = createStudioVm()
+  const galleryModalVm = createGalleryModalVm()
 
   const {
     params: uiParams,
@@ -39,7 +45,7 @@ export const useGenerationStudio = ({ autoSync = true }: UseGenerationStudioOpti
     getJobStatusText,
     getSystemStatusClasses,
     toggleHistory,
-  } = useGenerationUI({ notify, vm: uiVm })
+  } = useGenerationUI({ notify, studioVm, galleryModalVm })
 
   const {
     load: loadParams,
@@ -64,7 +70,8 @@ export const useGenerationStudio = ({ autoSync = true }: UseGenerationStudioOpti
   })
 
   onScopeDispose(() => {
-    uiVm.dispose()
+    studioVm.dispose()
+    galleryModalVm.dispose()
   })
 
   const params = computed(() => uiParams.value)
