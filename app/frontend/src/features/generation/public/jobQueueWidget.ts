@@ -1,1 +1,1 @@
-export { default } from '../components/JobQueue.vue';
+export { JobQueueWidget as default } from './widgets';

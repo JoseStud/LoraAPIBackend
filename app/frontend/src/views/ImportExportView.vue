@@ -22,7 +22,6 @@
 import { defineAsyncComponent, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 
-import { JobQueueWidget, SystemStatusPanel } from '@/features/generation/public';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { ImportExportSkeleton } from '@/features/import-export/public';
 
@@ -30,7 +29,19 @@ const LazyImportExportContainer = defineAsyncComponent({
   loader: () => import('@/features/import-export/public').then((module) => module.ImportExportContainer),
   loadingComponent: ImportExportSkeleton,
   delay: 0,
-  suspensible: false
+  suspensible: false,
+});
+
+const loadGenerationWidgets = () => import('@/features/generation/public/widgets');
+
+const JobQueueWidget = defineAsyncComponent({
+  loader: () => loadGenerationWidgets().then((module) => module.JobQueueWidget),
+  suspensible: false,
+});
+
+const SystemStatusPanel = defineAsyncComponent({
+  loader: () => loadGenerationWidgets().then((module) => module.SystemStatusPanel),
+  suspensible: false,
 });
 
 const arePanelsReady = ref(false);

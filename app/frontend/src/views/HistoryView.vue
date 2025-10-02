@@ -21,9 +21,21 @@
 </template>
 
 <script setup lang="ts">
+import { defineAsyncComponent } from 'vue';
 import { RouterLink } from 'vue-router';
 
 import { GenerationHistory } from '@/features/history/public';
-import { JobQueueWidget, SystemStatusCard } from '@/features/generation/public';
 import PageHeader from '@/components/layout/PageHeader.vue';
+
+const loadGenerationWidgets = () => import('@/features/generation/public/widgets');
+
+const JobQueueWidget = defineAsyncComponent({
+  loader: () => loadGenerationWidgets().then((module) => module.JobQueueWidget),
+  suspensible: false,
+});
+
+const SystemStatusCard = defineAsyncComponent({
+  loader: () => loadGenerationWidgets().then((module) => module.SystemStatusCard),
+  suspensible: false,
+});
 </script>

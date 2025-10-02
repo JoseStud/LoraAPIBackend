@@ -74,10 +74,26 @@ import { RouterLink } from 'vue-router';
 import DashboardGenerationSummary from '@/components/dashboard/DashboardGenerationSummary.vue';
 import DashboardLazyModuleCard from '@/components/dashboard/DashboardLazyModuleCard.vue';
 import DashboardLoraSummary from '@/components/dashboard/DashboardLoraSummary.vue';
-import { SystemAdminStatusCard, SystemStatusCard, SystemStatusPanel } from '@/features/generation/public';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { RecommendationsPanel } from '@/features/recommendations/public';
 import { usePerformanceAnalyticsStore } from '@/features/analytics/public';
+
+const loadGenerationWidgets = () => import('@/features/generation/public/widgets');
+
+const SystemStatusCard = defineAsyncComponent({
+  loader: () => loadGenerationWidgets().then((module) => module.SystemStatusCard),
+  suspensible: false,
+});
+
+const SystemAdminStatusCard = defineAsyncComponent({
+  loader: () => loadGenerationWidgets().then((module) => module.SystemAdminStatusCard),
+  suspensible: false,
+});
+
+const SystemStatusPanel = defineAsyncComponent({
+  loader: () => loadGenerationWidgets().then((module) => module.SystemStatusPanel),
+  suspensible: false,
+});
 
 type PanelKey = 'analytics' | 'composer' | 'studio' | 'gallery' | 'history' | 'importExport';
 
@@ -168,7 +184,7 @@ const panelConfigs = [
 ] satisfies PanelConfig[];
 
 const JobQueueWidget = defineAsyncComponent({
-  loader: () => import('@/features/generation/public/jobQueueWidget').then((module) => module.default),
+  loader: () => loadGenerationWidgets().then((module) => module.JobQueueWidget),
   suspensible: false,
 });
 
