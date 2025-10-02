@@ -1,17 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 
-import * as services from '@/services';
+import * as backendClientService from '@/services/backendClient';
+import * as backendRefresh from '@/services/system/backendRefresh';
+import * as systemService from '@/services/system/systemService';
 import * as systemMetrics from '@/utils/systemMetrics';
 import { useAdminMetricsStore } from '@/stores/adminMetrics';
 
 const backendRefreshCallbacks: Array<() => void> = [];
 
-const fetchDashboardStatsSpy = vi.spyOn(services, 'fetchDashboardStats');
-const deriveMetricsSpy = vi.spyOn(services, 'deriveMetricsFromDashboard');
-const emptyMetricsSpy = vi.spyOn(services, 'emptyMetricsSnapshot');
-const useBackendClientSpy = vi.spyOn(services, 'useBackendClient');
-const useBackendRefreshSpy = vi.spyOn(services, 'useBackendRefresh');
+const fetchDashboardStatsSpy = vi.spyOn(systemService, 'fetchDashboardStats');
+const deriveMetricsSpy = vi.spyOn(systemService, 'deriveMetricsFromDashboard');
+const emptyMetricsSpy = vi.spyOn(systemService, 'emptyMetricsSnapshot');
+const useBackendClientSpy = vi.spyOn(backendClientService, 'useBackendClient');
+const useBackendRefreshSpy = vi.spyOn(backendRefresh, 'useBackendRefresh');
 const buildResourceStatsSpy = vi.spyOn(systemMetrics, 'buildResourceStats');
 const defaultResourceStatsSpy = vi.spyOn(systemMetrics, 'defaultResourceStats');
 const defaultSystemStatusSpy = vi.spyOn(systemMetrics, 'defaultSystemStatus', 'get');

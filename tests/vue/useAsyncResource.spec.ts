@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, nextTick } from 'vue';
 
-import * as services from '@/services';
+import * as backendRefresh from '@/services/system/backendRefresh';
 import { useAsyncResource } from '@/composables/shared';
 
 const backendRefreshCallbacks: Array<() => void> = [];
 
-const useBackendRefreshSpy = vi.spyOn(services, 'useBackendRefresh');
+const useBackendRefreshSpy = vi.spyOn(backendRefresh, 'useBackendRefresh');
 
 describe('useAsyncResource', () => {
   beforeEach(() => {
