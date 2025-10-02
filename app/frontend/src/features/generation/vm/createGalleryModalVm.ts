@@ -40,6 +40,7 @@ export const createGalleryModalVm = (): GenerationGalleryModalVm => {
     onScopeDispose(() => {
       reset()
     })
+
   })
 
   const dispose = (): void => {
