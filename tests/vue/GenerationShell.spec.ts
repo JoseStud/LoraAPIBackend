@@ -4,8 +4,15 @@ import { computed, defineComponent, ref } from 'vue'
 
 import GenerationShell from '@/features/generation/ui/GenerationShell.vue'
 import GenerationShellView from '@/features/generation/ui/GenerationShellView.vue'
-import type { GenerationFormState, GenerationJob, GenerationResult, SystemStatusState } from '@/types'
-import type { ReadonlyResults, ResultItemView } from '@/features/generation/orchestrator'
+import type { GenerationFormState, SystemStatusState } from '@/types'
+import type {
+  GenerationJobView,
+  GenerationResultView,
+  ReadonlyQueue,
+  ReadonlyResults,
+  ResultItemView,
+} from '@/features/generation/orchestrator'
+import type { DeepReadonly } from '@/utils/freezeDeep'
 
 type StudioInstance = ReturnType<typeof createStudioState>
 
@@ -57,16 +64,17 @@ const params: GenerationFormState = {
   batch_count: 1,
 }
 
-const baseJob: GenerationJob = {
+const baseJob: GenerationJobView = Object.freeze({
   uiId: 'job-1',
   backendId: 'backend-1',
+  jobId: 'backend-1',
   status: 'queued',
   prompt: 'Job prompt',
   id: 'job-1',
   created_at: new Date().toISOString(),
-} as GenerationJob
+}) as GenerationJobView
 
-const baseResult: GenerationResult = {
+const baseResult: GenerationResultView = Object.freeze({
   id: 'result-1',
   prompt: 'Result prompt',
   width: 512,
@@ -75,11 +83,11 @@ const baseResult: GenerationResult = {
   cfg_scale: 7,
   seed: 123,
   image_url: '/image.png',
-}
+}) as GenerationResultView
 
-const recentResults: ReadonlyResults = Object.freeze([{ ...baseResult } as ResultItemView]) as ReadonlyResults
+const recentResults: ReadonlyResults = Object.freeze([baseResult] as ResultItemView[]) as ReadonlyResults
 
-const systemStatus: SystemStatusState = {
+const systemStatus: DeepReadonly<SystemStatusState> = Object.freeze({
   status: 'healthy',
   queue_length: 1,
   gpu_available: true,
@@ -93,7 +101,7 @@ const systemStatus: SystemStatusState = {
   last_job_started_at: null,
   last_job_completed_at: null,
   api_available: true,
-}
+}) as DeepReadonly<SystemStatusState>
 
 const createStudioState = () => {
   const paramsRef = ref(params)
@@ -101,10 +109,10 @@ const createStudioState = () => {
   const isGeneratingRef = ref(false)
   const showHistoryRef = ref(false)
   const showModalRef = ref(false)
-  const selectedResultRef = ref<GenerationResult | null>(null)
-  const activeJobsRef = ref<GenerationJob[]>([baseJob])
+  const selectedResultRef = ref<ResultItemView | null>(null)
+  const activeJobsRef = ref<ReadonlyQueue>(Object.freeze([baseJob]))
   const recentResultsRef = ref<ReadonlyResults>(recentResults)
-  const sortedActiveJobsRef = ref<GenerationJob[]>([baseJob])
+  const sortedActiveJobsRef = ref<ReadonlyQueue>(Object.freeze([baseJob]))
   const isConnectedRef = ref(true)
 
   const startGeneration = vi.fn().mockResolvedValue(undefined)

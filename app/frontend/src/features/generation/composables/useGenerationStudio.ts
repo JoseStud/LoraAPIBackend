@@ -8,8 +8,9 @@ import { useGenerationStudioNotifications } from './useGenerationStudioNotificat
 import { useGenerationFormStore } from '../stores/form'
 import { createGenerationStudioUiVm } from '../stores/ui'
 import { useAsyncLifecycleTask } from '@/composables/shared'
-import type { ReadonlyResults } from '@/features/generation/orchestrator'
-import type { GenerationFormState } from '@/types'
+import type { ReadonlyQueue, ReadonlyResults, ResultItemView } from '@/features/generation/orchestrator'
+import type { GenerationFormState, GenerationResult, SystemStatusState } from '@/types'
+import { freezeDeep, type DeepReadonly } from '@/utils/freezeDeep'
 
 export interface UseGenerationStudioOptions {
   autoSync?: boolean | GenerationOrchestratorAutoSyncOptions
@@ -70,11 +71,13 @@ export const useGenerationStudio = ({ autoSync = true }: UseGenerationStudioOpti
   const isGenerating = computed(() => isGeneratingRef.value)
   const showHistory = computed(() => showHistoryRef.value)
   const showModal = computed(() => showModalRef.value)
-  const selectedResult = computed(() => selectedResultRef.value)
+  const selectedResult = computed<ResultItemView | null>(() =>
+    selectedResultRef.value ? freezeDeep<GenerationResult>(selectedResultRef.value) : null,
+  )
   const recentResults = computed<ReadonlyResults>(() => recentResultsRef.value ?? ([] as ReadonlyResults))
-  const activeJobs = computed(() => controller.activeJobs.value)
-  const sortedActiveJobs = computed(() => controller.sortedActiveJobs.value)
-  const systemStatus = computed(() => controller.systemStatus.value)
+  const activeJobs = computed<ReadonlyQueue>(() => controller.activeJobs.value)
+  const sortedActiveJobs = computed<ReadonlyQueue>(() => controller.sortedActiveJobs.value)
+  const systemStatus = computed<DeepReadonly<SystemStatusState>>(() => controller.systemStatus.value)
   const isConnected = computed(() => controller.isConnected.value)
 
   const startGeneration = async (): Promise<void> => {

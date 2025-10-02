@@ -194,25 +194,31 @@ import GenerationResultsGallery from '../components/GenerationResultsGallery.vue
 import GenerationSystemStatusCard from '../components/GenerationSystemStatusCard.vue'
 import JobQueue from '../components/JobQueue.vue'
 import SystemStatusCard from '../components/system/SystemStatusCard.vue'
-import type { GenerationFormState, GenerationJob, GenerationResult, SystemStatusState } from '@/types'
-import type { ReadonlyResults, ResultItemView } from '@/features/generation/orchestrator'
+import type { GenerationFormState, SystemStatusState } from '@/types'
+import type {
+  QueueItemView,
+  ReadonlyQueue,
+  ReadonlyResults,
+  ResultItemView,
+} from '@/features/generation/orchestrator'
+import type { DeepReadonly } from '@/utils/freezeDeep'
 
 const props = defineProps<{
   isConnected: boolean
   showHistory: boolean
   params: GenerationFormState
   isGenerating: boolean
-  activeJobs: readonly GenerationJob[]
-  sortedActiveJobs: readonly GenerationJob[]
+  activeJobs: ReadonlyQueue
+  sortedActiveJobs: ReadonlyQueue
   recentResults: ReadonlyResults
   formatTime: (value?: string) => string
-  getJobStatusClasses: (status: GenerationJob['status']) => string
-  getJobStatusText: (status: GenerationJob['status']) => string
-  canCancelJob: (job: GenerationJob) => boolean
-  systemStatus: SystemStatusState
+  getJobStatusClasses: (status: QueueItemView['status']) => string
+  getJobStatusText: (status: QueueItemView['status']) => string
+  canCancelJob: (job: QueueItemView) => boolean
+  systemStatus: DeepReadonly<SystemStatusState>
   getSystemStatusClasses: (status?: string) => string
   showModal: boolean
-  selectedResult: GenerationResult | null
+  selectedResult: ResultItemView | null
 }>()
 
 const emit = defineEmits<{

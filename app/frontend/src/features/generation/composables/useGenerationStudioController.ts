@@ -7,7 +7,8 @@ import {
   type GenerationOrchestratorAutoSyncOptions,
 } from './useGenerationOrchestratorManager'
 import { useGenerationFormStore } from '../stores/form'
-import type { GenerationFormState, NotificationType, GenerationJob } from '@/types'
+import type { GenerationFormState, NotificationType } from '@/types'
+import type { QueueItemView } from '@/features/generation/orchestrator'
 import type { ReadonlyRef } from '../stores/ui'
 
 export interface UseGenerationStudioControllerOptions {
@@ -98,7 +99,7 @@ export const useGenerationStudioController = ({
     await ensureBinding().deleteResult(resultId)
   }
 
-  const canCancelJob = (job: GenerationJob): boolean =>
+  const canCancelJob = (job: QueueItemView): boolean =>
     orchestratorBinding.value?.canCancelJob(job) ?? false
 
   const setHistoryLimit = (limit: number): void => {

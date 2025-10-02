@@ -1,6 +1,7 @@
 import { computed, onBeforeUnmount, onMounted } from 'vue';
 
 import { useGenerationOrchestratorFacade } from '@/features/generation/orchestrator';
+import type { ReadonlyQueue } from '@/features/generation/orchestrator';
 
 export const useJobQueue = () => {
   const facade = useGenerationOrchestratorFacade();
@@ -17,11 +18,11 @@ export const useJobQueue = () => {
     facade.releaseIfLastConsumer();
   });
 
-  const jobs = computed(() => facade.sortedActiveJobs.value ?? [])
+  const jobs = computed<ReadonlyQueue>(() => facade.sortedActiveJobs.value)
 
   return {
     jobs,
-    isReady: computed(() => facade.queueManagerActive.value),
+    isReady: computed(() => true),
     queueManagerActive: facade.queueManagerActive,
   } as const;
 };

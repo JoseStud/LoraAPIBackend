@@ -24,10 +24,13 @@ export type ReadonlyRef<T> = Readonly<Ref<T>>;
 export type ImmutableGenerationJob = DeepReadonly<GenerationJob>;
 export type ImmutableGenerationResult = DeepReadonly<GenerationResult>;
 
-export type QueueItemView = ImmutableGenerationJob;
-export type ResultItemView = ImmutableGenerationResult;
-export type ReadonlyQueue = ReadonlyArray<QueueItemView>;
-export type ReadonlyResults = ReadonlyArray<ResultItemView>;
+export type GenerationJobView = ImmutableGenerationJob;
+export type GenerationResultView = ImmutableGenerationResult;
+
+export type QueueItemView = GenerationJobView;
+export type ResultItemView = GenerationResultView;
+export type ReadonlyQueue = ReadonlyArray<GenerationJobView>;
+export type ReadonlyResults = ReadonlyArray<GenerationResultView>;
 
 export interface GenerationHistoryRefreshOptions {
   readonly notifySuccess?: boolean;
@@ -38,8 +41,8 @@ export type GenerationHistoryLimit = number;
 export interface GenerationOrchestratorFacadeSelectors {
   readonly queue: ComputedRef<ReadonlyQueue>;
   readonly jobs: ComputedRef<ReadonlyQueue>;
-  readonly activeJobs: ComputedRef<readonly ImmutableGenerationJob[]>;
-  readonly sortedActiveJobs: ComputedRef<readonly ImmutableGenerationJob[]>;
+  readonly activeJobs: ComputedRef<readonly GenerationJobView[]>;
+  readonly sortedActiveJobs: ComputedRef<readonly GenerationJobView[]>;
   readonly hasActiveJobs: ComputedRef<boolean>;
   readonly results: ComputedRef<ReadonlyResults>;
   readonly recentResults: ComputedRef<ReadonlyResults>;

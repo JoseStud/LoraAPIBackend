@@ -80,7 +80,8 @@ vi.mock('@/features/generation/services/generationService', () => servicesMock)
 const toGenerationRequestPayload = servicesMock.toGenerationRequestPayload
 
 import { useGenerationStudioController } from '@/composables/generation/useGenerationStudioController'
-import type { GenerationFormState, GenerationJob } from '@/types'
+import type { GenerationFormState } from '@/types'
+import type { QueueItemView } from '@/features/generation/orchestrator'
 
 const createParams = (): GenerationFormState => ({
   prompt: 'test prompt',
@@ -222,16 +223,32 @@ describe('useGenerationStudioController', () => {
 
     await controller.initialize()
 
-    orchestratorBindings.binding.activeJobs.value = [{ id: 'job-1' }]
+    orchestratorBindings.binding.activeJobs.value = [
+      Object.freeze({
+        id: 'job-1',
+        uiId: 'job-1',
+        backendId: 'backend-1',
+        jobId: 'backend-1',
+        status: 'queued',
+      }) as QueueItemView,
+    ]
     orchestratorBindings.binding.systemStatus.value = { status: 'degraded' }
     orchestratorBindings.binding.isConnected.value = false
 
-    expect(controller.activeJobs.value).toEqual([{ id: 'job-1' }])
+    expect(controller.activeJobs.value).toEqual([
+      expect.objectContaining({ id: 'job-1' }),
+    ])
     expect(controller.systemStatus.value).toEqual({ status: 'degraded' })
     expect(controller.isConnected.value).toBe(false)
     expect(
       controller.canCancelJob(
-        { id: 'job-1', uiId: 'job-1', backendId: 'backend-1' } as GenerationJob,
+        Object.freeze({
+          id: 'job-1',
+          uiId: 'job-1',
+          backendId: 'backend-1',
+          jobId: 'backend-1',
+          status: 'queued',
+        }) as QueueItemView,
       ),
     ).toBe(true)
   })

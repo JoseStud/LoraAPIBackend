@@ -11,12 +11,17 @@ import type { GenerationOrchestratorStore } from '@/features/generation/stores/u
 import { DEFAULT_HISTORY_LIMIT } from '@/features/generation/stores/useGenerationOrchestratorStore';
 import { useBackendUrl } from '@/utils/backend';
 import type {
-  GenerationJob,
   GenerationRequestPayload,
-  GenerationResult,
   GenerationStartResponse,
   SystemStatusState,
 } from '@/types';
+import type {
+  GenerationJobView,
+  GenerationResultView,
+  QueueItemView,
+  ReadonlyQueue,
+  ReadonlyResults,
+} from '@/features/generation/orchestrator';
 
 interface OrchestratorStoreMock
   extends Pick<
@@ -32,17 +37,17 @@ interface OrchestratorStoreMock
     | 'isJobCancellable'
     | 'destroy'
   > {
-  activeJobs: Ref<readonly GenerationJob[]>;
-  sortedActiveJobs: Ref<readonly GenerationJob[]>;
-  recentResults: Ref<readonly GenerationResult[]>;
+  activeJobs: Ref<ReadonlyQueue>;
+  sortedActiveJobs: Ref<ReadonlyQueue>;
+  recentResults: Ref<ReadonlyResults>;
   systemStatus: Ref<Readonly<SystemStatusState>>;
   isConnected: Ref<boolean>;
 }
 
 const createOrchestratorStoreMock = (): OrchestratorStoreMock => ({
-  activeJobs: ref<GenerationJob[]>([]) as Ref<readonly GenerationJob[]>,
-  sortedActiveJobs: ref<GenerationJob[]>([]) as Ref<readonly GenerationJob[]>,
-  recentResults: ref<GenerationResult[]>([]) as Ref<readonly GenerationResult[]>,
+  activeJobs: ref<ReadonlyQueue>(Object.freeze([] as GenerationJobView[])),
+  sortedActiveJobs: ref<ReadonlyQueue>(Object.freeze([] as GenerationJobView[])),
+  recentResults: ref<ReadonlyResults>(Object.freeze([] as GenerationResultView[])),
   systemStatus: ref<SystemStatusState>({} as SystemStatusState) as Ref<Readonly<SystemStatusState>>,
   isConnected: ref(false),
   initialize: vi.fn(),
@@ -56,7 +61,7 @@ const createOrchestratorStoreMock = (): OrchestratorStoreMock => ({
   cancelJob: vi.fn<[string], Promise<void>>().mockResolvedValue(undefined),
   clearQueue: vi.fn<[], Promise<void>>().mockResolvedValue(undefined),
   deleteResult: vi.fn<[string | number], Promise<void>>().mockResolvedValue(undefined),
-  isJobCancellable: vi.fn<(job: GenerationJob) => boolean>().mockReturnValue(true),
+  isJobCancellable: vi.fn<(job: QueueItemView) => boolean>().mockReturnValue(true),
   destroy: vi.fn(),
 });
 
@@ -181,15 +186,15 @@ describe('createUseGenerationOrchestratorManager', () => {
     const manager = createUseGenerationOrchestratorManager(dependencies)();
     const binding = manager.acquire({ notify: vi.fn(), debug: vi.fn(), historyVisibility: ref(false) });
 
-    orchestratorStore.activeJobs.value = (
-      [
-        {
-          id: '1',
-          uiId: '1',
-          backendId: 'backend-1',
-        } as GenerationJob,
-      ] as readonly GenerationJob[]
-    );
+    orchestratorStore.activeJobs.value = Object.freeze([
+      Object.freeze({
+        id: '1',
+        uiId: '1',
+        backendId: 'backend-1',
+        jobId: 'backend-1',
+        status: 'queued',
+      }) as GenerationJobView,
+    ]) as ReadonlyQueue;
     orchestratorStore.systemStatus.value = {
       status: 'ok',
     } as unknown as Readonly<SystemStatusState>;
