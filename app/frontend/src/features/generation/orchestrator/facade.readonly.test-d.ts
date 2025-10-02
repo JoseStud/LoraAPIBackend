@@ -7,4 +7,8 @@ facade.queue.value[0] = undefined;
 // @ts-expect-error Generation results are read-only.
 facade.results.value[0] = undefined;
 
+// Lifecycle helpers accept optional options and return promises/void.
+void facade.ensureInitialized({ readOnly: true });
+facade.releaseIfLastConsumer();
+
 export {};

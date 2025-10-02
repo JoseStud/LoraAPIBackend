@@ -61,11 +61,14 @@ const createOrchestratorStoreMock = (): OrchestratorStoreMock => ({
 const createDependencies = () => {
   const orchestratorStore = createOrchestratorStoreMock();
 
+  const readOnlyConsumers = ref(new Set<symbol>());
+
   const orchestratorManagerStore = {
     orchestrator: shallowRef<GenerationOrchestratorStore | null>(null),
     initializationPromise: ref<Promise<void> | null>(null),
     isInitialized: ref(false),
     consumers: ref(new Map()),
+    readOnlyConsumers,
     ensureOrchestrator: vi.fn((factory: () => GenerationOrchestratorStore) => {
       if (!orchestratorManagerStore.orchestrator.value) {
         orchestratorManagerStore.orchestrator.value = factory();
@@ -77,6 +80,7 @@ const createDependencies = () => {
       orchestratorManagerStore.orchestrator.value = null;
       orchestratorManagerStore.initializationPromise.value = null;
       orchestratorManagerStore.isInitialized.value = false;
+      orchestratorManagerStore.readOnlyConsumers.value.clear();
     }),
     registerConsumer: vi.fn((consumer) => {
       orchestratorManagerStore.consumers.value.set(consumer.id, consumer);
@@ -84,11 +88,22 @@ const createDependencies = () => {
     unregisterConsumer: vi.fn((id: symbol) => {
       orchestratorManagerStore.consumers.value.delete(id);
     }),
+    registerReadOnlyConsumer: vi.fn((id: symbol) => {
+      orchestratorManagerStore.readOnlyConsumers.value.add(id);
+    }),
+    unregisterReadOnlyConsumer: vi.fn((id: symbol) => {
+      orchestratorManagerStore.readOnlyConsumers.value.delete(id);
+    }),
+    hasActiveConsumers: vi.fn(() =>
+      orchestratorManagerStore.consumers.value.size > 0
+        || orchestratorManagerStore.readOnlyConsumers.value.size > 0,
+    ),
   } satisfies Partial<GenerationOrchestratorManagerStore> & {
     orchestrator: Ref<GenerationOrchestratorStore | null>;
     initializationPromise: Ref<Promise<void> | null>;
     isInitialized: Ref<boolean>;
     consumers: Ref<Map<symbol, GenerationOrchestratorConsumer>>;
+    readOnlyConsumers: Ref<Set<symbol>>;
   };
 
   const uiStore = {

@@ -310,7 +310,7 @@ export const createUseGenerationOrchestratorManager = (
 
     orchestratorManagerStore.unregisterConsumer(id);
 
-    if (consumers.value.size === 0) {
+    if (!orchestratorManagerStore.hasActiveConsumers()) {
       stopHistoryWatcher();
       stopBackendWatcher();
       orchestratorManagerStore.destroyOrchestrator();

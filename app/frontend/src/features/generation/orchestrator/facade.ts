@@ -1,7 +1,13 @@
 import { readonly, ref, type ComputedRef, type Ref } from 'vue';
+import { storeToRefs } from 'pinia';
 
 import { useGenerationOrchestratorStore } from '../stores/useGenerationOrchestratorStore';
 import type { GenerationOrchestratorStore } from '../stores/useGenerationOrchestratorStore';
+import {
+  useGenerationOrchestratorManagerStore,
+  type GenerationOrchestratorManagerStore,
+} from '../stores/orchestratorManagerStore';
+import type { GenerationNotificationAdapter } from '../composables/useGenerationTransport';
 
 import type { GenerationJob, GenerationResult, SystemStatusState } from '@/types';
 import type { DeepReadonly } from '@/utils/freezeDeep';
@@ -11,6 +17,7 @@ import type {
   GenerationTransportPhase,
   GenerationWebSocketStateSnapshot,
 } from '../types/transport';
+import { useBackendUrl } from '@/utils/backend';
 
 export type ReadonlyRef<T> = Readonly<Ref<T>>;
 
@@ -68,6 +75,8 @@ export interface GenerationOrchestratorFacadeCommands {
   refreshHistory(options?: GenerationHistoryRefreshOptions): Promise<void>;
   reconnect(): void | Promise<void>;
   setHistoryLimit(limit: GenerationHistoryLimit): void;
+  ensureInitialized(options?: GenerationOrchestratorEnsureOptions): Promise<void>;
+  releaseIfLastConsumer(): void;
 }
 
 export interface GenerationOrchestratorFacade
@@ -83,16 +92,56 @@ export interface GenerationManager extends GenerationOrchestratorFacadeSelectors
   refreshHistory(options?: GenerationHistoryRefreshOptions): Promise<void>;
   reconnect(): void | Promise<void>;
   setHistoryLimit(limit: GenerationHistoryLimit): void;
+  ensureInitialized(options?: GenerationOrchestratorEnsureOptions): Promise<void>;
+  releaseIfLastConsumer(): void;
 }
+
+export interface GenerationOrchestratorEnsureOptions {
+  readonly readOnly?: boolean;
+}
+
+interface StoreBackedManagerOptions {
+  readonly managerStore: GenerationOrchestratorManagerStore;
+  readonly getBackendUrl: () => string | null;
+}
+
+const createLifecycleNotificationAdapter = (): GenerationNotificationAdapter => ({
+  notify: (message, type = 'info') => {
+    const entry = {
+      message,
+      type,
+      timestamp: new Date().toISOString(),
+    };
+
+    if (type === 'error') {
+      console.error('[GenerationOrchestratorFacade]', entry);
+      return;
+    }
+
+    if (type === 'warning') {
+      console.warn('[GenerationOrchestratorFacade]', entry);
+      return;
+    }
+
+    console.info('[GenerationOrchestratorFacade]', entry);
+  },
+  debug: (...args: unknown[]) => {
+    console.debug('[GenerationOrchestratorFacade]', ...args);
+  },
+});
 
 const normalizeJobId = (jobId: string | number): string => String(jobId);
 
 const createStoreBackedManager = (
   store: GenerationOrchestratorStore,
+  options: StoreBackedManagerOptions,
 ): GenerationManager => {
   const pendingActionsCount = ref(0);
   const lastActionAt = ref<Date | null>(null);
   const lastCommandError = ref<Error | null>(null);
+  const { initializationPromise, isInitialized } = storeToRefs(options.managerStore);
+  const lifecycleNotificationAdapter = createLifecycleNotificationAdapter();
+  let readOnlyConsumerId: symbol | null = null;
 
   const pendingActionsCountReadonly = readonly(pendingActionsCount);
   const lastActionAtReadonly = readonly(lastActionAt);
@@ -225,6 +274,91 @@ const createStoreBackedManager = (
     }
   };
 
+  const ensureReadOnlyRegistration = (): void => {
+    if (readOnlyConsumerId) {
+      return;
+    }
+
+    readOnlyConsumerId = Symbol('generation-orchestrator-read-only-consumer');
+    options.managerStore.registerReadOnlyConsumer(readOnlyConsumerId);
+  };
+
+  const releaseReadOnlyRegistration = (): void => {
+    if (!readOnlyConsumerId) {
+      return;
+    }
+
+    options.managerStore.unregisterReadOnlyConsumer(readOnlyConsumerId);
+    readOnlyConsumerId = null;
+  };
+
+  const destroyIfUnused = (): void => {
+    if (!options.managerStore.hasActiveConsumers()) {
+      options.managerStore.destroyOrchestrator();
+    }
+  };
+
+  const ensureInitialized = async (
+    ensureOptions: GenerationOrchestratorEnsureOptions = { readOnly: true },
+  ): Promise<void> => {
+    const { readOnly = true } = ensureOptions;
+
+    if (readOnly) {
+      ensureReadOnlyRegistration();
+    }
+
+    const orchestrator = options.managerStore.ensureOrchestrator(() => store);
+
+    if (store.isActive.value) {
+      return;
+    }
+
+    if (!initializationPromise.value) {
+      const initialization = orchestrator
+        .initialize({
+          historyLimit: store.historyLimit.value,
+          getBackendUrl: options.getBackendUrl,
+          notificationAdapter: lifecycleNotificationAdapter,
+        })
+        .then(() => {
+          isInitialized.value = true;
+        })
+        .catch((error) => {
+          isInitialized.value = false;
+          if (readOnly) {
+            releaseReadOnlyRegistration();
+          }
+          throw error;
+        })
+        .finally(() => {
+          initializationPromise.value = null;
+        });
+
+      initializationPromise.value = initialization;
+    }
+
+    await initializationPromise.value;
+  };
+
+  const releaseIfLastConsumer = (): void => {
+    const pendingInitialization = initializationPromise.value;
+
+    releaseReadOnlyRegistration();
+
+    if (pendingInitialization) {
+      void pendingInitialization
+        .catch(() => {
+          // Swallow to ensure cleanup still runs after failure.
+        })
+        .finally(() => {
+          destroyIfUnused();
+        });
+      return;
+    }
+
+    destroyIfUnused();
+  };
+
   return {
     queue: store.jobs,
     jobs: store.jobs,
@@ -295,6 +429,8 @@ const createStoreBackedManager = (
         { limit },
       );
     },
+    ensureInitialized,
+    releaseIfLastConsumer,
   };
 };
 
@@ -342,11 +478,20 @@ export const createGenerationFacade = ({
     manager.refreshHistory(options),
   reconnect: (): void | Promise<void> => manager.reconnect(),
   setHistoryLimit: (limit: GenerationHistoryLimit): void => manager.setHistoryLimit(limit),
+  ensureInitialized: (options?: GenerationOrchestratorEnsureOptions): Promise<void> =>
+    manager.ensureInitialized(options),
+  releaseIfLastConsumer: (): void => manager.releaseIfLastConsumer(),
 });
 
 export const useGenerationOrchestratorFacade: GenerationOrchestratorFacadeFactory = () => {
   const store = useGenerationOrchestratorStore();
-  const manager = createStoreBackedManager(store);
+  const managerStore = useGenerationOrchestratorManagerStore();
+  const backendUrl = useBackendUrl('/') as ComputedRef<string>;
+  const getBackendUrl = (): string | null => backendUrl.value || null;
+  const manager = createStoreBackedManager(store, {
+    managerStore,
+    getBackendUrl,
+  });
   return createGenerationFacade({ manager });
 };
 
