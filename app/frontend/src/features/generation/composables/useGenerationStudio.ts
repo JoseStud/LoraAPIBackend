@@ -7,6 +7,7 @@ import type { GenerationOrchestratorAutoSyncOptions } from './useGenerationOrche
 import { useGenerationStudioNotifications } from './useGenerationStudioNotifications'
 import { useGenerationFormStore } from '../stores/form'
 import { useAsyncLifecycleTask } from '@/composables/shared'
+import type { ReadonlyResults } from '@/features/generation/orchestrator'
 import type { GenerationFormState } from '@/types'
 
 export interface UseGenerationStudioOptions {
@@ -62,7 +63,7 @@ export const useGenerationStudio = ({ autoSync = true }: UseGenerationStudioOpti
   const showHistory = computed(() => showHistoryRef.value)
   const showModal = computed(() => showModalRef.value)
   const selectedResult = computed(() => selectedResultRef.value)
-  const recentResults = computed(() => recentResultsRef.value)
+  const recentResults = computed<ReadonlyResults>(() => recentResultsRef.value ?? ([] as ReadonlyResults))
   const activeJobs = computed(() => controller.activeJobs.value)
   const sortedActiveJobs = computed(() => controller.sortedActiveJobs.value)
   const systemStatus = computed(() => controller.systemStatus.value)

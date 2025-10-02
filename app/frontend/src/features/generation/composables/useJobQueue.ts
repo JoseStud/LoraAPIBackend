@@ -5,8 +5,10 @@ import { useGenerationOrchestratorFacade } from '@/features/generation/orchestra
 export const useJobQueue = () => {
   const facade = useGenerationOrchestratorFacade();
 
+  const jobs = computed(() => facade.sortedActiveJobs.value ?? [])
+
   return {
-    jobs: facade.sortedActiveJobs,
+    jobs,
     isReady: computed(() => true),
     queueManagerActive: facade.queueManagerActive,
   } as const;
