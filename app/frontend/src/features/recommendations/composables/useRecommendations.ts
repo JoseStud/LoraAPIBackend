@@ -3,7 +3,8 @@ import { storeToRefs } from 'pinia';
 
 import { useAsyncResource } from '@/composables/shared';
 
-import { useBackendEnvironment, useSettingsStore } from '@/stores/settings';
+import { useSettingsStore } from '@/stores/settings';
+import { useBackendEnvironment } from '@/services/backendEnvironment';
 import { useAdapterCatalogStore } from '@/features/lora/public';
 import {
   buildSimilarRecommendationsPath,
@@ -90,7 +91,7 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
   const weights = ref<WeightState>({ ...DEFAULT_WEIGHTS, ...(options.initialWeights ?? {}) });
 
   const hydrationReady = ref(false);
-  void backendEnvironment.readyPromise.then(() => {
+  void backendEnvironment.ensureReady().then(() => {
     hydrationReady.value = true;
   });
 

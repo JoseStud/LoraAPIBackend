@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, nextTick, watch } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 
-import { useBackendEnvironment, useSettingsStore } from '@/stores';
+import { useSettingsStore } from '@/stores';
+import { useBackendEnvironment } from '@/services/backendEnvironment';
 
 const flushBackendWatchers = async () => {
   await nextTick();

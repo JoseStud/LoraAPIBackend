@@ -1,11 +1,10 @@
 import { computed, unref, type ComputedRef, type MaybeRefOrGetter } from 'vue';
-import { storeToRefs } from 'pinia';
+import type { SettingsStore } from '@/stores/settings';
 
 import {
-  getResolvedBackendUrl,
-  tryGetSettingsStore,
-  type SettingsStore,
-} from '@/stores/settings';
+  getBackendEnvironmentSnapshot,
+  useBackendEnvironment,
+} from '@/services/backendEnvironment';
 
 import {
   DEFAULT_BACKEND_BASE,
@@ -79,7 +78,7 @@ const resolveConfiguredBackendBase = (settingsStore?: SettingsStore | null): str
   if (settingsStore) {
     return settingsStore.backendUrl;
   }
-  return getResolvedBackendUrl();
+  return getBackendEnvironmentSnapshot().backendUrl;
 };
 
 export const resolveBackendBaseUrl = (
@@ -105,13 +104,11 @@ export const resolveBackendUrl = (
 export const useBackendBase = (
   baseOverride?: MaybeRefOrGetter<string | null>,
 ): ComputedRef<string> => {
-  const settingsStore = tryGetSettingsStore();
-  const backendUrl = settingsStore ? storeToRefs(settingsStore).backendUrl : null;
-  const fallbackBase = settingsStore ? null : resolveConfiguredBackendBase(null);
+  const backendEnvironment = useBackendEnvironment();
 
   return computed(() => {
     const override = resolveMaybeRef(baseOverride);
-    const configuredBase = backendUrl ? backendUrl.value : fallbackBase ?? getResolvedBackendUrl();
+    const configuredBase = backendEnvironment.backendUrl.value;
     const base = pickBackendBase(override, configuredBase);
     return normaliseBackendBase(base);
   });
