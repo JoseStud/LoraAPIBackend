@@ -31,11 +31,27 @@ import { RouterLink } from 'vue-router';
 import { defineAsyncComponent } from 'vue';
 
 import { ImportExportContainer } from '@/features/import-export/public';
-import { JobQueueWidget, SystemAdminStatusCard, SystemStatusPanel } from '@/features/generation/public';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { RecommendationsPanel } from '@/features/recommendations/public';
 
 const PerformanceAnalytics = defineAsyncComponent(
   () => import('@/views/analytics/PerformanceAnalyticsPage.vue'),
 );
+
+const loadGenerationWidgets = () => import('@/features/generation/public/widgets');
+
+const SystemAdminStatusCard = defineAsyncComponent({
+  loader: () => loadGenerationWidgets().then((module) => module.SystemAdminStatusCard),
+  suspensible: false,
+});
+
+const SystemStatusPanel = defineAsyncComponent({
+  loader: () => loadGenerationWidgets().then((module) => module.SystemStatusPanel),
+  suspensible: false,
+});
+
+const JobQueueWidget = defineAsyncComponent({
+  loader: () => loadGenerationWidgets().then((module) => module.JobQueueWidget),
+  suspensible: false,
+});
 </script>

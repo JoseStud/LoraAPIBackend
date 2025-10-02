@@ -163,10 +163,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue';
+import { computed, defineAsyncComponent, onMounted, onUnmounted } from 'vue';
 
 import PageHeader from '@/components/layout/PageHeader.vue';
-import { SystemStatusCard, SystemStatusPanel } from '@/features/generation/public';
 import {
   PerformanceAnalyticsChartGrid,
   PerformanceAnalyticsExportToolbar,
@@ -178,6 +177,18 @@ import { useNotifications } from '@/composables/shared';
 import { downloadFile } from '@/utils/browser';
 import { successRateClass } from '@/utils/analyticsFormatting';
 import type { PerformanceInsightEntry } from '@/types';
+
+const loadGenerationWidgets = () => import('@/features/generation/public/widgets');
+
+const SystemStatusCard = defineAsyncComponent({
+  loader: () => loadGenerationWidgets().then((module) => module.SystemStatusCard),
+  suspensible: false,
+});
+
+const SystemStatusPanel = defineAsyncComponent({
+  loader: () => loadGenerationWidgets().then((module) => module.SystemStatusPanel),
+  suspensible: false,
+});
 
 const props = defineProps<{
   showPageHeader?: boolean;
