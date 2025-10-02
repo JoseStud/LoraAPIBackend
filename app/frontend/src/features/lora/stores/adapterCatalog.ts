@@ -12,7 +12,6 @@ import type {
   AdapterSummary,
   GalleryLora,
   LoraBulkAction,
-  LoraListItem,
   LoraUpdatePayload,
 } from '@/types';
 
@@ -23,18 +22,38 @@ const normalizeQuery = (base: AdapterListQuery = {}): AdapterListQuery => ({
   ...base,
 });
 
-const extractGalleryItems = (
+interface CatalogState {
+  ids: string[];
+  entities: Record<string, GalleryLora>;
+}
+
+const createEmptyCatalogState = (): CatalogState => ({
+  ids: [],
+  entities: {},
+});
+
+const createCatalogState = (
   payload: AdapterListResponse | null | undefined,
-): GalleryLora[] => {
-  if (!payload) {
-    return [];
+): CatalogState => {
+  const state = createEmptyCatalogState();
+
+  if (!payload || !Array.isArray(payload.items)) {
+    return state;
   }
 
-  const items = Array.isArray(payload.items) ? payload.items : [];
-  return items.map((item: AdapterRead) => ({ ...item }));
+  for (const item of payload.items as AdapterRead[]) {
+    if (!item?.id) {
+      continue;
+    }
+    const lora = { ...item } as GalleryLora;
+    state.ids.push(lora.id);
+    state.entities[lora.id] = lora;
+  }
+
+  return state;
 };
 
-const toSummary = (item: LoraListItem): AdapterSummary => ({
+const toSummary = (item: GalleryLora): AdapterSummary => ({
   id: item.id,
   name: item.name,
   description: item.description,
@@ -75,15 +94,17 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
     return request;
   };
 
-  const listResource = useAsyncResource<GalleryLora[], AdapterListQuery>(
+  const summaryCache = new Map<string, { source: GalleryLora; value: AdapterSummary }>();
+
+  const listResource = useAsyncResource<CatalogState, AdapterListQuery>(
     async (requestQuery) => {
       const normalised = normalizeQuery(requestQuery);
       const payload = await fetchAdapterList(normalised, backendClient);
-      return extractGalleryItems(payload);
+      return createCatalogState(payload);
     },
     {
       initialArgs: { ...DEFAULT_QUERY },
-      initialValue: [],
+      initialValue: createEmptyCatalogState(),
       getKey: (args) => JSON.stringify(normalizeQuery(args)),
       backendRefresh: {
         getArgs: () => ({ ...query }),
@@ -101,26 +122,83 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
   );
 
   const loras = computed<GalleryLora[]>(() => {
-    const items = listResource.data.value ?? [];
-    return items.map((item) => ({ ...item }));
+    const state = listResource.data.value ?? createEmptyCatalogState();
+    const { ids, entities } = state;
+
+    const result: GalleryLora[] = [];
+    for (const id of ids) {
+      const entry = entities[id];
+      if (entry) {
+        result.push(entry);
+      }
+    }
+
+    return result;
   });
 
-  const adapters = computed<AdapterSummary[]>(() => loras.value.map(toSummary));
+  const adapters = computed<AdapterSummary[]>(() => {
+    const state = listResource.data.value ?? createEmptyCatalogState();
+    const { ids, entities } = state;
+
+    const seen = new Set<string>();
+    const summaries: AdapterSummary[] = [];
+
+    for (const id of ids) {
+      const entry = entities[id];
+      if (!entry) {
+        continue;
+      }
+
+      seen.add(id);
+      const cached = summaryCache.get(id);
+      if (cached) {
+        const active = entry.active ?? true;
+        if (
+          cached.value.name === entry.name
+          && cached.value.description === entry.description
+          && cached.value.active === active
+        ) {
+          summaryCache.set(id, { source: entry, value: cached.value });
+          summaries.push(cached.value);
+          continue;
+        }
+      }
+
+      const summary = toSummary(entry);
+      summaryCache.set(id, { source: entry, value: summary });
+      summaries.push(summary);
+    }
+
+    for (const key of summaryCache.keys()) {
+      if (!seen.has(key)) {
+        summaryCache.delete(key);
+      }
+    }
+
+    return summaries;
+  });
 
   const error = computed<ApiError | unknown | null>(() => listResource.error.value as ApiError | unknown | null);
   const isLoading = computed<boolean>(() => listResource.isLoading.value);
   const areTagsLoading = computed(() => pendingTagFetch.value !== null);
   const lastFetchedAt = computed(() => listResource.lastLoadedAt.value);
 
-  const mutateList = (mutator: (draft: GalleryLora[]) => boolean): boolean => {
-    const current = listResource.data.value ?? [];
-    const draft = current.map((item) => ({ ...item }));
-    const changed = mutator(draft);
+  const mutateCatalog = (mutator: (state: CatalogState) => boolean): boolean => {
+    let changed = false;
+
+    listResource.mutate(
+      (current) => {
+        const state = current ?? createEmptyCatalogState();
+        changed = mutator(state);
+        return state;
+      },
+      { markLoaded: true, args: { ...query } },
+    );
+
     if (!changed) {
       return false;
     }
 
-    listResource.setData(draft, { markLoaded: true, args: { ...query } });
     listResource.clearError();
     return true;
   };
@@ -132,48 +210,54 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
     }
 
     if (type === 'weight' && payload.weight !== undefined) {
-      return mutateList((draft) => {
-        const index = draft.findIndex((item) => item.id === id);
-        if (index === -1) {
+      return mutateCatalog((state) => {
+        const existing = state.entities[id];
+        if (!existing) {
           return false;
         }
-        draft[index] = { ...draft[index], weight: payload.weight };
+
+        state.entities[id] = { ...existing, weight: payload.weight };
         return true;
       });
     }
 
-      if (type === 'active') {
-        const { active } = payload;
-        if (active === undefined) {
+    if (type === 'active') {
+      const { active } = payload;
+      if (active === undefined) {
+        return false;
+      }
+
+      return mutateCatalog((state) => {
+        const existing = state.entities[id];
+        if (!existing) {
           return false;
         }
-        return mutateList((draft) => {
-          const index = draft.findIndex((item) => item.id === id);
-          if (index === -1) {
-            return false;
-          }
-          draft[index] = { ...draft[index], active };
-          return true;
-        });
-      }
+
+        state.entities[id] = { ...existing, active };
+        return true;
+      });
+    }
 
     return false;
   };
 
   const removeLora = (id: string): boolean =>
-    mutateList((draft) => {
-      const index = draft.findIndex((item) => item.id === id);
+    mutateCatalog((state) => {
+      const index = state.ids.indexOf(id);
       if (index === -1) {
         return false;
       }
-      draft.splice(index, 1);
+
+      state.ids.splice(index, 1);
+      delete state.entities[id];
+      summaryCache.delete(id);
       return true;
     });
 
   const ensureLoaded = async (overrides: AdapterListQuery = {}): Promise<AdapterSummary[]> => {
     const requestQuery = normalizeQuery({ ...query, ...overrides });
-    const result = await listResource.ensureLoaded(requestQuery);
-    return (result ?? []).map(toSummary);
+    await listResource.ensureLoaded(requestQuery);
+    return adapters.value;
   };
 
   const loadLoras = async (overrides: AdapterListQuery = {}): Promise<GalleryLora[]> => {
@@ -183,8 +267,8 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
 
   const refresh = async (overrides: AdapterListQuery = {}): Promise<AdapterSummary[]> => {
     const requestQuery = normalizeQuery({ ...query, ...overrides });
-    const result = await listResource.refresh(requestQuery);
-    return (result ?? []).map(toSummary);
+    await listResource.refresh(requestQuery);
+    return adapters.value;
   };
 
   const initialize = async (overrides: AdapterListQuery = {}): Promise<void> => {
@@ -216,12 +300,14 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
 
   const reset = () => {
     listResource.reset();
+    listResource.setData(createEmptyCatalogState());
     availableTags.value = [];
     tagError.value = null;
     pendingTagFetch.value = null;
     isInitialized.value = false;
     Object.assign(query, { ...DEFAULT_QUERY });
     listResource.backendRefresh?.restart?.();
+    summaryCache.clear();
   };
 
   return {
