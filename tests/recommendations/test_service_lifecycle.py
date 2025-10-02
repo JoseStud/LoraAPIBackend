@@ -2,7 +2,9 @@
 
 import pytest
 
-pytestmark = pytest.mark.skip(reason="TODO: cover recommendation service lifecycle scenarios")
+pytestmark = pytest.mark.skip(
+    reason="TODO: cover recommendation service lifecycle scenarios"
+)
 
 
 class TestRecommendationServiceLifecycle:

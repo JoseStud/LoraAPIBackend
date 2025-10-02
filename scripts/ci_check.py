@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import re
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Sequence
@@ -31,6 +33,59 @@ def _parse_rg_output(output: str) -> list[tuple[Path, str, str]]:
         matches.append((Path(path_str), line_no, content))
     return matches
 
+
+def _search_repository(
+    pattern: str, search_root: Path, *, use_regex: bool
+) -> list[tuple[Path, str, str]]:
+    """Search the repository for the given pattern.
+
+    Prefer ripgrep when available for parity with CI, but fall back to a Python
+    implementation when `rg` is missing (e.g., in constrained environments).
+    """
+
+    if shutil.which("rg"):
+        args = [
+            "rg",
+            "--with-filename",
+            "--line-number",
+            "--no-heading",
+        ]
+        if not use_regex:
+            args.append("-F")
+        args.extend([pattern, str(search_root)])
+
+        result = subprocess.run(
+            args,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode not in (0, 1):
+            raise RuntimeError("Failed to scan for pattern using ripgrep")
+
+        return _parse_rg_output(result.stdout)
+
+    compiled_regex = re.compile(pattern) if use_regex else None
+    matches: list[tuple[Path, str, str]] = []
+    for path in search_root.rglob("*"):
+        if not path.is_file():
+            continue
+        try:
+            contents = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+
+        for line_no, line in enumerate(contents.splitlines(), start=1):
+            if use_regex:
+                if compiled_regex.search(line):
+                    matches.append((path, str(line_no), line))
+            elif pattern in line:
+                matches.append((path, str(line_no), line))
+
+    return matches
+
+
 def _ensure_cancel_job_usage_is_guarded() -> None:
     """Ensure cancelGenerationJob is only used within the orchestrator manager surface."""
 
@@ -39,24 +94,9 @@ def _ensure_cancel_job_usage_is_guarded() -> None:
         Path("app/frontend/src/features/generation/services/queueClient.ts"),
     }
 
-    result = subprocess.run(
-        (
-            "rg",
-            "--with-filename",
-            "--line-number",
-            "--no-heading",
-            "cancelGenerationJob",
-            "app/frontend/src",
-        ),
-        check=False,
-        capture_output=True,
-        text=True,
+    matches = _search_repository(
+        "cancelGenerationJob", Path("app/frontend/src"), use_regex=False
     )
-
-    if result.returncode not in (0, 1):
-        raise RuntimeError("Failed to scan for cancelGenerationJob usage")
-
-    matches = _parse_rg_output(result.stdout)
     violations = [
         (path, line_no, content)
         for path, line_no, content in matches
@@ -65,7 +105,8 @@ def _ensure_cancel_job_usage_is_guarded() -> None:
 
     if violations:
         formatted = "\n".join(
-            f"- {path}:{line_no}: {content.strip()}" for path, line_no, content in violations
+            f"- {path}:{line_no}: {content.strip()}"
+            for path, line_no, content in violations
         )
         raise SystemExit(
             "cancelGenerationJob should only be invoked through the orchestrator manager surface.\n"
@@ -79,24 +120,9 @@ def _ensure_generation_stores_are_private() -> None:
     feature_root = Path("app/frontend/src/features/generation")
     forbidden_pattern = r"stores/(results|queue)"
 
-    result = subprocess.run(
-        (
-            "rg",
-            "--with-filename",
-            "--line-number",
-            "--no-heading",
-            forbidden_pattern,
-            "app/frontend/src",
-        ),
-        check=False,
-        capture_output=True,
-        text=True,
+    matches = _search_repository(
+        forbidden_pattern, Path("app/frontend/src"), use_regex=True
     )
-
-    if result.returncode not in (0, 1):
-        raise RuntimeError("Failed to scan for generation store imports")
-
-    matches = _parse_rg_output(result.stdout)
 
     def _is_inside_feature(path: Path) -> bool:
         try:
@@ -107,12 +133,15 @@ def _ensure_generation_stores_are_private() -> None:
 
     violations: list[tuple[Path, str, str]] = []
     for path, line_no, content in matches:
-        if not _is_inside_feature(path) and ("import" in content or "from" in content or "export" in content):
+        if not _is_inside_feature(path) and (
+            "import" in content or "from" in content or "export" in content
+        ):
             violations.append((path, line_no, content))
 
     if violations:
         formatted = "\n".join(
-            f"- {path}:{line_no}: {content.strip()}" for path, line_no, content in violations
+            f"- {path}:{line_no}: {content.strip()}"
+            for path, line_no, content in violations
         )
         raise SystemExit(
             "Generation stores must not be imported directly outside the feature.\n"
