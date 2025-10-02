@@ -2,7 +2,9 @@
 
 import pytest
 
-pytestmark = pytest.mark.skip(reason="TODO: validate read-only service registry facade behaviour")
+pytestmark = pytest.mark.skip(
+    reason="TODO: validate read-only service registry facade behaviour"
+)
 
 
 def test_service_registry_read_only_facade_placeholder() -> None:

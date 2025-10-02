@@ -33,6 +33,7 @@ def _parse_rg_output(output: str) -> list[tuple[Path, str, str]]:
         matches.append((Path(path_str), line_no, content))
     return matches
 
+
 def _search_repository(
     pattern: str, search_root: Path, *, use_regex: bool
 ) -> list[tuple[Path, str, str]]:
@@ -104,7 +105,8 @@ def _ensure_cancel_job_usage_is_guarded() -> None:
 
     if violations:
         formatted = "\n".join(
-            f"- {path}:{line_no}: {content.strip()}" for path, line_no, content in violations
+            f"- {path}:{line_no}: {content.strip()}"
+            for path, line_no, content in violations
         )
         raise SystemExit(
             "cancelGenerationJob should only be invoked through the orchestrator manager surface.\n"
@@ -131,12 +133,15 @@ def _ensure_generation_stores_are_private() -> None:
 
     violations: list[tuple[Path, str, str]] = []
     for path, line_no, content in matches:
-        if not _is_inside_feature(path) and ("import" in content or "from" in content or "export" in content):
+        if not _is_inside_feature(path) and (
+            "import" in content or "from" in content or "export" in content
+        ):
             violations.append((path, line_no, content))
 
     if violations:
         formatted = "\n".join(
-            f"- {path}:{line_no}: {content.strip()}" for path, line_no, content in violations
+            f"- {path}:{line_no}: {content.strip()}"
+            for path, line_no, content in violations
         )
         raise SystemExit(
             "Generation stores must not be imported directly outside the feature.\n"
