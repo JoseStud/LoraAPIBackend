@@ -5,11 +5,26 @@ import type { GenerationTransportAdapter } from '../../composables/createGenerat
 import type {
   GenerationTransportError,
   GenerationTransportMetricsSnapshot,
+  GenerationTransportPausePayload,
+  GenerationTransportPauseReason,
   GenerationTransportPhase,
+  GenerationTransportResumePayload,
   GenerationWebSocketStateSnapshot,
 } from '../../types/transport';
 
 const FREEZE = <T>(value: T): Readonly<T> => Object.freeze({ ...(value as Record<string, unknown>) }) as Readonly<T>;
+
+const freezePausePayload = (
+  payload: GenerationTransportPausePayload,
+): GenerationTransportPausePayload =>
+  Object.freeze({
+    ...payload,
+    reasons: Object.freeze([...payload.reasons]) as readonly GenerationTransportPauseReason[],
+  }) as GenerationTransportPausePayload;
+
+const freezeResumePayload = (
+  payload: GenerationTransportResumePayload,
+): GenerationTransportResumePayload => Object.freeze({ ...payload }) as GenerationTransportResumePayload;
 
 const initialMetricsState = () => ({
   phase: 'idle' as GenerationTransportPhase,
@@ -22,6 +37,11 @@ const initialMetricsState = () => ({
   totalDowntimeMs: 0,
   lastError: null as GenerationTransportError | null,
   lastEvent: null as GenerationWebSocketStateSnapshot | null,
+  paused: false,
+  pauseReasons: Object.freeze([]) as readonly GenerationTransportPauseReason[],
+  pauseSince: null as number | null,
+  lastPauseEvent: null as GenerationTransportPausePayload | null,
+  lastResumeEvent: null as GenerationTransportResumePayload | null,
 });
 
 export const createTransportModule = () => {
@@ -36,6 +56,13 @@ export const createTransportModule = () => {
   const downtimeMs = ref<number | null>(null);
   const totalDowntimeMs = ref(0);
   const lastError = ref<GenerationTransportError | null>(null);
+  const paused = ref(false);
+  const pauseReasons = ref<readonly GenerationTransportPauseReason[]>(
+    initialMetricsState().pauseReasons,
+  );
+  const pauseSince = ref<number | null>(null);
+  const lastPauseEvent = ref<GenerationTransportPausePayload | null>(null);
+  const lastResumeEvent = ref<GenerationTransportResumePayload | null>(null);
 
   const ensureTransport = (): GenerationTransportAdapter => {
     const instance = transport.value;
@@ -61,6 +88,66 @@ export const createTransportModule = () => {
     lastError.value = Object.freeze({ ...error });
   };
 
+  const applyPauseState = (payload: GenerationTransportPausePayload): GenerationTransportPausePayload => {
+    const event = freezePausePayload(payload);
+    paused.value = true;
+    pauseReasons.value = event.reasons;
+    pauseSince.value = event.timestamp;
+    lastPauseEvent.value = event;
+    phase.value = 'paused';
+    return event;
+  };
+
+  const pauseTransport = (payload: GenerationTransportPausePayload): void => {
+    const event = applyPauseState(payload);
+    try {
+      transport.value?.pause(event);
+    } catch (error) {
+      console.error('Failed to pause generation transport:', error);
+    }
+  };
+
+  const resumeTransport = async (
+    historyLimit: number,
+    payload: GenerationTransportResumePayload,
+  ): Promise<void> => {
+    const event = freezeResumePayload(payload);
+    const instance = transport.value;
+
+    if (!instance) {
+      paused.value = false;
+      pauseReasons.value = initialMetricsState().pauseReasons;
+      pauseSince.value = null;
+      lastResumeEvent.value = event;
+      lastPauseEvent.value = null;
+      phase.value = 'connecting';
+      return;
+    }
+
+    if (!paused.value && typeof instance.isPaused === 'function' && !instance.isPaused()) {
+      lastResumeEvent.value = event;
+      return;
+    }
+
+    phase.value = 'connecting';
+
+    try {
+      await instance.resume(historyLimit, payload);
+      paused.value = false;
+      pauseReasons.value = initialMetricsState().pauseReasons;
+      pauseSince.value = null;
+      lastResumeEvent.value = event;
+      lastPauseEvent.value = null;
+    } catch (error) {
+      const lastEvent = lastPauseEvent.value;
+      paused.value = true;
+      pauseReasons.value = lastEvent?.reasons ?? pauseReasons.value;
+      pauseSince.value = lastEvent?.timestamp ?? pauseSince.value ?? Date.now();
+      phase.value = 'paused';
+      throw error;
+    }
+  };
+
   const resetMetrics = (): void => {
     const base = initialMetricsState();
     phase.value = base.phase;
@@ -73,6 +160,11 @@ export const createTransportModule = () => {
     totalDowntimeMs.value = base.totalDowntimeMs;
     lastError.value = base.lastError;
     connectionSnapshot.value = base.lastEvent;
+    paused.value = base.paused;
+    pauseReasons.value = base.pauseReasons;
+    pauseSince.value = base.pauseSince;
+    lastPauseEvent.value = base.lastPauseEvent;
+    lastResumeEvent.value = base.lastResumeEvent;
   };
 
   const recordConnectionSnapshot = (snapshot: GenerationWebSocketStateSnapshot): void => {
@@ -124,6 +216,10 @@ export const createTransportModule = () => {
       default:
         break;
     }
+
+    if (paused.value) {
+      phase.value = 'paused';
+    }
   };
 
   const clearTransport = (): void => {
@@ -149,6 +245,11 @@ export const createTransportModule = () => {
       totalDowntimeMs: totalDowntimeMs.value,
       lastError: lastError.value,
       lastEvent: connectionSnapshot.value,
+      paused: paused.value,
+      pauseReasons: pauseReasons.value,
+      pauseSince: pauseSince.value,
+      lastPauseEvent: lastPauseEvent.value,
+      lastResumeEvent: lastResumeEvent.value,
     }),
   );
 
@@ -161,6 +262,8 @@ export const createTransportModule = () => {
     withTransport,
     recordConnectionSnapshot,
     recordTransportError,
+    pauseTransport,
+    resumeTransport,
     resetMetrics,
     metrics,
     phase: readonly(phase),
@@ -173,6 +276,11 @@ export const createTransportModule = () => {
     totalDowntimeMs: readonly(totalDowntimeMs),
     lastError: readonly(lastError),
     lastSnapshot: readonly(connectionSnapshot),
+    paused: readonly(paused),
+    pauseReasons: readonly(pauseReasons),
+    pauseSince: readonly(pauseSince),
+    lastPauseEvent: readonly(lastPauseEvent),
+    lastResumeEvent: readonly(lastResumeEvent),
   };
 };
 

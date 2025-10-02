@@ -1,5 +1,5 @@
 /** @internal */
-import { computed, readonly, ref, type ComputedRef, type Ref } from 'vue';
+import { computed, readonly, ref, type ComputedRef } from 'vue';
 import { defineStore } from 'pinia';
 
 import { createGenerationTransportAdapter } from '../composables/createGenerationTransportAdapter';
@@ -16,6 +16,8 @@ import { createTransportActions } from './orchestrator/transportActions';
 import type { GenerationJob, GenerationResult, SystemStatusState } from '@/types';
 import type {
   GenerationTransportMetricsSnapshot,
+  GenerationTransportPausePayload,
+  GenerationTransportResumePayload,
   GenerationWebSocketStateSnapshot,
 } from '../types/transport';
 import { freezeDeep, type DeepReadonly } from '@/utils/freezeDeep';
@@ -95,6 +97,16 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
       transport: transportModule,
     });
 
+    const pauseTransport = (payload: GenerationTransportPausePayload): void => {
+      transportModule.pauseTransport(payload);
+    };
+
+    const resumeTransport = async (
+      payload: GenerationTransportResumePayload,
+    ): Promise<void> => {
+      await transportModule.resumeTransport(resultsPublic.historyLimit.value, payload);
+    };
+
     const destroy = (): void => {
       cleanup();
       resetState();
@@ -108,6 +120,11 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
 
     const { createResultFromCompletion: _ignored, ...resultsPublic } = results;
     const transportMetrics = transportModule.metrics as ComputedRef<GenerationTransportMetricsSnapshot>;
+    const transportPaused = transportModule.paused;
+    const transportPauseReasons = transportModule.pauseReasons;
+    const transportPauseSince = transportModule.pauseSince;
+    const transportLastPauseEvent = transportModule.lastPauseEvent;
+    const transportLastResumeEvent = transportModule.lastResumeEvent;
 
     const jobs = computed(() => freezeDeep(queue.jobs.value as GenerationJob[]) as ImmutableJobs);
     const jobsByUiId = computed(() => queue.jobsByUiId.value);
@@ -197,11 +214,18 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
       isActive: isActiveState,
       initialize,
       ...transportActions,
+      pauseTransport,
+      resumeTransport,
       getJobByIdentifier: queue.getJobByIdentifier,
       cleanup,
       destroy,
       resetState,
       transportMetrics,
+      transportPaused,
+      transportPauseReasons,
+      transportPauseSince,
+      transportLastPauseEvent,
+      transportLastResumeEvent,
       transportPhase: transportModule.phase,
       transportReconnectAttempt: transportModule.reconnectAttempt,
       transportConsecutiveFailures: transportModule.consecutiveFailures,

@@ -15,7 +15,10 @@ import type { DeepReadonly } from '@/utils/freezeDeep';
 import type {
   GenerationTransportError,
   GenerationTransportMetricsSnapshot,
+  GenerationTransportPausePayload,
+  GenerationTransportPauseReason,
   GenerationTransportPhase,
+  GenerationTransportResumePayload,
   GenerationWebSocketStateSnapshot,
 } from '../types/transport';
 import { useBackendUrl } from '@/utils/backend';
@@ -65,6 +68,11 @@ export interface GenerationOrchestratorFacadeSelectors {
   readonly transportLastDisconnectedAt: ReadonlyRef<number | null>;
   readonly transportDowntimeMs: ReadonlyRef<number | null>;
   readonly transportTotalDowntimeMs: ReadonlyRef<number>;
+  readonly transportPaused: ReadonlyRef<boolean>;
+  readonly transportPauseReasons: ReadonlyRef<readonly GenerationTransportPauseReason[]>;
+  readonly transportPauseSince: ReadonlyRef<number | null>;
+  readonly transportLastPauseEvent: ReadonlyRef<GenerationTransportPausePayload | null>;
+  readonly transportLastResumeEvent: ReadonlyRef<GenerationTransportResumePayload | null>;
   readonly lastError: ReadonlyRef<GenerationTransportError | null>;
   readonly lastSnapshot: ReadonlyRef<GenerationWebSocketStateSnapshot | null>;
   readonly lastCommandError: ReadonlyRef<Error | null>;
@@ -172,6 +180,11 @@ const createStoreBackedManager = (
     transportLastDisconnectedAt,
     transportDowntimeMs,
     transportTotalDowntimeMs,
+    transportPaused,
+    transportPauseReasons,
+    transportPauseSince,
+    transportLastPauseEvent,
+    transportLastResumeEvent,
     transportLastError,
     transportLastSnapshot,
   } = storeToRefs(store);
@@ -465,6 +478,11 @@ const createStoreBackedManager = (
     transportLastDisconnectedAt,
     transportDowntimeMs,
     transportTotalDowntimeMs,
+    transportPaused,
+    transportPauseReasons,
+    transportPauseSince,
+    transportLastPauseEvent,
+    transportLastResumeEvent,
     lastError: transportLastError,
     lastSnapshot: transportLastSnapshot,
     lastCommandError: lastCommandErrorReadonly,

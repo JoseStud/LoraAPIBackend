@@ -14,6 +14,8 @@ import type {
 } from '@/types';
 import type {
   GenerationTransportError,
+  GenerationTransportPausePayload,
+  GenerationTransportResumePayload,
   GenerationWebSocketStateSnapshot,
 } from '../types/transport';
 
@@ -134,14 +136,24 @@ export const useGenerationTransport = (
     },
   );
 
+  let paused = false;
+  let lastPausePayload: GenerationTransportPausePayload | null = null;
+  let pendingResume: Promise<void> | null = null;
+
   const initializeUpdates = async (historyLimit: number): Promise<void> => {
     await queueClient.initialize(historyLimit);
     socketBridge.start();
+    paused = false;
+    lastPausePayload = null;
+    pendingResume = null;
   };
 
   const stopUpdates = (): void => {
     queueClient.stopPolling();
     socketBridge.stop();
+    paused = false;
+    lastPausePayload = null;
+    pendingResume = null;
   };
 
   const reconnectUpdates = (): void => {
@@ -152,6 +164,61 @@ export const useGenerationTransport = (
     stopUpdates();
     queueClient.clear();
     socketBridge.clear();
+    paused = false;
+    lastPausePayload = null;
+    pendingResume = null;
+  };
+
+  const pauseUpdates = (payload: GenerationTransportPausePayload): void => {
+    const snapshot: GenerationTransportPausePayload = {
+      ...payload,
+      reasons: [...payload.reasons],
+    };
+    lastPausePayload = Object.freeze(snapshot);
+
+    if (paused) {
+      return;
+    }
+
+    logDebug('[GenerationTransport] pause requested', snapshot);
+    pendingResume = null;
+    paused = true;
+    queueClient.stopPolling();
+    socketBridge.stop();
+  };
+
+  const resumeUpdates = async (
+    historyLimit: number,
+    payload: GenerationTransportResumePayload,
+  ): Promise<void> => {
+    if (pendingResume) {
+      await pendingResume;
+      return;
+    }
+
+    if (!paused && !lastPausePayload) {
+      return;
+    }
+
+    logDebug('[GenerationTransport] resume requested', payload);
+
+    const operation = (async () => {
+      await queueClient.refreshAllData(historyLimit);
+      socketBridge.start();
+      queueClient.startPolling();
+      paused = false;
+      lastPausePayload = null;
+    })()
+      .catch((error) => {
+        paused = true;
+        throw error;
+      })
+      .finally(() => {
+        pendingResume = null;
+      });
+
+    pendingResume = operation;
+    await operation;
   };
 
   return {
@@ -166,7 +233,10 @@ export const useGenerationTransport = (
     stopUpdates,
     reconnectUpdates,
     setPollInterval: queueClient.setPollInterval,
+    pauseUpdates,
+    resumeUpdates,
     clear,
+    isPaused: () => paused,
   };
 };
 

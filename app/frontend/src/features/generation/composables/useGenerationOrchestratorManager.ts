@@ -30,6 +30,11 @@ import type {
 } from '@/types';
 import type { DeepReadonly } from '@/utils/freezeDeep';
 import type { GenerationJobView, GenerationResultView } from '../orchestrator/facade';
+import type {
+  GenerationTransportPausePayload,
+  GenerationTransportPauseReason,
+  GenerationTransportResumePayload,
+} from '../types/transport';
 
 export interface GenerationOrchestratorAcquireOptions {
   notify: GenerationNotificationAdapter['notify'];
@@ -153,6 +158,9 @@ export const createUseGenerationOrchestratorManager = (
     activeJobs,
     sortedActiveJobs,
     queueManagerActive,
+    transportPaused,
+    transportPauseReasons,
+    transportPauseSince,
   } = storeToRefs(orchestratorStore);
 
   const notifyAll: GenerationNotificationAdapter['notify'] = (
@@ -195,6 +203,147 @@ export const createUseGenerationOrchestratorManager = (
     backendWatcherStop = null;
     lifecycleScope.stop();
     lifecycleScope = null;
+  };
+
+  let environmentCleanup: (() => void) | null = null;
+  let lastEnvironmentKey = '';
+  let lastPauseActive = false;
+
+  const logLifecycleEvent = (
+    event: 'pause' | 'resume',
+    payload: GenerationTransportPausePayload | GenerationTransportResumePayload,
+  ): void => {
+    const entry: Record<string, unknown> = {
+      event,
+      timestamp: new Date(payload.timestamp).toISOString(),
+      source: payload.source,
+      hidden: payload.hidden,
+      online: payload.online,
+    };
+
+    if ('reasons' in payload) {
+      entry.reasons = [...payload.reasons];
+    }
+
+    console.info('[GenerationOrchestratorLifecycle]', entry);
+  };
+
+  const getEnvironmentState = () => {
+    const hidden = typeof document !== 'undefined' ? document.hidden === true : false;
+    const online = typeof navigator === 'undefined' ? true : navigator.onLine !== false;
+    const reasons: GenerationTransportPauseReason[] = [];
+
+    if (hidden) {
+      reasons.push('document-hidden');
+    }
+
+    if (!online) {
+      reasons.push('network-offline');
+    }
+
+    return { hidden, online, reasons } as const;
+  };
+
+  const applyEnvironmentPauseState = (
+    source: string,
+    options: { force?: boolean } = {},
+  ): void => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const state = getEnvironmentState();
+    const key = `${state.reasons.join('|')}|hidden:${state.hidden}|online:${state.online}`;
+    const previousKey = lastEnvironmentKey;
+    const wasPaused = lastPauseActive;
+
+    if (!options.force && key === previousKey) {
+      return;
+    }
+
+    lastEnvironmentKey = key;
+    lastPauseActive = state.reasons.length > 0;
+
+    if (!isInitialized.value) {
+      return;
+    }
+
+    const orchestratorInstance = orchestratorManagerStore.orchestrator.value;
+    if (!orchestratorInstance) {
+      return;
+    }
+
+    const timestamp = Date.now();
+
+    if (state.reasons.length > 0) {
+      const payload: GenerationTransportPausePayload = {
+        reasons: state.reasons,
+        hidden: state.hidden,
+        online: state.online,
+        source,
+        timestamp,
+      };
+      orchestratorInstance.pauseTransport(payload);
+      logLifecycleEvent('pause', payload);
+      return;
+    }
+
+    if (!options.force && !wasPaused) {
+      return;
+    }
+
+    const resumePayload: GenerationTransportResumePayload = {
+      hidden: state.hidden,
+      online: state.online,
+      source,
+      timestamp,
+    };
+
+    void orchestratorInstance
+      .resumeTransport(resumePayload)
+      .catch((error) => {
+        console.error('Failed to resume generation transport after environment change:', error);
+      });
+    logLifecycleEvent('resume', resumePayload);
+  };
+
+  const startEnvironmentListeners = (): void => {
+    if (environmentCleanup || typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
+    const handleVisibilityChange = (): void => {
+      applyEnvironmentPauseState('visibilitychange');
+    };
+    const handleOnline = (): void => {
+      applyEnvironmentPauseState('online');
+    };
+    const handleOffline = (): void => {
+      applyEnvironmentPauseState('offline');
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    environmentCleanup = () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+
+    applyEnvironmentPauseState('environment:init', { force: true });
+  };
+
+  const stopEnvironmentListeners = (): void => {
+    if (!environmentCleanup) {
+      return;
+    }
+
+    environmentCleanup();
+    environmentCleanup = null;
+    lastEnvironmentKey = '';
+    lastPauseActive = false;
   };
 
   const hasHistoryAutoSync = (): boolean => {
@@ -328,6 +477,7 @@ export const createUseGenerationOrchestratorManager = (
     }
 
     await initializationPromise.value;
+    applyEnvironmentPauseState('environment:sync', { force: true });
   };
 
   const releaseConsumer = (id: symbol): void => {
@@ -341,6 +491,7 @@ export const createUseGenerationOrchestratorManager = (
     if (!orchestratorManagerStore.hasActiveConsumers()) {
       stopHistoryWatcher();
       stopBackendWatcher();
+      stopEnvironmentListeners();
       orchestratorManagerStore.destroyOrchestrator();
       stopLifecycleScope();
       return;
@@ -368,6 +519,7 @@ export const createUseGenerationOrchestratorManager = (
     registerHistoryVisibilityRef(consumer.id, options.historyVisibility);
 
     updateAutoSyncWatchers();
+    startEnvironmentListeners();
 
     const loadSystemStatusData = (): Promise<void> => orchestrator.loadSystemStatusData();
     const loadActiveJobsData = (): Promise<void> => orchestrator.loadActiveJobsData();
@@ -428,6 +580,9 @@ export const createUseGenerationOrchestratorManager = (
     systemStatus,
     isConnected,
     queueManagerActive,
+    transportPaused,
+    transportPauseReasons,
+    transportPauseSince,
     isInitialized,
     acquire,
   };
