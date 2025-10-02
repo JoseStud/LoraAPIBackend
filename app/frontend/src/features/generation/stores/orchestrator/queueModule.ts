@@ -168,9 +168,11 @@ export const createQueueModule = () => {
     }
 
     if (existingIndex >= 0) {
-      jobs.value.splice(existingIndex, 1, stored);
+      const nextJobs = [...jobs.value];
+      nextJobs.splice(existingIndex, 1, stored);
+      jobs.value = nextJobs;
     } else {
-      jobs.value.push(stored);
+      jobs.value = [...jobs.value, stored];
     }
     return stored;
   };
@@ -194,7 +196,9 @@ export const createQueueModule = () => {
         uiId: existing.uiId,
         backendId: existing.backendId,
       });
-      jobs.value.splice(index, 1, merged);
+      const nextJobs = [...jobs.value];
+      nextJobs.splice(index, 1, merged);
+      jobs.value = nextJobs;
     }
   };
 

@@ -11,6 +11,7 @@ import {
   DEFAULT_HISTORY_LIMIT,
   MAX_RESULTS,
 } from '@/features/generation/stores/useGenerationOrchestratorStore';
+import useGenerationOrchestratorFacade from '@/features/generation/orchestrator';
 
 vi.mock('@/features/generation/stores/systemStatusController', () => ({
   acquireSystemStatusController: vi.fn(() => ({
@@ -189,75 +190,59 @@ describe('useGenerationOrchestratorStore', () => {
     expect(store.recentResults).toHaveLength(Math.min(MAX_RESULTS, expandedResults.length));
   });
 
-  it('exposes immutable state snapshots to consumers', () => {
+  it('returns new references when queue, results, or system status update', () => {
     const store = useGenerationOrchestratorStore();
 
-    store.enqueueJob({ id: 'job-immutable', status: 'processing', progress: 0 } as any);
-    store.setResults([{ id: 'result-immutable', created_at: new Date().toISOString() } as any]);
-    store.updateSystemStatus({ status: 'healthy' } as any);
+    store.enqueueJob({ id: 'job-1', status: 'processing', progress: 0 } as any);
+    const firstJobs = store.activeJobs;
 
-    const jobsSnapshot = store.activeJobs;
-    const resultsSnapshot = store.recentResults;
-    const statusSnapshot = store.systemStatus;
+    store.enqueueJob({ id: 'job-2', status: 'queued', progress: 0 } as any);
+    const secondJobs = store.activeJobs;
 
-    expect(Object.isFrozen(jobsSnapshot)).toBe(true);
-    expect(Object.isFrozen(jobsSnapshot[0]!)).toBe(true);
-    expect(() => {
-      (jobsSnapshot as unknown as any[]).push({ id: 'mutate' });
-    }).toThrow(TypeError);
+    expect(secondJobs).not.toBe(firstJobs);
+    expect(firstJobs).toHaveLength(1);
+    expect(secondJobs).toHaveLength(2);
 
-    expect(Object.isFrozen(resultsSnapshot)).toBe(true);
-    expect(Object.isFrozen(resultsSnapshot[0]!)).toBe(true);
-    expect(() => {
-      (resultsSnapshot[0] as unknown as { id: string }).id = 'mutated';
-    }).toThrow(TypeError);
+    store.setResults([{ id: 'result-1', created_at: new Date().toISOString() } as any]);
+    const firstResults = store.recentResults;
+    store.addResult({ id: 'result-2', created_at: new Date().toISOString() } as any);
+    const secondResults = store.recentResults;
 
-    expect(Object.isFrozen(statusSnapshot)).toBe(true);
-    expect(() => {
-      (statusSnapshot as unknown as { status: string }).status = 'changed';
-    }).toThrow(TypeError);
+    expect(secondResults).not.toBe(firstResults);
+    expect(firstResults).toHaveLength(1);
+    expect(secondResults).toHaveLength(2);
+
+    const firstStatus = store.systemStatus;
+    store.updateSystemStatus({ status: 'healthy', queue_length: 3 } as any);
+    const secondStatus = store.systemStatus;
+
+    expect(secondStatus).not.toBe(firstStatus);
+    expect(firstStatus.status).toBe('unknown');
+    expect(secondStatus.status).toBe('healthy');
+    expect(secondStatus.queue_length).toBe(3);
   });
 
-  it('returns snapshots that are safe to mutate in production builds', () => {
-    vi.stubEnv('DEV', 'false');
-    vi.stubEnv('PROD', 'true');
+  it('freezes facade snapshots in development builds', () => {
+    const store = useGenerationOrchestratorStore();
+    const facade = useGenerationOrchestratorFacade();
 
-    try {
-      setActivePinia(createPinia());
-      const store = useGenerationOrchestratorStore();
+    store.enqueueJob({ id: 'job-freeze', status: 'processing', progress: 0 } as any);
+    store.setResults([{ id: 'result-freeze', created_at: new Date().toISOString() } as any]);
+    store.updateSystemStatus({ status: 'healthy' } as any);
 
-      store.enqueueJob({
-        id: 'job-prod',
-        status: 'processing',
-        progress: 0,
-        backendId: 'backend-1',
-        jobId: 'backend-1',
-      } as any);
-      store.setResults([{ id: 'result-prod', created_at: new Date().toISOString() } as any]);
-      store.updateSystemStatus({ status: 'healthy' } as any);
+    const queueSnapshot = facade.queue.value;
+    const activeSnapshot = facade.activeJobs.value;
+    const resultsSnapshot = facade.recentResults.value;
+    const statusSnapshot = facade.systemStatus.value;
 
-      const jobsSnapshot = store.activeJobs;
-      const resultsSnapshot = store.recentResults;
-      const statusSnapshot = store.systemStatus;
-
-      expect(() => {
-        (jobsSnapshot as unknown as any[]).push({ id: 'mutated-job' });
-      }).not.toThrow();
-      expect(store.getJobByIdentifier('job-prod')?.status).toBe('processing');
-
-      (jobsSnapshot[0] as unknown as { status: string }).status = 'mutated';
-      expect(store.getJobByIdentifier('job-prod')?.status).toBe('processing');
-
-      (resultsSnapshot[0] as unknown as { id: string }).id = 'mutated-result';
-      store.removeResult('result-prod');
-      expect(store.recentResults).toHaveLength(0);
-
-      (statusSnapshot as unknown as { status: string }).status = 'broken';
-      store.updateSystemStatus({ queue_length: 99 } as any);
-      expect(store.systemStatus.status).toBe('healthy');
-    } finally {
-      vi.unstubAllEnvs();
-    }
+    expect(Object.isFrozen(queueSnapshot)).toBe(true);
+    expect(Object.isFrozen(activeSnapshot)).toBe(true);
+    expect(Object.isFrozen(resultsSnapshot)).toBe(true);
+    expect(Object.isFrozen(resultsSnapshot[0]!)).toBe(true);
+    expect(Object.isFrozen(statusSnapshot)).toBe(true);
+    expect(() => {
+      (queueSnapshot as unknown as any[]).push({ id: 'mutate' });
+    }).toThrow(TypeError);
   });
 
   it('does not create transport adapters when reading reactive state', () => {
