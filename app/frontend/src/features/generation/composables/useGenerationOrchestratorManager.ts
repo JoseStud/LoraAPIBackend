@@ -1,6 +1,8 @@
 import { storeToRefs } from 'pinia';
 import { type ComputedRef } from 'vue';
 
+import type { GenerationRequestPayload } from '@/types';
+
 import { useOrchestratorConsumers } from './useOrchestratorConsumers';
 import { useOrchestratorEffects } from './useOrchestratorEffects';
 import { useOrchestratorLifecycle } from './useOrchestratorLifecycle';

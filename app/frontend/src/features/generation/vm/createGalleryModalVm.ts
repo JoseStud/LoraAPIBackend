@@ -1,12 +1,12 @@
-import { effectScope, onScopeDispose, readonly, ref } from 'vue'
+import { effectScope, onScopeDispose, readonly, ref, type Ref } from 'vue'
 
 import type { GenerationResult } from '@/types'
 
-import type { ReadonlyRef } from './createStudioVm'
+type ModalReadonlyRef<T> = Readonly<Ref<T>>
 
 export interface GenerationGalleryModalVm {
-  isOpen: ReadonlyRef<boolean>
-  selectedResult: ReadonlyRef<GenerationResult | null>
+  isOpen: ModalReadonlyRef<boolean>
+  selectedResult: ModalReadonlyRef<GenerationResult | null>
   open(result: GenerationResult): void
   close(): void
   dispose(): void
@@ -15,47 +15,42 @@ export interface GenerationGalleryModalVm {
 export const createGalleryModalVm = (): GenerationGalleryModalVm => {
   const scope = effectScope()
 
-  const vm = scope.run(() => {
-    const isOpen = ref(false)
-    const selectedResult = ref<GenerationResult | null>(null)
+  const isOpen = ref(false)
+  const selectedResult = ref<GenerationResult | null>(null)
 
-    const open = (result: GenerationResult): void => {
-      selectedResult.value = result
-      isOpen.value = true
-    }
+  const isOpenReadonly = readonly(isOpen) as ModalReadonlyRef<boolean>
+  const selectedResultReadonly = readonly(selectedResult) as ModalReadonlyRef<GenerationResult | null>
 
-    const close = (): void => {
-      isOpen.value = false
-      selectedResult.value = null
-    }
+  const open = (result: GenerationResult): void => {
+    selectedResult.value = result
+    isOpen.value = true
+  }
 
-    const reset = (): void => {
-      isOpen.value = false
-      selectedResult.value = null
-    }
+  const close = (): void => {
+    isOpen.value = false
+    selectedResult.value = null
+  }
 
+  const reset = (): void => {
+    isOpen.value = false
+    selectedResult.value = null
+  }
+
+  scope.run(() => {
     onScopeDispose(() => {
       reset()
     })
-
-    return {
-      isOpen: readonly(isOpen),
-      selectedResult: readonly(selectedResult),
-      open,
-      close,
-    }
   })
-
-  if (!vm) {
-    throw new Error('Failed to create generation gallery modal VM')
-  }
 
   const dispose = (): void => {
     scope.stop()
   }
 
   return {
-    ...vm,
+    isOpen: isOpenReadonly,
+    selectedResult: selectedResultReadonly,
+    open,
+    close,
     dispose,
   }
 }

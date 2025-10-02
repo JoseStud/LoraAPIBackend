@@ -61,7 +61,7 @@ export const useOrchestratorCommands = (
   const deleteResult = wrapCommand((resultId: string | number) =>
     options.getOrchestrator().deleteResult(resultId),
   );
-  const refreshResults = wrapCommand((notifySuccess = false) =>
+  const refreshResults = wrapCommand((notifySuccess: boolean | undefined = false) =>
     options.getOrchestrator().loadRecentResults(notifySuccess),
   );
 
