@@ -104,7 +104,7 @@ iterations or CI reproduction.
 3. Launch the backend with auto-reload:
 
    ```bash
-   uvicorn app.main:app --reload --port 8000
+   uvicorn backend.main:create_app --reload --factory --port 8000
    ```
 
 4. Start the Vite dev server:
