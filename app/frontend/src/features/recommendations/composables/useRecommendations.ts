@@ -3,7 +3,8 @@ import { storeToRefs } from 'pinia';
 
 import { useAsyncResource } from '@/composables/shared';
 
-import { useBackendEnvironment, useSettingsStore } from '@/stores/settings';
+import { useSettingsStore } from '@/stores/settings';
+import { useBackendEnvironment } from '@/services/backendEnvironment';
 import { useAdapterCatalogStore } from '@/features/lora/public';
 import {
   buildSimilarRecommendationsPath,

@@ -3,18 +3,27 @@ import { mount } from '@vue/test-utils';
 import { computed, nextTick } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 
-import * as backendRefreshModule from '@/services/system/backendRefresh';
-import * as settingsStoreModule from '@/stores/settings';
+
 import * as loraCatalogModule from '@/features/lora/public';
 import { useRecommendations } from '@/features/recommendations/composables/useRecommendations';
 import * as recommendationsService from '@/features/recommendations/services';
 import { useSettingsStore } from '@/stores';
+import * as backendEnvironmentModule from '@/services/backendEnvironment';
+import * as backendClientModule from '@/services/backendClient';
+import * as backendRefreshModule from '@/services/system/backendRefresh';
+import * as apiClientModule from '@/services/apiClient';
 
 const backendRefreshCallbacks: Array<() => void> = [];
 
+const backendClientMock = {
+  getJson: vi.fn(),
+};
+
+const useBackendClientSpy = vi.spyOn(backendClientModule, 'useBackendClient');
 const useBackendRefreshSpy = vi.spyOn(backendRefreshModule, 'useBackendRefresh');
-const useBackendEnvironmentSpy = vi.spyOn(settingsStoreModule, 'useBackendEnvironment');
-let ensureBackendEnvironmentReadyMock: ReturnType<typeof vi.fn>;
+const useBackendEnvironmentSpy = vi.spyOn(backendEnvironmentModule, 'useBackendEnvironment');
+const createHttpClientSpy = vi.spyOn(apiClientModule, 'createHttpClient');
+
 const useAdapterCatalogStoreSpy = vi.spyOn(loraCatalogModule, 'useAdapterCatalogStore');
 const getRecommendationsSpy = vi.spyOn(recommendationsService, 'getRecommendations');
 
@@ -48,7 +57,10 @@ describe('useRecommendations', () => {
     useBackendEnvironmentSpy.mockReset().mockReturnValue({
       ensureReady: ensureBackendEnvironmentReadyMock,
       backendUrl: computed(() => '/api/v1'),
+      backendApiKey: computed(() => null),
+      hasExplicitBackendApiKey: computed(() => false),
     } as never);
+    createHttpClientSpy.mockReset().mockReturnValue(backendClientMock as never);
     const adapterSummaries = [
       { id: 'alpha', name: 'Alpha', description: 'First', active: true },
       { id: 'beta', name: 'Beta', description: 'Second', active: true },
@@ -97,16 +109,28 @@ describe('useRecommendations', () => {
   };
 
   it('fetches recommendations for the selected LoRA', async () => {
-    getRecommendationsSpy.mockResolvedValueOnce({
-      target_lora_id: 'alpha',
-      prompt: null,
-      recommendations: [
-        { id: 'r-1', name: 'Alpha Twin', similarity: 0.92 },
-      ],
-      total_candidates: 1,
-      processing_time_ms: 12,
-      recommendation_config: {},
-    } as never);
+
+    backendClientMock.getJson.mockResolvedValue({
+      data: {
+        target_lora_id: 'base',
+        prompt: null,
+        recommendations: [
+          {
+            id: 'r-1',
+            lora_id: 'r-1',
+            lora_name: 'Alpha Twin',
+            lora_description: 'Twin adapter',
+            similarity_score: 0.92,
+            final_score: 0.93,
+            explanation: 'Similar style',
+          },
+        ],
+        total_candidates: 1,
+        processing_time_ms: 10,
+        recommendation_config: {},
+      },
+    });
+
 
     const { state, destroy } = mountComposable();
 
@@ -114,8 +138,11 @@ describe('useRecommendations', () => {
     await flush();
     const results = await state.fetchRecommendations();
 
-    expect(getRecommendationsSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ loraId: 'alpha' }),
+
+    expect(backendClientMock.getJson).toHaveBeenCalledWith(
+      expect.stringContaining('/recommendations/similar/alpha'),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+
     );
     expect(results).toHaveLength(1);
     expect(state.recommendations.value[0].id).toBe('r-1');
@@ -124,14 +151,18 @@ describe('useRecommendations', () => {
   });
 
   it('triggers a refresh when the backend notifies a change', async () => {
-    getRecommendationsSpy.mockResolvedValue({
-      target_lora_id: null,
-      prompt: null,
-      recommendations: [],
-      total_candidates: 0,
-      processing_time_ms: 0,
-      recommendation_config: {},
-    } as never);
+
+    backendClientMock.getJson.mockResolvedValue({
+      data: {
+        target_lora_id: 'base',
+        prompt: null,
+        recommendations: [],
+        total_candidates: 0,
+        processing_time_ms: 5,
+        recommendation_config: {},
+      },
+    });
+
     const { state, destroy } = mountComposable();
 
     state.selectedLoraId.value = 'alpha';
@@ -139,14 +170,17 @@ describe('useRecommendations', () => {
     await state.fetchRecommendations();
     expect(backendRefreshCallbacks).toHaveLength(1);
 
-    getRecommendationsSpy.mockClear().mockResolvedValue({
-      target_lora_id: null,
-      prompt: null,
-      recommendations: [],
-      total_candidates: 0,
-      processing_time_ms: 0,
-      recommendation_config: {},
-    } as never);
+    backendClientMock.getJson.mockClear().mockResolvedValue({
+      data: {
+        target_lora_id: 'base',
+        prompt: null,
+        recommendations: [],
+        total_candidates: 0,
+        processing_time_ms: 5,
+        recommendation_config: {},
+      },
+    });
+
     backendRefreshCallbacks[0]?.();
     await flush();
 

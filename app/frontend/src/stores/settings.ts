@@ -1,24 +1,19 @@
-import { computed, ref, type ComputedRef } from 'vue';
-import { defineStore, storeToRefs } from 'pinia';
+import { computed, ref } from 'vue';
+import { defineStore } from 'pinia';
 
-import { runtimeConfig } from '@/config/runtime';
 import type { FrontendRuntimeSettings } from '@/types';
 
 import { sanitizeBackendBaseUrl } from '@/utils/backend/helpers';
+import {
+  backendEnvironmentReadyPromise,
+  getBackendEnvironmentSnapshot,
+  getRuntimeBackendDefaults,
+  normaliseBackendApiKey,
+  publishBackendEnvironment,
+  resetBackendEnvironment,
+} from '@/services/backendEnvironment';
 
-export const normaliseBackendApiKey = (value?: string | null): string | null => {
-  if (value == null) {
-    return null;
-  }
-
-  const trimmed = `${value}`.trim();
-  return trimmed.length > 0 ? trimmed : null;
-};
-
-const runtimeBackendDefaults = Object.freeze({
-  backendUrl: sanitizeBackendBaseUrl(runtimeConfig.backendBasePath),
-  backendApiKey: normaliseBackendApiKey(runtimeConfig.backendApiKey),
-});
+const runtimeBackendDefaults = Object.freeze(getRuntimeBackendDefaults());
 
 const ensureBackendUrl = (value: unknown): string => {
   if (typeof value === 'string') {
@@ -37,47 +32,12 @@ const ensureBackendApiKey = (value: unknown): string | null => {
   return normaliseBackendApiKey(value as string | null | undefined);
 };
 
-interface DeferredPromise {
-  promise: Promise<void>;
-  resolve: () => void;
-}
-
-const createDeferredPromise = (): DeferredPromise => {
-  let resolved = false;
-  let resolveFn: (() => void) | null = null;
-  const promise = new Promise<void>((resolve) => {
-    resolveFn = resolve;
-  });
-
-  return {
-    promise,
-    resolve: () => {
-      if (resolved) {
-        return;
-      }
-      resolved = true;
-      resolveFn?.();
-      resolveFn = null;
-    },
-  };
-};
-
 export const useSettingsStore = defineStore('app-settings', () => {
   const settings = ref<FrontendRuntimeSettings | null>(null);
   const isLoading = ref(false);
   const isLoaded = ref(false);
   const error = ref<unknown>(null);
 
-  let backendEnvironmentReady = createDeferredPromise();
-  const resolveBackendEnvironmentReady = () => {
-    backendEnvironmentReady.resolve();
-  };
-  const ensureReady = (): Promise<void> => {
-    if (isLoaded.value) {
-      return Promise.resolve();
-    }
-    return backendEnvironmentReady.promise;
-  };
 
   const backendUrl = computed<string>(() => {
     if (!settings.value) {
@@ -116,7 +76,11 @@ export const useSettingsStore = defineStore('app-settings', () => {
     const previousBackendApiKey = Object.prototype.hasOwnProperty.call(previousSettings, 'backendApiKey')
       ? ensureBackendApiKey(previousSettings.backendApiKey)
       : runtimeBackendDefaults.backendApiKey ?? null;
+    const previousBackendApiKeyExplicit = Object.prototype.hasOwnProperty.call(previousSettings, 'backendApiKey')
+      ? true
+      : runtimeBackendDefaults.hasExplicitBackendApiKey;
     const nextBackendApiKey = hasBackendApiKey ? ensureBackendApiKey(partial.backendApiKey) : previousBackendApiKey;
+    const nextBackendApiKeyExplicit = hasBackendApiKey ? true : previousBackendApiKeyExplicit;
 
     const merged: FrontendRuntimeSettings = {
       ...(settings.value ?? {}),
@@ -127,7 +91,13 @@ export const useSettingsStore = defineStore('app-settings', () => {
 
     settings.value = merged;
     isLoaded.value = true;
-    resolveBackendEnvironmentReady();
+
+    publishBackendEnvironment({
+      backendUrl: nextBackendUrl,
+      backendApiKey: nextBackendApiKey,
+      hasExplicitBackendApiKey: nextBackendApiKeyExplicit,
+    });
+
   };
 
   const loadSettings = async (force = false) => {
@@ -161,7 +131,9 @@ export const useSettingsStore = defineStore('app-settings', () => {
     isLoaded.value = false;
     isLoading.value = false;
     error.value = null;
-    backendEnvironmentReady = createDeferredPromise();
+
+    resetBackendEnvironment();
+
   };
 
   return {
@@ -175,19 +147,13 @@ export const useSettingsStore = defineStore('app-settings', () => {
     setSettings,
     loadSettings,
     reset,
-    ensureReady,
-    get backendEnvironmentReadyPromise() {
-      return backendEnvironmentReady.promise;
-    },
+
+    backendEnvironmentReadyPromise: backendEnvironmentReadyPromise,
+
   };
 });
 
 export type SettingsStore = ReturnType<typeof useSettingsStore>;
-
-export const getRuntimeBackendDefaults = () => ({
-  backendUrl: runtimeBackendDefaults.backendUrl,
-  backendApiKey: runtimeBackendDefaults.backendApiKey ?? null,
-});
 
 export const tryGetSettingsStore = (): SettingsStore | null => {
   try {
@@ -200,33 +166,12 @@ export const tryGetSettingsStore = (): SettingsStore | null => {
 export const getResolvedBackendSettings = (): {
   backendUrl: string;
   backendApiKey: string | null;
+  hasExplicitBackendApiKey: boolean;
 } => {
-  const store = tryGetSettingsStore();
-  if (store) {
-    return {
-      backendUrl: sanitizeBackendBaseUrl(store.backendUrl),
-      backendApiKey: normaliseBackendApiKey(store.backendApiKey),
-    };
-  }
-
-  return getRuntimeBackendDefaults();
+  return getBackendEnvironmentSnapshot();
 };
 
 export const getResolvedBackendUrl = (): string => getResolvedBackendSettings().backendUrl;
 
 export const getResolvedBackendApiKey = (): string | null => getResolvedBackendSettings().backendApiKey;
 
-export interface BackendEnvironmentBinding {
-  ensureReady: () => Promise<void>;
-  backendUrl: ComputedRef<string>;
-}
-
-export const useBackendEnvironment = (): BackendEnvironmentBinding => {
-  const store = useSettingsStore();
-  const { backendUrl } = storeToRefs(store);
-
-  return {
-    ensureReady: store.ensureReady,
-    backendUrl: backendUrl as ComputedRef<string>,
-  };
-};
