@@ -3,7 +3,7 @@
  * this module instead of reaching into nested folders.
  */
 export { default as GenerationShell } from './ui/GenerationShell.vue';
-export { useGenerationStudioController } from './composables/useGenerationStudioController';
+export { useGenerationStudioController } from './controller/useGenerationStudioController';
 export { default as JobQueueWidget } from './public/jobQueueWidget';
 /** @internal @deprecated Use {@link JobQueueWidget} instead. */
 export { default as JobQueue } from './components/JobQueue.vue';

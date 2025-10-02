@@ -1,45 +1,43 @@
 import { describe, expect, it } from 'vitest'
 
-import { createGenerationStudioUiVm } from '@/features/generation/stores/ui'
+import { createGalleryModalVm } from '@/features/generation/vm/createGalleryModalVm'
+import { createStudioVm } from '@/features/generation/vm/createStudioVm'
 import type { GenerationResult } from '@/types'
 
-describe('generation studio ui view model', () => {
+describe('generation studio view models', () => {
   it('tracks modal visibility alongside the selected result', () => {
-    const vm = createGenerationStudioUiVm()
+    const galleryVm = createGalleryModalVm()
     const result = { id: '1' } as unknown as GenerationResult
 
-    expect(vm.showModal.value).toBe(false)
-    expect(vm.selectedResult.value).toBeNull()
+    expect(galleryVm.isOpen.value).toBe(false)
+    expect(galleryVm.selectedResult.value).toBeNull()
 
-    vm.selectResult(result)
+    galleryVm.open(result)
 
-    expect(vm.showModal.value).toBe(true)
-    expect(vm.selectedResult.value).toEqual(result)
+    expect(galleryVm.isOpen.value).toBe(true)
+    expect(galleryVm.selectedResult.value).toEqual(result)
 
-    vm.setShowModal(false)
+    galleryVm.close()
 
-    expect(vm.showModal.value).toBe(false)
-    expect(vm.selectedResult.value).toBeNull()
+    expect(galleryVm.isOpen.value).toBe(false)
+    expect(galleryVm.selectedResult.value).toBeNull()
 
-    vm.dispose()
+    galleryVm.dispose()
   })
 
-  it('resets ui state independently from other instances', () => {
-    const firstVm = createGenerationStudioUiVm()
-    const secondVm = createGenerationStudioUiVm()
+  it('isolates history visibility state per instance', () => {
+    const firstVm = createStudioVm()
+    const secondVm = createStudioVm()
 
     firstVm.setShowHistory(true)
-    firstVm.selectResult({ id: '2' } as unknown as GenerationResult)
 
+    expect(firstVm.showHistory.value).toBe(true)
     expect(secondVm.showHistory.value).toBe(false)
-    expect(secondVm.showModal.value).toBe(false)
-    expect(secondVm.selectedResult.value).toBeNull()
 
-    firstVm.reset()
+    firstVm.toggleHistory()
 
     expect(firstVm.showHistory.value).toBe(false)
-    expect(firstVm.showModal.value).toBe(false)
-    expect(firstVm.selectedResult.value).toBeNull()
+    expect(secondVm.showHistory.value).toBe(false)
 
     firstVm.dispose()
     secondVm.dispose()

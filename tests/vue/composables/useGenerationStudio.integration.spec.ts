@@ -8,7 +8,8 @@ import type { UseGenerationStudioOptions } from '@/composables/generation/useGen
 import { useGenerationFormStore } from '@/features/generation/stores/form'
 import type { UseGenerationStudioReturn } from '@/composables/generation'
 import { PERSISTENCE_KEYS } from '@/composables/shared'
-import * as generationUiModule from '@/features/generation/stores/ui'
+import * as studioVmModule from '@/features/generation/vm/createStudioVm'
+import * as galleryVmModule from '@/features/generation/vm/createGalleryModalVm'
 import type { ResultItemView } from '@/features/generation/orchestrator'
 
 const orchestratorBindingMocks = vi.hoisted(() => {
@@ -261,17 +262,31 @@ describe('useGenerationStudio integration', () => {
     extraWrapper.unmount()
   })
 
-  it('disposes the ui view model when the instance unmounts', async () => {
-    const actualCreate = generationUiModule.createGenerationStudioUiVm
-    const disposeSpy = vi.fn()
+  it('disposes the ui view models when the instance unmounts', async () => {
+    const actualCreateStudio = studioVmModule.createStudioVm
+    const actualCreateGallery = galleryVmModule.createGalleryModalVm
+    const studioDisposeSpy = vi.fn()
+    const galleryDisposeSpy = vi.fn()
 
-    const createSpy = vi
-      .spyOn(generationUiModule, 'createGenerationStudioUiVm')
+    const studioSpy = vi
+      .spyOn(studioVmModule, 'createStudioVm')
       .mockImplementation(() => {
-        const vm = actualCreate()
+        const vm = actualCreateStudio()
         const originalDispose = vm.dispose
         vm.dispose = vi.fn(() => {
-          disposeSpy()
+          studioDisposeSpy()
+          originalDispose.call(vm)
+        })
+        return vm
+      })
+
+    const gallerySpy = vi
+      .spyOn(galleryVmModule, 'createGalleryModalVm')
+      .mockImplementation(() => {
+        const vm = actualCreateGallery()
+        const originalDispose = vm.dispose
+        vm.dispose = vi.fn(() => {
+          galleryDisposeSpy()
           originalDispose.call(vm)
         })
         return vm
@@ -280,12 +295,15 @@ describe('useGenerationStudio integration', () => {
     wrapper.unmount()
     wrapper = await mountComposable()
 
-    expect(createSpy).toHaveBeenCalled()
+    expect(studioSpy).toHaveBeenCalled()
+    expect(gallerySpy).toHaveBeenCalled()
 
     wrapper.unmount()
-    expect(disposeSpy).toHaveBeenCalled()
+    expect(studioDisposeSpy).toHaveBeenCalled()
+    expect(galleryDisposeSpy).toHaveBeenCalled()
 
-    createSpy.mockRestore()
+    studioSpy.mockRestore()
+    gallerySpy.mockRestore()
     wrapper = await mountComposable()
   })
 })

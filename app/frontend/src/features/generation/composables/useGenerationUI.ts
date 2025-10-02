@@ -1,7 +1,14 @@
 import { storeToRefs } from 'pinia'
 
 import { useGenerationFormStore } from '../stores/form'
-import { createGenerationStudioUiVm, type GenerationStudioUiVm } from '../stores/ui'
+import {
+  createStudioVm,
+  type GenerationStudioVm,
+} from '../vm/createStudioVm'
+import {
+  createGalleryModalVm,
+  type GenerationGalleryModalVm,
+} from '../vm/createGalleryModalVm'
 import type { GenerationResult, NotificationType } from '@/types'
 import {
   useGenerationOrchestratorFacade,
@@ -24,16 +31,23 @@ const STATUS_TEXT_MAP = {
 
 export interface UseGenerationUIOptions {
   notify: (message: string, type?: NotificationType) => void
-  vm?: GenerationStudioUiVm
+  studioVm?: GenerationStudioVm
+  galleryModalVm?: GenerationGalleryModalVm
 }
 
-export const useGenerationUI = ({ notify, vm }: UseGenerationUIOptions) => {
+export const useGenerationUI = ({
+  notify,
+  studioVm: providedStudioVm,
+  galleryModalVm: providedGalleryModalVm,
+}: UseGenerationUIOptions) => {
   const formStore = useGenerationFormStore()
-  const uiVm = vm ?? createGenerationStudioUiVm()
+  const studioVm = providedStudioVm ?? createStudioVm()
+  const galleryModalVm = providedGalleryModalVm ?? createGalleryModalVm()
   const generationFacade = useGenerationOrchestratorFacade()
 
   const { params, isGenerating } = storeToRefs(formStore)
-  const { showHistory, showModal, selectedResult } = uiVm
+  const { showHistory } = studioVm
+  const { isOpen: showModal, selectedResult } = galleryModalVm
   const recentResults = generationFacade.results
 
   const toMutableResult = (result: ResultItemView): GenerationResult =>
@@ -44,11 +58,11 @@ export const useGenerationUI = ({ notify, vm }: UseGenerationUIOptions) => {
       return
     }
 
-    uiVm.selectResult(toMutableResult(result))
+    galleryModalVm.open(toMutableResult(result))
   }
 
   const hideImageModal = (): void => {
-    uiVm.setShowModal(false)
+    galleryModalVm.close()
   }
 
   const reuseParameters = (result: ResultItemView): void => {
@@ -76,9 +90,11 @@ export const useGenerationUI = ({ notify, vm }: UseGenerationUIOptions) => {
     }
   }
 
-  const getJobStatusClasses = (status: keyof typeof STATUS_CLASS_MAP): string => STATUS_CLASS_MAP[status]
+  const getJobStatusClasses = (status: keyof typeof STATUS_CLASS_MAP): string =>
+    STATUS_CLASS_MAP[status]
 
-  const getJobStatusText = (status: keyof typeof STATUS_TEXT_MAP): string => STATUS_TEXT_MAP[status]
+  const getJobStatusText = (status: keyof typeof STATUS_TEXT_MAP): string =>
+    STATUS_TEXT_MAP[status]
 
   const getSystemStatusClasses = (status?: string): string => {
     switch (status) {
@@ -90,6 +106,16 @@ export const useGenerationUI = ({ notify, vm }: UseGenerationUIOptions) => {
         return 'text-red-600'
       default:
         return 'text-gray-600'
+    }
+  }
+
+  const dispose = (): void => {
+    if (!providedStudioVm) {
+      studioVm.dispose()
+    }
+
+    if (!providedGalleryModalVm) {
+      galleryModalVm.dispose()
     }
   }
 
@@ -107,9 +133,9 @@ export const useGenerationUI = ({ notify, vm }: UseGenerationUIOptions) => {
     getJobStatusClasses,
     getJobStatusText,
     getSystemStatusClasses,
-    toggleHistory: uiVm.toggleHistory,
-    setShowHistory: uiVm.setShowHistory,
-    dispose: uiVm.dispose,
+    toggleHistory: studioVm.toggleHistory,
+    setShowHistory: studioVm.setShowHistory,
+    dispose,
   }
 }
 
