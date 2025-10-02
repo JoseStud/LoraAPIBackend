@@ -1,4 +1,4 @@
-import { computed } from 'vue'
+import { computed, onScopeDispose } from 'vue'
 
 import { useGenerationPersistence } from './useGenerationPersistence'
 import { useGenerationUI } from './useGenerationUI'
@@ -6,6 +6,7 @@ import { useGenerationStudioController } from './useGenerationStudioController'
 import type { GenerationOrchestratorAutoSyncOptions } from './useGenerationOrchestratorManager'
 import { useGenerationStudioNotifications } from './useGenerationStudioNotifications'
 import { useGenerationFormStore } from '../stores/form'
+import { createGenerationStudioUiVm } from '../stores/ui'
 import { useAsyncLifecycleTask } from '@/composables/shared'
 import type { ReadonlyResults } from '@/features/generation/orchestrator'
 import type { GenerationFormState } from '@/types'
@@ -19,6 +20,8 @@ export const useGenerationStudio = ({ autoSync = true }: UseGenerationStudioOpti
 
   const { notify, confirm: requestConfirmation, prompt: requestPrompt, logDebug } =
     useGenerationStudioNotifications()
+
+  const uiVm = createGenerationStudioUiVm()
 
   const {
     params: uiParams,
@@ -35,7 +38,7 @@ export const useGenerationStudio = ({ autoSync = true }: UseGenerationStudioOpti
     getJobStatusText,
     getSystemStatusClasses,
     toggleHistory,
-  } = useGenerationUI({ notify })
+  } = useGenerationUI({ notify, vm: uiVm })
 
   const {
     load: loadParams,
@@ -56,6 +59,11 @@ export const useGenerationStudio = ({ autoSync = true }: UseGenerationStudioOpti
     onAfterStart: persistParams,
     onAfterInitialize: loadParams,
     autoSync,
+    historyVisibility: showHistoryRef,
+  })
+
+  onScopeDispose(() => {
+    uiVm.dispose()
   })
 
   const params = computed(() => uiParams.value)

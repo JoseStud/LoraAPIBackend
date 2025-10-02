@@ -8,6 +8,7 @@ import {
 } from './useGenerationOrchestratorManager'
 import { useGenerationFormStore } from '../stores/form'
 import type { GenerationFormState, NotificationType, GenerationJob } from '@/types'
+import type { ReadonlyRef } from '../stores/ui'
 
 export interface UseGenerationStudioControllerOptions {
   params: Ref<GenerationFormState>
@@ -16,6 +17,7 @@ export interface UseGenerationStudioControllerOptions {
   onAfterStart?: (params: GenerationFormState) => void
   onAfterInitialize?: () => void | Promise<void>
   autoSync?: boolean | GenerationOrchestratorAutoSyncOptions
+  historyVisibility: ReadonlyRef<boolean>
 }
 
 export const useGenerationStudioController = ({
@@ -25,6 +27,7 @@ export const useGenerationStudioController = ({
   onAfterStart,
   onAfterInitialize,
   autoSync = true,
+  historyVisibility,
 }: UseGenerationStudioControllerOptions) => {
   const formStore = useGenerationFormStore()
   const orchestratorManager = useGenerationOrchestratorManager()
@@ -36,6 +39,7 @@ export const useGenerationStudioController = ({
         notify,
         debug,
         autoSync,
+        historyVisibility,
       })
     }
 

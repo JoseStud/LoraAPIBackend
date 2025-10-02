@@ -8,6 +8,8 @@ import type { UseGenerationStudioOptions } from '@/composables/generation/useGen
 import { useGenerationFormStore } from '@/features/generation/stores/form'
 import type { UseGenerationStudioReturn } from '@/composables/generation'
 import { PERSISTENCE_KEYS } from '@/composables/shared'
+import * as generationUiModule from '@/features/generation/stores/ui'
+import type { ResultItemView } from '@/features/generation/orchestrator'
 
 const orchestratorBindingMocks = vi.hoisted(() => {
   const { ref } = require('vue')
@@ -234,5 +236,56 @@ describe('useGenerationStudio integration', () => {
     )
 
     consoleError.mockRestore()
+  })
+
+  it('keeps modal state isolated across multiple studio instances', async () => {
+    const extraWrapper = await mountComposable()
+
+    const result = {
+      id: 'isolation-test',
+      prompt: 'Prompt',
+      status: 'completed',
+    } as unknown as ResultItemView
+
+    wrapper.vm.studio.showImageModal(result)
+    expect(wrapper.vm.studio.showModal.value).toBe(true)
+    expect(extraWrapper.vm.studio.showModal.value).toBe(false)
+
+    extraWrapper.vm.studio.showImageModal({ ...result, id: 'other' })
+    expect(extraWrapper.vm.studio.showModal.value).toBe(true)
+
+    wrapper.vm.studio.hideImageModal()
+    expect(wrapper.vm.studio.showModal.value).toBe(false)
+    expect(extraWrapper.vm.studio.showModal.value).toBe(true)
+
+    extraWrapper.unmount()
+  })
+
+  it('disposes the ui view model when the instance unmounts', async () => {
+    const actualCreate = generationUiModule.createGenerationStudioUiVm
+    const disposeSpy = vi.fn()
+
+    const createSpy = vi
+      .spyOn(generationUiModule, 'createGenerationStudioUiVm')
+      .mockImplementation(() => {
+        const vm = actualCreate()
+        const originalDispose = vm.dispose
+        vm.dispose = vi.fn(() => {
+          disposeSpy()
+          originalDispose.call(vm)
+        })
+        return vm
+      })
+
+    wrapper.unmount()
+    wrapper = await mountComposable()
+
+    expect(createSpy).toHaveBeenCalled()
+
+    wrapper.unmount()
+    expect(disposeSpy).toHaveBeenCalled()
+
+    createSpy.mockRestore()
+    wrapper = await mountComposable()
   })
 })

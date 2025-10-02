@@ -119,11 +119,13 @@ describe('useGenerationStudioController', () => {
     const params = ref(createParams())
     const notify = vi.fn()
     const afterInitialize = vi.fn()
+    const historyVisibility = ref(false)
 
     const controller = useGenerationStudioController({
       params,
       notify,
       onAfterInitialize: afterInitialize,
+      historyVisibility,
     })
 
     expect(orchestratorBindings.acquire).not.toHaveBeenCalled()
@@ -136,15 +138,18 @@ describe('useGenerationStudioController', () => {
 
     const acquireOptions = orchestratorBindings.acquire.mock.calls[0]?.[0]
     expect(acquireOptions?.autoSync).toBe(true)
+    expect(acquireOptions?.historyVisibility).toBe(historyVisibility)
   })
 
   it('forwards queue actions to the orchestrator binding', async () => {
     const params = ref(createParams())
     const notify = vi.fn()
 
+    const historyVisibility = ref(false)
     const controller = useGenerationStudioController({
       params,
       notify,
+      historyVisibility,
     })
 
     await controller.initialize()
@@ -165,9 +170,11 @@ describe('useGenerationStudioController', () => {
     const params = ref({ ...createParams(), prompt: '   ' })
     const notify = vi.fn()
 
+    const historyVisibility = ref(false)
     const controller = useGenerationStudioController({
       params,
       notify,
+      historyVisibility,
     })
 
     const started = await controller.startGeneration()
@@ -206,9 +213,11 @@ describe('useGenerationStudioController', () => {
     const params = ref(createParams())
     const notify = vi.fn()
 
+    const historyVisibility = ref(false)
     const controller = useGenerationStudioController({
       params,
       notify,
+      historyVisibility,
     })
 
     await controller.initialize()
@@ -231,10 +240,12 @@ describe('useGenerationStudioController', () => {
     const params = ref(createParams())
     const notify = vi.fn()
 
+    const historyVisibility = ref(false)
     const controller = useGenerationStudioController({
       params,
       notify,
       autoSync: { historyLimit: false, backendUrl: true },
+      historyVisibility,
     })
 
     await controller.initialize()
@@ -247,9 +258,11 @@ describe('useGenerationStudioController', () => {
     const params = ref(createParams())
     const notify = vi.fn()
 
+    const historyVisibility = ref(false)
     const controller = useGenerationStudioController({
       params,
       notify,
+      historyVisibility,
     })
 
     await controller.initialize()

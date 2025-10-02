@@ -1,6 +1,7 @@
 import {
   computed,
   effectScope,
+  shallowRef,
   watch,
   type ComputedRef,
   type EffectScope,
@@ -20,7 +21,6 @@ import {
   useGenerationOrchestratorStore,
   DEFAULT_HISTORY_LIMIT,
 } from '../stores/useGenerationOrchestratorStore';
-import { useGenerationStudioUiStore } from '../stores/ui';
 import { useBackendUrl } from '@/utils/backend';
 import type {
   GenerationJob,
@@ -37,6 +37,7 @@ export interface GenerationOrchestratorAcquireOptions {
   queueClient?: GenerationQueueClient;
   websocketManager?: GenerationWebSocketManager;
   autoSync?: boolean | GenerationOrchestratorAutoSyncOptions;
+  historyVisibility?: Readonly<Ref<boolean>>;
 }
 
 export interface GenerationOrchestratorAutoSyncOptions {
@@ -66,14 +67,12 @@ export interface UseGenerationOrchestratorManagerDependencies {
     typeof useGenerationOrchestratorManagerStore
   >;
   useGenerationOrchestratorStore: () => ReturnType<typeof useGenerationOrchestratorStore>;
-  useGenerationStudioUiStore: () => ReturnType<typeof useGenerationStudioUiStore>;
   useBackendUrl: typeof useBackendUrl;
 }
 
 const defaultDependencies: UseGenerationOrchestratorManagerDependencies = {
   useGenerationOrchestratorManagerStore,
   useGenerationOrchestratorStore,
-  useGenerationStudioUiStore,
   useBackendUrl,
 };
 
@@ -107,15 +106,43 @@ export const createUseGenerationOrchestratorManager = (
   const orchestratorManagerStore = dependencies.useGenerationOrchestratorManagerStore();
   const orchestratorStore = dependencies.useGenerationOrchestratorStore();
   const { initializationPromise, isInitialized, consumers } = storeToRefs(orchestratorManagerStore);
-  const generationUiStore = dependencies.useGenerationStudioUiStore();
-  const { showHistory } = storeToRefs(generationUiStore);
+  const historyVisibilityRefs = shallowRef(new Map<symbol, Readonly<Ref<boolean>>>());
+
+  const registerHistoryVisibilityRef = (
+    consumerId: symbol,
+    visibility: Readonly<Ref<boolean>> | undefined,
+  ): void => {
+    if (!visibility) {
+      return;
+    }
+
+    const next = new Map(historyVisibilityRefs.value);
+    next.set(consumerId, visibility);
+    historyVisibilityRefs.value = next;
+  };
+
+  const unregisterHistoryVisibilityRef = (consumerId: symbol): void => {
+    if (!historyVisibilityRefs.value.has(consumerId)) {
+      return;
+    }
+
+    const next = new Map(historyVisibilityRefs.value);
+    next.delete(consumerId);
+    historyVisibilityRefs.value = next;
+  };
 
   const backendUrl = dependencies.useBackendUrl('/') as ComputedRef<string>;
   const getBackendUrl = (): string | null => backendUrl.value || null;
 
-  const historyLimit = computed<number>(() =>
-    showHistory.value ? HISTORY_LIMIT_WHEN_SHOWING : DEFAULT_HISTORY_LIMIT,
-  );
+  const historyLimit = computed<number>(() => {
+    for (const visibility of historyVisibilityRefs.value.values()) {
+      if (visibility.value) {
+        return HISTORY_LIMIT_WHEN_SHOWING;
+      }
+    }
+
+    return DEFAULT_HISTORY_LIMIT;
+  });
 
   let lifecycleScope: EffectScope | null = null;
 
@@ -309,6 +336,7 @@ export const createUseGenerationOrchestratorManager = (
     }
 
     orchestratorManagerStore.unregisterConsumer(id);
+    unregisterHistoryVisibilityRef(id);
 
     if (!orchestratorManagerStore.hasActiveConsumers()) {
       stopHistoryWatcher();
@@ -337,6 +365,7 @@ export const createUseGenerationOrchestratorManager = (
 
     const orchestrator = ensureOrchestrator();
     orchestratorManagerStore.registerConsumer(consumer);
+    registerHistoryVisibilityRef(consumer.id, options.historyVisibility);
 
     updateAutoSyncWatchers();
 
