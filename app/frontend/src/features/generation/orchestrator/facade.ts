@@ -146,6 +146,35 @@ const createStoreBackedManager = (
   const lastActionAt = ref<Date | null>(null);
   const lastCommandError = ref<Error | null>(null);
   const { initializationPromise, isInitialized } = storeToRefs(options.managerStore);
+  const {
+    jobs,
+    jobsByBackendId,
+    jobsByUiId,
+    activeJobs,
+    sortedActiveJobs,
+    hasActiveJobs,
+    recentResults,
+    historyLimit,
+    systemStatus,
+    systemStatusReady,
+    systemStatusLastUpdated,
+    systemStatusApiAvailable,
+    queueManagerActive,
+    isActive: isActiveRef,
+    isConnected,
+    pollIntervalMs,
+    transportMetrics,
+    transportPhase,
+    transportReconnectAttempt,
+    transportConsecutiveFailures,
+    transportNextRetryDelayMs,
+    transportLastConnectedAt,
+    transportLastDisconnectedAt,
+    transportDowntimeMs,
+    transportTotalDowntimeMs,
+    transportLastError,
+    transportLastSnapshot,
+  } = storeToRefs(store);
   const lifecycleNotificationAdapter = createLifecycleNotificationAdapter();
   let readOnlyConsumerId: symbol | null = null;
 
@@ -188,12 +217,12 @@ const createStoreBackedManager = (
       throw new Error('Job identifier is required');
     }
 
-    const backendMap = store.jobsByBackendId.value;
+    const backendMap = jobsByBackendId.value;
     if (backendMap.has(normalized)) {
       return normalized;
     }
 
-    const job = store.jobsByUiId.value.get(normalized);
+    const job = jobsByUiId.value.get(normalized);
     if (job) {
       return job.backendId;
     }
@@ -360,14 +389,14 @@ const createStoreBackedManager = (
 
     const orchestrator = options.managerStore.ensureOrchestrator(() => store);
 
-    if (store.isActive.value) {
+    if (isActiveRef.value) {
       return;
     }
 
     if (!initializationPromise.value) {
       const initialization = orchestrator
         .initialize({
-          historyLimit: store.historyLimit.value,
+          historyLimit: historyLimit.value,
           getBackendUrl: options.getBackendUrl,
           notificationAdapter: lifecycleNotificationAdapter,
         })
@@ -411,33 +440,33 @@ const createStoreBackedManager = (
   };
 
   return {
-    queue: store.jobs,
-    jobs: store.jobs,
-    activeJobs: store.activeJobs,
-    sortedActiveJobs: store.sortedActiveJobs,
-    hasActiveJobs: store.hasActiveJobs,
-    results: store.recentResults,
-    recentResults: store.recentResults,
-    historyLimit: store.historyLimit,
-    systemStatus: store.systemStatus,
-    systemStatusReady: store.systemStatusReady,
-    systemStatusLastUpdated: store.systemStatusLastUpdated,
-    systemStatusApiAvailable: store.systemStatusApiAvailable,
-    queueManagerActive: store.queueManagerActive,
-    isActive: store.isActive,
-    isConnected: store.isConnected,
-    pollIntervalMs: store.pollIntervalMs,
-    transportMetrics: store.transportMetrics,
-    transportPhase: store.transportPhase,
-    transportReconnectAttempt: store.transportReconnectAttempt,
-    transportConsecutiveFailures: store.transportConsecutiveFailures,
-    transportNextRetryDelayMs: store.transportNextRetryDelayMs,
-    transportLastConnectedAt: store.transportLastConnectedAt,
-    transportLastDisconnectedAt: store.transportLastDisconnectedAt,
-    transportDowntimeMs: store.transportDowntimeMs,
-    transportTotalDowntimeMs: store.transportTotalDowntimeMs,
-    lastError: store.transportLastError,
-    lastSnapshot: store.transportLastSnapshot,
+    queue: jobs,
+    jobs,
+    activeJobs,
+    sortedActiveJobs,
+    hasActiveJobs,
+    results: recentResults,
+    recentResults,
+    historyLimit,
+    systemStatus,
+    systemStatusReady,
+    systemStatusLastUpdated,
+    systemStatusApiAvailable,
+    queueManagerActive,
+    isActive: isActiveRef,
+    isConnected,
+    pollIntervalMs,
+    transportMetrics,
+    transportPhase,
+    transportReconnectAttempt,
+    transportConsecutiveFailures,
+    transportNextRetryDelayMs,
+    transportLastConnectedAt,
+    transportLastDisconnectedAt,
+    transportDowntimeMs,
+    transportTotalDowntimeMs,
+    lastError: transportLastError,
+    lastSnapshot: transportLastSnapshot,
     lastCommandError: lastCommandErrorReadonly,
     lastActionAt: lastActionAtReadonly,
     pendingActionsCount: pendingActionsCountReadonly,
@@ -472,14 +501,14 @@ const createStoreBackedManager = (
       ),
     reconnect: (): Promise<void> =>
       runCommand('reconnect', () => store.reconnect(), {
-        isActive: store.isActive.value,
+        isActive: isActiveRef.value,
       }),
     setHistoryLimit: (limit: GenerationHistoryLimit): void => {
       runSyncCommand(
         'setHistoryLimit',
         () => {
           store.setHistoryLimit(limit);
-          if (store.isActive.value) {
+          if (isActiveRef.value) {
             void store.loadRecentResults(false);
           }
         },
@@ -488,7 +517,7 @@ const createStoreBackedManager = (
     },
     ensureInitialized,
     releaseIfLastConsumer,
-  };
+  } satisfies GenerationManager;
 };
 
 export interface CreateGenerationFacadeOptions {
@@ -538,7 +567,7 @@ export const createGenerationFacade = ({
   ensureInitialized: (options?: GenerationOrchestratorEnsureOptions): Promise<void> =>
     manager.ensureInitialized(options),
   releaseIfLastConsumer: (): void => manager.releaseIfLastConsumer(),
-});
+}) satisfies GenerationOrchestratorFacade;
 
 export const useGenerationOrchestratorFacade: GenerationOrchestratorFacadeFactory = () => {
   const store = useGenerationOrchestratorStore();

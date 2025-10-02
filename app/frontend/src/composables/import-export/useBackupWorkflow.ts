@@ -64,15 +64,16 @@ export function useBackupWorkflow(options: UseBackupWorkflowOptions): UseBackupW
 
   const createBackup = async (backupType: 'full' | 'quick', successMessage: string) => {
     try {
-      const result =
-        ensureData(
-          await backendClient.postJson<{ backup_id?: string }, BackupCreateRequest>(
-            '/api/v1/backup/create',
-            { backup_type: backupType },
-          ),
-        )
-        ?? null;
-      const backupId = typeof result?.backup_id === 'string' ? result.backup_id : null;
+      interface BackupCreateResponse {
+        backup_id?: string | null;
+      }
+
+      const response = await backendClient.postJson<BackupCreateResponse, BackupCreateRequest>(
+        '/api/v1/backup/create',
+        { backup_type: backupType },
+      );
+      const result = ensureData(response);
+      const backupId = typeof result.backup_id === 'string' ? result.backup_id : null;
       notify(backupId ? `${successMessage}: ${backupId}` : successMessage, 'success');
       await loadHistory();
     } catch (error) {

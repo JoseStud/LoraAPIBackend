@@ -119,5 +119,3 @@ export const createGenerationTransportAdapter = (
     },
   };
 };
-
-export type { GenerationTransportAdapter };

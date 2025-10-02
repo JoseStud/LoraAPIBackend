@@ -6,6 +6,7 @@ import type {
   GenerationRequestPayload,
   GenerationStartResponse,
 } from '@/types';
+import { normalizeJobStatus } from '@/utils/status';
 
 export interface TransportActionDependencies {
   queue: QueueModule;
@@ -62,7 +63,7 @@ export const createTransportActions = ({
         uiId: response.job_id,
         backendId: response.job_id,
         prompt: payload.prompt,
-        status: response.status,
+          status: normalizeJobStatus(response.status),
         progress: response.progress ?? 0,
         startTime: createdAt,
         created_at: createdAt,

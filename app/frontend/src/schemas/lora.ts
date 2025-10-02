@@ -18,9 +18,12 @@ export class LoraSchemaParseError extends Error {
     super(message);
     this.name = 'LoraSchemaParseError';
     if (options?.cause !== undefined) {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error Node 16 does not yet define ErrorOptions in lib.dom.d.ts
-      this.cause = options.cause;
+      Object.defineProperty(this, 'cause', {
+        value: options.cause,
+        enumerable: false,
+        configurable: true,
+        writable: true,
+      });
     }
     this.issues = options?.issues;
   }
@@ -162,7 +165,7 @@ const AdapterReadBaseSchema = z
   })
   .passthrough();
 
-export const AdapterReadSchema: z.ZodType<AdapterRead> = AdapterReadBaseSchema.transform((value) => ({
+export const AdapterReadSchema = AdapterReadBaseSchema.transform((value): AdapterRead => ({
   ...value,
   ordinal: value.ordinal ?? null,
   archetype_confidence: value.archetype_confidence ?? null,
@@ -196,9 +199,13 @@ const AdapterListPayloadSchema = z.union([
   AdapterListResponseBaseSchema,
 ]);
 
-const LoraTagListSchema: z.ZodType<LoraTagListResponse> = z
+const LoraTagListSchema = z
   .object({ tags: z.array(z.string()).optional() })
-  .passthrough();
+  .passthrough()
+  .transform((value): LoraTagListResponse => ({
+    ...value,
+    tags: value.tags ?? [],
+  }));
 
 const formatIssues = (issues: readonly ZodIssue[]): string =>
   issues

@@ -90,10 +90,10 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
   const similarityThreshold = ref<number>(options.initialThreshold ?? 0.1);
   const weights = ref<WeightState>({ ...DEFAULT_WEIGHTS, ...(options.initialWeights ?? {}) });
 
-  const hydrationReady = ref(false);
-  void backendEnvironment.ensureReady().then(() => {
-    hydrationReady.value = true;
-  });
+    const hydrationReady = ref(false);
+    void backendEnvironment.readyPromise.then(() => {
+      hydrationReady.value = true;
+    });
 
   const isHydrated = computed<boolean>(() => hydrationReady.value && settingsLoaded.value);
 

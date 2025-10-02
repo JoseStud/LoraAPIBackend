@@ -10,9 +10,12 @@ export class RecommendationsServiceParseError extends Error {
     super(message);
     this.name = 'RecommendationsServiceParseError';
     if (options?.cause !== undefined) {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error Node 16 does not yet define ErrorOptions in lib.dom.d.ts
-      this.cause = options.cause;
+      Object.defineProperty(this, 'cause', {
+        value: options.cause,
+        enumerable: false,
+        configurable: true,
+        writable: true,
+      });
     }
     this.issues = options?.issues;
   }
@@ -28,7 +31,7 @@ export const RecommendationItemSchema: z.ZodType<RecommendationItem> = z
     lora_description: NullableString,
     similarity_score: z.number().finite(),
     final_score: z.number().finite(),
-    explanation: z.string().optional(),
+    explanation: z.string(),
     semantic_similarity: NullableNumber,
     artistic_similarity: NullableNumber,
     technical_similarity: NullableNumber,
@@ -47,6 +50,7 @@ export const RecommendationResponseSchema: z.ZodType<RecommendationResponse> = z
     total_candidates: z.number().int(),
     processing_time_ms: z.number().finite(),
     recommendation_config: JsonObjectSchema,
+    generated_at: z.string(),
   })
   .passthrough()
   .transform((payload) => ({
