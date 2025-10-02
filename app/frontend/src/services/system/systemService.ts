@@ -1,5 +1,6 @@
-import type { BackendClient } from '@/services/backendClient';
-import { resolveBackendPath, withSameOrigin } from '@/services/shared/backendHelpers';
+import { createBackendHttpClient, type BackendHttpClientInput } from '@/services/shared/http/backendClient';
+import type { HttpClient } from '@/services/shared/http/createHttpClient';
+import { createBackendPathBuilder } from '@/utils/backend';
 
 import type {
   DashboardStatsSummary,
@@ -7,31 +8,47 @@ import type {
   SystemMetricsSnapshot,
   SystemStatusPayload,
 } from '@/types';
-import { performConfiguredRequest, type ApiRequestConfig } from '@/services/apiClient';
+const TRACE_OPTIONS = { trace: { enabled: true } } as const;
 
-const createRequestConfig = (path: string, client?: BackendClient | null): ApiRequestConfig => ({
-  target: resolveBackendPath(path, client ?? undefined),
-  init: withSameOrigin(),
-});
+const defaultClient = createBackendHttpClient(TRACE_OPTIONS);
+
+const resolveClient = (input?: BackendHttpClientInput): HttpClient => {
+  if (typeof input === 'string') {
+    return createBackendHttpClient({ ...TRACE_OPTIONS, baseURL: input });
+  }
+
+  if (input) {
+    return input;
+  }
+
+  return defaultClient;
+};
+
+const frontendPath = createBackendPathBuilder('frontend');
+const dashboardPath = createBackendPathBuilder('dashboard');
+const systemPath = createBackendPathBuilder('system');
 
 const requestBackendJson = async <TPayload>(
   path: string,
-  client?: BackendClient | null,
+  client?: BackendHttpClientInput,
 ): Promise<TPayload | null> => {
-  const result = await performConfiguredRequest<TPayload>(createRequestConfig(path, client));
+  const backend = resolveClient(client);
+  const result = await backend.requestJson<TPayload>(path);
   return (result.data as TPayload | null) ?? null;
 };
 
 export const loadFrontendSettings = async (): Promise<FrontendRuntimeSettings | null> =>
-  requestBackendJson<FrontendRuntimeSettings>('/frontend/settings');
+  requestBackendJson<FrontendRuntimeSettings>(frontendPath('settings'));
 
 export const fetchDashboardStats = async (
-  client?: BackendClient | null,
-): Promise<DashboardStatsSummary | null> => requestBackendJson<DashboardStatsSummary>('/dashboard/stats', client);
+  client?: BackendHttpClientInput,
+): Promise<DashboardStatsSummary | null> =>
+  requestBackendJson<DashboardStatsSummary>(dashboardPath('stats'), client);
 
 export const fetchSystemStatus = async (
-  client?: BackendClient | null,
-): Promise<SystemStatusPayload | null> => requestBackendJson<SystemStatusPayload>('/system/status', client);
+  client?: BackendHttpClientInput,
+): Promise<SystemStatusPayload | null> =>
+  requestBackendJson<SystemStatusPayload>(systemPath('status'), client);
 
 export const emptyMetricsSnapshot = (): SystemMetricsSnapshot => ({
   cpu_percent: 0,

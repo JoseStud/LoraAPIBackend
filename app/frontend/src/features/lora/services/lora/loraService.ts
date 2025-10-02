@@ -1,5 +1,6 @@
-import type { BackendClient } from '@/services/backendClient';
-import { createBackendPathResolver, resolveClient } from '@/services/shared/backendHelpers';
+import { createBackendHttpClient, type BackendHttpClientInput } from '@/services/shared/http/backendClient';
+import type { HttpClient } from '@/services/shared/http/createHttpClient';
+import { createBackendPathBuilder } from '@/utils/backend';
 import { parseAdapterListPayload, parseAdapterRead, parseAdapterTags } from '@/schemas';
 
 import type {
@@ -46,10 +47,25 @@ export const buildAdapterListQuery = (query: AdapterListQuery = {}): string => {
   return suffix ? `?${suffix}` : '';
 };
 
-const adaptersPaths = createBackendPathResolver('adapters');
-const adaptersPath = adaptersPaths.path;
+const TRACE_OPTIONS = { trace: { enabled: true } } as const;
 
-export const fetchAdapterTags = async (client?: BackendClient | null): Promise<string[]> => {
+const defaultClient = createBackendHttpClient(TRACE_OPTIONS);
+
+const resolveClient = (input?: BackendHttpClientInput): HttpClient => {
+  if (typeof input === 'string') {
+    return createBackendHttpClient({ ...TRACE_OPTIONS, baseURL: input });
+  }
+
+  if (input) {
+    return input;
+  }
+
+  return defaultClient;
+};
+
+const adaptersPath = createBackendPathBuilder('adapters');
+
+export const fetchAdapterTags = async (client?: BackendHttpClientInput): Promise<string[]> => {
   const backend = resolveClient(client);
   const payload = await backend.getJson<unknown>(adaptersPath('/tags'));
   return parseAdapterTags(payload, 'adapter tag list');
@@ -57,7 +73,7 @@ export const fetchAdapterTags = async (client?: BackendClient | null): Promise<s
 
 export const fetchAdapterList = async (
   query: AdapterListQuery = {},
-  client?: BackendClient | null,
+  client?: BackendHttpClientInput,
 ): Promise<AdapterListResponse> => {
   const backend = resolveClient(client);
   const payload = await backend.getJson<unknown>(adaptersPath(buildAdapterListQuery(query)));
@@ -71,7 +87,7 @@ export const fetchAdapterList = async (
 
 export const fetchAdapters = async (
   query: AdapterListQuery = {},
-  client?: BackendClient | null,
+  client?: BackendHttpClientInput,
 ): Promise<LoraListItem[]> => {
   const response = await fetchAdapterList(query, client);
   return response.items.map((item: AdapterRead) => ({ ...item })) as LoraListItem[];
@@ -79,7 +95,7 @@ export const fetchAdapters = async (
 
 export const fetchTopAdapters = async (
   limit = 10,
-  client?: BackendClient | null,
+  client?: BackendHttpClientInput,
 ): Promise<TopLoraPerformance[]> => {
   const { items } = await fetchAdapterList({ perPage: limit }, client);
 
@@ -99,7 +115,7 @@ export const fetchTopAdapters = async (
 
 export const performBulkLoraAction = async (
   payload: LoraBulkActionRequest,
-  client?: BackendClient | null,
+  client?: BackendHttpClientInput,
 ): Promise<void> => {
   const backend = resolveClient(client);
   await backend.postJson<unknown, LoraBulkActionRequest>(adaptersPath('/bulk'), payload);
@@ -108,7 +124,7 @@ export const performBulkLoraAction = async (
 export const updateLoraWeight = async (
   loraId: string,
   weight: number,
-  client?: BackendClient | null,
+  client?: BackendHttpClientInput,
 ): Promise<GalleryLora | null> => {
   const backend = resolveClient(client);
   const { data } = await backend.patchJson<AdapterRead, { weight: number }>(
@@ -125,7 +141,7 @@ export const updateLoraWeight = async (
 export const toggleLoraActiveState = async (
   loraId: string,
   activate: boolean,
-  client?: BackendClient | null,
+  client?: BackendHttpClientInput,
 ): Promise<GalleryLora | null> => {
   const backend = resolveClient(client);
   const endpoint = activate ? 'activate' : 'deactivate';
@@ -142,7 +158,7 @@ export const toggleLoraActiveState = async (
 
 export const deleteLora = async (
   loraId: string,
-  client?: BackendClient | null,
+  client?: BackendHttpClientInput,
 ): Promise<void> => {
   const backend = resolveClient(client);
   await backend.delete(adaptersPath(`/${encodeURIComponent(loraId)}`));
@@ -154,7 +170,7 @@ export const buildRecommendationsUrl = (loraId: string): string => {
 
 export const triggerPreviewGeneration = async (
   loraId: string,
-  client?: BackendClient | null,
+  client?: BackendHttpClientInput,
 ): Promise<unknown> => {
   const backend = resolveClient(client);
   const { data } = await backend.requestJson<unknown>(
