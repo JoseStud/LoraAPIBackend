@@ -123,7 +123,7 @@ const panelConfigs = [
       'Activate the composer inline to reuse saved prompts or jump directly to the full composition workspace.',
     fallback: 'Loading prompt composer…',
     loader: () =>
-      import('@/features/prompt-composer/ui/PromptComposer.vue').then((module) => module.default),
+      import('@/features/prompt-composer/public').then((module) => module.PromptComposer),
   },
   {
     key: 'studio',
@@ -134,7 +134,7 @@ const panelConfigs = [
     placeholder:
       'Use the inline studio for quick jobs or switch to the dedicated page for the full orchestrator experience.',
     fallback: 'Loading generation studio…',
-    loader: () => import('@/features/generation/ui/GenerationShell.vue').then((module) => module.default),
+    loader: () => import('@/features/generation/public').then((module) => module.GenerationShell),
   },
   {
     key: 'gallery',
@@ -145,7 +145,7 @@ const panelConfigs = [
     placeholder:
       'Quickly browse the gallery inline or open the dedicated gallery for the full management toolkit.',
     fallback: 'Loading LoRA gallery…',
-    loader: () => import('@/features/lora/components/lora-gallery/LoraGallery.vue').then((module) => module.default),
+    loader: () => import('@/features/lora/public').then((module) => module.LoraGallery),
   },
   {
     key: 'history',
@@ -168,7 +168,7 @@ const panelConfigs = [
       'Bring the import/export utilities inline for quick actions or open the dedicated workspace for bulk jobs.',
     fallback: 'Loading import/export tools…',
     loader: () =>
-      import('@/features/import-export/ui/ImportExportContainer').then((module) => module.default),
+      import('@/features/import-export/public').then((module) => module.ImportExportContainer),
   },
 ] satisfies PanelConfig[];
 

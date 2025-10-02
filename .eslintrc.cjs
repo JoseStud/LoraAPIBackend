@@ -6,6 +6,12 @@ const generationStoreRestriction = {
     'Generation stores are internal. Import `useGenerationOrchestratorFacade` from "@/features/generation/orchestrator" instead.',
 };
 
+const featureUiRestriction = {
+  group: ['@/features/*/ui', '@/features/*/ui/**'],
+  message:
+    'Import feature UI modules via the public surface, e.g. "@/features/<feature>/public".',
+};
+
 const restrictedImportRuleConfig = {
   paths: [
     {
@@ -78,6 +84,7 @@ const restrictedImportRuleConfig = {
         'Import the import/export feature through "@/features/import-export/public" instead of the legacy components path.',
     },
     generationStoreRestriction,
+    featureUiRestriction,
   ],
 };
 
