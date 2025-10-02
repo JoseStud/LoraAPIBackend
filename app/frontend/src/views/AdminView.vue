@@ -30,10 +30,10 @@ import { RouterLink } from 'vue-router';
 
 import { defineAsyncComponent } from 'vue';
 
-import ImportExportContainer from '@/components/import-export/ImportExportContainer.vue';
+import { ImportExportContainer } from '@/features/import-export/public';
 import { JobQueue, SystemAdminStatusCard, SystemStatusPanel } from '@/features/generation/public';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import { RecommendationsPanel } from '@/features/recommendations';
+import { RecommendationsPanel } from '@/features/recommendations/public';
 
 const PerformanceAnalytics = defineAsyncComponent(
   () => import('@/views/analytics/PerformanceAnalyticsPage.vue'),

@@ -23,8 +23,8 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
 
-import { GenerationHistory } from '@/features/history';
+import { GenerationHistory } from '@/features/history/public';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import { RecommendationsPanel } from '@/features/recommendations';
+import { RecommendationsPanel } from '@/features/recommendations/public';
 import { SystemStatusCard } from '@/features/generation/public';
 </script>

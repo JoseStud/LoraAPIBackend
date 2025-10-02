@@ -23,7 +23,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
 
-import { GenerationHistory } from '@/features/history';
+import { GenerationHistory } from '@/features/history/public';
 import { JobQueue, SystemStatusCard } from '@/features/generation/public';
 import PageHeader from '@/components/layout/PageHeader.vue';
 </script>

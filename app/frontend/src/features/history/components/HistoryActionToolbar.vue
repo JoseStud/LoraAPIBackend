@@ -63,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import type { HistorySortOption } from '@/features/history';
+import type { HistorySortOption } from '@/features/history/public';
 
 export type HistoryViewMode = 'grid' | 'list';
 

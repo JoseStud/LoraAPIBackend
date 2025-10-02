@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { computed, reactive, ref } from 'vue';
 import { flushPromises, mount } from '@vue/test-utils';
 
-import ImportExportContainer from '../../app/frontend/src/components/import-export/ImportExportContainer.vue';
+import ImportExportContainer from '../../app/frontend/src/features/import-export/ui/ImportExportContainer';
 
 const contextState = { context: null };
 
