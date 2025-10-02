@@ -32,11 +32,26 @@
     <template #header="slotProps">
       <slot name="header" v-bind="slotProps" />
     </template>
-    <template #primary="slotProps">
-      <slot name="primary" v-bind="slotProps" />
+    <template #default="slotProps">
+      <slot
+        v-if="$slots.primary || $slots.default"
+        name="primary"
+        v-bind="slotProps"
+      >
+        <slot v-bind="slotProps" />
+      </slot>
     </template>
-    <template #secondary="slotProps">
-      <slot name="secondary" v-bind="slotProps" />
+    <template #aside="slotProps">
+      <slot
+        v-if="$slots.secondary || $slots.aside"
+        name="secondary"
+        v-bind="slotProps"
+      >
+        <slot name="aside" v-bind="slotProps" />
+      </slot>
+    </template>
+    <template #modal="slotProps">
+      <slot v-if="$slots.modal" name="modal" v-bind="slotProps" />
     </template>
   </GenerationShellView>
 </template>

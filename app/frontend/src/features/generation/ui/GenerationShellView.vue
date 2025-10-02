@@ -8,58 +8,9 @@
         :toggle-history="emitToggleHistory"
         :clear-queue="emitClearQueue"
         :has-active-jobs="hasActiveJobs"
-      >
-        <div class="page-header">
-          <div class="flex justify-between items-center">
-            <div>
-              <h1 class="page-title">Generation Studio</h1>
-              <p class="page-subtitle">Generate images with AI-powered LoRA integration</p>
-              <div class="mt-2 flex items-center text-sm text-gray-500 gap-2">
-                <span
-                  class="inline-flex h-2 w-2 rounded-full"
-                  :class="isConnected ? 'bg-green-500' : 'bg-red-500'"
-                ></span>
-                <span v-if="isConnected">Live updates connected</span>
-                <span v-else>Reconnecting to updates…</span>
-              </div>
-            </div>
-            <div class="header-actions flex gap-2">
-              <button
-                data-testid="toggle-history"
-                @click="emitToggleHistory()"
-                class="btn btn-secondary btn-sm"
-                :class="{ 'btn-primary': showHistory }"
-                type="button"
-              >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0 1180z"></path>
-                </svg>
-                History
-              </button>
-              <button
-                data-testid="clear-queue"
-                @click="emitClearQueue()"
-                class="btn btn-secondary btn-sm"
-                :disabled="!hasActiveJobs"
-                type="button"
-              >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  ></path>
-                </svg>
-                Clear Queue
-              </button>
-            </div>
-          </div>
-        </div>
-      </slot>
+      />
 
       <slot
-        name="primary"
         :generation-parameter-form="GenerationParameterForm"
         :generation-active-jobs-list="GenerationActiveJobsList"
         :generation-results-gallery="GenerationResultsGallery"
@@ -134,55 +85,64 @@
       </slot>
     </div>
 
-    <slot
-      name="secondary"
-      :system-status-card="SystemStatusCard"
-      :job-queue="JobQueue"
-      :system-status="systemStatus"
-      :active-jobs="activeJobs"
-      :clear-queue="emitClearQueue"
-      :has-active-jobs="hasActiveJobs"
-      :is-connected="isConnected"
-    >
-      <div class="flex flex-col gap-6">
-        <SystemStatusCard variant="detailed" />
-        <JobQueue :show-clear-completed="true" />
-      </div>
-    </slot>
+    <div class="generation-secondary flex flex-col gap-6">
+      <slot
+        name="aside"
+        :system-status-card="SystemStatusCard"
+        :job-queue="JobQueue"
+        :system-status="systemStatus"
+        :active-jobs="activeJobs"
+        :clear-queue="emitClearQueue"
+        :has-active-jobs="hasActiveJobs"
+        :is-connected="isConnected"
+      >
+        <div class="flex flex-col gap-6">
+          <SystemStatusCard variant="detailed" />
+          <JobQueue :show-clear-completed="true" />
+        </div>
+      </slot>
+    </div>
   </div>
 
-  <div
-    v-if="showModal && selectedResult"
-    class="fixed inset-0 z-50 overflow-y-auto"
-    data-testid="result-modal"
-    @click.self="emitHideImageModal()"
+  <slot
+    name="modal"
+    :show-modal="showModal"
+    :selected-result="selectedResult"
+    :hide-image-modal="emitHideImageModal"
   >
-    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-      <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="emitHideImageModal"></div>
+    <div
+      v-if="showModal && selectedResult"
+      class="fixed inset-0 z-50 overflow-y-auto"
+      data-testid="result-modal"
+      @click.self="emitHideImageModal()"
+    >
+      <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="emitHideImageModal"></div>
 
-      <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-        <img
-          v-if="selectedResult?.image_url"
-          :src="selectedResult.image_url"
-          :alt="selectedResult?.prompt ?? 'Generated image'"
-          class="w-full"
-        >
-        <div class="p-4">
-          <h3 class="text-lg font-medium text-gray-900 mb-2">Generation Details</h3>
-          <div class="space-y-1 text-sm text-gray-600">
-            <div><strong>Prompt:</strong> {{ selectedResult?.prompt ?? 'Unknown prompt' }}</div>
-            <div>
-              <strong>Size:</strong>
-              {{ selectedResult?.width ?? '—' }}×{{ selectedResult?.height ?? '—' }}
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+          <img
+            v-if="selectedResult?.image_url"
+            :src="selectedResult.image_url"
+            :alt="selectedResult?.prompt ?? 'Generated image'"
+            class="w-full"
+          >
+          <div class="p-4">
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Generation Details</h3>
+            <div class="space-y-1 text-sm text-gray-600">
+              <div><strong>Prompt:</strong> {{ selectedResult?.prompt ?? 'Unknown prompt' }}</div>
+              <div>
+                <strong>Size:</strong>
+                {{ selectedResult?.width ?? '—' }}×{{ selectedResult?.height ?? '—' }}
+              </div>
+              <div><strong>Steps:</strong> {{ selectedResult?.steps ?? '—' }}</div>
+              <div><strong>CFG Scale:</strong> {{ selectedResult?.cfg_scale ?? '—' }}</div>
+              <div><strong>Seed:</strong> {{ selectedResult?.seed ?? '—' }}</div>
             </div>
-            <div><strong>Steps:</strong> {{ selectedResult?.steps ?? '—' }}</div>
-            <div><strong>CFG Scale:</strong> {{ selectedResult?.cfg_scale ?? '—' }}</div>
-            <div><strong>Seed:</strong> {{ selectedResult?.seed ?? '—' }}</div>
           </div>
         </div>
       </div>
     </div>
-  </div>
+  </slot>
 </template>
 
 <script setup lang="ts">

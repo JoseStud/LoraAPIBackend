@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { computed, defineComponent, ref } from 'vue'
+import { computed, defineComponent, ref, h } from 'vue'
 
 import GenerationShell from '@/features/generation/ui/GenerationShell.vue'
 import GenerationShellView from '@/features/generation/ui/GenerationShellView.vue'
@@ -190,6 +190,28 @@ describe('GenerationShell', () => {
     },
   }
 
+  const headerSlot = ({ toggleHistory, clearQueue }: Record<string, () => void>) =>
+    h('div', [
+      h(
+        'button',
+        {
+          'data-testid': 'toggle-history',
+          type: 'button',
+          onClick: toggleHistory,
+        },
+        'Toggle History',
+      ),
+      h(
+        'button',
+        {
+          'data-testid': 'clear-queue',
+          type: 'button',
+          onClick: clearQueue,
+        },
+        'Clear Queue',
+      ),
+    ])
+
   beforeEach(() => {
     studioInstance = createStudioState()
   })
@@ -204,7 +226,12 @@ describe('GenerationShell', () => {
   })
 
   it('forwards toggle-history to the composable', async () => {
-    const wrapper = mount(GenerationShell, { global })
+    const wrapper = mount(GenerationShell, {
+      global,
+      slots: {
+        header: headerSlot,
+      },
+    })
 
     await wrapper.get('[data-testid="toggle-history"]').trigger('click')
 
@@ -212,7 +239,12 @@ describe('GenerationShell', () => {
   })
 
   it('forwards clear-queue to the composable', async () => {
-    const wrapper = mount(GenerationShell, { global })
+    const wrapper = mount(GenerationShell, {
+      global,
+      slots: {
+        header: headerSlot,
+      },
+    })
 
     await wrapper.get('[data-testid="clear-queue"]').trigger('click')
 

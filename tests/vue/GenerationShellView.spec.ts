@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { defineComponent } from 'vue'
+import { defineComponent, h } from 'vue'
 
 import GenerationShellView from '@/features/generation/ui/GenerationShellView.vue'
 import type { GenerationFormState, SystemStatusState } from '@/types'
@@ -134,6 +134,28 @@ describe('GenerationShellView', () => {
     },
   }
 
+  const headerSlot = ({ toggleHistory, clearQueue }: Record<string, () => void>) =>
+    h('div', [
+      h(
+        'button',
+        {
+          'data-testid': 'toggle-history',
+          type: 'button',
+          onClick: toggleHistory,
+        },
+        'Toggle History',
+      ),
+      h(
+        'button',
+        {
+          'data-testid': 'clear-queue',
+          type: 'button',
+          onClick: clearQueue,
+        },
+        'Clear Queue',
+      ),
+    ])
+
   it('renders default layout', () => {
     const wrapper = mount(GenerationShellView, {
       props: baseProps(),
@@ -147,6 +169,9 @@ describe('GenerationShellView', () => {
     const wrapper = mount(GenerationShellView, {
       props: baseProps(),
       global,
+      slots: {
+        header: headerSlot,
+      },
     })
 
     await wrapper.get('[data-testid="toggle-history"]').trigger('click')
@@ -158,6 +183,9 @@ describe('GenerationShellView', () => {
     const wrapper = mount(GenerationShellView, {
       props: baseProps(),
       global,
+      slots: {
+        header: headerSlot,
+      },
     })
 
     await wrapper.get('[data-testid="clear-queue"]').trigger('click')
