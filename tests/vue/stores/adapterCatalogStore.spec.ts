@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 
-import * as services from '@/services';
+import * as backendClientService from '@/services/backendClient';
+import * as backendRefresh from '@/services/system/backendRefresh';
 import * as loraService from '@/features/lora/services/lora/loraService';
 import { useAdapterCatalogStore } from '@/features/lora/stores/adapterCatalog';
 import type { AdapterListQuery, AdapterListResponse } from '@/types';
 
 const backendRefreshCallbacks: Array<() => void> = [];
 
-const useBackendClientSpy = vi.spyOn(services, 'useBackendClient');
-const useBackendRefreshSpy = vi.spyOn(services, 'useBackendRefresh');
+const useBackendClientSpy = vi.spyOn(backendClientService, 'useBackendClient');
+const useBackendRefreshSpy = vi.spyOn(backendRefresh, 'useBackendRefresh');
 const fetchAdapterListSpy = vi.spyOn(loraService, 'fetchAdapterList');
 const fetchAdapterTagsSpy = vi.spyOn(loraService, 'fetchAdapterTags');
 const performBulkLoraActionSpy = vi.spyOn(loraService, 'performBulkLoraAction');

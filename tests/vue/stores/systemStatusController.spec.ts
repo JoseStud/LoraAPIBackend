@@ -1,19 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 
-import type { BackendClient } from '@/services';
+import type { BackendClient } from '@/services/backendClient';
 
-const serviceMocks = vi.hoisted(() => ({
-  fetchSystemStatus: vi.fn(),
+const backendClientMocks = vi.hoisted(() => ({
   useBackendClient: vi.fn(),
 }));
 
-vi.mock('@/services', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/services')>();
+const systemServiceMocks = vi.hoisted(() => ({
+  fetchSystemStatus: vi.fn(),
+}));
+
+vi.mock('@/services/backendClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/backendClient')>();
   return {
     ...actual,
-    fetchSystemStatus: serviceMocks.fetchSystemStatus,
-    useBackendClient: serviceMocks.useBackendClient,
+    useBackendClient: backendClientMocks.useBackendClient,
+  };
+});
+
+vi.mock('@/services/system/systemService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/system/systemService')>();
+  return {
+    ...actual,
+    fetchSystemStatus: systemServiceMocks.fetchSystemStatus,
   };
 });
 
@@ -47,9 +57,9 @@ describe('acquireSystemStatusController', () => {
 
   beforeEach(async () => {
     vi.resetModules();
-    serviceMocks.fetchSystemStatus.mockReset();
-    serviceMocks.fetchSystemStatus.mockResolvedValue(null);
-    serviceMocks.useBackendClient.mockReset();
+    systemServiceMocks.fetchSystemStatus.mockReset();
+    systemServiceMocks.fetchSystemStatus.mockResolvedValue(null);
+    backendClientMocks.useBackendClient.mockReset();
     setActivePinia(createPinia());
     const { useGenerationOrchestratorManagerStore } = await import(
       '@/features/generation/stores/orchestratorManagerStore'
@@ -68,7 +78,7 @@ describe('acquireSystemStatusController', () => {
 
   it('uses the global backend client by default', async () => {
     const defaultClient = createBackendClient('default-');
-    serviceMocks.useBackendClient.mockReturnValue(defaultClient);
+    backendClientMocks.useBackendClient.mockReturnValue(defaultClient);
 
     const { acquireSystemStatusController } = await import(
       '@/features/generation/stores/systemStatusController'
@@ -77,8 +87,8 @@ describe('acquireSystemStatusController', () => {
     const { controller, release } = acquireSystemStatusController();
     await controller.refresh();
 
-    expect(serviceMocks.useBackendClient).toHaveBeenCalledTimes(1);
-    expect(serviceMocks.fetchSystemStatus).toHaveBeenCalledWith(defaultClient);
+    expect(backendClientMocks.useBackendClient).toHaveBeenCalledTimes(1);
+    expect(systemServiceMocks.fetchSystemStatus).toHaveBeenCalledWith(defaultClient);
 
     release();
   });
@@ -86,7 +96,7 @@ describe('acquireSystemStatusController', () => {
   it('respects an explicit backend client override', async () => {
     const defaultClient = createBackendClient('default-');
     const overrideClient = createBackendClient('override-');
-    serviceMocks.useBackendClient.mockReturnValue(defaultClient);
+    backendClientMocks.useBackendClient.mockReturnValue(defaultClient);
 
     const { acquireSystemStatusController } = await import(
       '@/features/generation/stores/systemStatusController'
@@ -95,7 +105,7 @@ describe('acquireSystemStatusController', () => {
     const { controller, release } = acquireSystemStatusController({ backendClient: overrideClient });
     await controller.refresh();
 
-    expect(serviceMocks.fetchSystemStatus).toHaveBeenCalledWith(overrideClient);
+    expect(systemServiceMocks.fetchSystemStatus).toHaveBeenCalledWith(overrideClient);
 
     release();
   });
@@ -106,7 +116,7 @@ describe('acquireSystemStatusController', () => {
 
     const getBackendUrl = vi.fn(() => 'https://example.test/api/');
 
-    serviceMocks.useBackendClient.mockImplementation((override?: unknown) => {
+    backendClientMocks.useBackendClient.mockImplementation((override?: unknown) => {
       if (typeof override === 'function') {
         return scopedClient;
       }
@@ -121,8 +131,8 @@ describe('acquireSystemStatusController', () => {
     await controller.refresh();
 
     expect(getBackendUrl).toHaveBeenCalled();
-    expect(serviceMocks.useBackendClient).toHaveBeenCalledWith(expect.any(Function));
-    expect(serviceMocks.fetchSystemStatus).toHaveBeenCalledWith(scopedClient);
+    expect(backendClientMocks.useBackendClient).toHaveBeenCalledWith(expect.any(Function));
+    expect(systemServiceMocks.fetchSystemStatus).toHaveBeenCalledWith(scopedClient);
 
     release();
   });

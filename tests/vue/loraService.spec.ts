@@ -10,7 +10,7 @@ import {
   toggleLoraActiveState,
   deleteLora,
   triggerPreviewGeneration,
-} from '@/services';
+} from '@/features/lora/services/lora/loraService';
 import { createBackendClient } from '@/services/backendClient';
 import type { AdapterListResponse } from '@/types';
 

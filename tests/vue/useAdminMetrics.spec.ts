@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { SpyInstance } from 'vitest';
 
-vi.mock('@/services', async () => {
-  const actual = await vi.importActual('@/services');
+vi.mock('@/services/system/systemService', async () => {
+  const actual = await vi.importActual('@/services/system/systemService');
   return {
     ...actual,
     deriveMetricsFromDashboard: vi.fn(),
@@ -21,7 +21,7 @@ import {
   deriveMetricsFromDashboard,
   emptyMetricsSnapshot,
   fetchDashboardStats,
-} from '@/services';
+} from '@/services/system/systemService';
 
 const fetchDashboardStatsMock = vi.mocked(fetchDashboardStats);
 const deriveMetricsFromDashboardMock = vi.mocked(deriveMetricsFromDashboard);

@@ -26,7 +26,7 @@ import { useHistoryShortcuts } from '../composables/useHistoryShortcuts';
 import { useHistoryActions } from '../composables/useHistoryActions';
 import { useHistoryModalCoordinator } from '../composables/useHistoryModalCoordinator';
 import { PERSISTENCE_KEYS, useAsyncLifecycleTask, usePersistence } from '@/composables/shared';
-import { useBackendRefresh } from '@/services';
+import { useBackendRefresh } from '@/services/system/backendRefresh';
 import { useBackendBase } from '@/utils/backend';
 import { formatHistoryDate } from '@/utils/format';
 import type { GenerationHistoryResult } from '@/types';

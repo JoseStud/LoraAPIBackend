@@ -4,7 +4,7 @@ import type { SettingsStore } from '@/stores';
 import {
   getBackendEnvironmentSnapshot,
   useBackendEnvironment,
-} from '@/services';
+} from '@/services/backendEnvironment';
 
 import {
   DEFAULT_BACKEND_BASE,
