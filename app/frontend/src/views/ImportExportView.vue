@@ -27,7 +27,7 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import { ImportExportSkeleton } from '@/features/import-export/public';
 
 const LazyImportExportContainer = defineAsyncComponent({
-  loader: () => import('@/features/import-export/ui/ImportExportContainer'),
+  loader: () => import('@/features/import-export/public').then((module) => module.ImportExportContainer),
   loadingComponent: ImportExportSkeleton,
   delay: 0,
   suspensible: false

@@ -26,7 +26,7 @@ const router = createRouter({
     {
       path: '/compose',
       name: 'compose',
-      component: () => import('@/features/prompt-composer/ui/ComposeView.vue'),
+      component: () => import('@/features/prompt-composer/public').then((module) => module.ComposeView),
     },
     {
       path: '/generate',
