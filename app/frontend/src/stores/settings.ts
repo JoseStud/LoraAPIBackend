@@ -68,7 +68,16 @@ export const useSettingsStore = defineStore('app-settings', () => {
   const isLoaded = ref(false);
   const error = ref<unknown>(null);
 
-  const backendEnvironmentReady = createDeferredPromise();
+  let backendEnvironmentReady = createDeferredPromise();
+  const resolveBackendEnvironmentReady = () => {
+    backendEnvironmentReady.resolve();
+  };
+  const ensureReady = (): Promise<void> => {
+    if (isLoaded.value) {
+      return Promise.resolve();
+    }
+    return backendEnvironmentReady.promise;
+  };
 
   const backendUrl = computed<string>(() => {
     if (!settings.value) {
@@ -118,6 +127,7 @@ export const useSettingsStore = defineStore('app-settings', () => {
 
     settings.value = merged;
     isLoaded.value = true;
+    resolveBackendEnvironmentReady();
   };
 
   const loadSettings = async (force = false) => {
@@ -151,11 +161,8 @@ export const useSettingsStore = defineStore('app-settings', () => {
     isLoaded.value = false;
     isLoading.value = false;
     error.value = null;
+    backendEnvironmentReady = createDeferredPromise();
   };
-
-  Promise.resolve().then(() => {
-    backendEnvironmentReady.resolve();
-  });
 
   return {
     settings,
@@ -168,7 +175,10 @@ export const useSettingsStore = defineStore('app-settings', () => {
     setSettings,
     loadSettings,
     reset,
-    backendEnvironmentReadyPromise: backendEnvironmentReady.promise,
+    ensureReady,
+    get backendEnvironmentReadyPromise() {
+      return backendEnvironmentReady.promise;
+    },
   };
 });
 
@@ -207,7 +217,7 @@ export const getResolvedBackendUrl = (): string => getResolvedBackendSettings().
 export const getResolvedBackendApiKey = (): string | null => getResolvedBackendSettings().backendApiKey;
 
 export interface BackendEnvironmentBinding {
-  readyPromise: Promise<void>;
+  ensureReady: () => Promise<void>;
   backendUrl: ComputedRef<string>;
 }
 
@@ -216,7 +226,7 @@ export const useBackendEnvironment = (): BackendEnvironmentBinding => {
   const { backendUrl } = storeToRefs(store);
 
   return {
-    readyPromise: store.backendEnvironmentReadyPromise,
+    ensureReady: store.ensureReady,
     backendUrl: backendUrl as ComputedRef<string>,
   };
 };
