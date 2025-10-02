@@ -109,10 +109,10 @@ import type { PropType } from 'vue';
 import type {
   DateFilterOption,
   DimensionFilterOption,
-  HistorySelectionChangePayload,
   HistorySortOption,
   RatingFilterOption,
-} from '@/features/history/public';
+} from '../composables/useGenerationHistory';
+import type { HistorySelectionChangePayload } from '../composables/useHistorySelection';
 import type { GenerationHistoryResult, GenerationHistoryStats } from '@/types';
 
 import HistoryActionToolbar, { type HistoryViewMode } from './HistoryActionToolbar.vue';

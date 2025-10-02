@@ -13,16 +13,18 @@ import { useRouter } from 'vue-router';
 
 import {
   useGenerationHistory,
-  useHistoryActions,
-  useHistorySelection,
-  useHistoryShortcuts,
-  useHistoryModalCoordinator,
-  type HistorySelectionChangePayload,
-  type HistorySortOption,
   type DateFilterOption,
-  type RatingFilterOption,
   type DimensionFilterOption,
-} from '@/features/history/public';
+  type HistorySortOption,
+  type RatingFilterOption,
+} from '../composables/useGenerationHistory';
+import {
+  useHistorySelection,
+  type HistorySelectionChangePayload,
+} from '../composables/useHistorySelection';
+import { useHistoryShortcuts } from '../composables/useHistoryShortcuts';
+import { useHistoryActions } from '../composables/useHistoryActions';
+import { useHistoryModalCoordinator } from '../composables/useHistoryModalCoordinator';
 import { PERSISTENCE_KEYS, useAsyncLifecycleTask, usePersistence } from '@/composables/shared';
 import { useBackendRefresh } from '@/services';
 import { useBackendBase } from '@/utils/backend';

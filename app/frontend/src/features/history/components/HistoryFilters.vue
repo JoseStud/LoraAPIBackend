@@ -54,7 +54,7 @@ import type {
   DateFilterOption,
   DimensionFilterOption,
   RatingFilterOption,
-} from '@/features/history/public';
+} from '../composables/useGenerationHistory';
 
 const DATE_FILTER_OPTIONS = ['all', 'today', 'week', 'month'] as const;
 const RATING_FILTER_OPTIONS = [0, 1, 2, 3, 4, 5] as const;
