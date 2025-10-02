@@ -38,9 +38,13 @@ export const createGalleryModalVm = (): GenerationGalleryModalVm => {
       reset()
     })
 
+    const isOpenReadonly = readonly(isOpen) as ReadonlyRef<boolean>
+    const selectedResultReadonly =
+      readonly(selectedResult) as ReadonlyRef<GenerationResult | null>
+
     return {
-      isOpen: readonly(isOpen),
-      selectedResult: readonly(selectedResult),
+      isOpen: isOpenReadonly,
+      selectedResult: selectedResultReadonly,
       open,
       close,
     }
