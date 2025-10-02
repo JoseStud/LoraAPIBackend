@@ -13,6 +13,7 @@ import {
 import { useGenerationOrchestratorManagerStore } from '../stores/orchestratorManagerStore';
 import { useGenerationOrchestratorStore } from '../stores/useGenerationOrchestratorStore';
 import { useBackendUrl } from '@/utils/backend';
+import type { GenerationRequestPayload } from '@/types';
 
 const normalizeAutoSyncOptions = (
   value: GenerationOrchestratorAcquireOptions['autoSync'],
