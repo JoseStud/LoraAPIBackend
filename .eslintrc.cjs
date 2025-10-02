@@ -1,5 +1,23 @@
 /* eslint-env node */
 
+const fs = require('node:fs');
+const path = require('node:path');
+
+const repoRoot = __dirname;
+const featuresRoot = path.join(repoRoot, 'app', 'frontend', 'src', 'features');
+
+const listFeatureDirectories = () => {
+  try {
+    return fs
+      .readdirSync(featuresRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+  } catch (error) {
+    console.warn('[eslint] Failed to enumerate feature directories', error);
+    return [];
+  }
+};
+
 const generationStoreRestriction = {
   group: ['@/features/generation/stores/**'],
   message:
@@ -12,9 +30,22 @@ const featureUiRestriction = {
     'Import feature UI modules via the public surface, e.g. "@/features/<feature>/public".',
 };
 
-const generationPublicRestriction = {
-  group: ['@/features/generation/!(public)', '@/features/generation/!(public)/**'],
-  message: 'Generation internals are private. Import from "@/features/generation/public" instead.',
+const featurePublicRestriction = {
+  group: ['@/features/*/**', '!@/features/*/public', '!@/features/*/public/**'],
+  message: 'Feature internals are private. Import from "@/features/<feature>/public" instead.',
+};
+
+const backendClientRestriction = {
+  name: '@/services/backendClient',
+  message:
+    'The legacy BackendClient surface is deprecated. Route HTTP access through the API client or shared helpers instead.',
+};
+
+const requestConfiguredJsonRestriction = {
+  name: '@/services/apiClient',
+  importNames: ['requestConfiguredJson'],
+  message:
+    'requestConfiguredJson is deprecated. Use performConfiguredRequest or the composable API helpers instead.',
 };
 
 const restrictedImportRuleConfig = {
@@ -39,6 +70,8 @@ const restrictedImportRuleConfig = {
       message:
         'Import the import/export feature through "@/features/import-export/public" instead of the legacy components path.',
     },
+    backendClientRestriction,
+    requestConfiguredJsonRestriction,
   ],
   patterns: [
     {
@@ -90,8 +123,77 @@ const restrictedImportRuleConfig = {
     },
     generationStoreRestriction,
     featureUiRestriction,
-    generationPublicRestriction,
+    featurePublicRestriction,
   ],
+};
+
+const createRestrictedImportConfig = ({ excludePatterns = [], excludePaths = [] } = {}) => ({
+  ...restrictedImportRuleConfig,
+  paths: restrictedImportRuleConfig.paths.filter((entry) => !excludePaths.includes(entry)),
+  patterns: restrictedImportRuleConfig.patterns.filter((entry) => !excludePatterns.includes(entry)),
+});
+
+const featureDirectories = listFeatureDirectories();
+
+const createFeatureOverride = (feature) => {
+  const files = [`app/frontend/src/features/${feature}/**/*.{ts,tsx,js,vue}`];
+  const excludePatterns = [featurePublicRestriction];
+
+  if (feature === 'generation') {
+    excludePatterns.push(generationStoreRestriction);
+  }
+
+  return {
+    files,
+    rules: {
+      'no-restricted-imports': ['error', createRestrictedImportConfig({ excludePatterns })],
+    },
+  };
+};
+
+const backendClientAllowedFiles = [
+  'app/frontend/src/components/dashboard/DashboardGenerationSummary.vue',
+  'app/frontend/src/composables/import-export/useBackupWorkflow.ts',
+  'app/frontend/src/composables/import-export/useExportWorkflow.ts',
+  'app/frontend/src/composables/import-export/useImportWorkflow.ts',
+  'app/frontend/src/features/analytics/services/analyticsService.ts',
+  'app/frontend/src/features/analytics/stores/performanceAnalytics.ts',
+  'app/frontend/src/features/generation/services/generationBackendClient.ts',
+  'app/frontend/src/features/generation/stores/systemStatusController.ts',
+  'app/frontend/src/features/history/composables/useGenerationHistory.ts',
+  'app/frontend/src/features/history/composables/useHistoryActions.ts',
+  'app/frontend/src/features/history/services/historyService.ts',
+  'app/frontend/src/features/lora/composables/lora-gallery/useLoraCardActions.ts',
+  'app/frontend/src/features/lora/services/lora/loraService.ts',
+  'app/frontend/src/features/lora/stores/adapterCatalog.ts',
+  'app/frontend/src/services/shared/backendHelpers.ts',
+  'app/frontend/src/services/system/systemService.ts',
+];
+
+const createBackendClientOverride = (file) => {
+  const excludePatterns = [];
+
+  const relativeToFeatures = path.relative(path.join(repoRoot, 'app/frontend/src/features'), path.join(repoRoot, file));
+  if (!relativeToFeatures.startsWith('..')) {
+    excludePatterns.push(featurePublicRestriction);
+
+    if (relativeToFeatures.startsWith(`generation${path.sep}`)) {
+      excludePatterns.push(generationStoreRestriction);
+    }
+  }
+
+  return {
+    files: [file],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        createRestrictedImportConfig({
+          excludePatterns,
+          excludePaths: [backendClientRestriction],
+        }),
+      ],
+    },
+  };
 };
 
 module.exports = {
@@ -157,21 +259,8 @@ module.exports = {
         '@typescript-eslint/no-unused-vars': 'off',
       },
     },
-    {
-      files: ['app/frontend/src/features/generation/**/*.{ts,tsx,js,vue}'],
-      rules: {
-        'no-restricted-imports': [
-          'error',
-          {
-            ...restrictedImportRuleConfig,
-            patterns: restrictedImportRuleConfig.patterns.filter(
-              (pattern) =>
-                pattern !== generationStoreRestriction && pattern !== generationPublicRestriction,
-            ),
-          },
-        ],
-      },
-    },
+    ...featureDirectories.map(createFeatureOverride),
+    ...backendClientAllowedFiles.map(createBackendClientOverride),
     {
       files: ['app/frontend/src/utils/freezeDeep.ts'],
       rules: {
