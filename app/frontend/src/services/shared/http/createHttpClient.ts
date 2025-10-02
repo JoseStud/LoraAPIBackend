@@ -42,6 +42,23 @@ const resolveHeaders = (input?: HeadersInit | (() => HeadersInit | null | undefi
   }
 };
 
+const isAbortError = (error: unknown): boolean => {
+  if (!error) {
+    return false;
+  }
+
+  if (typeof DOMException !== 'undefined' && error instanceof DOMException) {
+    return error.name === 'AbortError';
+  }
+
+  if (typeof error === 'object') {
+    const candidate = error as { name?: string };
+    return candidate.name === 'AbortError';
+  }
+
+  return false;
+};
+
 export interface HttpTraceLogEntry {
   event: 'response' | 'error' | 'retry';
   method: string;
@@ -76,6 +93,7 @@ export interface CreateHttpClientConfig {
 
 export interface HttpClient {
   resolve: (path?: string) => string;
+  request: <TPayload = unknown>(path: string, init?: ApiRequestInit) => Promise<ApiRequestResult<TPayload>>;
   requestJson: <TPayload = unknown>(path: string, init?: ApiRequestInit) => Promise<ApiResult<TPayload>>;
   getJson: <TPayload = unknown>(path: string, init?: ApiRequestInit) => Promise<TPayload | null>;
   postJson: <TResponse = unknown, TBody = unknown>(
@@ -326,9 +344,21 @@ export const createHttpClient = (config: CreateHttpClientConfig = {}): HttpClien
     try {
       return await operation();
     } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
+
       const url = coreClient.resolve(target);
       throw createError(url, init, error);
     }
+  };
+
+  const request = async <TPayload>(
+    target: RequestTarget,
+    init: ApiRequestInit = {},
+  ): Promise<ApiRequestResult<TPayload>> => {
+    const prepared = applyInit(init);
+    return run(target, prepared, () => coreClient.request<TPayload>(target, prepared));
   };
 
   const requestJson = async <TPayload>(
@@ -350,6 +380,7 @@ export const createHttpClient = (config: CreateHttpClientConfig = {}): HttpClien
 
   return {
     resolve: (path?: string) => coreClient.resolve(path ?? ''),
+    request: <TPayload>(path: string, init: ApiRequestInit = {}) => request<TPayload>(path, init),
     requestJson: <TPayload>(path: string, init: ApiRequestInit = {}) => requestJson(path, init),
     getJson: <TPayload>(path: string, init: ApiRequestInit = {}) => getJson<TPayload>(path, init),
     postJson: <TResponse, TBody>(path: string, body: TBody, init: ApiRequestInit = {}) => {

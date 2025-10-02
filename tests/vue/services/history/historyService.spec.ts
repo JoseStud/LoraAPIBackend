@@ -6,12 +6,12 @@ import {
   rateResult,
 } from '@/features/history/services/historyService';
 import { HistoryServiceParseError } from '@/features/history/services/historySchemas';
-import type { BackendClient } from '@/services/backendClient';
+import type { BackendHttpClient } from '@/services/shared/http';
 import type { GenerationHistoryResult } from '@/types';
 
 const iso = '2024-01-01T00:00:00Z';
 
-type BackendStub = BackendClient & {
+type BackendStub = BackendHttpClient & {
   resolve: ReturnType<typeof vi.fn>;
   requestJson: ReturnType<typeof vi.fn>;
   getJson: ReturnType<typeof vi.fn>;

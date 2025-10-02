@@ -2,14 +2,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { nextTick } from 'vue';
 
 import { useExportWorkflow, type ProgressCallbacks } from '../../app/frontend/src/composables/import-export/useExportWorkflow';
-import type { BackendClient } from '../../app/frontend/src/services/backendClient';
+import type { BackendHttpClient } from '@/services/shared/http';
 
 const postJson = vi.fn();
 const requestBlob = vi.fn();
 const getFilenameFromContentDisposition = vi.fn();
 const downloadFile = vi.fn();
 
-const createBackendClientMock = (base = 'https://api.example'): BackendClient => {
+const createBackendClientMock = (base = 'https://api.example'): BackendHttpClient => {
   const resolvePath = (path = ''): string => {
     if (!path) {
       return base.replace(/\/+$/, '');
@@ -31,11 +31,11 @@ const createBackendClientMock = (base = 'https://api.example'): BackendClient =>
     patchJson: vi.fn(),
     delete: vi.fn(),
     requestBlob: vi.fn((path: string, init?: RequestInit) => requestBlob(resolvePath(path), init)),
-  } as unknown as BackendClient;
+  } as unknown as BackendHttpClient;
 };
 
-vi.mock('@/services/apiClient', async () => {
-  const actual = await vi.importActual<typeof import('@/services/apiClient')>('@/services/apiClient');
+vi.mock('@/services/shared/http', async () => {
+  const actual = await vi.importActual<typeof import('@/services/shared/http')>('@/services/shared/http');
   return {
     ...actual,
     ensureData: (value: unknown) => value,
@@ -53,7 +53,7 @@ vi.mock('@/utils/browser', async () => {
 
 describe('useExportWorkflow', () => {
   const notify = vi.fn();
-  let backendClient: BackendClient;
+  let backendClient: BackendHttpClient;
   let progress: ProgressCallbacks;
 
   beforeEach(() => {

@@ -10,7 +10,7 @@ This checklist confirms that the post-refactor generation stack satisfies the re
 
 ## Unified Networking
 
-- `httpClient` centralises fetch handling, retries, logging hooks, and parsing strategies. Higher-level wrappers (`apiClient`, `useApi`) consume it to provide consistent error handling for all requests.【F:app/frontend/src/services/httpClient.ts†L1-L188】【F:app/frontend/src/services/apiClient.ts†L1-L200】【F:app/frontend/src/composables/shared/useApi.ts†L1-L128】
+- `httpClient` centralises fetch handling, retries, logging hooks, and parsing strategies. The shared HTTP entry (`services/shared/http`) and `useApi` consume it to provide consistent error handling for all requests.【F:app/frontend/src/services/httpClient.ts†L1-L188】【F:app/frontend/src/services/shared/http/index.ts†L1-L163】【F:app/frontend/src/composables/shared/useApi.ts†L1-L128】
 - Generation services (`generationService`, queue client, websocket manager) depend on the shared API client or transport adapter rather than bespoke fetch utilities.【F:app/frontend/src/features/generation/services/generationService.ts†L1-L176】【F:app/frontend/src/features/generation/services/queueClient.ts†L1-L148】
 
 ## Clean Module Boundaries

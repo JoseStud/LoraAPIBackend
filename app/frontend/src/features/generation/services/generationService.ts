@@ -9,7 +9,7 @@ import type {
   SDNextGenerationParams,
   SDNextGenerationResult,
 } from '@/types';
-import { ensureData, getFilenameFromContentDisposition } from '@/services/apiClient';
+import { ensureData, getFilenameFromContentDisposition } from '@/services/shared/http';
 import {
   createBackendPathResolver,
   resolveBackendPath,

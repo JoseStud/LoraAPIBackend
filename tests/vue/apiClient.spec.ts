@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  createHttpClient,
   performConfiguredRequest,
   performRequest,
   requestConfiguredJson,
   requestJson,
-} from '@/services/apiClient';
+} from '@/services/shared/http';
 import { ApiError } from '@/types';
 
 const originalFetch = global.fetch;
@@ -42,7 +43,9 @@ describe('apiClient helpers', () => {
     const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
     global.fetch = fetchMock;
 
-    const result = await requestJson<typeof payload>('/api/success', { method: 'POST' });
+    const client = createHttpClient();
+
+    const result = await requestJson<typeof payload>('/api/success', { method: 'POST' }, client);
 
     expect(result.data).toEqual(payload);
     expect(result.meta).toMatchObject({ ok: true, status: 201, statusText: 'Created', url: '/api/success' });
@@ -60,8 +63,10 @@ describe('apiClient helpers', () => {
 
     global.fetch = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
 
+    const client = createHttpClient();
+
     try {
-      await requestJson('/api/error');
+      await requestJson('/api/error', {}, client);
       throw new Error('Expected requestJson to throw');
     } catch (error) {
       expect(error).toBeInstanceOf(ApiError);
@@ -77,13 +82,17 @@ describe('apiClient helpers', () => {
     const abortError = new DOMException('Aborted', 'AbortError');
     global.fetch = vi.fn().mockRejectedValue(abortError) as unknown as typeof fetch;
 
-    await expect(performRequest('/api/abort')).rejects.toBe(abortError);
+    const client = createHttpClient();
+
+    await expect(performRequest('/api/abort', {}, client)).rejects.toBe(abortError);
   });
 
   it('merges default and override options for configured requests', async () => {
     const response = createJsonResponse({ ok: true });
     const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
     global.fetch = fetchMock;
+
+    const client = createHttpClient();
 
     const controller = new AbortController();
     await performConfiguredRequest(
@@ -99,6 +108,7 @@ describe('apiClient helpers', () => {
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
       },
+      client,
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -118,10 +128,16 @@ describe('apiClient helpers', () => {
     const fetchMock = vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
     global.fetch = fetchMock;
 
-    const result = await requestConfiguredJson<typeof payload>({
-      target: '/api/configured-json',
-      init: { headers: { 'X-Trace': 'value' } },
-    });
+    const client = createHttpClient();
+
+    const result = await requestConfiguredJson<typeof payload>(
+      {
+        target: '/api/configured-json',
+        init: { headers: { 'X-Trace': 'value' } },
+      },
+      {},
+      client,
+    );
 
     expect(result.data).toEqual(payload);
     expect(fetchMock).toHaveBeenCalledWith(

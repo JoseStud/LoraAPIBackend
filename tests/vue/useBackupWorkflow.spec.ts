@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 import { useBackupWorkflow } from '../../app/frontend/src/composables/import-export/useBackupWorkflow';
-import type { BackendClient } from '../../app/frontend/src/services/backendClient';
+import type { BackendHttpClient } from '@/services/shared/http';
 
 const getJson = vi.fn();
 const postJson = vi.fn();
 
-const createBackendClientMock = (base = 'https://api.example'): BackendClient => {
+const createBackendClientMock = (base = 'https://api.example'): BackendHttpClient => {
   const resolvePath = (path = ''): string => {
     if (!path) {
       return base.replace(/\/+$/, '');
@@ -28,11 +28,11 @@ const createBackendClientMock = (base = 'https://api.example'): BackendClient =>
     patchJson: vi.fn(),
     delete: vi.fn(),
     requestBlob: vi.fn(),
-  } as unknown as BackendClient;
+  } as unknown as BackendHttpClient;
 };
 
-vi.mock('@/services/apiClient', async () => {
-  const actual = await vi.importActual<typeof import('@/services/apiClient')>('@/services/apiClient');
+vi.mock('@/services/shared/http', async () => {
+  const actual = await vi.importActual<typeof import('@/services/shared/http')>('@/services/shared/http');
   return {
     ...actual,
     ensureData: (value: unknown) => value
@@ -41,7 +41,7 @@ vi.mock('@/services/apiClient', async () => {
 
 describe('useBackupWorkflow', () => {
   const notify = vi.fn();
-  let backendClient: BackendClient;
+  let backendClient: BackendHttpClient;
 
   beforeEach(() => {
     backendClient = createBackendClientMock('https://custom.example');

@@ -8,7 +8,7 @@ import {
   useDashboardStatsApi,
   useSystemStatusApi,
 } from '../../app/frontend/src/services/system';
-import { createBackendClient } from '../../app/frontend/src/services/backendClient';
+import { createBackendClient } from '@/services/shared/http';
 
 
 import { useSettingsStore } from '../../app/frontend/src/stores/settings';

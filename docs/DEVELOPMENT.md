@@ -87,17 +87,18 @@ command helpers via `useGenerationOrchestratorFacade()`, which adds telemetry su
 
 ### Frontend API client conventions
 
-All HTTP access for the SPA flows through `app/frontend/src/services/apiClient.ts`.
-The module exposes typed helpers (e.g., `performRequest`, `requestJson`,
-`fetchBlob`) that provide consistent header injection, error normalisation, and
-response parsing. Composables such as `useApi` are thin wrappers around that
-client and should be used when a reactive data/abort controller is required.【F:app/frontend/src/services/apiClient.ts†L1-L214】【F:app/frontend/src/composables/shared/useApi.ts†L1-L133】
+All HTTP access for the SPA flows through the shared entry point at
+`app/frontend/src/services/shared/http`. The module exposes typed helpers (for
+example `performRequest`, `requestJson`, and `requestBlob`) that provide
+consistent header injection, error normalisation, and response parsing.
+Composables such as `useApi` are thin wrappers around that client and should be
+used when a reactive data/abort controller is required.【F:app/frontend/src/services/shared/http/index.ts†L1-L163】【F:app/frontend/src/composables/shared/useApi.ts†L1-L133】
 
 New services should favour the client helpers instead of manually calling
 `fetch`. Reintroducing one-off clients was the root cause of the previous
-duplication between `utils/api`, `services/apiClient`, and `useApi`. Centralising
-logic in the shared client avoids regressions like missing authentication
-headers or inconsistent error payload handling.【F:app/frontend/src/services/apiClient.ts†L96-L214】【F:app/frontend/src/composables/shared/useApi.ts†L41-L126】
+duplication between `utils/api` and various bespoke wrappers. Centralising logic
+in the shared client avoids regressions like missing authentication headers or
+inconsistent error payload handling.【F:app/frontend/src/services/shared/http/index.ts†L85-L163】【F:app/frontend/src/composables/shared/useApi.ts†L41-L126】
 
 ## Local development
 

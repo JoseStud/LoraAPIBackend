@@ -1,7 +1,7 @@
 import { computed, reactive, ref, type ComputedRef } from 'vue';
 
-import { ensureData } from '@/services/apiClient';
-import { useBackendClient, type BackendClient } from '@/services/backendClient';
+import { ensureData } from '@/services/shared/http';
+import { useBackendClient, type BackendHttpClient } from '@/services/shared/http';
 import type { ImportConfig } from '@/types';
 import type { NotifyFn, ProgressCallbacks } from './useExportWorkflow';
 
@@ -16,7 +16,7 @@ export interface ImportPreviewItem {
 interface UseImportWorkflowOptions {
   notify: NotifyFn;
   progress: ProgressCallbacks;
-  backendClient?: BackendClient | null;
+  backendClient?: BackendHttpClient | null;
 }
 
 export interface UseImportWorkflow {

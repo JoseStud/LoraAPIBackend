@@ -3,7 +3,7 @@ import { computed, ref, type ComputedRef } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { ApiError } from '@/composables/shared';
-import { useBackendClient, type BackendClient } from '@/services/backendClient';
+import { useBackendClient, type BackendHttpClient } from '@/services/shared/http';
 import { fetchSystemStatus } from '@/services/system/systemService';
 import { resolveBackendBaseUrl } from '@/utils/backend';
 import { generationPollingConfig } from '../config/polling';
@@ -25,16 +25,16 @@ export interface SystemStatusControllerHandle {
 const DEFAULT_CONTROLLER_KEY = '__default__';
 
 export interface AcquireSystemStatusControllerOptions {
-  backendClient?: BackendClient | null;
-  resolveBackendClient?: () => BackendClient | null | undefined;
+  backendClient?: BackendHttpClient | null;
+  resolveBackendClient?: () => BackendHttpClient | null | undefined;
   getBackendUrl?: () => string | null | undefined;
 }
 
 const createBackendClientResolver = (
   options?: AcquireSystemStatusControllerOptions,
-): (() => BackendClient) => {
+): (() => BackendHttpClient) => {
   if (options?.backendClient) {
-    return () => options.backendClient as BackendClient;
+    return () => options.backendClient as BackendHttpClient;
   }
 
   if (options?.resolveBackendClient) {
@@ -55,7 +55,7 @@ const createBackendClientResolver = (
 };
 
 const createController = (
-  resolveBackendClient: () => BackendClient,
+  resolveBackendClient: () => BackendHttpClient,
 ): SystemStatusController => {
   const connectionStore = useGenerationConnectionStore();
   const { systemStatusReady } = storeToRefs(connectionStore);

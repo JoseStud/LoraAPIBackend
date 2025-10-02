@@ -3,7 +3,7 @@ import { MaybeRefOrGetter, Ref, getCurrentScope, onScopeDispose, ref, unref } fr
 import type { ApiResponseMeta } from '@/types';
 import { ApiError } from '@/types';
 import { buildAuthenticatedHeaders } from '@/utils/httpAuth';
-import { performRequest, type ApiRequestInit } from '@/services/apiClient';
+import { performRequest, type ApiRequestInit } from '@/services/shared/http';
 
 export type { ApiResponseMeta } from '@/types';
 export { ApiError } from '@/types';

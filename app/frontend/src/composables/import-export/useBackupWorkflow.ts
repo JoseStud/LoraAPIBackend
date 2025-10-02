@@ -1,13 +1,13 @@
 import { ref, type Ref } from 'vue';
 
-import { ensureData } from '@/services/apiClient';
-import { useBackendClient, type BackendClient } from '@/services/backendClient';
+import { ensureData } from '@/services/shared/http';
+import { useBackendClient, type BackendHttpClient } from '@/services/shared/http';
 import type { BackupCreateRequest, BackupHistoryItem } from '@/types';
 import type { NotifyFn } from './useExportWorkflow';
 
 interface UseBackupWorkflowOptions {
   notify: NotifyFn;
-  backendClient?: BackendClient | null;
+  backendClient?: BackendHttpClient | null;
 }
 
 export interface UseBackupWorkflow {

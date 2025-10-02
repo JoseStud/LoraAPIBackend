@@ -1,4 +1,4 @@
-import type { BackendClient } from '@/services/backendClient';
+import type { BackendHttpClient } from '@/services/shared/http';
 import {
   createBackendPathResolver,
   resolveClient,
@@ -39,13 +39,13 @@ const resolveBackendInput = (
 };
 
 export interface GenerationBackendClientOptions {
-  client?: BackendClient | null;
-  resolveBackendClient?: () => BackendClient | null | undefined;
+  client?: BackendHttpClient | null;
+  resolveBackendClient?: () => BackendHttpClient | null | undefined;
   getBackendUrl?: () => string | null | undefined;
 }
 
 export interface GenerationBackendClient {
-  resolveClient: () => BackendClient;
+  resolveClient: () => BackendHttpClient;
   fetchSystemStatus: () => Promise<SystemStatusPayload | null>;
   fetchActiveJobs: () => Promise<GenerationJobStatus[]>;
   fetchRecentResults: (limit: number) => Promise<GenerationResult[]>;
@@ -54,7 +54,7 @@ export interface GenerationBackendClient {
 export const createGenerationBackendClient = (
   options: GenerationBackendClientOptions = {},
 ): GenerationBackendClient => {
-  const resolveBackendClient = (): BackendClient => {
+  const resolveBackendClient = (): BackendHttpClient => {
     const input = resolveBackendInput(options);
     return resolveClient(input);
   };
