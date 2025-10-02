@@ -1,5 +1,5 @@
 /** @internal */
-import { readonly, ref, type ComputedRef, type Ref } from 'vue';
+import { computed, readonly, ref, type ComputedRef, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { useGenerationOrchestratorStore } from '../stores/useGenerationOrchestratorStore';
@@ -22,6 +22,10 @@ import type {
   GenerationWebSocketStateSnapshot,
 } from '../types/transport';
 import { useBackendUrl } from '@/utils/backend';
+import {
+  createImmutableArraySnapshot,
+  createImmutableObjectSnapshot,
+} from './utils/immutableSnapshots';
 
 export type ReadonlyRef<T> = Readonly<Ref<T>>;
 
@@ -188,6 +192,49 @@ const createStoreBackedManager = (
     transportLastError,
     transportLastSnapshot,
   } = storeToRefs(store);
+  const queueSnapshot = computed<ReadonlyQueue>(() =>
+    createImmutableArraySnapshot(
+      jobs.value,
+      'generation-orchestrator-facade.queue',
+      { clone: false },
+    ) as ReadonlyQueue,
+  );
+  const activeJobsSnapshot = computed<readonly GenerationJobView[]>(() =>
+    createImmutableArraySnapshot(
+      activeJobs.value,
+      'generation-orchestrator-facade.activeJobs',
+      { clone: false },
+    ) as readonly GenerationJobView[],
+  );
+  const sortedActiveJobsSnapshot = computed<readonly GenerationJobView[]>(() =>
+    createImmutableArraySnapshot(
+      sortedActiveJobs.value,
+      'generation-orchestrator-facade.sortedActiveJobs',
+      { clone: false },
+    ) as readonly GenerationJobView[],
+  );
+  const recentResultsSnapshot = computed<ReadonlyResults>(() =>
+    createImmutableArraySnapshot(
+      recentResults.value,
+      'generation-orchestrator-facade.recentResults',
+      { clone: false },
+    ) as ReadonlyResults,
+  );
+  const systemStatusSnapshot = computed<DeepReadonly<SystemStatusState>>(() =>
+    createImmutableObjectSnapshot(
+      systemStatus.value,
+      'generation-orchestrator-facade.systemStatus',
+      { clone: false },
+    ) as DeepReadonly<SystemStatusState>,
+  );
+  const transportPauseReasonsSnapshot = computed(
+    () =>
+      createImmutableArraySnapshot(
+        transportPauseReasons.value,
+        'generation-orchestrator-facade.transportPauseReasons',
+        { clone: false },
+      ) as readonly GenerationTransportPauseReason[],
+  );
   const lifecycleNotificationAdapter = createLifecycleNotificationAdapter();
   let readOnlyConsumerId: symbol | null = null;
 
@@ -453,15 +500,15 @@ const createStoreBackedManager = (
   };
 
   return {
-    queue: jobs,
-    jobs,
-    activeJobs,
-    sortedActiveJobs,
+    queue: queueSnapshot,
+    jobs: queueSnapshot,
+    activeJobs: activeJobsSnapshot,
+    sortedActiveJobs: sortedActiveJobsSnapshot,
     hasActiveJobs,
-    results: recentResults,
-    recentResults,
+    results: recentResultsSnapshot,
+    recentResults: recentResultsSnapshot,
     historyLimit,
-    systemStatus,
+    systemStatus: systemStatusSnapshot,
     systemStatusReady,
     systemStatusLastUpdated,
     systemStatusApiAvailable,
@@ -479,7 +526,7 @@ const createStoreBackedManager = (
     transportDowntimeMs,
     transportTotalDowntimeMs,
     transportPaused,
-    transportPauseReasons,
+    transportPauseReasons: transportPauseReasonsSnapshot,
     transportPauseSince,
     transportLastPauseEvent,
     transportLastResumeEvent,

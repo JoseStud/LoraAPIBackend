@@ -2,6 +2,7 @@ import type { DeepReadonly } from '@/utils/freezeDeep';
 
 interface ImmutableSnapshotOptions {
   readonly depth?: number;
+  readonly clone?: boolean;
 }
 
 const DEFAULT_DEPTH = 2;
@@ -63,13 +64,14 @@ const trapMutations = <T>(value: T, label: string, depth: number): T => {
   }
 
   if (Array.isArray(value)) {
-    const arrayValue = value as unknown as unknown[];
-    if (depth > 0) {
-      arrayValue.forEach((item, index) => {
-        arrayValue[index] = trapMutations(item, `${label}[${index}]`, depth - 1);
-      });
-    }
-    return Object.freeze(arrayValue) as unknown as T;
+    const arrayValue = value as unknown as readonly unknown[];
+    const clonedArray =
+      depth > 0
+        ? arrayValue.map((item, index) =>
+            trapMutations(item, `${label}[${index}]`, depth - 1),
+          )
+        : Array.from(arrayValue);
+    return Object.freeze(clonedArray) as unknown as T;
   }
 
   if (value instanceof Date || value === null || typeof value !== 'object') {
@@ -77,22 +79,25 @@ const trapMutations = <T>(value: T, label: string, depth: number): T => {
   }
 
   const recordValue = value as Record<string, unknown>;
-  if (depth > 0) {
-    Object.entries(recordValue).forEach(([key, entry]) => {
-      recordValue[key] = trapMutations(entry, `${label}.${key}`, depth - 1);
-    });
-  }
+  const clonedRecord: Record<string, unknown> = depth > 0
+    ? Object.fromEntries(
+        Object.entries(recordValue).map(([key, entry]) => [
+          key,
+          trapMutations(entry, `${label}.${key}`, depth - 1),
+        ]),
+      )
+    : { ...recordValue };
 
-  return Object.freeze(recordValue) as unknown as T;
+  return Object.freeze(clonedRecord) as unknown as T;
 };
 
 const createImmutableSnapshotInternal = <T>(
   value: T,
   label: string,
-  { depth = DEFAULT_DEPTH }: ImmutableSnapshotOptions = {},
+  { depth = DEFAULT_DEPTH, clone = false }: ImmutableSnapshotOptions = {},
 ): T => {
-  const cloned = cloneValue(value, depth);
-  return trapMutations(cloned, label, depth);
+  const snapshotSource = clone ? cloneValue(value, depth) : value;
+  return trapMutations(snapshotSource, label, depth);
 };
 
 export const createImmutableArraySnapshot = <T>(

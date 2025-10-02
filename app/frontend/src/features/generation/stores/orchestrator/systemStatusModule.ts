@@ -1,5 +1,5 @@
 /** @internal */
-import { reactive, readonly, ref } from 'vue';
+import { readonly, ref } from 'vue';
 
 import { generationPollingConfig } from '../../config/polling';
 import type { SystemStatusPayload, SystemStatusState } from '@/types';
@@ -29,7 +29,7 @@ const toPollInterval = (interval: number): number => {
 };
 
 export const createSystemStatusModule = (options: SystemStatusModuleOptions = {}) => {
-  const systemStatusState = reactive<SystemStatusState>(createDefaultSystemStatus());
+  const systemStatusState = ref<SystemStatusState>(createDefaultSystemStatus());
   const isConnected = ref(false);
   const pollIntervalMs = ref(DEFAULT_POLL_INTERVAL);
   const systemStatusReady = ref(false);
@@ -55,11 +55,14 @@ export const createSystemStatusModule = (options: SystemStatusModuleOptions = {}
   };
 
   const updateSystemStatus = (status: Partial<SystemStatusState>): void => {
-    Object.assign(systemStatusState, status);
+    systemStatusState.value = {
+      ...systemStatusState.value,
+      ...status,
+    };
   };
 
   const resetSystemStatus = (): void => {
-    Object.assign(systemStatusState, createDefaultSystemStatus());
+    systemStatusState.value = createDefaultSystemStatus();
     systemStatusReady.value = false;
     systemStatusLastUpdated.value = null;
     systemStatusApiAvailable.value = true;
