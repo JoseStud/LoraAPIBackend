@@ -7,7 +7,8 @@ vi.mock('@/features/generation/composables/createGenerationTransportAdapter', ()
 }));
 
 import { createGenerationTransportAdapter } from '@/features/generation/composables/createGenerationTransportAdapter';
-import { createUseGenerationOrchestratorManager, HISTORY_LIMIT_WHEN_SHOWING } from '@/features/generation/composables/useGenerationOrchestratorManager';
+import { createUseGenerationOrchestratorManager } from '@/features/generation/composables/useGenerationOrchestratorManager';
+import { HISTORY_LIMIT_WHEN_SHOWING } from '@/features/generation/composables/useOrchestratorConsumers';
 import { useGenerationOrchestratorStore, DEFAULT_HISTORY_LIMIT } from '@/features/generation/stores/useGenerationOrchestratorStore';
 import { useGenerationOrchestratorManagerStore } from '@/features/generation/stores/orchestratorManagerStore';
 import { useBackendUrl } from '@/utils/backend';
@@ -26,6 +27,8 @@ const createTransportMock = () => ({
   startGeneration: vi.fn().mockResolvedValue({ job_id: 'job-1' } as any),
   cancelJob: vi.fn().mockResolvedValue(undefined),
   deleteResult: vi.fn().mockResolvedValue(undefined),
+  pause: vi.fn(),
+  resume: vi.fn().mockResolvedValue(undefined),
   reconnect: vi.fn(),
   setPollInterval: vi.fn(),
   clear: vi.fn(),
