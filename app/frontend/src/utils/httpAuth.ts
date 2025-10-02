@@ -1,6 +1,6 @@
 import runtimeConfig from '@/config/runtime';
 import { getBackendApiKey } from '@/config/backendSettings';
-import { getBackendEnvironmentSnapshot, normaliseBackendApiKey } from '@/services/backendEnvironment';
+import { getBackendEnvironmentSnapshot, normaliseBackendApiKey } from '@/services';
 
 export const API_AUTH_HEADER = 'X-API-Key';
 

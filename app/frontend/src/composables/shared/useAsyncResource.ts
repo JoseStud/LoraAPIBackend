@@ -4,7 +4,7 @@ import {
   useBackendRefresh,
   type BackendRefreshOptions,
   type BackendRefreshSubscription,
-} from '@/services/system/backendRefresh';
+} from '@/services';
 
 export interface AsyncResourceBackendRefreshOptions<TArgs>
   extends BackendRefreshOptions {

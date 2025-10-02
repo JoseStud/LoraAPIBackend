@@ -1,10 +1,10 @@
 import { computed, unref, type ComputedRef, type MaybeRefOrGetter } from 'vue';
-import type { SettingsStore } from '@/stores/settings';
+import type { SettingsStore } from '@/stores';
 
 import {
   getBackendEnvironmentSnapshot,
   useBackendEnvironment,
-} from '@/services/backendEnvironment';
+} from '@/services';
 
 import {
   DEFAULT_BACKEND_BASE,

@@ -106,7 +106,7 @@ import type {
   GenerationHistoryResult,
   GenerationHistoryStats,
 } from '@/types';
-import { useSettingsStore } from '@/stores/settings';
+import { useSettingsStore } from '@/stores';
 
 const SUMMARY_QUERY = Object.freeze({ page_size: 4, sort: 'created_at_desc' as const });
 

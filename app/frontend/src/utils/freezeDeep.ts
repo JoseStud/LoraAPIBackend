@@ -1,3 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- Typescript-eslint crashes on DeepReadonly's recursive mapped type. */
+/*
+ * The utilities defined in this module intentionally rely on conditional
+ * distributive types and helper aliases that appear unused at runtime. Once
+ * the upstream parser handles this pattern without throwing we can re-enable
+ * the rule. Until then we disable it locally so CI can run to completion.
+ */
+
 type Primitive = null | undefined | string | number | boolean | symbol | bigint;
 
 type Builtin = Primitive | Date | RegExp | Error;

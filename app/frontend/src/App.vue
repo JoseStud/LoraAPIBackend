@@ -43,7 +43,7 @@ import MainNavigation from '@/components/layout/MainNavigation.vue';
 import MobileNav from '@/components/layout/MobileNav.vue';
 import Notifications from '@/components/shared/Notifications.vue';
 import DialogRenderer from '@/components/shared/DialogRenderer.vue';
-import { useSettingsStore } from '@/stores/settings';
+import { useSettingsStore } from '@/stores';
 
 const settingsStore = useSettingsStore();
 const { isLoading, isLoaded } = storeToRefs(settingsStore);

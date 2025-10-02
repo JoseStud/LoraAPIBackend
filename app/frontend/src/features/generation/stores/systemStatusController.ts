@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia';
 
 import { ApiError } from '@/composables/shared';
 import { useBackendClient, type BackendClient } from '@/services/backendClient';
-import { fetchSystemStatus } from '@/services/system/systemService';
+import { fetchSystemStatus } from '@/services';
 import { resolveBackendBaseUrl } from '@/utils/backend';
 import { generationPollingConfig } from '../config/polling';
 import { useGenerationConnectionStore } from './connection';

@@ -21,7 +21,6 @@ COMMANDS: Sequence[Sequence[str]] = (
 
 def _parse_rg_output(output: str) -> list[tuple[Path, str, str]]:
     """Parse ripgrep output into structured tuples."""
-
     matches: list[tuple[Path, str, str]] = []
     for line in output.splitlines():
         if not line:
@@ -42,7 +41,6 @@ def _search_repository(
     Prefer ripgrep when available for parity with CI, but fall back to a Python
     implementation when `rg` is missing (e.g., in constrained environments).
     """
-
     if shutil.which("rg"):
         args = [
             "rg",
@@ -87,8 +85,7 @@ def _search_repository(
 
 
 def _ensure_cancel_job_usage_is_guarded() -> None:
-    """Ensure cancelGenerationJob is only used within the orchestrator manager surface."""
-
+    """Ensure cancelGenerationJob goes through the orchestrator manager surface."""
     allowed_files = {
         Path("app/frontend/src/features/generation/services/generationService.ts"),
         Path("app/frontend/src/features/generation/services/queueClient.ts"),
@@ -109,14 +106,15 @@ def _ensure_cancel_job_usage_is_guarded() -> None:
             for path, line_no, content in violations
         )
         raise SystemExit(
-            "cancelGenerationJob should only be invoked through the orchestrator manager surface.\n"
-            f"Update the following file(s) to delegate through the manager:\n{formatted}"
+            "cancelGenerationJob should only be invoked through the orchestrator "
+            "manager surface.\n"
+            "Update the following file(s) to delegate through the manager:\n"
+            f"{formatted}"
         )
 
 
 def _ensure_generation_stores_are_private() -> None:
     """Fail when generation stores are imported outside the feature boundary."""
-
     feature_root = Path("app/frontend/src/features/generation")
     forbidden_pattern = r"stores/(results|queue)"
 
@@ -152,7 +150,6 @@ def _ensure_generation_stores_are_private() -> None:
 
 def run_guardrail_checks() -> None:
     """Run repository guardrail validations prior to full CI checks."""
-
     _ensure_cancel_job_usage_is_guarded()
     _ensure_generation_stores_are_private()
 
