@@ -1,4 +1,4 @@
-import type { ApiRequestInit } from '@/services/apiClient';
+import type { ApiRequestInit } from '@/services/shared/http';
 
 export const DEFAULT_BACKEND_BASE = '/api/v1';
 

@@ -4,9 +4,9 @@ import type { Mock } from 'vitest';
 import { createGenerationQueueClient } from '@/services/generation/queueClient';
 import type { ApiResponseMeta } from '@/types';
 
-vi.mock('@/services/apiClient', async () => {
-  const actual = await vi.importActual<typeof import('@/services/apiClient')>(
-    '@/services/apiClient',
+vi.mock('@/services/shared/http', async () => {
+  const actual = await vi.importActual<typeof import('@/services/shared/http')>(
+    '@/services/shared/http',
   );
   return {
     ...actual,
@@ -14,7 +14,7 @@ vi.mock('@/services/apiClient', async () => {
   };
 });
 
-import { requestJson } from '@/services/apiClient';
+import { requestJson } from '@/services/shared/http';
 
 const createMeta = (overrides: Partial<ApiResponseMeta> = {}): ApiResponseMeta => ({
   ok: true,

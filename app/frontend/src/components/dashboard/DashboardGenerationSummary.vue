@@ -97,7 +97,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { RouterLink } from 'vue-router';
 
-import { useBackendClient } from '@/services/backendClient';
+import { useBackendClient } from '@/services/shared/http';
 import { listResults as listHistoryResults } from '@/features/history/public';
 import { useGenerationOrchestratorFacade } from '@/features/generation/public';
 import { formatFileSize, formatRelativeTime } from '@/utils/format';

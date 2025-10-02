@@ -1,5 +1,5 @@
-import { getFilenameFromContentDisposition } from '@/services/apiClient';
-import type { BackendClient } from '@/services/backendClient';
+import { getFilenameFromContentDisposition } from '@/services/shared/http';
+import type { BackendHttpClient } from '@/services/shared/http';
 import {
   createBackendPathResolver,
   resolveClient,
@@ -126,7 +126,7 @@ export const buildHistoryQuery = (query: GenerationHistoryQuery = {}): string =>
 export const listResults = async (
   query: GenerationHistoryQuery = {},
   options: ListResultsOptions = {},
-  client?: BackendClient | null,
+  client?: BackendHttpClient | null,
 ): Promise<ListResultsOutput> => {
   const backend = resolveClient(client);
   const queryString = buildHistoryQuery(query);
@@ -142,7 +142,7 @@ export const listResults = async (
 export const rateResult = async (
   resultId: GenerationHistoryResult['id'],
   rating: number,
-  client?: BackendClient | null,
+  client?: BackendHttpClient | null,
 ): Promise<GenerationHistoryResult | null> => {
   const backend = resolveClient(client);
   const result = await backend.putJson<GenerationHistoryResult | null, GenerationRatingUpdate>(
@@ -156,7 +156,7 @@ export const rateResult = async (
 export const favoriteResult = async (
   resultId: GenerationHistoryResult['id'],
   isFavorite: boolean,
-  client?: BackendClient | null,
+  client?: BackendHttpClient | null,
 ): Promise<GenerationHistoryResult | null> => {
   const backend = resolveClient(client);
   const result = await backend.putJson<GenerationHistoryResult | null, { is_favorite: boolean }>(
@@ -169,7 +169,7 @@ export const favoriteResult = async (
 
 export const favoriteResults = async (
   payload: GenerationBulkFavoriteRequest,
-  client?: BackendClient | null,
+  client?: BackendHttpClient | null,
 ): Promise<void> => {
   const backend = resolveClient(client);
   await backend.putJson<unknown, GenerationBulkFavoriteRequest>(
@@ -181,7 +181,7 @@ export const favoriteResults = async (
 
 export const deleteResult = async (
   resultId: GenerationHistoryResult['id'],
-  client?: BackendClient | null,
+  client?: BackendHttpClient | null,
 ): Promise<void> => {
   const backend = resolveClient(client);
   await backend.delete(historyPath(`/results/${encodeURIComponent(String(resultId))}`), withSameOrigin());
@@ -189,7 +189,7 @@ export const deleteResult = async (
 
 export const deleteResults = async (
   payload: GenerationBulkDeleteRequest,
-  client?: BackendClient | null,
+  client?: BackendHttpClient | null,
 ): Promise<void> => {
   const backend = resolveClient(client);
   await backend.requestJson<unknown>(historyPath('/results/bulk-delete'), {
@@ -215,7 +215,7 @@ const toDownloadMetadata = (
 
 export const exportResults = async (
   payload: GenerationExportRequest,
-  client?: BackendClient | null,
+  client?: BackendHttpClient | null,
 ): Promise<GenerationDownloadMetadata> => {
   const backend = resolveClient(client);
   const { blob, response } = await backend.requestBlob(
@@ -232,7 +232,7 @@ export const exportResults = async (
 export const downloadResult = async (
   resultId: GenerationHistoryResult['id'],
   fallbackName = `generation-${resultId}.png`,
-  client?: BackendClient | null,
+  client?: BackendHttpClient | null,
 ): Promise<GenerationDownloadMetadata> => {
   const backend = resolveClient(client);
   const { blob, response } = await backend.requestBlob(
@@ -244,7 +244,7 @@ export const downloadResult = async (
 
 export const fetchGenerationHistory = async (
   query: GenerationHistoryQuery = {},
-  client?: BackendClient | null,
+  client?: BackendHttpClient | null,
 ): Promise<GenerationHistoryPayload | null> => {
   const result = await listResults(query, {}, client);
   return result.payload;

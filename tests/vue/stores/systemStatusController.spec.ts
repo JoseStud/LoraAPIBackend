@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 
-import type { BackendClient } from '@/services/backendClient';
+import type { BackendHttpClient } from '@/services/shared/http';
 
 const backendClientMocks = vi.hoisted(() => ({
   useBackendClient: vi.fn(),
@@ -11,8 +11,8 @@ const systemServiceMocks = vi.hoisted(() => ({
   fetchSystemStatus: vi.fn(),
 }));
 
-vi.mock('@/services/backendClient', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/services/backendClient')>();
+vi.mock('@/services/shared/http', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/shared/http')>();
   return {
     ...actual,
     useBackendClient: backendClientMocks.useBackendClient,
@@ -40,7 +40,7 @@ vi.mock('@/utils/backend', async () => {
   };
 });
 
-const createBackendClient = (label: string): BackendClient =>
+const createBackendClient = (label: string): BackendHttpClient =>
   ({
     resolve: (path = '') => `${label}${path}`,
     requestJson: vi.fn(),
@@ -50,7 +50,7 @@ const createBackendClient = (label: string): BackendClient =>
     patchJson: vi.fn(),
     delete: vi.fn(),
     requestBlob: vi.fn(),
-  }) as unknown as BackendClient;
+  }) as unknown as BackendHttpClient;
 
 describe('acquireSystemStatusController', () => {
   let resetStore: (() => void) | null = null;

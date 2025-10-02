@@ -6,7 +6,7 @@ import {
   parseRecommendationResponse,
   RecommendationsServiceParseError,
 } from '@/features/recommendations/services';
-import { createHttpClient, type HttpClient } from '@/services/apiClient';
+import { createHttpClient, type HttpClient } from '@/services/shared/http';
 import type { RecommendationItem, RecommendationResponse } from '@/types';
 
 const originalFetch = global.fetch;

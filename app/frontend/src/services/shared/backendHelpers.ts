@@ -1,19 +1,19 @@
 import {
   createBackendClient,
   resolveBackendClient,
-  type BackendClient,
-} from '@/services/backendClient';
+  type BackendHttpClient,
+} from '@/services/shared/http';
 import {
   createBackendPathBuilder,
   type BackendPathBuilder,
   withSameOrigin,
 } from '@/utils/backend';
 
-export type BackendClientInput = BackendClient | string | null | undefined;
+export type BackendClientInput = BackendHttpClient | string | null | undefined;
 
 export type { BackendPathBuilder };
 
-export const resolveClient = (input?: BackendClientInput): BackendClient => {
+export const resolveClient = (input?: BackendClientInput): BackendHttpClient => {
   if (typeof input === 'string') {
     return createBackendClient(input);
   }

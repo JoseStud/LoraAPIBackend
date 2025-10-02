@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 
-import * as backendClientService from '@/services/backendClient';
+import * as backendClientService from '@/services/shared/http';
 import * as backendRefresh from '@/services/system/backendRefresh';
 import * as loraService from '@/features/lora/services/lora/loraService';
 import { useAdapterCatalogStore } from '@/features/lora/stores/adapterCatalog';

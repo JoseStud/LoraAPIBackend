@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 
-import * as backendClientService from '@/services/backendClient';
+import * as backendClientService from '@/services/shared/http';
 import * as backendRefresh from '@/services/system/backendRefresh';
 import * as systemService from '@/services/system/systemService';
 import * as systemMetrics from '@/utils/systemMetrics';

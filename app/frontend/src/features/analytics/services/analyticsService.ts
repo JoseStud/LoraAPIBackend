@@ -1,5 +1,5 @@
-import { getFilenameFromContentDisposition } from '@/services/apiClient';
-import { resolveBackendClient, type BackendClient } from '@/services/backendClient';
+import { getFilenameFromContentDisposition } from '@/services/shared/http';
+import { resolveBackendClient, type BackendHttpClient } from '@/services/shared/http';
 
 import type {
   AnalyticsExportOptions,
@@ -22,11 +22,12 @@ const resolveFallbackFilename = (options: AnalyticsExportOptions): string => {
   return `analytics-export-${Date.now()}.${format}`;
 };
 
-const resolveClient = (client?: BackendClient | null): BackendClient => resolveBackendClient(client ?? undefined);
+const resolveClient = (client?: BackendHttpClient | null): BackendHttpClient =>
+  resolveBackendClient(client ?? undefined);
 
 export const exportAnalyticsReport = async (
   options: AnalyticsExportOptions = DEFAULT_EXPORT_OPTIONS,
-  client?: BackendClient | null,
+  client?: BackendHttpClient | null,
 ): Promise<AnalyticsExportResult> => {
   const payload: AnalyticsExportOptions = {
     ...DEFAULT_EXPORT_OPTIONS,
@@ -107,7 +108,7 @@ const normaliseChartData = (charts?: PerformanceAnalyticsChartsApi | null): Perf
 
 export const fetchPerformanceAnalytics = async (
   timeRange: PerformanceTimeRange = '24h',
-  client?: BackendClient | null,
+  client?: BackendHttpClient | null,
 ): Promise<PerformanceAnalyticsSummaryResult> => {
   const backend = resolveClient(client);
   const baseUrl = backend.resolve('/analytics/summary');
