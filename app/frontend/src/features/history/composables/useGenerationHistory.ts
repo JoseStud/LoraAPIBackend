@@ -3,7 +3,7 @@ import type { MaybeRefOrGetter } from 'vue';
 
 import { debounce, type DebouncedFunction } from '@/utils/async';
 import { useBackendClient } from '@/services/backendClient';
-import { listResults as listHistoryResults } from '@/features/history/services';
+import { listResults as listHistoryResults } from '../services/historyService';
 import type {
   GenerationHistoryQuery,
   GenerationHistoryResult,

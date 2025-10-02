@@ -67,7 +67,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, toRefs } from 'vue'
 
-import { HistoryRecentResultCard } from '@/features/history'
+import { HistoryRecentResultCard } from '@/features/history/public'
 import { toHistoryResult } from '@/utils/generationHistory'
 import { RecycleScroller } from 'vue-virtual-scroller'
 
