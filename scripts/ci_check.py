@@ -6,6 +6,7 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Sequence
 
@@ -152,6 +153,130 @@ def run_guardrail_checks() -> None:
     """Run repository guardrail validations prior to full CI checks."""
     _ensure_cancel_job_usage_is_guarded()
     _ensure_generation_stores_are_private()
+    _ensure_no_legacy_frontend_paths()
+    _ensure_no_deep_feature_imports()
+    _run_guardrail_fitness_tests()
+
+
+def _ensure_no_legacy_frontend_paths() -> None:
+    """Ensure legacy component or provider paths do not reappear."""
+    checks: Sequence[tuple[str, bool, str]] = (
+        (
+            "@/components/import-export",
+            False,
+            (
+                "Import/export modules should be consumed via "
+                '"@/features/import-export/public".'
+            ),
+        ),
+        (
+            r"GenerationStudio\.vue",
+            True,
+            (
+                "GenerationStudio.vue was removed. Use the generation shell "
+                "feature instead."
+            ),
+        ),
+        (
+            "@/providers",
+            False,
+            "Legacy providers are deprecated. Prefer feature-managed providers.",
+        ),
+    )
+
+    violations: list[str] = []
+    for pattern, use_regex, message in checks:
+        matches = _search_repository(
+            pattern, Path("app/frontend/src"), use_regex=use_regex
+        )
+        if not matches:
+            continue
+
+        formatted_matches = "\n".join(
+            f"- {path}:{line_no}: {content.strip()}"
+            for path, line_no, content in matches
+        )
+        violations.append(f"{message}\n{formatted_matches}")
+
+    if violations:
+        raise SystemExit(
+            "Legacy frontend paths detected. Clean up the following occurrences:\n"
+            + "\n\n".join(violations)
+        )
+
+
+def _ensure_no_deep_feature_imports() -> None:
+    """Block importing feature internals across feature boundaries."""
+    search_root = Path("app/frontend/src")
+    feature_root = Path("app/frontend/src/features")
+    if not feature_root.exists():
+        return
+    pattern = r"@/features/([^/'\"]+)/([^'\"]+)"
+
+    matches = _search_repository(pattern, search_root, use_regex=True)
+
+    violations: list[tuple[Path, str, str]] = []
+
+    feature_dirs = {entry.name for entry in feature_root.iterdir() if entry.is_dir()}
+
+    for path, line_no, content in matches:
+        match = re.search(pattern, content)
+        if not match:
+            continue
+
+        feature_name, internal_path = match.groups()
+
+        if feature_name not in feature_dirs:
+            continue
+
+        if internal_path.startswith("public"):
+            continue
+
+        try:
+            path.relative_to(feature_root / feature_name)
+            continue
+        except ValueError:
+            violations.append((path, line_no, content))
+
+    if violations:
+        formatted = "\n".join(
+            f"- {path}:{line_no}: {content.strip()}"
+            for path, line_no, content in violations
+        )
+        raise SystemExit(
+            "Feature internals must remain private. Import feature surfaces via their "
+            f"public barrels:\n{formatted}"
+        )
+
+
+def _run_guardrail_fitness_tests() -> None:
+    """Lint fixtures that should fail to verify guardrail rules are active."""
+    fixtures = [
+        Path("tests/guardrails/forbidden_feature_internal.ts"),
+        Path("tests/guardrails/forbidden_backend_client.ts"),
+        Path("tests/guardrails/forbidden_request_configured_json.ts"),
+    ]
+
+    eslint_command = ["npx", "eslint", "--no-ignore"]
+
+    for fixture in fixtures:
+        if not fixture.exists():
+            raise SystemExit(f"Guardrail fixture missing: {fixture}")
+
+        result = subprocess.run(
+            [*eslint_command, str(fixture)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode == 0:
+            print(result.stdout)
+            print(result.stderr, file=sys.stderr)
+            raise SystemExit(
+                "Guardrail fitness test succeeded unexpectedly for "
+                f"{fixture}. Ensure the ESLint rule fails."
+            )
 
 
 def run_command(command: Sequence[str]) -> None:

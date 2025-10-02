@@ -30,6 +30,13 @@ jobs:
         run: npm ci
       - name: Run unified quality workflow
         run: npm run ci:check
+      - name: Upload dashboard bundle report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-bundle-report
+          path: app/dist/bundle-inspector.json
+          if-no-files-found: ignore
 
   node-modules-sanity:
     name: Ensure node_modules directory is absent

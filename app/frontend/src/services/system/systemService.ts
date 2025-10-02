@@ -7,35 +7,31 @@ import type {
   SystemMetricsSnapshot,
   SystemStatusPayload,
 } from '@/types';
-import { requestConfiguredJson, type ApiRequestConfig } from '@/services/apiClient';
+import { performConfiguredRequest, type ApiRequestConfig } from '@/services/apiClient';
 
 const createRequestConfig = (path: string, client?: BackendClient | null): ApiRequestConfig => ({
   target: resolveBackendPath(path, client ?? undefined),
   init: withSameOrigin(),
 });
 
-export const loadFrontendSettings = async (): Promise<FrontendRuntimeSettings | null> => {
-  const result = await requestConfiguredJson<FrontendRuntimeSettings>(createRequestConfig('/frontend/settings'));
-  return (result.data as FrontendRuntimeSettings | null) ?? null;
+const requestBackendJson = async <TPayload>(
+  path: string,
+  client?: BackendClient | null,
+): Promise<TPayload | null> => {
+  const result = await performConfiguredRequest<TPayload>(createRequestConfig(path, client));
+  return (result.data as TPayload | null) ?? null;
 };
+
+export const loadFrontendSettings = async (): Promise<FrontendRuntimeSettings | null> =>
+  requestBackendJson<FrontendRuntimeSettings>('/frontend/settings');
 
 export const fetchDashboardStats = async (
   client?: BackendClient | null,
-): Promise<DashboardStatsSummary | null> => {
-  const result = await requestConfiguredJson<DashboardStatsSummary>(
-    createRequestConfig('/dashboard/stats', client),
-  );
-  return (result.data as DashboardStatsSummary | null) ?? null;
-};
+): Promise<DashboardStatsSummary | null> => requestBackendJson<DashboardStatsSummary>('/dashboard/stats', client);
 
 export const fetchSystemStatus = async (
   client?: BackendClient | null,
-): Promise<SystemStatusPayload | null> => {
-  const result = await requestConfiguredJson<SystemStatusPayload>(
-    createRequestConfig('/system/status', client),
-  );
-  return (result.data as SystemStatusPayload | null) ?? null;
-};
+): Promise<SystemStatusPayload | null> => requestBackendJson<SystemStatusPayload>('/system/status', client);
 
 export const emptyMetricsSnapshot = (): SystemMetricsSnapshot => ({
   cpu_percent: 0,
