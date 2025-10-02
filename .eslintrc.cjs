@@ -23,6 +23,11 @@ const restrictedImportRuleConfig = {
       message:
         'Route generation result access through the orchestrator facade instead of the legacy store entry.',
     },
+    {
+      name: '@/components/import-export',
+      message:
+        'Import the import/export feature through "@/features/import-export/public" instead of the legacy components path.',
+    },
   ],
   patterns: [
     {
@@ -66,6 +71,11 @@ const restrictedImportRuleConfig = {
       group: ['@/stores/generation/*'],
       message:
         'Generation stores are internal modules. Import the orchestrator facade from "@/features/generation/orchestrator".',
+    },
+    {
+      group: ['@/components/import-export/**'],
+      message:
+        'Import the import/export feature through "@/features/import-export/public" instead of the legacy components path.',
     },
     generationStoreRestriction,
   ],

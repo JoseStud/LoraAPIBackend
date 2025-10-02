@@ -112,7 +112,7 @@ import type {
   HistorySelectionChangePayload,
   HistorySortOption,
   RatingFilterOption,
-} from '@/features/history';
+} from '@/features/history/public';
 import type { GenerationHistoryResult, GenerationHistoryStats } from '@/types';
 
 import HistoryActionToolbar, { type HistoryViewMode } from './HistoryActionToolbar.vue';

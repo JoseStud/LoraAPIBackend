@@ -81,7 +81,7 @@ import {
   SystemStatusPanel,
 } from '@/features/generation/public';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import { RecommendationsPanel } from '@/features/recommendations';
+import { RecommendationsPanel } from '@/features/recommendations/public';
 import { usePerformanceAnalyticsStore } from '@/features/analytics/public';
 
 type PanelKey = 'analytics' | 'composer' | 'studio' | 'gallery' | 'history' | 'importExport';
@@ -156,7 +156,7 @@ const panelConfigs = [
     placeholder:
       'Load a lightweight history viewer inline or head to the history page for advanced filtering and exports.',
     fallback: 'Loading generation history…',
-    loader: () => import('@/features/history').then((module) => module.GenerationHistory),
+    loader: () => import('@/features/history/public').then((module) => module.GenerationHistory),
   },
   {
     key: 'importExport',
@@ -167,7 +167,8 @@ const panelConfigs = [
     placeholder:
       'Bring the import/export utilities inline for quick actions or open the dedicated workspace for bulk jobs.',
     fallback: 'Loading import/export tools…',
-    loader: () => import('@/components/import-export/ImportExportContainer.vue').then((module) => module.default),
+    loader: () =>
+      import('@/features/import-export/ui/ImportExportContainer').then((module) => module.default),
   },
 ] satisfies PanelConfig[];
 

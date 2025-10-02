@@ -22,7 +22,7 @@ import {
   type DateFilterOption,
   type RatingFilterOption,
   type DimensionFilterOption,
-} from '@/features/history';
+} from '@/features/history/public';
 import { PERSISTENCE_KEYS, useAsyncLifecycleTask, usePersistence } from '@/composables/shared';
 import { useBackendRefresh } from '@/services/system/backendRefresh';
 import { useBackendBase } from '@/utils/backend';
