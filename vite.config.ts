@@ -1,10 +1,39 @@
 import { fileURLToPath, URL } from 'node:url';
-import { defineConfig, loadEnv, type Alias } from 'vite';
+import { defineConfig, loadEnv, type Alias, type PluginOption } from 'vite';
 import vue from '@vitejs/plugin-vue';
 
 const frontendRoot = fileURLToPath(new URL('./app/frontend', import.meta.url));
 const srcDirectory = fileURLToPath(new URL('./app/frontend/src', import.meta.url));
 const entryFile = fileURLToPath(new URL('./app/frontend/src/main.ts', import.meta.url));
+
+const createBundleInspectorPlugin = (): PluginOption => ({
+  name: 'bundle-inspector',
+  apply: 'build',
+  generateBundle(_options, bundle) {
+    const summary: Record<string, unknown> = {};
+
+    for (const [fileName, output] of Object.entries(bundle)) {
+      if (output.type !== 'chunk') {
+        continue;
+      }
+
+      summary[fileName] = {
+        facadeModuleId: output.facadeModuleId,
+        isEntry: output.isEntry ?? false,
+        codeSize: Buffer.byteLength(output.code, 'utf8'),
+        imports: output.imports,
+        dynamicImports: output.dynamicImports,
+        modules: Object.keys(output.modules),
+      } satisfies Record<string, unknown>;
+    }
+
+    this.emitFile({
+      type: 'asset',
+      fileName: 'bundle-inspector.json',
+      source: JSON.stringify(summary, null, 2),
+    });
+  },
+});
 
 const pickFirst = (
   ...values: Array<string | undefined>
@@ -83,10 +112,6 @@ export default defineConfig(({ mode }) => {
 
   const alias: Alias[] = [
     {
-      find: '@',
-      replacement: srcDirectory,
-    },
-    {
       find: '@/features/generation/orchestrator',
       replacement: fileURLToPath(
         new URL('./app/frontend/src/features/generation/orchestrator/facade.ts', import.meta.url),
@@ -95,6 +120,10 @@ export default defineConfig(({ mode }) => {
     {
       find: '@/features',
       replacement: fileURLToPath(new URL('./app/frontend/src/features', import.meta.url)),
+    },
+    {
+      find: '@',
+      replacement: srcDirectory,
     },
   ];
 
@@ -115,8 +144,14 @@ export default defineConfig(({ mode }) => {
     );
   }
 
+  const plugins: PluginOption[] = [vue()];
+
+  if (process.env.VITE_ENABLE_BUNDLE_REPORT === '1') {
+    plugins.push(createBundleInspectorPlugin());
+  }
+
   return {
-    plugins: [vue()],
+    plugins,
     root: './app/frontend',
     server: {
       port: 5173,

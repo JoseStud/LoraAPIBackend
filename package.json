@@ -28,6 +28,7 @@
     "lint:fix": "eslint app/frontend/src --ext .ts,.tsx,.js,.vue --fix --cache --cache-location .cache/eslint",
     "audit": "npm audit",
     "validate": "npm run lint && npm run test",
+    "check:bundle": "node scripts/check_dashboard_bundle.mjs",
     "issues:create:sh": "bash scripts/create_github_issues.sh",
     "issues:create:gh": "bash scripts/create_github_issues_gh.sh"
   },

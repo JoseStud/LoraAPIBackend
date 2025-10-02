@@ -1,8 +1,10 @@
 /** @internal */
 import { reactive, readonly, ref } from 'vue';
 
-import { DEFAULT_POLL_INTERVAL } from '../../services/updates';
+import { generationPollingConfig } from '../../config/polling';
 import type { SystemStatusPayload, SystemStatusState } from '@/types';
+
+const DEFAULT_POLL_INTERVAL = generationPollingConfig.defaults.systemStatusMs;
 
 export const DEFAULT_SYSTEM_STATUS: SystemStatusState = {
   gpu_available: false,
