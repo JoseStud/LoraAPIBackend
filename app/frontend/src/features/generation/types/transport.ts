@@ -3,7 +3,25 @@ export type GenerationTransportPhase =
   | 'connecting'
   | 'connected'
   | 'disconnected'
-  | 'reconnecting';
+  | 'reconnecting'
+  | 'paused';
+
+export type GenerationTransportPauseReason = 'document-hidden' | 'network-offline';
+
+export interface GenerationTransportPausePayload {
+  reasons: readonly GenerationTransportPauseReason[];
+  hidden: boolean;
+  online: boolean;
+  source: string;
+  timestamp: number;
+}
+
+export interface GenerationTransportResumePayload {
+  hidden: boolean;
+  online: boolean;
+  source: string;
+  timestamp: number;
+}
 
 export type GenerationWebSocketEventName =
   | 'connect:start'
@@ -57,4 +75,9 @@ export interface GenerationTransportMetricsSnapshot {
   totalDowntimeMs: number;
   lastError: GenerationTransportError | null;
   lastEvent: GenerationWebSocketStateSnapshot | null;
+  paused: boolean;
+  pauseReasons: readonly GenerationTransportPauseReason[];
+  pauseSince: number | null;
+  lastPauseEvent: GenerationTransportPausePayload | null;
+  lastResumeEvent: GenerationTransportResumePayload | null;
 }

@@ -269,6 +269,7 @@ export const useGenerationQueueClient = (
     pollInterval,
     setPollInterval,
     initialize,
+    startPolling,
     stopPolling,
     refreshSystemStatus,
     refreshActiveJobs,

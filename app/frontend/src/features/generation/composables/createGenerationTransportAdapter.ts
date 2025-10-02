@@ -14,6 +14,8 @@ import type {
 } from '@/types';
 import type {
   GenerationTransportError,
+  GenerationTransportPausePayload,
+  GenerationTransportResumePayload,
   GenerationWebSocketStateSnapshot,
 } from '../types/transport';
 
@@ -48,6 +50,12 @@ export interface GenerationTransportAdapter {
   deleteResult: ReturnType<typeof useGenerationTransport>['deleteResult'];
   reconnect: () => void;
   setPollInterval: (interval: number) => void;
+  pause: (payload: GenerationTransportPausePayload) => void;
+  resume: (
+    historyLimit: number,
+    payload: GenerationTransportResumePayload,
+  ) => Promise<void>;
+  isPaused: () => boolean;
   clear: () => void;
 }
 
@@ -114,6 +122,10 @@ export const createGenerationTransportAdapter = (
     deleteResult: transport.deleteResult,
     reconnect: () => transport.reconnectUpdates(),
     setPollInterval: (interval: number) => transport.setPollInterval(interval),
+    pause: (payload: GenerationTransportPausePayload) => transport.pauseUpdates(payload),
+    resume: (historyLimit: number, payload: GenerationTransportResumePayload) =>
+      transport.resumeUpdates(historyLimit, payload),
+    isPaused: () => transport.isPaused(),
     clear: () => {
       transport.clear();
     },
