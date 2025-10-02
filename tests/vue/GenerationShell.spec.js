@@ -2,7 +2,7 @@
  * Unit tests for GenerationShell Vue component
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { nextTick } from 'vue'
+import { h, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 
 import GenerationShell from '@/features/generation/ui/GenerationShell.vue'
@@ -18,6 +18,15 @@ const mockStatusController = vi.hoisted(() => ({
   refresh: vi.fn().mockResolvedValue(undefined),
   start: vi.fn(),
   stop: vi.fn(),
+}))
+
+const dialogServiceMocks = vi.hoisted(() => ({
+  confirm: vi.fn().mockResolvedValue(true),
+  prompt: vi.fn().mockResolvedValue({ confirmed: false, value: '' }),
+}))
+
+vi.mock('@/composables/shared/useDialogService', () => ({
+  useDialogService: () => dialogServiceMocks,
 }))
 
 vi.mock('../../app/frontend/src/stores/generation/systemStatusController', () => ({
@@ -171,6 +180,10 @@ describe('GenerationShell.vue', () => {
       ['queued', 'processing'].includes(job.status),
     )
     useGenerationStudioControllerMock.mockClear()
+    dialogServiceMocks.confirm.mockClear()
+    dialogServiceMocks.prompt.mockClear()
+    dialogServiceMocks.confirm.mockResolvedValue(true)
+    dialogServiceMocks.prompt.mockResolvedValue({ confirmed: false, value: '' })
   })
 
   afterEach(() => {
@@ -189,6 +202,60 @@ describe('GenerationShell.vue', () => {
     expect(wrapper.find('.page-subtitle').text()).toBe('Generate images with AI-powered LoRA integration')
   })
 
+  it('provides header slot props for custom layouts', async () => {
+    controllerMocks.activeJobs.value = [{ id: 'job-1', status: 'queued' }]
+
+    const headerSpy = vi.fn()
+
+    wrapper = mount(GenerationShell, {
+      slots: {
+        header: (slotProps) => {
+          headerSpy(slotProps)
+          return h('div', { class: 'custom-header flex items-center gap-2' }, [
+            h('span', { class: slotProps.isConnected ? 'text-green-500' : 'text-red-500' }, 'status'),
+            h(
+              'button',
+              {
+                class: 'toggle-history btn btn-secondary btn-sm',
+                onClick: slotProps.toggleHistory,
+              },
+              'Toggle history',
+            ),
+            h(
+              'button',
+              {
+                class: 'clear-queue btn btn-secondary btn-sm',
+                disabled: !slotProps.hasActiveJobs,
+                onClick: slotProps.clearQueue,
+              },
+              'Clear queue',
+            ),
+          ])
+        },
+      },
+    })
+
+    expect(wrapper.find('.custom-header').exists()).toBe(true)
+    expect(headerSpy).toHaveBeenCalled()
+    expect(headerSpy.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        isConnected: expect.anything(),
+        showHistory: expect.anything(),
+        toggleHistory: expect.any(Function),
+        clearQueue: expect.any(Function),
+        hasActiveJobs: true,
+      }),
+    )
+
+    await wrapper.find('.toggle-history').trigger('click')
+    expect(uiStore.showHistory).toBe(true)
+
+    await wrapper.find('.clear-queue').trigger('click')
+    await nextTick()
+    expect(dialogServiceMocks.confirm).toHaveBeenCalled()
+    expect(controllerMocks.clearQueue).toHaveBeenCalled()
+  })
+
   it('has correct initial state', () => {
     wrapper = mount(GenerationShell)
 
@@ -200,6 +267,21 @@ describe('GenerationShell.vue', () => {
     expect(promptInput.element.value).toBe('')
     expect(widthSelect.element.value).toBe('512')
     expect(heightSelect.element.value).toBe('512')
+  })
+
+  it('allows extending the secondary column through slots', () => {
+    wrapper = mount(GenerationShell, {
+      slots: {
+        secondary: ({ systemStatusCard, jobQueue }) =>
+          h('div', { class: 'custom-secondary gap-4 flex flex-col' }, [
+            h(systemStatusCard, { variant: 'detailed' }),
+            h(jobQueue, { 'show-clear-completed': true }),
+            h('div', { class: 'extra-panel' }, 'Extra content'),
+          ]),
+      },
+    })
+
+    expect(wrapper.find('.custom-secondary .extra-panel').exists()).toBe(true)
   })
 
   it('updates parameters when user inputs change', async () => {
