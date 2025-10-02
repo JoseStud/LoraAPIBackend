@@ -79,10 +79,15 @@ export const useGenerationQueueClient = (
     callbacks.onNotify?.(message, type);
   };
 
+  interface TransportErrorExtras {
+    overrides?: Partial<GenerationTransportError>;
+    metadata?: Record<string, unknown>;
+  }
+
   const reportError = (
     context: string,
     error: unknown,
-    extras: Partial<GenerationTransportError> = {},
+    extras: TransportErrorExtras = {},
   ): void => {
     const timestamp = Date.now();
     let message = 'Unknown error';
@@ -97,14 +102,19 @@ export const useGenerationQueueClient = (
       message = error;
     }
 
+    const overrides = extras.overrides ?? {};
+    const metadata = extras.metadata ?? {};
+    const details = overrides.details ?? { error, ...metadata };
+
     const payload: GenerationTransportError = {
-      source: 'http',
-      context,
-      message,
-      timestamp,
-      statusCode,
-      details: error,
-      ...extras,
+      source: overrides.source ?? 'http',
+      context: overrides.context ?? context,
+      message: overrides.message ?? message,
+      timestamp: overrides.timestamp ?? timestamp,
+      statusCode: overrides.statusCode ?? statusCode,
+      attempt: overrides.attempt,
+      url: overrides.url,
+      details,
     };
 
     callbacks.onTransportError?.(payload);
@@ -232,7 +242,7 @@ export const useGenerationQueueClient = (
       await getQueueClient().cancelJob(jobId);
       notify('Generation cancelled', 'success');
     } catch (error) {
-      reportError('cancelJob', error, { jobId });
+      reportError('cancelJob', error, { metadata: { jobId } });
       notify('Failed to cancel generation', 'error');
       throw error;
     }
@@ -243,7 +253,7 @@ export const useGenerationQueueClient = (
       await getQueueClient().deleteResult(resultId);
       notify('Result deleted', 'success');
     } catch (error) {
-      reportError('deleteResult', error, { resultId });
+      reportError('deleteResult', error, { metadata: { resultId } });
       notify('Failed to delete result', 'error');
       throw error;
     }

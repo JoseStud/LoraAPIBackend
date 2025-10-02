@@ -44,7 +44,7 @@ export interface SystemStatusState {
   backend?: string | null;
   queue_eta_seconds?: number | null;
   last_updated?: string | null;
-  warnings?: string[] | null;
+  warnings?: readonly string[] | null;
   sdnext?: SystemSdNextStatus | null;
   importer?: SystemImporterStatus | null;
   recommendations?: RecommendationRuntimeStatus | null;

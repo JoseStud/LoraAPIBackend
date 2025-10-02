@@ -130,11 +130,12 @@ export const useAsyncResource = <TResult, TArgs = void>(
     onError,
   } = options;
 
-  const data = ref<TResult | null>(initialValue);
-  const error = ref<unknown>(null);
-  const isLoading = ref(false);
-  const lastLoadedAt = ref<number | null>(null);
-  const lastArgs = ref<TArgs | undefined>(initialArgs);
+  const initialDataValue = initialValue ?? null;
+  const data = ref(initialDataValue) as Ref<TResult | null>;
+  const error: Ref<unknown> = ref<unknown>(null);
+  const isLoading: Ref<boolean> = ref(false);
+  const lastLoadedAt: Ref<number | null> = ref(null);
+  const lastArgs = ref(initialArgs) as Ref<TArgs | undefined>;
 
   let pending: Promise<TResult> | null = null;
   let pendingKey: unknown | null = null;
@@ -165,7 +166,7 @@ export const useAsyncResource = <TResult, TArgs = void>(
     const requestId = ++currentRequestId;
     pendingKey = requestKey;
 
-    const request = (async () => {
+    const requestPromise = (async () => {
       isLoading.value = true;
       error.value = null;
 
@@ -190,14 +191,20 @@ export const useAsyncResource = <TResult, TArgs = void>(
           isLoading.value = false;
           pending = null;
           pendingKey = null;
-        } else if (pending === request) {
-          pending = null;
         }
       }
     })();
 
-    pending = request;
-    return request;
+    pending = requestPromise;
+
+    requestPromise.finally(() => {
+      if (requestId !== currentRequestId && pending === requestPromise) {
+        pending = null;
+        pendingKey = null;
+      }
+    });
+
+    return requestPromise;
   };
 
   const refresh = async (args?: TArgs): Promise<TResult | null> => {
@@ -274,7 +281,7 @@ export const useAsyncResource = <TResult, TArgs = void>(
     currentRequestId = 0;
     isLoading.value = false;
     error.value = null;
-    data.value = initialValue;
+    data.value = initialDataValue;
     lastArgs.value = initialArgs;
     lastKey = resolveKey(initialArgs, getKey);
     lastLoadedAt.value = null;

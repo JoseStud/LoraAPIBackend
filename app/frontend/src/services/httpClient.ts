@@ -196,6 +196,8 @@ export interface HttpClient {
   requestBlob: (target: RequestTarget, init?: RequestInit) => Promise<BlobResult>;
 }
 
+export type { ApiResult } from '@/types';
+
 const hasReadableBody = (response: Response): boolean => {
   if (!response) {
     return false;

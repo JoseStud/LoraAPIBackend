@@ -16,9 +16,12 @@ export class HistoryServiceParseError extends Error {
     super(message);
     this.name = 'HistoryServiceParseError';
     if (options?.cause !== undefined) {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error Node 16 does not yet define ErrorOptions in lib.dom.d.ts
-      this.cause = options.cause;
+      Object.defineProperty(this, 'cause', {
+        value: options.cause,
+        enumerable: false,
+        configurable: true,
+        writable: true,
+      });
     }
     this.issues = options?.issues;
   }
@@ -52,11 +55,17 @@ const GenerationHistoryStatsSchema: z.ZodType<GenerationHistoryStats> = z
     total_size: stats.total_size,
   }));
 
-const GenerationHistoryResultSchema: z.ZodType<GenerationHistoryResult> = z
+const GenerationHistoryResultSchema = z
   .object({
     id: z.union([z.string(), z.number()]),
-    job_id: z.union([z.string(), z.number()]).optional(),
-    jobId: z.union([z.string(), z.number()]).optional(),
+    job_id: z
+      .union([z.string(), z.number(), z.null(), z.undefined()])
+      .transform((value) => (value == null ? undefined : String(value)))
+      .optional(),
+    jobId: z
+      .union([z.string(), z.number(), z.null(), z.undefined()])
+      .transform((value) => (value == null ? undefined : String(value)))
+      .optional(),
     status: z.string().optional().nullable(),
     prompt: z.string().optional(),
     negative_prompt: NullableString,
@@ -67,7 +76,7 @@ const GenerationHistoryResultSchema: z.ZodType<GenerationHistoryResult> = z
     steps: z.number().finite().optional(),
     cfg_scale: z.number().finite().optional(),
     seed: NullableNumber,
-    created_at: z.string().optional(),
+    created_at: z.string(),
     finished_at: NullableString,
     updated_at: NullableString,
     sampler_name: NullableString,
@@ -77,15 +86,16 @@ const GenerationHistoryResultSchema: z.ZodType<GenerationHistoryResult> = z
     clip_skip: NullableNumber,
     generation_info: JsonObjectSchema.nullish(),
     metadata: JsonObjectSchema.nullish(),
-    loras: z.array(GenerationLoraReferenceSchema).nullish(),
+    loras: z.array(GenerationLoraReferenceSchema).readonly().nullish(),
     rating: NullableNumber,
     is_favorite: z.boolean().optional(),
     rating_updated_at: NullableString,
     favorite_updated_at: NullableString,
   })
-  .passthrough();
+  .passthrough()
+  .transform((value): GenerationHistoryResult => value as GenerationHistoryResult);
 
-const GenerationHistoryListResponseSchema: z.ZodType<GenerationHistoryListResponse> = z
+const GenerationHistoryListResponseSchema = z
   .object({
     results: z.array(GenerationHistoryResultSchema),
     stats: GenerationHistoryStatsSchema.optional(),
@@ -99,7 +109,10 @@ const GenerationHistoryListResponseSchema: z.ZodType<GenerationHistoryListRespon
   })
   .passthrough();
 
-const GenerationHistoryListPayloadSchema: z.ZodType<GenerationHistoryListPayload> = z.union([
+const GenerationHistoryListPayloadSchema = z.union<[
+  z.ZodArray<typeof GenerationHistoryResultSchema>,
+  typeof GenerationHistoryListResponseSchema,
+]>([
   z.array(GenerationHistoryResultSchema),
   GenerationHistoryListResponseSchema,
 ]);

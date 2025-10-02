@@ -24,13 +24,12 @@ import {
 } from '../stores/useGenerationOrchestratorStore';
 import { useBackendUrl } from '@/utils/backend';
 import type {
-  GenerationJob,
   GenerationRequestPayload,
-  GenerationResult,
   GenerationStartResponse,
   SystemStatusState,
 } from '@/types';
 import type { DeepReadonly } from '@/utils/freezeDeep';
+import type { GenerationJobView, GenerationResultView } from '../orchestrator/facade';
 
 export interface GenerationOrchestratorAcquireOptions {
   notify: GenerationNotificationAdapter['notify'];
@@ -78,9 +77,9 @@ const defaultDependencies: UseGenerationOrchestratorManagerDependencies = {
 };
 
 export interface GenerationOrchestratorBinding {
-  activeJobs: Ref<ReadonlyArray<DeepReadonly<GenerationJob>>>;
-  sortedActiveJobs: Ref<ReadonlyArray<DeepReadonly<GenerationJob>>>;
-  recentResults: Ref<ReadonlyArray<DeepReadonly<GenerationResult>>>;
+  activeJobs: Ref<ReadonlyArray<GenerationJobView>>;
+  sortedActiveJobs: Ref<ReadonlyArray<GenerationJobView>>;
+  recentResults: Ref<ReadonlyArray<GenerationResultView>>;
   systemStatus: Ref<DeepReadonly<SystemStatusState>>;
   isConnected: Ref<boolean>;
   initialize: () => Promise<void>;
@@ -93,7 +92,7 @@ export interface GenerationOrchestratorBinding {
   clearQueue: () => Promise<void>;
   deleteResult: (resultId: string | number) => Promise<void>;
   refreshResults: (notifySuccess?: boolean) => Promise<void>;
-  canCancelJob: (job: GenerationJob) => boolean;
+  canCancelJob: (job: GenerationJobView) => boolean;
   setHistoryLimit: (limit: number) => void;
   handleBackendUrlChange: () => Promise<void>;
   release: () => void;
@@ -413,7 +412,7 @@ export const createUseGenerationOrchestratorManager = (
       refreshResults,
       setHistoryLimit,
       handleBackendUrlChange,
-      canCancelJob: (job: GenerationJob) => orchestrator.isJobCancellable(job),
+      canCancelJob: (job) => orchestrator.isJobCancellable(job),
       release: () => {
         releaseConsumer(consumer.id);
       },

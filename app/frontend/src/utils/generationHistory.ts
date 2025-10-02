@@ -1,4 +1,9 @@
-import type { GenerationHistoryResult, GenerationResult } from '@/types';
+import type {
+  GenerationHistoryResult,
+  GenerationLoraReference,
+  GenerationResult,
+  JsonObject,
+} from '@/types';
 import type { DeepReadonly } from '@/utils/freezeDeep';
 
 const ensureCreatedAt = (timestamp?: string): string => {
@@ -25,7 +30,11 @@ export const toHistoryResult = (
   steps: result.steps ?? null,
   cfg_scale: result.cfg_scale ?? null,
   seed: result.seed ?? null,
-  generation_info: result.generation_info ?? null,
+  generation_info: (result.generation_info ?? null) as JsonObject | null,
+  metadata: (result.metadata ?? null) as JsonObject | null,
+  loras: Array.isArray(result.loras)
+    ? [...result.loras] as GenerationLoraReference[]
+    : null,
 });
 
 export const toGenerationResult = (result: GenerationHistoryResult): GenerationResult => ({
@@ -43,7 +52,11 @@ export const toGenerationResult = (result: GenerationHistoryResult): GenerationR
   created_at: result.created_at,
   finished_at: result.finished_at ?? null,
   status: result.status ?? undefined,
-  generation_info: result.generation_info ?? null,
+  generation_info: (result.generation_info ?? null) as JsonObject | null,
+  metadata: (result.metadata ?? null) as JsonObject | null,
+  loras: Array.isArray(result.loras)
+    ? [...result.loras] as GenerationLoraReference[]
+    : null,
 });
 
 export const mapGenerationResultsToHistory = (

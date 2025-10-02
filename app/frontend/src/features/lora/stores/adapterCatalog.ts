@@ -142,16 +142,20 @@ export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {
       });
     }
 
-    if (type === 'active' && payload.active !== undefined) {
-      return mutateList((draft) => {
-        const index = draft.findIndex((item) => item.id === id);
-        if (index === -1) {
+      if (type === 'active') {
+        const { active } = payload;
+        if (active === undefined) {
           return false;
         }
-        draft[index] = { ...draft[index], active: payload.active };
-        return true;
-      });
-    }
+        return mutateList((draft) => {
+          const index = draft.findIndex((item) => item.id === id);
+          if (index === -1) {
+            return false;
+          }
+          draft[index] = { ...draft[index], active };
+          return true;
+        });
+      }
 
     return false;
   };

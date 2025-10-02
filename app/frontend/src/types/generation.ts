@@ -93,7 +93,7 @@ export type GenerationHistoryResult = Omit<
   status?: NormalizedJobStatus | GenerationResultSummarySchema['status'] | null;
   generation_info?: JsonObject | null;
   metadata?: JsonObject | null;
-  loras?: GenerationLoraReference[] | null;
+  loras?: readonly GenerationLoraReference[] | null;
   updated_at?: string | null;
   sampler_name?: string | null;
   sampler?: string | null;

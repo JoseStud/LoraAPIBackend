@@ -4,6 +4,7 @@ import { computed, readonly, ref } from 'vue';
 import { GenerationJobStatusSchema } from '@/schemas';
 import { normalizeGenerationProgress } from '@/utils/progress';
 import { normalizeJobStatus } from '@/utils/status';
+import type { DeepReadonly } from '@/utils/freezeDeep';
 import type {
   GenerationCompleteMessage,
   GenerationErrorMessage,
@@ -12,12 +13,17 @@ import type {
   ProgressUpdate,
 } from '@/types';
 
-export type GenerationJobInput = Partial<GenerationJob> & {
+type GenerationJobIdentifierOverrides = {
   id?: string | number;
   jobId?: string | number;
   uiId?: string | number;
   backendId?: string | number;
 };
+
+export type GenerationJobInput = Partial<
+  Omit<GenerationJob, 'id' | 'jobId' | 'uiId' | 'backendId'>
+> &
+  GenerationJobIdentifierOverrides;
 
 const CANCELLABLE_STATUSES: ReadonlySet<GenerationJob['status']> = new Set([
   'queued',
@@ -207,7 +213,8 @@ export const createQueueModule = () => {
     jobs.value = jobs.value.filter((job) => !['completed', 'failed'].includes(job.status));
   };
 
-  const isJobCancellable = (job: GenerationJob): boolean => CANCELLABLE_STATUSES.has(job.status);
+  const isJobCancellable = (job: GenerationJob | DeepReadonly<GenerationJob>): boolean =>
+    CANCELLABLE_STATUSES.has(job.status);
 
   const getCancellableJobs = (): GenerationJob[] => jobs.value.filter((job) => isJobCancellable(job));
 

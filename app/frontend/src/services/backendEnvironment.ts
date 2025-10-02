@@ -1,4 +1,4 @@
-import { computed, readonly, ref, type ComputedRef } from 'vue';
+import { computed, ref, type ComputedRef } from 'vue';
 
 import { runtimeConfig } from '@/config/runtime';
 import { sanitizeBackendBaseUrl } from '@/utils/backend/helpers';
@@ -171,9 +171,9 @@ export interface BackendEnvironmentBinding {
 
 export const useBackendEnvironment = (): BackendEnvironmentBinding => ({
   readyPromise: backendEnvironmentReadyPromise,
-  backendUrl: readonly(resolvedBackendUrl),
-  backendApiKey: readonly(resolvedBackendApiKey),
-  hasExplicitBackendApiKey: readonly(resolvedHasExplicitBackendApiKey),
+  backendUrl: resolvedBackendUrl,
+  backendApiKey: resolvedBackendApiKey,
+  hasExplicitBackendApiKey: resolvedHasExplicitBackendApiKey,
 });
 
 export const withBackendEnvironmentOverrides = async <T>(

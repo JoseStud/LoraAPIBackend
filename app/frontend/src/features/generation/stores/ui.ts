@@ -56,16 +56,16 @@ export const createGenerationStudioUiVm = (): GenerationStudioUiVm => {
       reset();
     });
 
-    return {
-      showHistory: readonly(showHistory),
-      showModal: readonly(showModal),
-      selectedResult: readonly(selectedResult),
-      setShowHistory,
-      toggleHistory,
-      setShowModal,
-      selectResult,
-      reset,
-    } satisfies Omit<GenerationStudioUiVm, 'dispose'>;
+      return {
+        showHistory: readonly(showHistory),
+        showModal: readonly(showModal),
+        selectedResult: readonly(selectedResult),
+        setShowHistory,
+        toggleHistory,
+        setShowModal,
+        selectResult,
+        reset,
+      } as Omit<GenerationStudioUiVm, 'dispose'>;
   });
 
   if (!vm) {
@@ -76,10 +76,10 @@ export const createGenerationStudioUiVm = (): GenerationStudioUiVm => {
     scope.stop();
   };
 
-  return {
-    ...vm,
-    dispose,
-  } satisfies GenerationStudioUiVm;
+    return {
+      ...vm,
+      dispose,
+    } as GenerationStudioUiVm;
 };
 
 export type { GenerationStudioUiVm as GenerationStudioUiStore };
