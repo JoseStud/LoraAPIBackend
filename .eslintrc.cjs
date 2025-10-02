@@ -172,6 +172,12 @@ module.exports = {
         ],
       },
     },
+    {
+      files: ['app/frontend/src/utils/freezeDeep.ts'],
+      rules: {
+        '@typescript-eslint/no-unused-vars': 'off',
+      },
+    },
   ],
   ignorePatterns: [
     'node_modules/',

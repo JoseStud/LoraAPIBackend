@@ -11,7 +11,7 @@ import {
   normaliseBackendApiKey,
   publishBackendEnvironment,
   resetBackendEnvironment,
-} from '@/services/backendEnvironment';
+} from '@/services';
 
 const runtimeBackendDefaults = Object.freeze(getRuntimeBackendDefaults());
 
@@ -109,7 +109,7 @@ export const useSettingsStore = defineStore('app-settings', () => {
     error.value = null;
 
     try {
-      const { loadFrontendSettings } = await import('@/services/system/systemService');
+      const { loadFrontendSettings } = await import('@/services');
       const payload = await loadFrontendSettings();
       if (!payload) {
         throw new Error('Received empty settings response');

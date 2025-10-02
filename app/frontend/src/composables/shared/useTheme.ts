@@ -1,7 +1,7 @@
 import { computed, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { useAppStore } from '@/stores/app';
+import { useAppStore } from '@/stores';
 
 type ThemePreference = 'light' | 'dark';
 

@@ -1,5 +1,5 @@
 import { runtimeConfig } from '@/config/runtime';
-import { tryGetSettingsStore } from '@/stores/settings';
+import { tryGetSettingsStore } from '@/stores';
 import type { FrontendRuntimeSettings } from '@/types';
 
 export interface GenerationPollingIntervals {

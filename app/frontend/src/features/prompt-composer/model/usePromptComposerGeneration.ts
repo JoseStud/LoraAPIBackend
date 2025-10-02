@@ -5,7 +5,7 @@ import {
   useGenerationOrchestratorManager,
   type GenerationOrchestratorBinding,
 } from '@/features/generation/public';
-import { createGenerationParams } from '@/services/generation/generationService';
+import { createGenerationParams } from '@/services';
 import type { CompositionEntry, GenerationRequestPayload } from '@/types';
 
 import { cloneCompositionEntries } from '../lib/composition';
