@@ -146,6 +146,8 @@ describe('useJobQueueActions', () => {
         {
           id: 'job-1',
           jobId: 'backend-1',
+          uiId: 'job-1',
+          backendId: 'backend-1',
           status: 'processing',
         } as GenerationJob,
       ];
@@ -182,6 +184,8 @@ describe('useJobQueueActions', () => {
         {
           id: 'job-3',
           jobId: 'backend-3',
+          uiId: 'job-3',
+          backendId: 'backend-3',
           status: 'queued',
         } as GenerationJob,
       ];

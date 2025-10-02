@@ -184,7 +184,13 @@ describe('createUseGenerationOrchestratorManager', () => {
     const binding = manager.acquire({ notify: vi.fn(), debug: vi.fn() });
 
     orchestratorStore.activeJobs.value = (
-      [{ id: '1' } as GenerationJob] as readonly GenerationJob[]
+      [
+        {
+          id: '1',
+          uiId: '1',
+          backendId: 'backend-1',
+        } as GenerationJob,
+      ] as readonly GenerationJob[]
     );
     orchestratorStore.systemStatus.value = {
       status: 'ok',

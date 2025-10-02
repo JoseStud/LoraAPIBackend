@@ -175,4 +175,41 @@ describe('useGenerationOrchestratorManager integration', () => {
 
     third.release();
   });
+
+  it('translates UI job ids to backend ids when cancelling through the binding', async () => {
+    const managerStore = useGenerationOrchestratorManagerStore();
+    const orchestratorStore = useGenerationOrchestratorStore();
+    const uiStore = useGenerationStudioUiStore();
+    const settingsStore = useStubSettingsStore();
+
+    const backendUrlRef = computed(() => settingsStore.backendUrl as string);
+
+    const useManager = createUseGenerationOrchestratorManager({
+      useGenerationOrchestratorManagerStore: () => managerStore,
+      useGenerationOrchestratorStore: () => orchestratorStore,
+      useGenerationStudioUiStore: () => uiStore,
+      useBackendUrl: (() => backendUrlRef) as unknown as typeof useBackendUrl,
+    });
+
+    const manager = useManager();
+    const binding = manager.acquire({ notify: vi.fn(), debug: vi.fn() });
+    await binding.initialize();
+
+    orchestratorStore.enqueueJob({
+      id: 'job-99',
+      uiId: 'job-99',
+      jobId: 'backend-99',
+      backendId: 'backend-99',
+      status: 'queued',
+      progress: 0,
+    });
+
+    transport.cancelJob.mockClear();
+
+    await binding.cancelJob('job-99');
+
+    expect(transport.cancelJob).toHaveBeenCalledWith('backend-99');
+
+    binding.release();
+  });
 });

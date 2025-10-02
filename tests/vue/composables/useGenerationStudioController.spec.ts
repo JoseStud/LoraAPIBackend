@@ -220,7 +220,11 @@ describe('useGenerationStudioController', () => {
     expect(controller.activeJobs.value).toEqual([{ id: 'job-1' }])
     expect(controller.systemStatus.value).toEqual({ status: 'degraded' })
     expect(controller.isConnected.value).toBe(false)
-    expect(controller.canCancelJob({ id: 'job-1' } as GenerationJob)).toBe(true)
+    expect(
+      controller.canCancelJob(
+        { id: 'job-1', uiId: 'job-1', backendId: 'backend-1' } as GenerationJob,
+      ),
+    ).toBe(true)
   })
 
   it('forwards custom auto-sync options to the manager acquisition', async () => {

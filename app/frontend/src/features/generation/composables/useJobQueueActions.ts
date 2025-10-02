@@ -55,7 +55,9 @@ export const useJobQueueActions = (_options: UseJobQueueActionsOptions = {}) => 
   }
 
   const cancelJob = async (jobId: string): Promise<boolean> => {
-    if (!jobId || isCancelling.value) {
+    const normalizedJobId = jobId.trim();
+
+    if (!normalizedJobId || isCancelling.value) {
       return false;
     }
 
@@ -63,8 +65,17 @@ export const useJobQueueActions = (_options: UseJobQueueActionsOptions = {}) => 
 
     const activeJobs = generationFacade.activeJobs.value;
     const job = activeJobs.find((item) => {
-      const backendJobId = (item as { jobId?: string | number }).jobId;
-      return item.id === jobId || String(backendJobId ?? '') === jobId;
+      const backendJobId = (item as { backendId?: string }).backendId
+        ?? (item as { jobId?: string | number }).jobId;
+      const normalizedBackend =
+        typeof backendJobId === 'number' || typeof backendJobId === 'string'
+          ? String(backendJobId)
+          : null;
+      return (
+        item.id === normalizedJobId ||
+        item.uiId === normalizedJobId ||
+        normalizedBackend === normalizedJobId
+      );
     });
 
     if (!job) {
@@ -72,14 +83,10 @@ export const useJobQueueActions = (_options: UseJobQueueActionsOptions = {}) => 
       return false;
     }
 
-    const backendJobId = (job as { jobId?: string | number }).jobId;
-    const candidateId = backendJobId ?? job.id ?? jobId;
-    const resolvedJobId = typeof candidateId === 'string' ? candidateId : String(candidateId);
-
     isCancelling.value = true;
 
     try {
-      await generationFacade.cancelJob(resolvedJobId);
+      await generationFacade.cancelJob(normalizedJobId);
       return true;
     } catch (error) {
       debug('Failed to cancel job', error);

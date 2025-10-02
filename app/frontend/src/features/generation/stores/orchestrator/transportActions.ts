@@ -59,6 +59,8 @@ export const createTransportActions = ({
       const createdAt = new Date().toISOString();
       queue.enqueueJob({
         id: response.job_id,
+        uiId: response.job_id,
+        backendId: response.job_id,
         prompt: payload.prompt,
         status: response.status,
         progress: response.progress ?? 0,
@@ -78,15 +80,12 @@ export const createTransportActions = ({
 
   const cancelJob = async (jobId: string): Promise<void> => {
     const adapter = ensureTransport();
-    const job = queue.activeJobs.value.find(
-      (item) => item.id === jobId || String(item.jobId ?? '') === jobId,
-    );
-    const backendJobId = job?.jobId != null && String(job.jobId)
-      ? String(job.jobId)
-      : jobId;
+    const normalizedId = typeof jobId === 'string' ? jobId : String(jobId);
+    const job = queue.getJobByIdentifier(normalizedId);
+    const backendJobId = job?.backendId ?? normalizedId;
 
     await adapter.cancelJob(backendJobId);
-    queue.removeJob(job?.id ?? jobId);
+    queue.removeJob(backendJobId);
   };
 
   const clearQueue = async (): Promise<void> => {
@@ -95,7 +94,7 @@ export const createTransportActions = ({
       return;
     }
 
-    await Promise.allSettled(cancellableJobs.map((job) => cancelJob(job.id)));
+    await Promise.allSettled(cancellableJobs.map((job) => cancelJob(job.backendId)));
   };
 
   const deleteResult = async (resultId: string | number): Promise<void> => {

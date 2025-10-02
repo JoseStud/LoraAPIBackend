@@ -110,6 +110,8 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
     const transportMetrics = transportModule.metrics as ComputedRef<GenerationTransportMetricsSnapshot>;
 
     const jobs = computed(() => freezeDeep(queue.jobs.value as GenerationJob[]) as ImmutableJobs);
+    const jobsByUiId = computed(() => queue.jobsByUiId.value);
+    const jobsByBackendId = computed(() => queue.jobsByBackendId.value);
     const activeJobs = computed(
       () => freezeDeep(queue.activeJobs.value as GenerationJob[]) as ImmutableJobs,
     );
@@ -186,6 +188,8 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
       ...resultsPublic,
       ...systemStatusModule,
       jobs,
+      jobsByUiId,
+      jobsByBackendId,
       activeJobs,
       sortedActiveJobs,
       recentResults,
@@ -193,6 +197,7 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
       isActive: isActiveState,
       initialize,
       ...transportActions,
+      getJobByIdentifier: queue.getJobByIdentifier,
       cleanup,
       destroy,
       resetState,

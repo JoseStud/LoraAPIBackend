@@ -15,6 +15,8 @@ import type {
 export type GenerationJobInput = Partial<GenerationJob> & {
   id?: string | number;
   jobId?: string | number;
+  uiId?: string | number;
+  backendId?: string | number;
 };
 
 const CANCELLABLE_STATUSES: ReadonlySet<GenerationJob['status']> = new Set([
@@ -22,27 +24,52 @@ const CANCELLABLE_STATUSES: ReadonlySet<GenerationJob['status']> = new Set([
   'processing',
 ]);
 
-const resolveJobId = (job: GenerationJobInput): string => {
-  const rawId = job.id ?? job.jobId;
-  const id = typeof rawId === 'number' || typeof rawId === 'string' ? String(rawId) : '';
+const normalizeIdentifier = (identifier: unknown): string => {
+  if (typeof identifier === 'number' || typeof identifier === 'string') {
+    const normalized = String(identifier).trim();
+    return normalized;
+  }
+  return '';
+};
+
+const resolveUiId = (job: GenerationJobInput): string => {
+  const id =
+    normalizeIdentifier(job.uiId ?? job.id) ||
+    normalizeIdentifier(job.jobId) ||
+    normalizeIdentifier(job.backendId);
+
   return id || `job-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
+const resolveBackendId = (job: GenerationJobInput, uiId: string): string => {
+  const backendId =
+    normalizeIdentifier(job.backendId) ||
+    normalizeIdentifier(job.jobId) ||
+    normalizeIdentifier(job.id);
+
+  return backendId || uiId;
+};
+
 const toStoredJob = (job: GenerationJobInput): GenerationJob => {
-  const id = resolveJobId(job);
+  const uiId = resolveUiId(job);
+  const backendId = resolveBackendId(job, uiId);
   const startTime = job.startTime ?? job.created_at ?? new Date().toISOString();
   const parsed = GenerationJobStatusSchema.parse({
-    id,
-    jobId: job.jobId ?? job.id ?? id,
+    ...job,
+    id: uiId,
+    jobId: backendId,
     status: normalizeJobStatus(job.status),
     progress: normalizeGenerationProgress(job.progress),
     created_at: job.created_at ?? startTime,
     startTime,
-    ...job,
   }) as GenerationJob;
 
   return {
     ...parsed,
+    id: uiId,
+    jobId: backendId,
+    uiId,
+    backendId,
     progress: normalizeGenerationProgress(parsed.progress),
   };
 };
@@ -51,7 +78,43 @@ export const createQueueModule = () => {
   const jobs = ref<GenerationJob[]>([]);
   const jobsState = readonly(jobs);
 
+  const findJobIndex = (identifier: string): number => {
+    if (!identifier) {
+      return -1;
+    }
+
+    return jobs.value.findIndex(
+      (job) => job.uiId === identifier || job.backendId === identifier,
+    );
+  };
+
+  const getJobByIdentifier = (identifier: string): GenerationJob | undefined => {
+    if (!identifier) {
+      return undefined;
+    }
+
+    return jobs.value.find(
+      (job) => job.uiId === identifier || job.backendId === identifier,
+    );
+  };
+
   const activeJobs = computed(() => jobs.value);
+
+  const jobsByUiId = computed(() => {
+    const map = new Map<string, GenerationJob>();
+    for (const job of jobs.value) {
+      map.set(job.uiId, job);
+    }
+    return map;
+  });
+
+  const jobsByBackendId = computed(() => {
+    const map = new Map<string, GenerationJob>();
+    for (const job of jobs.value) {
+      map.set(job.backendId, job);
+    }
+    return map;
+  });
 
   const sortedActiveJobs = computed(() => {
     const statusPriority: Record<GenerationJob['status'], number> = {
@@ -92,7 +155,12 @@ export const createQueueModule = () => {
 
   const enqueueJob = (job: GenerationJobInput): GenerationJob => {
     const stored = toStoredJob(job);
-    const existingIndex = jobs.value.findIndex((item) => item.id === stored.id);
+    let existingIndex = findJobIndex(stored.uiId);
+
+    if (existingIndex < 0) {
+      existingIndex = findJobIndex(stored.backendId);
+    }
+
     if (existingIndex >= 0) {
       jobs.value.splice(existingIndex, 1, stored);
     } else {
@@ -106,17 +174,33 @@ export const createQueueModule = () => {
   };
 
   const updateJob = (jobId: string, updates: Partial<GenerationJob>): void => {
-    const index = jobs.value.findIndex((job) => job.id === jobId);
+    const identifier = normalizeIdentifier(jobId);
+    if (!identifier) {
+      return;
+    }
+
+    const index = findJobIndex(identifier);
     if (index >= 0) {
-      const merged = { ...jobs.value[index], ...updates } as GenerationJob;
-      merged.progress = normalizeGenerationProgress(merged.progress);
-      merged.status = normalizeJobStatus(merged.status);
+      const existing = jobs.value[index];
+      const merged = toStoredJob({
+        ...existing,
+        ...updates,
+        uiId: existing.uiId,
+        backendId: existing.backendId,
+      });
       jobs.value.splice(index, 1, merged);
     }
   };
 
   const removeJob = (jobId: string): void => {
-    jobs.value = jobs.value.filter((job) => job.id !== jobId);
+    const identifier = normalizeIdentifier(jobId);
+    if (!identifier) {
+      return;
+    }
+
+    jobs.value = jobs.value.filter(
+      (job) => job.uiId !== identifier && job.backendId !== identifier,
+    );
   };
 
   const clearCompletedJobs = (): void => {
@@ -128,29 +212,51 @@ export const createQueueModule = () => {
   const getCancellableJobs = (): GenerationJob[] => jobs.value.filter((job) => isJobCancellable(job));
 
   const handleProgressMessage = (message: GenerationProgressMessage | ProgressUpdate): void => {
-    const jobId = message.job_id;
-    const job = jobs.value.find((item) => item.id === jobId);
+    const backendJobId = normalizeIdentifier(message.job_id);
+    if (!backendJobId) {
+      return;
+    }
+
+    const job = getJobByIdentifier(backendJobId);
     const updates: Partial<GenerationJob> = {
       status: normalizeJobStatus(message.status),
       progress: normalizeGenerationProgress(message.progress),
       current_step: typeof message.current_step === 'number' ? message.current_step : job?.current_step,
       total_steps: typeof message.total_steps === 'number' ? message.total_steps : job?.total_steps,
+      backendId: backendJobId,
+      jobId: backendJobId,
     };
 
     if (!job) {
-      enqueueJob({ id: jobId, ...updates });
+      enqueueJob({
+        id: backendJobId,
+        jobId: backendJobId,
+        uiId: backendJobId,
+        backendId: backendJobId,
+        ...updates,
+      });
       return;
     }
 
-    updateJob(jobId, updates);
+    updateJob(backendJobId, updates);
   };
 
   const handleCompletionMessage = (message: GenerationCompleteMessage): void => {
-    removeJob(message.job_id);
+    const backendJobId = normalizeIdentifier(message.job_id);
+    if (!backendJobId) {
+      return;
+    }
+
+    removeJob(backendJobId);
   };
 
   const handleErrorMessage = (message: GenerationErrorMessage): void => {
-    removeJob(message.job_id);
+    const backendJobId = normalizeIdentifier(message.job_id);
+    if (!backendJobId) {
+      return;
+    }
+
+    removeJob(backendJobId);
   };
 
   const ingestQueue = (list: GenerationJobInput[] | undefined | null): void => {
@@ -167,6 +273,8 @@ export const createQueueModule = () => {
   return {
     jobs: jobsState,
     activeJobs,
+    jobsByUiId,
+    jobsByBackendId,
     sortedActiveJobs,
     hasActiveJobs,
     enqueueJob,
@@ -176,6 +284,7 @@ export const createQueueModule = () => {
     clearCompletedJobs,
     isJobCancellable,
     getCancellableJobs,
+    getJobByIdentifier,
     handleProgressMessage,
     handleCompletionMessage,
     handleErrorMessage,

@@ -87,7 +87,9 @@ export type GenerationOrchestratorFacadeFactory = () => GenerationOrchestratorFa
 
 export interface GenerationManager extends GenerationOrchestratorFacadeSelectors {
   cancelJob(jobId: string): Promise<void>;
+  cancelJobByBackendId(jobId: string): Promise<void>;
   removeJob(jobId: string | number): void;
+  removeJobLocal(jobId: string): void;
   clearCompletedJobs(): void;
   refreshHistory(options?: GenerationHistoryRefreshOptions): Promise<void>;
   reconnect(): void | Promise<void>;
@@ -130,7 +132,7 @@ const createLifecycleNotificationAdapter = (): GenerationNotificationAdapter => 
   },
 });
 
-const normalizeJobId = (jobId: string | number): string => String(jobId);
+const normalizeJobId = (jobId: string | number): string => String(jobId).trim();
 
 const createStoreBackedManager = (
   store: GenerationOrchestratorStore,
@@ -171,6 +173,51 @@ const createStoreBackedManager = (
 
     return new Error('Generation orchestrator command failed');
   };
+
+  const resolveBackendJobId = (
+    jobId: string,
+    options: { strict?: boolean } = {},
+  ): string => {
+    const normalized = jobId.trim();
+
+    if (!normalized) {
+      throw new Error('Job identifier is required');
+    }
+
+    const backendMap = store.jobsByBackendId.value;
+    if (backendMap.has(normalized)) {
+      return normalized;
+    }
+
+    const job = store.jobsByUiId.value.get(normalized);
+    if (job) {
+      return job.backendId;
+    }
+
+    if (!options.strict || normalized.startsWith('backend-')) {
+      return normalized;
+    }
+
+    throw new Error(`Job not found for UI id: ${normalized}`);
+  };
+
+  const performCancel = (
+    backendJobId: string,
+    metadata: Record<string, unknown>,
+  ): Promise<void> =>
+    runCommand('cancelJob', () => store.cancelJob(backendJobId), metadata);
+
+  const performRemove = (
+    backendJobId: string,
+    metadata: Record<string, unknown>,
+  ): void =>
+    runSyncCommand(
+      'removeJob',
+      () => {
+        store.removeJob(backendJobId);
+      },
+      metadata,
+    );
 
   const logTelemetry = (
     stage: 'start' | 'success' | 'error',
@@ -390,17 +437,23 @@ const createStoreBackedManager = (
     lastCommandError: lastCommandErrorReadonly,
     lastActionAt: lastActionAtReadonly,
     pendingActionsCount: pendingActionsCountReadonly,
-    cancelJob: (jobId: string): Promise<void> =>
-      runCommand('cancelJob', () => store.cancelJob(jobId), { jobId }),
+    cancelJob: (jobId: string): Promise<void> => {
+      const normalizedJobId = normalizeJobId(jobId);
+      const backendJobId = resolveBackendJobId(normalizedJobId, { strict: true });
+      return performCancel(backendJobId, { jobId: normalizedJobId, backendJobId });
+    },
+    cancelJobByBackendId: (jobId: string): Promise<void> => {
+      const backendJobId = normalizeJobId(jobId);
+      return performCancel(backendJobId, { backendJobId });
+    },
     removeJob: (jobId: string | number): void => {
       const normalizedJobId = normalizeJobId(jobId);
-      runSyncCommand(
-        'removeJob',
-        () => {
-          store.removeJob(normalizedJobId);
-        },
-        { jobId: normalizedJobId },
-      );
+      const backendJobId = resolveBackendJobId(normalizedJobId);
+      performRemove(backendJobId, { jobId: normalizedJobId, backendJobId });
+    },
+    removeJobLocal: (jobId: string): void => {
+      const backendJobId = normalizeJobId(jobId);
+      performRemove(backendJobId, { backendJobId });
     },
     clearCompletedJobs: (): void => {
       runSyncCommand('clearCompletedJobs', () => {

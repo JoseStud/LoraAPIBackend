@@ -21,7 +21,13 @@ vi.mock('@/composables/generation/useGenerationOrchestratorManager', () => ({
 describe('useJobQueue', () => {
   beforeEach(() => {
     orchestratorRefs.sortedActiveJobs.value = [
-      { id: 'job-1', status: 'processing', progress: 10 } as GenerationJob,
+      {
+        id: 'job-1',
+        uiId: 'job-1',
+        backendId: 'backend-1',
+        status: 'processing',
+        progress: 10,
+      } as GenerationJob,
     ];
     orchestratorRefs.queueManagerActive.value = false;
     orchestratorRefs.acquire.mockReset();
@@ -35,7 +41,13 @@ describe('useJobQueue', () => {
     ]);
 
     orchestratorRefs.sortedActiveJobs.value = [
-      { id: 'job-2', status: 'queued', progress: 0 } as GenerationJob,
+      {
+        id: 'job-2',
+        uiId: 'job-2',
+        backendId: 'backend-2',
+        status: 'queued',
+        progress: 0,
+      } as GenerationJob,
     ];
 
     expect(queue.jobs.value).toEqual([

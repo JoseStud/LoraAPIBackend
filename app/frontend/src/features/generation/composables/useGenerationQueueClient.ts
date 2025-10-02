@@ -22,20 +22,27 @@ import { normalizeJobStatus } from '@/utils/status';
 import { ApiError } from '@/types/api';
 import type { GenerationTransportError } from '../types/transport';
 
-const toQueueJobInput = (status: GenerationJobStatus): GenerationJobInput => ({
-  id: status.id,
-  jobId: status.jobId ?? undefined,
-  prompt: status.prompt ?? undefined,
-  name: status.name ?? undefined,
-  status: normalizeJobStatus(status.status),
-  progress: status.progress,
-  message: status.message ?? undefined,
-  params: status.params ?? null,
-  result: status.result ?? null,
-  error: status.error ?? undefined,
-  created_at: status.created_at,
-  startTime: status.startTime ?? undefined,
-});
+const toQueueJobInput = (status: GenerationJobStatus): GenerationJobInput => {
+  const backendId = status.jobId ?? status.id;
+  const uiId = status.id ?? backendId;
+
+  return {
+    id: uiId,
+    jobId: backendId ?? undefined,
+    uiId: uiId ?? undefined,
+    backendId: backendId ?? undefined,
+    prompt: status.prompt ?? undefined,
+    name: status.name ?? undefined,
+    status: normalizeJobStatus(status.status),
+    progress: status.progress,
+    message: status.message ?? undefined,
+    params: status.params ?? null,
+    result: status.result ?? null,
+    error: status.error ?? undefined,
+    created_at: status.created_at,
+    startTime: status.startTime ?? undefined,
+  };
+};
 
 interface QueueClientOptions {
   getBackendUrl: () => string | null | undefined;
