@@ -89,6 +89,30 @@ describe('useGenerationOrchestratorStore', () => {
     expect(store.activeJobs).toHaveLength(0);
   });
 
+  it('translates UI identifiers to backend identifiers when cancelling jobs', async () => {
+    const store = useGenerationOrchestratorStore();
+    const notificationAdapter = { notify: vi.fn(), debug: vi.fn() };
+    const backendUrl = 'http://localhost';
+
+    await store.initialize({
+      historyLimit: DEFAULT_HISTORY_LIMIT,
+      getBackendUrl: () => backendUrl,
+      notificationAdapter,
+    });
+
+    store.enqueueJob({
+      id: 'job-ui-1',
+      uiId: 'job-ui-1',
+      jobId: 'backend-1',
+      backendId: 'backend-1',
+      status: 'processing',
+    } as any);
+
+    await store.cancelJob('job-ui-1');
+
+    expect(transport.cancelJob).toHaveBeenCalledWith('backend-1');
+  });
+
   it('clears queue by cancelling cancellable jobs', async () => {
     const store = useGenerationOrchestratorStore();
     const notificationAdapter = { notify: vi.fn(), debug: vi.fn() };
@@ -170,6 +194,7 @@ describe('useGenerationOrchestratorStore', () => {
 
     store.enqueueJob({ id: 'job-immutable', status: 'processing', progress: 0 } as any);
     store.setResults([{ id: 'result-immutable', created_at: new Date().toISOString() } as any]);
+    store.updateSystemStatus({ status: 'healthy' } as any);
 
     const jobsSnapshot = store.activeJobs;
     const resultsSnapshot = store.recentResults;
@@ -191,6 +216,48 @@ describe('useGenerationOrchestratorStore', () => {
     expect(() => {
       (statusSnapshot as unknown as { status: string }).status = 'changed';
     }).toThrow(TypeError);
+  });
+
+  it('returns snapshots that are safe to mutate in production builds', () => {
+    vi.stubEnv('DEV', 'false');
+    vi.stubEnv('PROD', 'true');
+
+    try {
+      setActivePinia(createPinia());
+      const store = useGenerationOrchestratorStore();
+
+      store.enqueueJob({
+        id: 'job-prod',
+        status: 'processing',
+        progress: 0,
+        backendId: 'backend-1',
+        jobId: 'backend-1',
+      } as any);
+      store.setResults([{ id: 'result-prod', created_at: new Date().toISOString() } as any]);
+      store.updateSystemStatus({ status: 'healthy' } as any);
+
+      const jobsSnapshot = store.activeJobs;
+      const resultsSnapshot = store.recentResults;
+      const statusSnapshot = store.systemStatus;
+
+      expect(() => {
+        (jobsSnapshot as unknown as any[]).push({ id: 'mutated-job' });
+      }).not.toThrow();
+      expect(store.getJobByIdentifier('job-prod')?.status).toBe('processing');
+
+      (jobsSnapshot[0] as unknown as { status: string }).status = 'mutated';
+      expect(store.getJobByIdentifier('job-prod')?.status).toBe('processing');
+
+      (resultsSnapshot[0] as unknown as { id: string }).id = 'mutated-result';
+      store.removeResult('result-prod');
+      expect(store.recentResults).toHaveLength(0);
+
+      (statusSnapshot as unknown as { status: string }).status = 'broken';
+      store.updateSystemStatus({ queue_length: 99 } as any);
+      expect(store.systemStatus.status).toBe('healthy');
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('does not create transport adapters when reading reactive state', () => {
