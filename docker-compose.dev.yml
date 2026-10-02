@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: lora
     ports:
-      - "5432:5432"
+      - "${DB_HOST_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -43,13 +43,18 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./app:/app/app
-      - ./loras:/app/loras
+      - ${LORA_HOST_DIR:-./loras}:/app/loras
       - ./outputs:/app/outputs
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@db:5432/lora}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       FRONTEND_URL: ${FRONTEND_URL:-http://frontend:5173}
       API_KEY: ${API_KEY:-dev-token}
+      # Empty disables generation; use http://host.docker.internal:7860 for an
+      # SDNext running on the host, or http://sdnext:7860 with the `ml` profile.
+      SDNEXT_BASE_URL: ${SDNEXT_BASE_URL:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8000:8000"
     depends_on:
@@ -97,7 +102,7 @@ services:
     environment:
       COMMANDLINE_ARGS: --listen --port 7860 --api --cors-allow-origins=* --enable-insecure-extension-access
     volumes:
-      - ./loras:/app/models/lora
+      - ${LORA_HOST_DIR:-./loras}:/app/models/lora
       - sdnext_data:/app/repositories
       - sdnext_outputs:/app/outputs
     healthcheck:
