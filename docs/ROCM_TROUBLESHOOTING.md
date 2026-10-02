@@ -158,7 +158,7 @@ docker run --rm --device /dev/dri --device /dev/kfd \
 ### 3. Performance Benchmark
 ```bash
 # Use the WebSocket test client to monitor generation times
-python websocket_client_example.py --host localhost --port 8782
+python examples/websocket_client_example.py --host localhost --port 8000
 ```
 
 ## Useful Commands

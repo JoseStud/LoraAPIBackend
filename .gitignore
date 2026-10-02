@@ -37,7 +37,6 @@ data_store.json
 .env
 .env.*
 !.env.docker.example
-infrastructure/docker/backend.env.local
 
 # Logs
 *.log
