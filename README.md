@@ -89,11 +89,13 @@ iterations or CI reproduction.
 1. Install backend dependencies:
 
    ```bash
-   pip install -r requirements.txt
+   pip install -r requirements.txt -r dev-requirements.txt
    ```
 
-   Add `requirements-ml.txt` if you plan to run the recommendation system with
-   GPU-enabled embeddings.
+   Both files are pinned lockfiles generated from `requirements.in` /
+   `dev-requirements.in`; edit the `.in` files and run `make deps-lock` to change
+   them. The recommendation stack is optional: add `-r requirements-ml.txt` to
+   install PyTorch (ROCm build), sentence-transformers and FAISS.
 
 2. Install Node dependencies:
 

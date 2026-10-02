@@ -22,7 +22,7 @@ the dependencies that may be required.
 1. **Install dependencies**
 
    ```bash
-   pip install -r requirements.txt
+   pip install -r requirements.txt -r dev-requirements.txt
    npm install
    ```
 
