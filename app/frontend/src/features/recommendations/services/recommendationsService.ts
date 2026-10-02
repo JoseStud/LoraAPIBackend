@@ -1,4 +1,4 @@
-import { createHttpClient, ensureData, type HttpClient } from '@/services/shared/http';
+import { createHttpClient, type HttpClient } from '@/services/shared/http';
 import { createBackendPathResolver } from '@/services/shared/backendHelpers';
 import { resolveBackendBaseUrl } from '@/utils/backend';
 import type { RecommendationResponse } from '@/types';
@@ -113,8 +113,10 @@ export const getRecommendations = async (
 
   const httpClient = resolveHttpClient(client ?? undefined);
   const target = buildSimilarRecommendationsPath(loraId, query);
-  const result = await httpClient.getJson<unknown>(target, { signal });
-  const payload = ensureData(result);
+  const payload = await httpClient.getJson<unknown>(target, { signal });
+  if (payload == null) {
+    throw new RecommendationsServiceParseError('Similar recommendations response was empty');
+  }
   const parsed = parseRecommendationResponse(payload, 'similar recommendations response');
   return parsed;
 };

@@ -2,30 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { nextTick, reactive, ref, type Ref } from 'vue';
 
-vi.mock('zod', () => {
-  const passthrough: any = new Proxy(
-    () => passthrough,
-    {
-      apply: () => passthrough,
-      get: () => passthrough,
-    }
-  );
-
-  return {
-    z: passthrough,
-    ZodError: class extends Error {},
-  };
-});
-
 const routerMocks: {
   push: (...args: unknown[]) => Promise<unknown>;
   replace: (...args: unknown[]) => Promise<unknown>;
   failures: { duplicated: number };
-} = {
+} = vi.hoisted(() => ({
   push: () => Promise.resolve(undefined),
   replace: () => Promise.resolve(undefined),
   failures: { duplicated: 1 },
-};
+}));
 
 
 
@@ -77,7 +62,7 @@ vi.mock('vue-router', () => {
 });
 
 import { useSyncedQueryParam } from '@/composables/shared';
-import { useLoraGalleryFilters } from '@/composables/lora-gallery';
+import { useLoraGalleryFilters } from '@/features/lora/composables/lora-gallery';
 
 describe('useSyncedQueryParam', () => {
   beforeEach(() => {
@@ -181,8 +166,7 @@ describe('useSyncedQueryParam', () => {
     routerMocks.replace.mockRejectedValueOnce(new Error('boom'));
     queryRef.value = 'eta';
     await nextTick();
-    await Promise.resolve();
-    await nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
 

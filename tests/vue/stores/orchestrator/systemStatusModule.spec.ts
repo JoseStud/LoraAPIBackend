@@ -22,13 +22,13 @@ describe('systemStatusModule', () => {
     } as any;
 
     systemStatus.applySystemStatusPayload(payload);
-    expect(systemStatus.systemStatus.queue_length).toBe(3);
+    expect(systemStatus.systemStatus.value.queue_length).toBe(3);
     expect(systemStatus.systemStatusReady.value).toBe(true);
     expect(systemStatus.systemStatusApiAvailable.value).toBe(true);
 
     systemStatus.setConnectionState(true);
     systemStatus.resetConnection();
-    expect(systemStatus.systemStatus).toEqual(DEFAULT_SYSTEM_STATUS);
+    expect(systemStatus.systemStatus.value).toEqual(DEFAULT_SYSTEM_STATUS);
     expect(systemStatus.isConnected.value).toBe(false);
   });
 });

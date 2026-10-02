@@ -56,7 +56,7 @@ const orchestratorBindings = vi.hoisted(() => {
   return { binding, acquire, manager }
 })
 
-vi.mock('@/composables/generation/useGenerationOrchestratorManager', () => ({
+vi.mock('@/features/generation/composables/useGenerationOrchestratorManager', () => ({
   useGenerationOrchestratorManager: () => orchestratorBindings.manager,
 }))
 
@@ -79,7 +79,7 @@ vi.mock('@/features/generation/services/generationService', () => servicesMock)
 
 const toGenerationRequestPayload = servicesMock.toGenerationRequestPayload
 
-import { useGenerationStudioController } from '@/composables/generation/useGenerationStudioController'
+import { useGenerationStudioController } from '@/features/generation/controller/useGenerationStudioController'
 import type { GenerationFormState } from '@/types'
 import type { QueueItemView } from '@/features/generation/orchestrator'
 

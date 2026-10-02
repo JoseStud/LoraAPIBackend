@@ -72,7 +72,8 @@ describe('backend environment consumers', () => {
     await Promise.resolve();
 
     expect(fetchAdapterList).toHaveBeenCalled();
-    expect(fetchAdapterTags).toHaveBeenCalled();
+    // Tags are fetched from the list resource's onSuccess hook, a few ticks after the list resolves.
+    await vi.waitFor(() => expect(fetchAdapterTags).toHaveBeenCalled());
 
     vi.resetModules();
   });

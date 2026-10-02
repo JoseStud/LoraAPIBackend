@@ -32,7 +32,9 @@ const LazyImportExportContainer = defineAsyncComponent({
   suspensible: false,
 });
 
-const loadGenerationWidgets = () => import('@/features/generation/public/widgets');
+// Both widgets come from the same chunk; share one import so they resolve together.
+let generationWidgets: Promise<typeof import('@/features/generation/public/widgets')> | null = null;
+const loadGenerationWidgets = () => (generationWidgets ??= import('@/features/generation/public/widgets'));
 
 const JobQueueWidget = defineAsyncComponent({
   loader: () => loadGenerationWidgets().then((module) => module.JobQueueWidget),

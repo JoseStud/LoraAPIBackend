@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
-import LoraCard from '@/components/lora-gallery/LoraCard.vue';
-import LoraCardGrid from '@/components/lora-gallery/LoraCardGrid.vue';
+import LoraCard from '@/features/lora/components/lora-gallery/LoraCard.vue';
+import LoraCardGrid from '@/features/lora/components/lora-gallery/LoraCardGrid.vue';
 
 const mocks = vi.hoisted(() => ({
   updateLoraWeightMock: vi.fn(),
@@ -20,8 +20,8 @@ vi.mock('vue-router', () => ({
   useRouter: () => routerMock,
 }));
 
-vi.mock('@/services', async () => {
-  const actual = await vi.importActual('@/services');
+vi.mock('@/features/lora/services/lora/loraService', async () => {
+  const actual = await vi.importActual('@/features/lora/services/lora/loraService');
   return {
     ...actual,
     updateLoraWeight: mocks.updateLoraWeightMock,

@@ -10,6 +10,7 @@ export { default as JobQueue } from './components/JobQueue.vue';
 export { default as SystemAdminStatusCard } from './components/system/SystemAdminStatusCard.vue';
 export { default as SystemStatusCard } from './components/system/SystemStatusCard.vue';
 export { default as SystemStatusPanel } from './components/system/SystemStatusPanel.vue';
+export { createGenerationParams } from './services/generationService';
 
 export type {
   GenerationJobView,

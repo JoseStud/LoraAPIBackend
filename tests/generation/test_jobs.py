@@ -295,9 +295,9 @@ def test_compose_sdnext_uses_generation_coordinator(
     builder = get_service_container_builder().with_overrides(
         infrastructure=lambda factories: replace(
             factories,
-            generation_coordinator=lambda deliveries,
-            websocket,
-            generation: coordinator,
+            generation_coordinator=lambda deliveries, websocket, generation: (
+                coordinator
+            ),
         ),
     )
     services = builder.build(

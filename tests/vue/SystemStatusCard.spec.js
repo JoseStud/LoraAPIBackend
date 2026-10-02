@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 
-import SystemStatusCard from '../../app/frontend/src/components/system/SystemStatusCard.vue';
-import { useGenerationConnectionStore } from '../../app/frontend/src/stores/generation';
+import SystemStatusCard from '@/features/generation/components/system/SystemStatusCard.vue';
+import { useGenerationConnectionStore } from '@/features/generation/stores/connection';
 
 const mockController = {
   ensureHydrated: vi.fn().mockResolvedValue(undefined),
@@ -13,7 +13,7 @@ const mockController = {
   isPolling: { value: false },
 };
 
-vi.mock('../../app/frontend/src/stores/generation/systemStatusController', () => ({
+vi.mock('@/features/generation/stores/systemStatusController', () => ({
   useSystemStatusController: () => mockController,
   acquireSystemStatusController: () => ({
     controller: mockController,
@@ -31,7 +31,7 @@ const flush = async () => {
 describe('SystemStatusCard.vue', () => {
   beforeEach(() => {
     const store = useGenerationConnectionStore();
-    store.reset();
+    store.resetState();
     mockController.ensureHydrated.mockClear();
     mockController.refresh.mockClear();
     mockController.start.mockClear();

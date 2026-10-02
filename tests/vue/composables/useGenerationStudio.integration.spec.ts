@@ -3,8 +3,8 @@ import { defineComponent } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
-import { useGenerationStudio } from '@/composables/generation/useGenerationStudio'
-import type { UseGenerationStudioOptions } from '@/composables/generation/useGenerationStudio'
+import { useGenerationStudio } from '@/features/generation/composables/useGenerationStudio'
+import type { UseGenerationStudioOptions } from '@/features/generation/composables/useGenerationStudio'
 import { useGenerationFormStore } from '@/features/generation/stores/form'
 import type { UseGenerationStudioReturn } from '@/composables/generation'
 import { PERSISTENCE_KEYS } from '@/composables/shared'
@@ -88,7 +88,7 @@ const notificationMocks = vi.hoisted(() => ({
   showToastInfo: vi.fn(),
 }))
 
-vi.mock('@/composables/generation/useGenerationOrchestratorManager', () => ({
+vi.mock('@/features/generation/composables/useGenerationOrchestratorManager', () => ({
   useGenerationOrchestratorManager: () => orchestratorManagerMocks,
 }))
 

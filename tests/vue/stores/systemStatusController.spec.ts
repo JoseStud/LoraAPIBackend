@@ -65,9 +65,9 @@ describe('acquireSystemStatusController', () => {
       '@/features/generation/stores/orchestratorManagerStore'
     );
     const orchestratorManagerStore = useGenerationOrchestratorManagerStore();
-    orchestratorManagerStore.reset();
+    orchestratorManagerStore.destroyOrchestrator();
     resetStore = () => {
-      orchestratorManagerStore.reset();
+      orchestratorManagerStore.destroyOrchestrator();
     };
   });
 

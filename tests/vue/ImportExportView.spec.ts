@@ -33,7 +33,14 @@ vi.mock('@/features/import-export/ui/ImportExportContainer', () => {
   });
 });
 
-vi.mock('@/features/import-export/ui/ImportExport', () => ({
+// Synchronous factory: the view imports this module twice concurrently, and an async factory lets
+// the second import resolve to the real module.
+vi.mock('@/features/generation/public/widgets', () => ({
+  JobQueueWidget: stubComponent('JobQueueWidget', 'job-queue-panel'),
+  SystemStatusPanel: stubComponent('SystemStatusPanel', 'system-status-panel'),
+}));
+
+vi.mock('@/components/import-export/ImportExport.vue', () => ({
   __esModule: true,
   default: defineComponent({
     name: 'StubImportExport',
@@ -113,22 +120,12 @@ vi.mock('@/composables/import-export', async (importOriginal) => {
 import ImportExportView from '../../app/frontend/src/views/ImportExportView.vue';
 
 describe('ImportExportView', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it('renders a skeleton until the lazy import resolves and panels hydrate', async () => {
     const wrapper = mount(ImportExportView, {
       global: {
         stubs: {
           RouterLink: RouterLinkStub,
           PageHeader: stubComponent('PageHeader', 'page-header-stub'),
-          JobQueue: stubComponent('JobQueue', 'job-queue-panel'),
-          SystemStatusPanel: stubComponent('SystemStatusPanel', 'system-status-panel')
         }
       }
     });
@@ -137,9 +134,9 @@ describe('ImportExportView', () => {
     expect(wrapper.find('[data-testid="job-queue-panel"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="system-status-panel"]').exists()).toBe(false);
 
-    await vi.runAllTimersAsync();
-    await flushPromises();
-    await flushPromises();
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="system-status-panel"]').exists()).toBe(true);
+    });
 
     expect(wrapper.find('[data-testid="import-export-loading"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="import-export-interface"]').exists()).toBe(true);
