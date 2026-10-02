@@ -186,12 +186,22 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def generic_exception_handler(request: Request, exc: Exception):
-        """Return an RFC7807-style problem detail for unexpected errors."""
+        """Return an RFC7807-style problem detail for unexpected errors.
+
+        The exception text can contain paths, SQL or configuration values, so it is
+        logged server-side and never sent to the client.
+        """
+        logging.getLogger("lora.api").exception(
+            "Unhandled error during %s %s",
+            request.method,
+            request.url.path,
+            exc_info=exc,
+        )
         problem = {
             "type": "about:blank",
             "title": "Internal Server Error",
             "status": 500,
-            "detail": str(exc),
+            "detail": "An unexpected error occurred. See the server logs for details.",
         }
         return JSONResponse(status_code=500, content=problem)
 
