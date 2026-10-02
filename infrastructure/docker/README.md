@@ -1,6 +1,10 @@
 # Docker Setup for LoRA Manager
 
-This directory contains Docker configurations for running the LoRA Manager system with different hardware configurations.
+This directory contains Docker configurations for running the LoRA Manager stack.
+
+> **GPU generation:** SDNext is no longer built or bundled for GPUs here. Run SDNext
+> directly on the host (with `--listen`) so it uses your native CUDA/ROCm install, and
+> point the containers at it. See [External SDNext](../../docs/CUSTOM_SETUP.md#external-sdnext-recommended-for-gpu).
 
 ## 🚀 Quick Start
 
@@ -11,19 +15,15 @@ This directory contains Docker configurations for running the LoRA Manager syste
    docker-compose up
    ```
 
-2. **NVIDIA GPU** (recommended for production):
-   ```bash
-   docker-compose -f docker-compose.gpu.yml up
-   ```
-
-3. **AMD GPU (ROCm)**:
-   ```bash
-   docker-compose -f docker-compose.rocm.yml up
-   ```
-
-4. **CPU only**:
+2. **CPU only**:
    ```bash
    docker-compose -f docker-compose.cpu.yml up
+   ```
+
+3. **GPU (NVIDIA or AMD/ROCm) via an external SDNext** — from the repository root:
+   ```bash
+   cp .env.docker.example .env.docker   # set SDNEXT_BASE_URL and LORA_HOST_DIR
+   make dev
    ```
 
 ## 📋 Available Services
@@ -47,42 +47,25 @@ This directory contains Docker configurations for running the LoRA Manager syste
 - **GPU**: None (CPU inference only)
 - **Use case**: Quick testing, development without GPU
 
-### docker-compose.gpu.yml
-- **Purpose**: NVIDIA GPU-accelerated setup
-- **GPU**: NVIDIA with CUDA support
-- **Features**:
-  - Hardware GPU acceleration
-  - Optimized for faster generation
-  - Custom model directory mounting
-  - Development-friendly settings
-
-### docker-compose.rocm.yml
-- **Purpose**: AMD GPU setup with ROCm
-- **GPU**: AMD with ROCm support
-- **Features**:
-  - ROCm device mounting (`/dev/dri`, `/dev/kfd`)
-  - AMD-specific optimizations
-  - Custom ROCm environment variables
-  - Optimized for RDNA2/RDNA3 architectures
-  - HuggingFace token support (configurable)
-  - Network manager friendly (health checks disabled to prevent interface conflicts)
-
 ### docker-compose.cpu.yml
 - **Purpose**: CPU-only production setup
 - **GPU**: None
 - **Use case**: Servers without GPU, testing
+
+### GPU setups
+GPU-accelerated generation uses an SDNext instance running on the host rather than a
+container. The root `docker-compose.dev.yml` (`make dev`) reaches it through
+`SDNEXT_BASE_URL=http://host.docker.internal:7860` and mounts `LORA_HOST_DIR` as the
+LoRA library. See [External SDNext](../../docs/CUSTOM_SETUP.md#external-sdnext-recommended-for-gpu).
 
 ## 🏗️ Project Structure
 
 ```
 infrastructure/docker/
 ├── docker-compose.yml          # Basic development setup
-├── docker-compose.gpu.yml      # NVIDIA GPU setup
-├── docker-compose.rocm.yml     # AMD GPU setup  
 ├── docker-compose.cpu.yml      # CPU-only setup
 ├── Dockerfile                  # Backend API container
 ├── sdnext_config/             # SDNext configuration files
-├── sdnext_src/                # SDNext source code
 ├── loras/                     # LoRA model storage
 └── outputs/                   # Generated images storage
 ```
@@ -99,11 +82,9 @@ infrastructure/docker/
 ## 💾 Volume Mounts
 
 ### Model Directories (GPU setups)
-Your DeepVault model structure is automatically mounted:
-- `/home/anxilinux/DeepVault/models/Stable-diffusion` → `/app/models/Stable-diffusion`
-- `/home/anxilinux/DeepVault/models/Lora` → `/app/models/Lora`
-- `/home/anxilinux/DeepVault/models/VAE` → `/app/models/VAE`
-- And all other model subdirectories...
+With an external SDNext, models stay in the host SDNext install. Set `LORA_HOST_DIR`
+in `.env.docker` to SDNext's `models/Lora` folder so the backend and SDNext see the
+same LoRA files.
 
 ### Persistent Data
 - `postgres_data` - Database storage
@@ -132,9 +113,8 @@ Your DeepVault model structure is automatically mounted:
 - `SDNEXT_DEFAULT_SAMPLER` - Default sampler method
 
 ### ROCm-Specific (AMD GPUs)
-- `HSA_OVERRIDE_GFX_VERSION` - GPU architecture version
-- `HIP_VISIBLE_DEVICES` - GPU device selection
-- `MIOPEN_FIND_MODE` - Performance vs startup time trade-off
+ROCm variables such as `HSA_OVERRIDE_GFX_VERSION` belong to the host SDNext process,
+not these containers. See the [ROCm Troubleshooting Guide](../../docs/ROCM_TROUBLESHOOTING.md).
 
 ## 🚀 Development Workflow
 
@@ -158,8 +138,9 @@ This matches the `API_KEY` configured in the Docker backend.
 git clone <repository>
 cd lora-manager
 
-# Choose your configuration and start
-docker-compose -f infrastructure/docker/docker-compose.gpu.yml up
+# Start SDNext on the host with --listen, then configure and start the stack
+cp .env.docker.example .env.docker   # set SDNEXT_BASE_URL and LORA_HOST_DIR
+make dev
 ```
 
 ### 2. Frontend Development (Vite)
@@ -168,7 +149,7 @@ The project now uses Vite for modern frontend development:
 ```bash
 # Option 1: Frontend development with hot reload (recommended)
 # Terminal 1: Start backend services
-docker-compose -f infrastructure/docker/docker-compose.gpu.yml up
+docker-compose -f infrastructure/docker/docker-compose.yml up
 
 # Terminal 2: Start Vite dev server
 npm install
@@ -181,20 +162,20 @@ npm run dev  # Serves on localhost:5173
 ```bash
 # Option 2: Production build testing
 npm run build  # Build frontend assets
-docker-compose -f infrastructure/docker/docker-compose.gpu.yml up
+docker-compose -f infrastructure/docker/docker-compose.yml up
 # Access: http://localhost:8782 (backend serves built assets)
 ```
 
 ### 3. Backend Development
 ```bash
 # Start with rebuild
-docker-compose -f infrastructure/docker/docker-compose.gpu.yml up --build
+docker-compose -f infrastructure/docker/docker-compose.yml up --build
 
 # View logs
-docker-compose -f infrastructure/docker/docker-compose.gpu.yml logs -f api
+docker-compose -f infrastructure/docker/docker-compose.yml logs -f api
 
 # Stop services
-docker-compose -f infrastructure/docker/docker-compose.gpu.yml down
+docker-compose -f infrastructure/docker/docker-compose.yml down
 ```
 
 ### 4. Access Points
@@ -225,7 +206,7 @@ docker-compose -f infrastructure/docker/docker-compose.gpu.yml down
 ### Health Checks
 ```bash
 # Check all services
-docker-compose -f infrastructure/docker/docker-compose.gpu.yml ps
+docker-compose -f infrastructure/docker/docker-compose.yml ps
 
 # Test API health
 curl http://localhost:8782/health
@@ -255,6 +236,6 @@ volumes:
 
 ## 📚 Additional Resources
 
-- **SDNext Documentation**: See `sdnext_src/wiki/` for comprehensive guides
+- **SDNext Documentation**: See the [SDNext wiki](https://github.com/vladmandic/sdnext/wiki)
 - **Model Setup**: Check [Custom Setup Guide](../../docs/CUSTOM_SETUP.md)
 - **GPU Troubleshooting**: See [ROCm Setup Guide](../../docs/ROCM_TROUBLESHOOTING.md)
