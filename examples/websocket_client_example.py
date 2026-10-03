@@ -8,7 +8,7 @@ This script demonstrates how to:
 4. Handle the completed generation response
 
 Usage:
-    python test_websocket_client.py [--host localhost] [--port 8782]
+    python test_websocket_client.py [--host localhost] [--port 8000]
 """
 
 import argparse
@@ -134,7 +134,7 @@ def main():
         "--host", default="localhost", help="API host (default: localhost)"
     )
     parser.add_argument(
-        "--port", type=int, default=8782, help="API port (default: 8782)"
+        "--port", type=int, default=8000, help="API port (default: 8000)"
     )
     parser.add_argument("--api-key", help="API key if required")
 
