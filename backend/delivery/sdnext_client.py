@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from backend.core.config import settings
 
 from .http_client import DeliveryHTTPClient
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -81,24 +84,27 @@ class SDNextSession:
 
         try:
             request_ctx = await self._http_client.request(method, path, **kwargs)
-        except asyncio.TimeoutError:
-            return SDNextResponse(False, None, error="Request timed out")
-        except Exception as exc:  # pragma: no cover - defensive
-            return SDNextResponse(False, None, error=str(exc))
-
-        async with request_ctx as response:
-            status = getattr(response, "status", None)
-            try:
+            async with request_ctx as response:
+                status = response.status
                 if status != 200:
-                    text = await response.text()
-                    error = text or f"HTTP {status}"
-                    return SDNextResponse(False, status, error=error)
-
+                    logger.warning(
+                        "SDNext returned HTTP %s: %s", status, await response.text()
+                    )
+                    return SDNextResponse(
+                        False, status, error=f"SDNext returned HTTP {status}"
+                    )
                 data = await response.json()
-            except Exception as exc:  # pragma: no cover - defensive
-                return SDNextResponse(False, status, error=str(exc))
-
-        return SDNextResponse(True, status, data=data)
+                if not isinstance(data, dict):
+                    return SDNextResponse(
+                        False, status, error="Invalid SDNext response"
+                    )
+                return SDNextResponse(True, status, data=data)
+        except asyncio.TimeoutError:
+            logger.warning("SDNext request timed out", exc_info=True)
+            return SDNextResponse(False, None, error="SDNext request timed out")
+        except Exception:
+            logger.exception("SDNext request failed")
+            return SDNextResponse(False, None, error="SDNext request failed")
 
     def _build_txt2img_payload(
         self,

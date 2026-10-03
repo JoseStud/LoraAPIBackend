@@ -25,6 +25,16 @@ dev-logs:
 # Requires uv (https://docs.astral.sh/uv/): `pip install uv`.
 PYTHON_LOCK_VERSION ?= 3.11
 
+.PHONY: demo demo-check demo-down demo-reset
+demo:
+	sh scripts/demo.sh up
+demo-check:
+	sh scripts/demo.sh check
+demo-down:
+	sh scripts/demo.sh down
+demo-reset:
+	sh scripts/demo.sh reset
+
 deps-lock:
 	uv pip compile requirements.in -o requirements.txt --python-version $(PYTHON_LOCK_VERSION) --custom-compile-command "make deps-lock"
 	uv pip compile dev-requirements.in -o dev-requirements.txt --python-version $(PYTHON_LOCK_VERSION) --custom-compile-command "make deps-lock"

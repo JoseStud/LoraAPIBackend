@@ -5,7 +5,16 @@ from __future__ import annotations
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import (
+    Column,
+    MetaData,
+    String,
+    Table,
+    engine_from_config,
+    inspect,
+    pool,
+    text,
+)
 from sqlmodel import SQLModel
 
 from backend.core.config import settings
@@ -21,7 +30,7 @@ from backend.models import (
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 
 def _configure_url() -> None:
@@ -61,6 +70,23 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # Historical IDs exceed Alembic's default VARCHAR(32). Widen its
+        # bookkeeping before migration without renaming deployed revisions.
+        if connection.dialect.name == "postgresql":
+            with connection.begin():
+                Table(
+                    "alembic_version",
+                    MetaData(),
+                    Column("version_num", String(128), primary_key=True),
+                ).create(connection, checkfirst=True)
+                column = inspect(connection).get_columns("alembic_version")[0]
+                if column["type"].length is not None and column["type"].length < 128:
+                    connection.execute(
+                        text(
+                            "ALTER TABLE alembic_version "
+                            "ALTER COLUMN version_num TYPE VARCHAR(128)"
+                        )
+                    )
         context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():

@@ -180,7 +180,7 @@ class TestDeliveryService:
         assert refreshed.status == "retrying"
         result = service.get_job_result(refreshed)
         assert result is not None
-        assert result["error"] == "boom"
+        assert result["error"] == "Delivery processing failed"
         assert result["retries_left"] == 2
 
     def test_process_delivery_job_raises_when_requested(self, db_session, monkeypatch):
@@ -205,7 +205,7 @@ class TestDeliveryService:
         assert refreshed.status == "failed"
         result = service.get_job_result(refreshed)
         assert result is not None
-        assert result["error"] == "explode"
+        assert result["error"] == "Delivery processing failed"
 
     def test_set_job_rating_tracks_timestamp(self, db_session):
         """Setting and clearing ratings updates timestamp metadata."""

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import JSON, Column, Index, LargeBinary, Text
+from sqlalchemy import JSON, Column, DateTime, Index, LargeBinary, Text
 from sqlmodel import Field, SQLModel
 
 
@@ -13,12 +13,19 @@ class RecommendationSession(SQLModel, table=True):
 
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     context_prompt: Optional[str] = Field(default=None, sa_column=Column(Text))
-    active_loras: list = Field(default_factory=list, sa_column=Column(JSON))
+    active_loras: list = Field(
+        default_factory=list, sa_column=Column(JSON, nullable=False)
+    )
     target_lora_id: Optional[str] = None
     recommendation_type: str = "similar"  # "similar", "for_prompt", "contextual"
-    recommendations: list = Field(default_factory=list, sa_column=Column(JSON))
+    recommendations: list = Field(
+        default_factory=list, sa_column=Column(JSON, nullable=False)
+    )
     user_feedback: Optional[dict] = Field(default=None, sa_column=Column(JSON))
-    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    generated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_type=DateTime(timezone=True),
+    )
 
 
 class UserPreference(SQLModel, table=True):
@@ -41,16 +48,25 @@ class UserPreference(SQLModel, table=True):
     )
     evidence_count: int = 1  # Number of observations supporting this preference
     last_evidence_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_type=DateTime(timezone=True),
     )
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_type=DateTime(timezone=True),
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_type=DateTime(timezone=True),
+    )
 
 
 class LoRAEmbedding(SQLModel, table=True):
     """Store computed embeddings for LoRA adapters."""
 
-    adapter_id: str = Field(primary_key=True, foreign_key="adapter.id")
+    adapter_id: str = Field(
+        primary_key=True, foreign_key="adapter.id", ondelete="CASCADE"
+    )
     semantic_embedding: Optional[bytes] = Field(
         default=None, sa_column=Column(LargeBinary)
     )
@@ -60,8 +76,12 @@ class LoRAEmbedding(SQLModel, table=True):
     technical_embedding: Optional[bytes] = Field(
         default=None, sa_column=Column(LargeBinary)
     )
-    extracted_keywords: list = Field(default_factory=list, sa_column=Column(JSON))
-    keyword_scores: list = Field(default_factory=list, sa_column=Column(JSON))
+    extracted_keywords: list = Field(
+        default_factory=list, sa_column=Column(JSON, nullable=False)
+    )
+    keyword_scores: list = Field(
+        default_factory=list, sa_column=Column(JSON, nullable=False)
+    )
     predicted_style: Optional[str] = None
     style_confidence: Optional[float] = None
     sentiment_label: Optional[str] = None
@@ -70,22 +90,44 @@ class LoRAEmbedding(SQLModel, table=True):
     popularity_score: Optional[float] = None
     recency_score: Optional[float] = None
     compatibility_score: Optional[float] = None
-    normalized_triggers: list = Field(default_factory=list, sa_column=Column(JSON))
-    trigger_aliases: dict = Field(default_factory=dict, sa_column=Column(JSON))
-    trigger_embeddings: list = Field(default_factory=list, sa_column=Column(JSON))
-    trigger_metadata: dict = Field(default_factory=dict, sa_column=Column(JSON))
-    last_computed: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    normalized_triggers: list = Field(
+        default_factory=list, sa_column=Column(JSON, nullable=False)
+    )
+    trigger_aliases: dict = Field(
+        default_factory=dict, sa_column=Column(JSON, nullable=False)
+    )
+    trigger_embeddings: list = Field(
+        default_factory=list, sa_column=Column(JSON, nullable=False)
+    )
+    trigger_metadata: dict = Field(
+        default_factory=dict, sa_column=Column(JSON, nullable=False)
+    )
+    last_computed: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_type=DateTime(timezone=True),
+    )
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_type=DateTime(timezone=True),
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_type=DateTime(timezone=True),
+    )
 
 
 class RecommendationFeedback(SQLModel, table=True):
     """Store user feedback on recommendations for learning."""
 
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
-    session_id: str = Field(foreign_key="recommendationsession.id")
-    recommended_lora_id: str = Field(foreign_key="adapter.id")
+    session_id: str = Field(foreign_key="recommendationsession.id", ondelete="CASCADE")
+    recommended_lora_id: str = Field(foreign_key="adapter.id", ondelete="CASCADE")
     feedback_type: str  # 'positive', 'negative', 'activated', 'ignored', 'dismissed'
-    feedback_reason: Optional[str] = None  # User-provided reason
+    feedback_reason: Optional[str] = Field(
+        default=None, sa_type=Text
+    )  # User-provided reason
     implicit_signal: bool = False  # True if derived from behavior, False if explicit
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_type=DateTime(timezone=True),
+    )

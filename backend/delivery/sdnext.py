@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import logging
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
@@ -12,6 +14,8 @@ from .base import GenerationBackend
 from .http_client import DeliveryHTTPClient
 from .sdnext_client import SDNextSession
 from .storage import FileSystemImageStorage, ImageStorage
+
+logger = logging.getLogger(__name__)
 
 
 class SDNextGenerationBackend(GenerationBackend):
@@ -83,6 +87,23 @@ class SDNextGenerationBackend(GenerationBackend):
 
         payload = submission.data or {}
         images_payload = payload.get("images") or []
+        generation_info = payload.get("info", {})
+        try:
+            if isinstance(generation_info, str):
+                generation_info = json.loads(generation_info)
+            if not isinstance(generation_info, dict) or not isinstance(
+                images_payload, list
+            ):
+                raise ValueError("Invalid response shape")
+            if not images_payload or not all(
+                isinstance(image, str) for image in images_payload
+            ):
+                raise ValueError("Missing image data")
+        except (ValueError, TypeError):
+            logger.exception("Invalid SDNext generation payload")
+            return SDNextGenerationResult(
+                job_id=job_id, status="failed", error_message="Invalid SDNext response"
+            )
 
         try:
             images = await self._storage.persist_images(
@@ -91,11 +112,12 @@ class SDNextGenerationBackend(GenerationBackend):
                 save_images=save_images,
                 return_format=return_format,
             )
-        except Exception as exc:  # pragma: no cover - defensive
+        except Exception:
+            logger.exception("Failed to persist SDNext images")
             return SDNextGenerationResult(
                 job_id=job_id,
                 status="failed",
-                error_message=str(exc),
+                error_message="Could not save generated images",
             )
 
         return SDNextGenerationResult(
@@ -103,7 +125,7 @@ class SDNextGenerationBackend(GenerationBackend):
             status="completed",
             images=images,
             progress=1.0,
-            generation_info=payload.get("info", {}),
+            generation_info=generation_info,
         )
 
     async def check_progress(self, job_id: str) -> SDNextGenerationResult:

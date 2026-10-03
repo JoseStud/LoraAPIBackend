@@ -81,3 +81,27 @@ jobs:
         run: npm ci
       - name: Build production bundle
         run: npm run prod:build
+
+  backend-demo:
+    name: Backend demo integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Verify clean-start demo and repeatability
+        run: |
+          make demo-check
+          make demo-check
+      - name: Collect demo service logs
+        if: always()
+        run: sh scripts/demo.sh logs > demo-services.log 2>&1
+      - name: Upload demo diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-demo-diagnostics
+          path: demo-services.log
+      - name: Clean up demo containers and volumes
+        if: always()
+        run: make demo-reset

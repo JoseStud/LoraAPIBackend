@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import JSON, Column, Index
+from sqlalchemy import JSON, Column, DateTime, Index, Text
 from sqlmodel import Field, SQLModel
 
 adapter_table_args = (
@@ -26,14 +26,18 @@ class Adapter(SQLModel, table=True):
     name: str
     version: Optional[str] = None
     canonical_version_name: Optional[str] = None
-    description: Optional[str] = None
+    description: Optional[str] = Field(default=None, sa_type=Text)
     author_username: Optional[str] = None
     visibility: str = "Public"
-    published_at: Optional[datetime] = None
+    published_at: Optional[datetime] = Field(
+        default=None, sa_type=DateTime(timezone=True)
+    )
     # tags stored as JSON-compatible column (portable across SQLite/Postgres)
-    tags: list = Field(default_factory=list, sa_column=Column(JSON))
-    trained_words: list = Field(default_factory=list, sa_column=Column(JSON))
-    triggers: list = Field(default_factory=list, sa_column=Column(JSON))
+    tags: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    trained_words: list = Field(
+        default_factory=list, sa_column=Column(JSON, nullable=False)
+    )
+    triggers: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     file_path: str
     weight: float = 1.0
     active: bool = False
@@ -48,13 +52,23 @@ class Adapter(SQLModel, table=True):
     supports_generation: bool = False
     sd_version: Optional[str] = None
     nsfw_level: int = 0
-    activation_text: Optional[str] = None
+    activation_text: Optional[str] = Field(default=None, sa_type=Text)
     stats: Optional[dict] = Field(default=None, sa_column=Column(JSON))
     extra: Optional[dict] = Field(default=None, sa_column=Column(JSON))
     # Ingestion tracking
     json_file_path: Optional[str] = None  # Source JSON file path
-    json_file_mtime: Optional[datetime] = None  # JSON file modification time
+    json_file_mtime: Optional[datetime] = Field(
+        default=None, sa_type=DateTime(timezone=True)
+    )  # JSON file modification time
     json_file_size: Optional[int] = None  # JSON file size in bytes
-    last_ingested_at: Optional[datetime] = None  # When this record was last ingested
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_ingested_at: Optional[datetime] = Field(
+        default=None, sa_type=DateTime(timezone=True)
+    )  # When this record was last ingested
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_type=DateTime(timezone=True),
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_type=DateTime(timezone=True),
+    )

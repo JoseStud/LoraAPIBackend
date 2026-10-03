@@ -148,7 +148,7 @@ async def test_generate_image_storage_failure_returns_error() -> None:
     result = await backend.generate_image("Prompt", {"generation_params": {}})
 
     assert result.status == "failed"
-    assert "storage failure" in (result.error_message or "")
+    assert result.error_message == "Could not save generated images"
 
 
 @pytest.mark.anyio("asyncio")
