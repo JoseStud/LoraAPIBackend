@@ -156,8 +156,6 @@ the type-checked production build, and the dashboard bundle budget.
   tips.
 - [API contract](docs/contract.md) – Endpoint descriptions and expected
   behaviour.
-- [Implementation status](docs/IMPLEMENTATION_COMPLETE.md) – Feature checklist
-  and roadmap.
 - [Testing guide](tests/README.md) – Detailed instructions for each suite.
 
 ## Security model
