@@ -104,8 +104,8 @@ def test_patch_adapter_rejects_invalid_payloads(
     adapter_id = creation.json()["adapter"]["id"]
 
     sentinel_services = SimpleNamespace(adapters=MagicMock())
-    backend_app.dependency_overrides[adapters_router.get_domain_services] = (
-        lambda: sentinel_services
+    backend_app.dependency_overrides[adapters_router.get_domain_services] = lambda: (
+        sentinel_services
     )
     try:
         response_type_error = client.patch(

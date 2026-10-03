@@ -4,9 +4,14 @@
  */
 
 import { afterEach, beforeEach, vi } from 'vitest';
-import { generationPollingConfig } from '../../app/frontend/src/features/generation/config/polling';
 
-const defaultGenerationPolling = generationPollingConfig.resolve();
+// Mirrors DEFAULT_INTERVALS in features/generation/config/polling.ts. Importing that module here
+// would load the stores/composables graph before spec files register their vi.mock() calls.
+const defaultGenerationPolling = Object.freeze({
+  queueMs: 2_000,
+  websocketRetryMs: 3_000,
+  systemStatusMs: 10_000,
+});
 
 // Mock fetch globally for all tests
 global.fetch = vi.fn();

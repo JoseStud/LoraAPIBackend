@@ -35,7 +35,7 @@ describe('useJobQueue', () => {
   });
 
   it('mirrors the orchestrator manager job list', async () => {
-    const { useJobQueue } = await import('@/composables/generation/useJobQueue');
+    const { useJobQueue } = await import('@/features/generation/composables/useJobQueue');
     const queue = useJobQueue();
     expect(queue.jobs.value).toEqual([
       expect.objectContaining({ id: 'job-1', status: 'processing', progress: 10 }),
@@ -58,7 +58,7 @@ describe('useJobQueue', () => {
   });
 
   it('exposes the orchestrator queue manager state', async () => {
-    const { useJobQueue } = await import('@/composables/generation/useJobQueue');
+    const { useJobQueue } = await import('@/features/generation/composables/useJobQueue');
     const queue = useJobQueue();
     expect(queue.queueManagerActive.value).toBe(false);
 
@@ -67,7 +67,7 @@ describe('useJobQueue', () => {
   });
 
   it('is always ready to render', async () => {
-    const { useJobQueue } = await import('@/composables/generation/useJobQueue');
+    const { useJobQueue } = await import('@/features/generation/composables/useJobQueue');
     const queue = useJobQueue();
     expect(queue.isReady.value).toBe(true);
 

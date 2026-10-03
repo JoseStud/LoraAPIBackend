@@ -3,7 +3,8 @@ import { nextTick } from 'vue';
 
 import PromptComposer from '../../app/frontend/src/features/prompt-composer/ui/PromptComposer.vue';
 import { useAppStore } from '../../app/frontend/src/stores/app';
-import { useAdapterCatalogStore } from '../../app/frontend/src/stores/adapterCatalog';
+import { useAdapterCatalogStore } from '@/features/lora/stores/adapterCatalog';
+import { createAdapterFixture } from '../fixtures/adapters';
 
 const flush = async () => {
   await Promise.resolve();
@@ -29,8 +30,8 @@ describe('PromptComposer.vue', () => {
       const url = typeof input === 'string' ? input : input?.url || '';
       if (url.includes('/api/v1/adapters')) {
         return jsonResponse({ items: [
-          { id: '1', name: 'LoraOne', description: 'First', active: true },
-          { id: '2', name: 'LoraTwo', description: 'Second', active: false },
+          createAdapterFixture({ id: '1', name: 'LoraOne', description: 'First', active: true }),
+          createAdapterFixture({ id: '2', name: 'LoraTwo', description: 'Second', active: false }),
         ] });
       }
       if (url.endsWith('/generate')) {

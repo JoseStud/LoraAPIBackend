@@ -3,7 +3,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import type { Router } from 'vue-router';
 
 import type { GenerationHistoryResult } from '../../app/frontend/src/types';
-import { useHistoryActions } from '../../app/frontend/src/composables/history/useHistoryActions';
+import { useHistoryActions } from '@/features/history/composables/useHistoryActions';
 import { PERSISTENCE_KEYS } from '../../app/frontend/src/composables/shared/usePersistence';
 
 const serviceMocks = vi.hoisted(() => ({
@@ -18,7 +18,7 @@ const serviceMocks = vi.hoisted(() => ({
 
 const downloadFileMock = vi.hoisted(() => vi.fn());
 
-vi.mock('@/services', async (importOriginal) => {
+vi.mock('@/features/history/services/historyService', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,

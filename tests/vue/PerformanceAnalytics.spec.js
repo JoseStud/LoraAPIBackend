@@ -14,7 +14,7 @@ const notificationSpies = vi.hoisted(() => ({
 
 const downloadFileMock = vi.hoisted(() => vi.fn());
 
-vi.mock('@/composables/useNotifications', () => ({
+vi.mock('@/composables/shared/useNotifications', () => ({
   useNotifications: () => notificationSpies,
 }));
 vi.mock('@/composables/shared', async () => {

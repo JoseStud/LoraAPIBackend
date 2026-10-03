@@ -1,20 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
 
 import { createGenerationQueueClient } from '@/services/generation/queueClient';
+import type { BackendHttpClient } from '@/services/shared/http';
 import type { ApiResponseMeta } from '@/types';
 
-vi.mock('@/services/shared/http', async () => {
-  const actual = await vi.importActual<typeof import('@/services/shared/http')>(
-    '@/services/shared/http',
-  );
-  return {
-    ...actual,
-    requestJson: vi.fn(),
-  };
-});
-
-import { requestJson } from '@/services/shared/http';
+const requestJson = vi.fn();
 
 const createMeta = (overrides: Partial<ApiResponseMeta> = {}): ApiResponseMeta => ({
   ok: true,
@@ -25,17 +15,17 @@ const createMeta = (overrides: Partial<ApiResponseMeta> = {}): ApiResponseMeta =
 
 const createClient = () =>
   createGenerationQueueClient({
-    getBackendUrl: () => 'https://backend.example/api',
+    client: { requestJson } as unknown as BackendHttpClient,
   });
 
 describe('createGenerationQueueClient', () => {
   beforeEach(() => {
-    (requestJson as unknown as Mock).mockReset();
+    requestJson.mockReset();
   });
 
   it('filters malformed active job records', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    (requestJson as unknown as Mock).mockResolvedValueOnce({
+    requestJson.mockResolvedValueOnce({
       data: [
         {
           id: 'job-1',
@@ -65,7 +55,7 @@ describe('createGenerationQueueClient', () => {
 
   it('returns null when the system status payload is invalid', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    (requestJson as unknown as Mock).mockResolvedValueOnce({
+    requestJson.mockResolvedValueOnce({
       data: { status: 42 },
       meta: createMeta(),
     });
@@ -81,7 +71,7 @@ describe('createGenerationQueueClient', () => {
 
   it('filters malformed generation results', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    (requestJson as unknown as Mock).mockResolvedValueOnce({
+    requestJson.mockResolvedValueOnce({
       data: [
         {
           id: 'result-1',

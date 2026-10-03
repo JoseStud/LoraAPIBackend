@@ -113,8 +113,8 @@ def test_compose_and_generate_uses_shared_orchestration(client: TestClient):
     )
 
     backend_app.dependency_overrides[get_domain_services] = lambda: stub_domain
-    backend_app.dependency_overrides[get_application_services] = (
-        lambda: stub_application
+    backend_app.dependency_overrides[get_application_services] = lambda: (
+        stub_application
     )
 
     response = client.post(

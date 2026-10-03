@@ -61,7 +61,7 @@ vi.mock('@/composables/shared', async (importOriginal) => {
   } satisfies Record<string, unknown>;
 });
 
-import { useLoraGallerySelection } from '../../app/frontend/src/composables/lora-gallery/useLoraGallerySelection';
+import { useLoraGallerySelection } from '@/features/lora/composables/lora-gallery/useLoraGallerySelection';
 
 describe('useLoraGallerySelection', () => {
   beforeEach(() => {

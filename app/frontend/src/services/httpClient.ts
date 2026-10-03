@@ -464,10 +464,17 @@ export const getFilenameFromContentDisposition = (
 };
 
 export const createHttpClient = (options: HttpClientOptions = {}): HttpClient => {
-  const fetchImpl = options.fetch ?? globalThis.fetch;
-  if (typeof fetchImpl !== 'function') {
-    throw new Error('Fetch API is not available');
-  }
+  // Resolve the global fetch per request so long-lived clients pick up later replacements
+  // (polyfills, instrumentation, test doubles) instead of the one present at creation time.
+  const resolveFetch = (): typeof fetch => {
+    const fetchImpl = options.fetch ?? globalThis.fetch;
+    if (typeof fetchImpl !== 'function') {
+      throw new Error('Fetch API is not available');
+    }
+    return fetchImpl;
+  };
+  // Still fail fast at creation when no fetch implementation exists at all.
+  resolveFetch();
 
   const defaultInit = options.defaultInit;
   const credentialsFallback = options.credentials ?? DEFAULT_CREDENTIALS;
@@ -582,7 +589,11 @@ export const createHttpClient = (options: HttpClientOptions = {}): HttpClient =>
       emitRequest({ url, request: requestInit, attempt, startedAt });
 
       try {
-        const response = await fetchImpl(url, requestInit);
+        const { signal } = requestInit;
+        if (signal?.aborted) {
+          throw signal.reason ?? new DOMException('The operation was aborted.', 'AbortError');
+        }
+        const response = await resolveFetch()(url, requestInit);
         const meta = toResponseMeta(response);
         const payload = await parseResponsePayload(response, parseMode);
 

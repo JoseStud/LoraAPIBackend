@@ -27,7 +27,6 @@ describe('generation validation helpers', () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const valid: GenerationJobStatus = {
         id: 'job-1',
-        jobId: null,
         prompt: null,
         name: null,
         status: 'processing',
@@ -44,7 +43,7 @@ describe('generation validation helpers', () => {
 
       const parsed = parseGenerationJobStatuses([valid, invalid], 'test job');
 
-      expect(parsed).toEqual([valid]);
+      expect(parsed).toEqual([{ ...valid, cfg_scale: null, seed: null }]);
       expect(warnSpy).toHaveBeenCalledTimes(1);
       expect(warnSpy.mock.calls[0][0]).toContain('test job #1');
 
