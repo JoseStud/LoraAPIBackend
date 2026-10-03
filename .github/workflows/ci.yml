@@ -5,9 +5,14 @@ on:
     branches: [main]
   pull_request:
 
+env:
+  # Browser binaries are installed explicitly for E2E; unit/build jobs do not need them.
+  PUPPETEER_SKIP_DOWNLOAD: "true"
+
 jobs:
   quality:
     name: Unified quality checks
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -40,6 +45,7 @@ jobs:
 
   node-modules-sanity:
     name: Ensure node_modules directory is absent
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -56,6 +62,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
+    timeout-minutes: 20
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository

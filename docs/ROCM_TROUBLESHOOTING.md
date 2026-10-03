@@ -1,6 +1,8 @@
 # ROCm Troubleshooting Guide
 
-This guide provides solutions for common issues encountered when running the LoRA Manager with an AMD GPU using ROCm and Docker.
+This guide provides solutions for common issues encountered when running the LoRA Manager with an AMD GPU using ROCm.
+
+SDNext runs directly on the host (not in Docker) so it can use the native ROCm install; the LoRA Manager containers connect to it over HTTP. See [External SDNext](CUSTOM_SETUP.md#external-sdnext-recommended-for-gpu) for the setup. All ROCm settings below apply to the host SDNext process.
 
 ## 1. Prerequisites Check
 
@@ -28,15 +30,17 @@ sudo usermod -a -G render,video $USER
 # Log out and log back in for the changes to take effect.
 ```
 
-### 1.2. Verify Docker Access to GPU
+### 1.2. Verify the Containers Can Reach SDNext
 
-Confirm that Docker can access the GPU devices.
+Start SDNext with `--listen`, then confirm the API container can reach it:
 
 ```bash
-docker run --rm --device /dev/dri --device /dev/kfd rocm/rocm-runtime rocm-smi
+curl -s http://localhost:7860/sdapi/v1/options >/dev/null && echo "host OK"
+docker compose -f docker-compose.dev.yml exec api \
+  python -c "import urllib.request; urllib.request.urlopen('http://host.docker.internal:7860/sdapi/v1/options'); print('container OK')"
 ```
 
-This command should successfully execute `rocm-smi` from within a container, indicating that Docker has the necessary permissions.
+If the host check passes but the container check fails, SDNext is probably bound to `127.0.0.1` only (missing `--listen`) or a firewall is blocking the Docker bridge.
 
 ---
 
@@ -44,7 +48,7 @@ This command should successfully execute `rocm-smi` from within a container, ind
 
 ### Issue: GPU Not Detected in Container
 
--   **Symptom**: The application starts but runs on the CPU. Logs may show messages like "No GPU found."
+-   **Symptom**: SDNext starts but runs on the CPU. Its console may show messages like "No GPU found."
 -   **Solution**: The most common cause is an incorrect `HSA_OVERRIDE_GFX_VERSION` for your GPU architecture.
 
     1.  **Identify your GPU Architecture**:
@@ -57,48 +61,38 @@ This command should successfully execute `rocm-smi` from within a container, ind
 | RX 5000 Series | RDNA1 | `10.1.0` |
 
     2.  **Set the Environment Variable**:
-        In your `.env` file (or `docker-compose.override.yml`), set the correct `HSA_OVERRIDE_GFX_VERSION`.
+        Export the correct `HSA_OVERRIDE_GFX_VERSION` in the shell (or SDNext's `webui-user.sh`) before launching SDNext.
 
-        ```env
-        # .env - Example for an RX 6800 XT (RDNA2)
-        HSA_OVERRIDE_GFX_VERSION=10.3.0
+        ```bash
+        # Example for an RX 6800 XT (RDNA2)
+        HSA_OVERRIDE_GFX_VERSION=10.3.0 ./webui.sh --listen --use-rocm
         ```
 
 ### Issue: Slow Startup or High VRAM Usage at Idle
 
--   **Symptom**: The container takes a very long time to start, or you notice high VRAM usage even when not generating images.
+-   **Symptom**: SDNext takes a very long time to start, or you notice high VRAM usage even when not generating images.
 -   **Solution**: Adjust the MIOpen find mode.
 
     -   **For Faster Startup**: Use `MIOPEN_FIND_MODE=FAST`. This reduces startup time at the cost of slightly lower performance during generation.
     -   **For Best Performance**: Use `MIOPEN_FIND_ENFORCE=SEARCH`. This will take longer to start the first time as it tunes for your specific models, but will yield better performance.
 
-    Set this in your `.env` file:
-    ```env
-    # .env
-    MIOPEN_FIND_MODE=FAST
+    Set this in the environment SDNext is launched from:
+    ```bash
+    export MIOPEN_FIND_MODE=FAST
     ```
 
-### Issue: Docker Container Fails to Start or Exits Immediately
+### Issue: SDNext Fails to Start or Exits Immediately
 
--   **Symptom**: `docker-compose up` fails, and the `sdnext` or `backend` container exits with an error.
--   **Solution**: Check the container logs and device permissions.
+-   **Symptom**: SDNext exits during startup with a ROCm or device error.
+-   **Solution**: Check the SDNext console output and device permissions.
 
     1.  **Check Logs**:
-        ```bash
-        docker-compose -f docker-compose.rocm.yml logs sdnext
-        ```
-        Look for errors related to device access or missing libraries.
+        Run SDNext in the foreground (`./webui.sh --listen --use-rocm --debug`) and look for errors related to device access or missing libraries.
 
     2.  **Fix Device Permissions**:
-        Sometimes host permissions for the Docker devices are incorrect.
+        Make sure your user can access the GPU devices (see section 1.1). As a temporary workaround:
         ```bash
         sudo chmod 666 /dev/dri/render* /dev/kfd
-        ```
-
-    3.  **Recreate Container**:
-        If you've made changes, force Docker to recreate the container.
-        ```bash
-        docker-compose -f docker-compose.rocm.yml up -d --force-recreate
         ```
 
 ### Issue: Poor Performance During Generation
@@ -106,7 +100,7 @@ This command should successfully execute `rocm-smi` from within a container, ind
 -   **Symptom**: Image generation is much slower than expected.
 -   **Solution**: Ensure you are using optimized settings.
 
-    1.  **Check `docker-compose.rocm.yml`**: Ensure you are using the `rocm`-specific compose file, as it contains important device mappings and environment variables.
+    1.  **Check the SDNext backend**: Confirm SDNext was launched with `--use-rocm` and reports a ROCm/HIP device at startup rather than falling back to CPU.
     2.  **Monitor GPU Usage**: While generating an image, run `rocm-smi` on the host to see if the GPU is being utilized. If GPU usage is low, it may indicate a bottleneck elsewhere.
     3.  **Check Temperatures**: High temperatures can cause thermal throttling.
         ```bash
@@ -157,8 +151,8 @@ docker run --rm --device /dev/dri --device /dev/kfd \
 
 ### 2. SDNext Specific Test
 ```bash
-# Check SDNext container logs for ROCm initialization
-docker-compose -f docker-compose.rocm.yml logs -f sdnext | grep -i rocm
+# Check SDNext startup output for ROCm initialization
+./webui.sh --listen --use-rocm 2>&1 | grep -i rocm
 ```
 
 ### 3. Performance Benchmark

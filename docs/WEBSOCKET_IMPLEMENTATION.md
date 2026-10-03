@@ -145,4 +145,4 @@ delivery infrastructure is hardened.
   worker.【F:backend/services/deliveries.py†L16-L205】
 - ⚠️ The HTML and Python test clients are useful for manual checks, but an
   automated end-to-end suite that exercises the socket alongside SDNext is still
-  on the wishlist.【F:infrastructure/scripts/setup_sdnext_docker.sh†L1-L180】【F:tests/test_generation_jobs.py†L1-L200】
+  on the wishlist.【F:tests/test_generation_jobs.py†L1-L200】

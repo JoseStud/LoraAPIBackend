@@ -2,22 +2,15 @@
 
 # Health check script for SDNext + LoRA Backend integration
 # This script verifies that all services are running and communicating properly
-# Supports NVIDIA GPU, AMD ROCm, and CPU configurations
+# SDNext may run on the host (external SDNext) or in the bundled container
 
 set -e
 
 echo "🔍 Checking SDNext + LoRA Backend Integration Health"
 
-# Detect configuration type
-if docker-compose -f docker-compose.gpu.yml ps >/dev/null 2>&1 && [ "$(docker-compose -f docker-compose.gpu.yml ps -q | wc -l)" -gt 0 ]; then
-    echo "   Configuration: NVIDIA GPU"
-elif docker-compose -f docker-compose.rocm.yml ps >/dev/null 2>&1 && [ "$(docker-compose -f docker-compose.rocm.yml ps -q | wc -l)" -gt 0 ]; then
-    echo "   Configuration: AMD ROCm"
-elif docker-compose -f docker-compose.cpu.yml ps >/dev/null 2>&1 && [ "$(docker-compose -f docker-compose.cpu.yml ps -q | wc -l)" -gt 0 ]; then
-    echo "   Configuration: CPU-only"
-else
-    echo "   Configuration: Default"
-fi
+# SDNext URL as seen from this host (external SDNext started with --listen)
+SDNEXT_URL="${SDNEXT_URL:-http://localhost:7860}"
+echo "   SDNext: ${SDNEXT_URL}"
 
 echo
 
@@ -104,7 +97,7 @@ echo "🔍 Health Checks:"
 check_service "LoRA Backend API" "http://localhost:8782/health"
 
 # Check SDNext API
-check_service "SDNext API" "http://localhost:7860/sdapi/v1/options"
+check_service "SDNext API" "${SDNEXT_URL}/sdapi/v1/options"
 
 # Check PostgreSQL
 check_service "PostgreSQL" "http://localhost:5433" "000"  # Connection refused is expected for HTTP to Postgres
@@ -125,11 +118,13 @@ echo -n "Backend → SDNext connectivity... "
 if docker-compose exec -T api python -c "
 import asyncio
 import aiohttp
+import os
 
 async def test_connection():
     try:
+        base_url = os.environ.get('SDNEXT_BASE_URL') or 'http://sdnext:7860'
         async with aiohttp.ClientSession() as session:
-            async with session.get('http://sdnext:7860/sdapi/v1/options', timeout=10) as response:
+            async with session.get(base_url.rstrip('/') + '/sdapi/v1/options', timeout=10) as response:
                 return response.status == 200
     except:
         return False
@@ -198,7 +193,7 @@ echo
 # Summary
 echo "📊 Health Check Summary:"
 echo "- LoRA Backend API: http://localhost:8782"
-echo "- SDNext WebUI: http://localhost:7860"  
+echo "- SDNext WebUI: ${SDNEXT_URL}"
 echo "- API Documentation: http://localhost:8782/docs"
 echo "- WebSocket Test: Open websocket_test.html in browser"
 

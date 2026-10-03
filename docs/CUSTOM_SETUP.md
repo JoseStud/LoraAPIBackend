@@ -9,6 +9,44 @@ This guide explains how to configure the LoRA Manager for your specific environm
 
 ---
 
+## External SDNext (recommended for GPU)
+
+The project no longer ships GPU/ROCm SDNext containers. For NVIDIA or AMD (ROCm) acceleration, run SDNext as a normal install on the host so it uses your native drivers, and let the Docker dev stack (`docker-compose.dev.yml`) connect to it.
+
+1.  **Start SDNext on the host** with its API reachable from containers:
+
+    ```bash
+    cd /path/to/sdnext
+    ./webui.sh --listen    # add --use-rocm / --use-cuda as appropriate
+    ```
+
+    `--listen` binds to `0.0.0.0`, which is required for containers to reach it via `host.docker.internal`.
+
+2.  **Configure `.env.docker`** in the project root:
+
+    ```bash
+    cp .env.docker.example .env.docker
+    ```
+
+    ```env
+    # .env.docker
+    SDNEXT_BASE_URL=http://host.docker.internal:7860
+    # Share SDNext's LoRA folder with the backend
+    LORA_HOST_DIR=/path/to/sdnext/models/Lora
+    ```
+
+    The `api` service maps `host.docker.internal` to the host gateway, so this works on Linux as well as Docker Desktop. Leave `SDNEXT_BASE_URL` empty to run without generation.
+
+3.  **Start the stack**:
+
+    ```bash
+    make dev
+    ```
+
+GPU tuning (e.g. `HSA_OVERRIDE_GFX_VERSION` for ROCm) is applied to the host SDNext process, not the containers. See the [ROCm Troubleshooting Guide](ROCM_TROUBLESHOOTING.md).
+
+---
+
 ## 1. Environment Variable Configuration
 
 The application uses a `.env` file in the project root to manage all configuration settings. You can create this file by copying the provided example:
@@ -54,14 +92,9 @@ IMPORT_PATH=/app/loras
 OUTPUT_DIRECTORY=/app/outputs
 
 # -- SD.Next Integration --
-SDNEXT_BASE_URL=http://sdnext:7860
+# SDNext running on the host (see "External SDNext" above)
+SDNEXT_BASE_URL=http://host.docker.internal:7860
 SDNEXT_TIMEOUT=180
-
-# -- GPU Settings (for ROCm) --
-# For RDNA3 (RX 7000 series)
-HSA_OVERRIDE_GFX_VERSION=11.0.0
-# For RDNA2 (RX 6000 series)
-# HSA_OVERRIDE_GFX_VERSION=10.3.0
 ```
 
 ---
@@ -104,12 +137,10 @@ services:
 With your `.env` and `docker-compose.override.yml` files in place, you can start the application using the standard Docker Compose commands.
 
 ```bash
-# For NVIDIA GPU or CPU
 docker-compose up -d
-
-# For AMD ROCm GPU
-docker-compose -f docker-compose.yml -f docker-compose.rocm.yml up -d
 ```
+
+For GPU generation (NVIDIA or AMD ROCm), use the [External SDNext](#external-sdnext-recommended-for-gpu) setup with `make dev` instead.
 
 Docker Compose will automatically merge the configurations, giving you a customized setup that uses your own files and settings.
 

@@ -40,14 +40,14 @@ services:
       - COMMANDLINE_ARGS=--listen --port 7860 --api --cors-allow-origins=* --enable-insecure-extension-access --xformers
       # GPU support (uncomment if using NVIDIA GPU)
       # - NVIDIA_VISIBLE_DEVICES=all
-    deploy:
-      resources:
-        reservations:
-          devices:
-            # Uncomment for NVIDIA GPU support
-            # - driver: nvidia
-            #   count: 1
-            #   capabilities: [gpu]
+    # Uncomment for NVIDIA GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
     networks:
       - default
     healthcheck:
