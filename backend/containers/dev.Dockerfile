@@ -20,9 +20,13 @@ WORKDIR /app
 
 COPY requirements.txt ./requirements.txt
 COPY dev-requirements.txt ./dev-requirements.txt
+COPY requirements-ml.txt ./requirements-ml.txt
 
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir -r dev-requirements.txt
+# The recommendation/ML stack (PyTorch ROCm, several GB) is opt-in.
+ARG INSTALL_ML=false
+
+RUN pip install --no-cache-dir -r requirements.txt -r dev-requirements.txt \
+    && if [ "$INSTALL_ML" = "true" ]; then pip install --no-cache-dir -r requirements-ml.txt; fi
 
 FROM base AS development
 ARG UID=1000

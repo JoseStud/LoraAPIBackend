@@ -1,0 +1,11 @@
+-c requirements.txt
+# Development and CI tooling. Edit, then run `make deps-lock` to regenerate dev-requirements.txt.
+# ruff is pinned exactly: format.preview output changes between releases.
+ruff==0.16.10
+flake8
+flake8-bugbear
+flake8-comprehensions
+flake8-docstrings
+mccabe
+pre-commit
+pytest

@@ -1,27 +1,13 @@
-# Additional requirements for recommendation system (AMD/ROCm compatible)
-# These are optional dependencies for enhanced functionality
-
-# Core ML dependencies
-numpy>=1.21.0
-torch>=2.0.0 --index-url https://download.pytorch.org/whl/rocm6.1  # AMD ROCm GPU acceleration
-sentence-transformers>=2.2.0  # For semantic embeddings
-
-# Advanced NLP (optional)
-transformers>=4.20.0  # For sentiment analysis and style classification
-keybert>=0.7.0  # For advanced keyword extraction
-bertopic>=0.15.0  # For topic modeling
-
-# Fast similarity search (CPU-based, compatible with all systems)
-faiss-cpu>=1.7.0  # CPU version (works with AMD GPUs through torch)
-
-# Data processing
-scikit-learn>=1.1.0  # For additional ML utilities
-pandas>=1.4.0  # For data manipulation
-
-# Memory optimization
-psutil>=5.9.0  # For memory monitoring
-
-# AMD GPU compatibility notes:
-# - PyTorch with ROCm support for AMD GPUs
-# - FAISS-CPU works well with PyTorch tensors on AMD GPUs
-# - sentence-transformers will automatically use available GPU through PyTorch
+# Optional recommendation/ML stack (PyTorch ROCm build for AMD GPUs).
+# Install on top of the locked core requirements:
+#   pip install -r requirements.txt -r requirements-ml.txt
+# Not lock-compiled: resolving it pulls multi-GB wheels from the PyTorch index.
+# The constraint keeps shared packages (numpy, ...) at the locked core versions.
+-c requirements.txt
+--extra-index-url https://download.pytorch.org/whl/rocm6.4
+torch==2.8.0+rocm6.4
+transformers>=4.44.0,<5.0.0
+sentence-transformers>=3.0.1,<4.0.0
+faiss-cpu>=1.8.0,<1.9.0
+keybert>=0.8.5,<0.9.0
+scikit-learn>=1.5.1,<1.6.0

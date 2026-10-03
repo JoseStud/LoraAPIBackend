@@ -129,8 +129,11 @@ to point the SPA at a different API instance.【F:docker-compose.dev.yml†L24-L
 You can still run everything locally without Docker when debugging container
 issues or reproducing CI environments:
 
-1. Install backend dependencies with `pip install -r requirements.txt` (add
-   `requirements-amd.txt` or `requirements-ml.txt` for GPU workflows).
+1. Install backend dependencies with
+   `pip install -r requirements.txt -r dev-requirements.txt` (add
+   `requirements-ml.txt` for the recommendation/GPU stack). The `.txt` files are
+   lockfiles; edit `requirements.in` / `dev-requirements.in` and run
+   `make deps-lock` to change them.
 2. Install Node dependencies with `npm install`.
 3. Launch `uvicorn backend.main:app --reload --port 8000` for the API.
 4. Start `npm run dev` for the frontend. `npm run dev:full` and
