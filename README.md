@@ -146,10 +146,9 @@ it works consistently on POSIX shells and Windows terminals.【F:package.json†
 
 ## Unified quality workflow
 
-Execute `npm run ci:check` to reproduce the checks that CI runs. The helper
-script performs Ruff format/lint passes, runs the backend settings pytest,
-executes ESLint and TypeScript checks, and finishes by compiling the frontend
-bundle.【F:package.json†L22-L31】【F:scripts/ci_check.py†L1-L38】
+Execute `npm run ci:check` to reproduce the checks that CI runs: guardrail
+checks, Ruff format/lint, the full pytest suite, ESLint, the Vitest unit suite,
+the type-checked production build, and the dashboard bundle budget.
 
 ## Documentation
 
@@ -161,10 +160,27 @@ bundle.【F:package.json†L22-L31】【F:scripts/ci_check.py†L1-L38】
   and roadmap.
 - [Testing guide](tests/README.md) – Detailed instructions for each suite.
 
+## Security model
+
+LoRA Manager is a **single-user tool for a trusted local network**. It has no
+user accounts, and the optional API key is not an access control:
+
+- `API_KEY` is checked in the `X-API-Key` header on most `/v1` routers, but the
+  unauthenticated `GET /frontend/settings` endpoint returns it to the browser so
+  the SPA can attach it. Anyone who can reach the server can read it.
+- The dashboard and system routers and the progress WebSocket
+  (`/api/v1/ws/progress`) do not check the key at all.
+- Unexpected server errors return a generic 500 body; details are only written
+  to the server log.
+
+**Do not expose the backend to the internet**, directly or through port
+forwarding. For remote access, put it behind a VPN or a reverse proxy that does
+its own authentication.
+
 ## Known limitations
 
-- Authentication is limited to an optional API key header; there is no user
-  management yet.【F:backend/core/security.py†L1-L17】
+- Authentication is limited to an optional API key header that is shared with
+  the browser; see [Security model](#security-model).
 - Queueing defaults to in-process execution when Redis is not configured; use
   Redis for production resilience.【F:backend/services/queue.py†L52-L119】
 - The recommendation system depends on optional ML packages and GPU support for
