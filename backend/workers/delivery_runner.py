@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any, Dict, Optional
 
 from backend.core.database import get_session_context
@@ -12,6 +13,7 @@ from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
 
 _SUCCESS_STATUSES = {"ok", "completed", 200}
+logger = logging.getLogger(__name__)
 
 
 class DeliveryRunner:
@@ -84,7 +86,8 @@ class DeliveryRunner:
             )
         except Exception as exc:  # pragma: no cover - defensive branch
             error = exc
-            result_payload = {"error": str(exc)}
+            logger.exception("Delivery %s failed", job_id)
+            result_payload = {"error": "Delivery processing failed"}
             if retries_left is not None and retries_left > 0:
                 result_payload["retries_left"] = retries_left
                 status = "retrying"

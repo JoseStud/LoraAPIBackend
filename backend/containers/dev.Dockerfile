@@ -49,3 +49,11 @@ ENV UVICORN_APP=backend.main:app \
     UVICORN_HOST=0.0.0.0
 
 CMD ["uvicorn", "backend.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
+
+# Self-contained CPU-only demo image; no source or user-data bind mounts.
+FROM development AS demo
+COPY --chown=app:app backend /app/backend
+COPY --chown=app:app app /app/app
+COPY --chown=app:app scripts /app/scripts
+COPY --chown=app:app alembic.ini pyproject.toml /app/
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

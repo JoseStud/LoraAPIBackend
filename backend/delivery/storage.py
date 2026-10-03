@@ -66,7 +66,7 @@ class FileSystemImageStorage(ImageStorage):
                 file_path = await self.save_image(img_b64, job_id, index)
             except Exception:  # pragma: no cover - defensive logging
                 logger.exception("Error persisting image %s for job %s", index, job_id)
-                continue
+                raise
 
             if return_format == "file_path":
                 processed.append(file_path)
@@ -86,7 +86,7 @@ class FileSystemImageStorage(ImageStorage):
         filename = f"{job_id}_{timestamp}_{index:03d}.png"
         file_path = output_path / filename
 
-        img_data = base64.b64decode(img_b64)
+        img_data = base64.b64decode(img_b64, validate=True)
         await asyncio.to_thread(file_path.write_bytes, img_data)
 
         return str(file_path)

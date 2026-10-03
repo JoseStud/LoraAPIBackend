@@ -3,6 +3,7 @@
 Wire the FastAPI backend with the Vue single-page application build.
 """
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Dict
 
@@ -13,10 +14,19 @@ from fastapi.staticfiles import StaticFiles
 from backend.core.config import settings as backend_settings
 from backend.main import create_app as create_backend_app
 
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Run the mounted backend's startup and shutdown exactly once."""
+    async with backend_app.router.lifespan_context(backend_app):
+        yield
+
+
 app = FastAPI(
     title="LoRA Manager",
     description="LoRA Adapter Management System with AI-Powered Recommendations",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 
