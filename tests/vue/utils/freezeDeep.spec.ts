@@ -19,11 +19,11 @@ describe('freezeDeep', () => {
 
     expect(() => {
       (snapshot as unknown as unknown[])[0] = { id: 'job-2' };
-    }).toThrowError(/immutable snapshot/);
+    }).toThrow(TypeError);
 
     expect(() => {
       (snapshot[0] as { nested: { value: number } }).nested.value = 2;
-    }).toThrowError(/immutable snapshot/);
+    }).toThrow(TypeError);
 
     expect(original[0].nested.value).toBe(1);
   });

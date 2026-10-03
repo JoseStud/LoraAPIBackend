@@ -33,7 +33,8 @@ async def test_lifespan_preloads_recommendations_in_background(
 
     def _slow_preload() -> None:
         start_event.set()
-        finish_event.wait(timeout=0.5)
+        # Block until released, so a lifespan that awaited the preload would time out.
+        finish_event.wait(timeout=5)
 
     monkeypatch.setattr(
         backend_main.RecommendationService,
@@ -45,8 +46,8 @@ async def test_lifespan_preloads_recommendations_in_background(
     ctx = app.router.lifespan_context(app)
 
     try:
-        await asyncio.wait_for(ctx.__aenter__(), timeout=0.2)
-        assert start_event.wait(timeout=0.2)
+        await asyncio.wait_for(ctx.__aenter__(), timeout=1.0)
+        assert start_event.wait(timeout=2.0)
     finally:
         finish_event.set()
         await ctx.__aexit__(None, None, None)

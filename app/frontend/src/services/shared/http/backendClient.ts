@@ -7,6 +7,7 @@ import {
   type BlobResult,
   type CreateHttpClientConfig,
   type HttpClient,
+  type RequestTarget,
 } from './createHttpClient';
 import { resolveBackendBaseUrl, resolveBackendUrl, useBackendBase } from '@/utils/backend';
 
@@ -66,8 +67,8 @@ const createClientFromResolver = (resolveBase: () => string): BackendHttpClient 
       }
       return httpClient.resolve(path);
     },
-    getJson: async <TPayload>(path: string, init: ApiRequestInit = {}) => {
-      const result = await httpClient.requestJson<TPayload>(path, init);
+    getJson: async <TPayload>(target: RequestTarget, init: ApiRequestInit = {}) => {
+      const result = await httpClient.requestJson<TPayload>(target, init);
       return (result.data as TPayload | null) ?? null;
     },
   } satisfies BackendHttpClient;

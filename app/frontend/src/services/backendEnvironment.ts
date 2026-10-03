@@ -30,6 +30,9 @@ const createDeferred = (): Deferred => {
     resolveFn = resolve;
     rejectFn = reject;
   });
+  // A superseded readiness promise is rejected even when nobody awaited it; mark it handled so that
+  // does not surface as an unhandled rejection. Callers that await it still observe the rejection.
+  promise.catch(() => undefined);
 
   return {
     promise,

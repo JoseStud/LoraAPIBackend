@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
-import { useGenerationUI } from '@/composables/generation/useGenerationUI'
+import { useGenerationUI } from '@/features/generation/composables/useGenerationUI'
 import { useGenerationFormStore } from '@/features/generation/stores/form'
 import { useGenerationOrchestratorStore } from '@/features/generation/stores/useGenerationOrchestratorStore'
 import { createGalleryModalVm } from '@/features/generation/vm/createGalleryModalVm'

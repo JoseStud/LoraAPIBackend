@@ -1,10 +1,10 @@
 import { computed, effectScope, ref } from 'vue';
 
-import { useJobQueueActions } from '@/composables/generation/useJobQueueActions';
+import { useJobQueueActions } from '@/features/generation/composables/useJobQueueActions';
 import type {
   GenerationOrchestratorBinding,
   UseGenerationOrchestratorManagerReturn,
-} from '@/composables/generation/useGenerationOrchestratorManager';
+} from '@/features/generation/composables/useGenerationOrchestratorManager';
 import type { GenerationJobView } from '@/features/generation/orchestrator';
 
 const activeJobs = ref<ReadonlyArray<GenerationJobView>>([]);
@@ -49,7 +49,7 @@ const orchestratorMocks = vi.hoisted(() => ({
 
 let cancelJobImpl: (jobId: string) => Promise<void>;
 
-vi.mock('@/composables/generation/useGenerationOrchestratorManager', () => ({
+vi.mock('@/features/generation/composables/useGenerationOrchestratorManager', () => ({
   useGenerationOrchestratorManager: () => orchestratorMocks.manager!,
 }));
 

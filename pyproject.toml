@@ -7,6 +7,8 @@ exclude = [".git", "__pycache__", "build", "dist", "venv", ".venv"]
 
 [tool.ruff.format]
 preview = true
+# Code samples in Markdown docs are illustrative; don't reformat them.
+exclude = ["*.md"]
 
 [tool.ruff.lint]
 # enable ruff rules that mirror common flake8/best practices

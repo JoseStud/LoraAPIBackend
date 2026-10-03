@@ -15,6 +15,7 @@ COMMANDS: Sequence[Sequence[str]] = (
     ("ruff", "check", "."),
     ("pytest",),
     ("npm", "run", "lint"),
+    ("npm", "run", "test:unit"),
     ("npm", "run", "build"),
     ("npm", "run", "check:bundle"),
 )

@@ -197,12 +197,15 @@ export const useAsyncResource = <TResult, TArgs = void>(
 
     pending = requestPromise;
 
-    requestPromise.finally(() => {
+    // `.finally()` would return a promise that rejects with the fetch error and is never handled,
+    // so run the cleanup on both branches instead.
+    const releaseSupersededRequest = () => {
       if (requestId !== currentRequestId && pending === requestPromise) {
         pending = null;
         pendingKey = null;
       }
-    });
+    };
+    requestPromise.then(releaseSupersededRequest, releaseSupersededRequest);
 
     return requestPromise;
   };

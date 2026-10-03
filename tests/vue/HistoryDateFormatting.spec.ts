@@ -1,9 +1,9 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 
-import HistoryGridItem from '../../app/frontend/src/components/history/HistoryGridItem.vue';
-import HistoryListItem from '../../app/frontend/src/components/history/HistoryListItem.vue';
-import HistoryModalLauncher from '../../app/frontend/src/components/history/HistoryModalLauncher.vue';
+import HistoryGridItem from '@/features/history/components/HistoryGridItem.vue';
+import HistoryListItem from '@/features/history/components/HistoryListItem.vue';
+import HistoryModalLauncher from '@/features/history/components/HistoryModalLauncher.vue';
 import { formatHistoryDate } from '../../app/frontend/src/utils/format';
 import type { GenerationHistoryResult } from '../../app/frontend/src/types';
 

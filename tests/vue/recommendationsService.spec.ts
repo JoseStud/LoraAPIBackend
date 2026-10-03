@@ -13,7 +13,7 @@ const originalFetch = global.fetch;
 
 const createTestClient = (fetchImpl: typeof fetch): HttpClient =>
   createHttpClient({
-    baseUrl: () => '/api/v1',
+    baseURL: () => '/api/v1',
     credentials: 'same-origin',
     fetch: fetchImpl,
     retry: { attempts: 1, retryOnNetworkError: false },
@@ -48,6 +48,7 @@ const createRecommendationPayload = (
   total_candidates: 10,
   processing_time_ms: 120,
   recommendation_config: { weights: { semantic: 0.6, artistic: 0.3, technical: 0.1 } },
+  generated_at: '2025-01-01T00:00:00Z',
   ...overrides,
 });
 

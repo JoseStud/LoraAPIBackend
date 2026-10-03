@@ -86,6 +86,8 @@ export interface HttpAuthOptions {
 
 export interface CreateHttpClientConfig {
   baseURL?: string | (() => string | null | undefined);
+  credentials?: RequestCredentials;
+  fetch?: typeof fetch;
   auth?: HttpAuthOptions | false;
   retry?: RetryOptions;
   trace?: HttpTraceOptions;
@@ -93,26 +95,26 @@ export interface CreateHttpClientConfig {
 
 export interface HttpClient {
   resolve: (path?: string) => string;
-  request: <TPayload = unknown>(path: string, init?: ApiRequestInit) => Promise<ApiRequestResult<TPayload>>;
-  requestJson: <TPayload = unknown>(path: string, init?: ApiRequestInit) => Promise<ApiResult<TPayload>>;
-  getJson: <TPayload = unknown>(path: string, init?: ApiRequestInit) => Promise<TPayload | null>;
+  request: <TPayload = unknown>(target: RequestTarget, init?: ApiRequestInit) => Promise<ApiRequestResult<TPayload>>;
+  requestJson: <TPayload = unknown>(target: RequestTarget, init?: ApiRequestInit) => Promise<ApiResult<TPayload>>;
+  getJson: <TPayload = unknown>(target: RequestTarget, init?: ApiRequestInit) => Promise<TPayload | null>;
   postJson: <TResponse = unknown, TBody = unknown>(
-    path: string,
+    target: RequestTarget,
     body: TBody,
     init?: ApiRequestInit,
   ) => Promise<ApiResult<TResponse>>;
   putJson: <TResponse = unknown, TBody = unknown>(
-    path: string,
+    target: RequestTarget,
     body: TBody,
     init?: ApiRequestInit,
   ) => Promise<ApiResult<TResponse>>;
   patchJson: <TResponse = unknown, TBody = unknown>(
-    path: string,
+    target: RequestTarget,
     body: TBody,
     init?: ApiRequestInit,
   ) => Promise<ApiResult<TResponse>>;
-  delete: <TResponse = unknown>(path: string, init?: ApiRequestInit) => Promise<ApiResult<TResponse>>;
-  requestBlob: (path: string, init?: RequestInit) => Promise<BlobResult>;
+  delete: <TResponse = unknown>(target: RequestTarget, init?: ApiRequestInit) => Promise<ApiResult<TResponse>>;
+  requestBlob: (target: RequestTarget, init?: RequestInit) => Promise<BlobResult>;
 }
 
 export type { ApiRequestInit, ApiRequestResult, ApiResult, BlobResult, RequestTarget };
@@ -277,6 +279,7 @@ export const createHttpClient = (config: CreateHttpClientConfig = {}): HttpClien
   const authConfig = normaliseAuthConfig(config.auth);
   const baseUrlResolver = resolveBaseUrl(config.baseURL);
   const retryOptions = normaliseRetryOptions(config.retry);
+  const defaultCredentials = config.credentials ?? 'same-origin';
 
   const hooks: HttpClientHooks = {
     onResponse: (event: HttpClientResponseEvent) => {
@@ -317,7 +320,8 @@ export const createHttpClient = (config: CreateHttpClientConfig = {}): HttpClien
 
   const coreClient = createCoreHttpClient({
     baseUrl: baseUrlResolver,
-    defaultInit: { credentials: 'same-origin' },
+    fetch: config.fetch,
+    defaultInit: { credentials: defaultCredentials },
     retry: retryOptions,
     hooks,
   });
@@ -330,7 +334,7 @@ export const createHttpClient = (config: CreateHttpClientConfig = {}): HttpClien
     const merged: ApiRequestInit = {
       ...init,
       headers,
-      credentials: init.credentials ?? 'same-origin',
+      credentials: init.credentials ?? defaultCredentials,
     } satisfies ApiRequestInit;
 
     return merged;
@@ -380,28 +384,28 @@ export const createHttpClient = (config: CreateHttpClientConfig = {}): HttpClien
 
   return {
     resolve: (path?: string) => coreClient.resolve(path ?? ''),
-    request: <TPayload>(path: string, init: ApiRequestInit = {}) => request<TPayload>(path, init),
-    requestJson: <TPayload>(path: string, init: ApiRequestInit = {}) => requestJson(path, init),
-    getJson: <TPayload>(path: string, init: ApiRequestInit = {}) => getJson<TPayload>(path, init),
-    postJson: <TResponse, TBody>(path: string, body: TBody, init: ApiRequestInit = {}) => {
+    request: <TPayload>(target: RequestTarget, init: ApiRequestInit = {}) => request<TPayload>(target, init),
+    requestJson: <TPayload>(target: RequestTarget, init: ApiRequestInit = {}) => requestJson<TPayload>(target, init),
+    getJson: <TPayload>(target: RequestTarget, init: ApiRequestInit = {}) => getJson<TPayload>(target, init),
+    postJson: <TResponse, TBody>(target: RequestTarget, body: TBody, init: ApiRequestInit = {}) => {
       const prepared = applyInit(init);
-      return run(path, prepared, () => coreClient.postJson<TResponse, TBody>(path, body, prepared));
+      return run(target, prepared, () => coreClient.postJson<TResponse, TBody>(target, body, prepared));
     },
-    putJson: <TResponse, TBody>(path: string, body: TBody, init: ApiRequestInit = {}) => {
+    putJson: <TResponse, TBody>(target: RequestTarget, body: TBody, init: ApiRequestInit = {}) => {
       const prepared = applyInit(init);
-      return run(path, prepared, () => coreClient.putJson<TResponse, TBody>(path, body, prepared));
+      return run(target, prepared, () => coreClient.putJson<TResponse, TBody>(target, body, prepared));
     },
-    patchJson: <TResponse, TBody>(path: string, body: TBody, init: ApiRequestInit = {}) => {
+    patchJson: <TResponse, TBody>(target: RequestTarget, body: TBody, init: ApiRequestInit = {}) => {
       const prepared = applyInit(init);
-      return run(path, prepared, () => coreClient.patchJson<TResponse, TBody>(path, body, prepared));
+      return run(target, prepared, () => coreClient.patchJson<TResponse, TBody>(target, body, prepared));
     },
-    delete: <TResponse>(path: string, init: ApiRequestInit = {}) => {
+    delete: <TResponse>(target: RequestTarget, init: ApiRequestInit = {}) => {
       const prepared = applyInit({ ...init, method: 'DELETE' });
-      return run(path, prepared, () => coreClient.delete<TResponse>(path, prepared));
+      return run(target, prepared, () => coreClient.delete<TResponse>(target, prepared));
     },
-    requestBlob: (path: string, init: RequestInit = {}) => {
+    requestBlob: (target: RequestTarget, init: RequestInit = {}) => {
       const prepared = applyInit(init as ApiRequestInit);
-      return run(path, prepared, () => coreClient.requestBlob(path, prepared));
+      return run(target, prepared, () => coreClient.requestBlob(target, prepared));
     },
   } satisfies HttpClient;
 };

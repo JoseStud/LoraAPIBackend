@@ -90,10 +90,17 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
   const similarityThreshold = ref<number>(options.initialThreshold ?? 0.1);
   const weights = ref<WeightState>({ ...DEFAULT_WEIGHTS, ...(options.initialWeights ?? {}) });
 
-    const hydrationReady = ref(false);
-    void backendEnvironment.readyPromise.then(() => {
-      hydrationReady.value = true;
-    });
+  const hydrationReady = ref(false);
+  const awaitBackendReady = (): void => {
+    backendEnvironment.readyPromise.then(
+      () => {
+        hydrationReady.value = true;
+      },
+      // Superseded by a newer environment update: wait for that one instead.
+      awaitBackendReady,
+    );
+  };
+  awaitBackendReady();
 
   const isHydrated = computed<boolean>(() => hydrationReady.value && settingsLoaded.value);
 
@@ -303,7 +310,16 @@ export const useRecommendations = (options: UseRecommendationsOptions = {}) => {
     }
   });
 
-  void catalogStore.ensureLoaded();
+  // The adapter catalog is fetched from the configured backend, so wait until settings are known.
+  watch(
+    settingsLoaded,
+    (loaded) => {
+      if (loaded) {
+        void catalogStore.ensureLoaded();
+      }
+    },
+    { immediate: true },
+  );
 
   return {
     loras,

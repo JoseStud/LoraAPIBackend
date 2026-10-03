@@ -23,8 +23,8 @@ def test_import_export_streams_archive(
     mock_storage.exists.side_effect = _path_exists
 
     storage_service = get_storage_service()
-    storage_service.backend.get_file_size = (
-        lambda path: Path(path).stat().st_size if Path(path).exists() else 0
+    storage_service.backend.get_file_size = lambda path: (
+        Path(path).stat().st_size if Path(path).exists() else 0
     )
 
     create_payload = {

@@ -142,8 +142,10 @@ describe('useApi composable', () => {
     expect(lastResponse.value).toMatchObject({ url: '/api/test?success', status: 200 });
     expect(isLoading.value).toBe(false);
 
+    // The superseded request was aborted by the second call, so its 5xx is never retried and it
+    // settles like any other cancelled request: with the latest known data.
     resolveFirst?.(failingResponse);
-    await expect(firstCall).rejects.toBeInstanceOf(ApiError);
+    await expect(firstCall).resolves.toEqual(successPayload);
 
     expect(data.value).toEqual(successPayload);
     expect(error.value).toBeNull();

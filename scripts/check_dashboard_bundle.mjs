@@ -27,7 +27,9 @@ const runBuild = () => {
   }
 };
 
-const normalize = (value) => value.replace(/\\/g, '/');
+// Strip Vite's virtual-module query (e.g. `JobQueue.vue?vue&type=script&setup=true&lang.ts`) so
+// SFC sub-modules match their source path.
+const normalize = (value) => value.replace(/\\/g, '/').replace(/\?.*$/, '');
 
 const findChunkByFacade = (summary, facadeSuffix) => {
   const normalizedSuffix = normalize(facadeSuffix);
@@ -65,6 +67,18 @@ const findChunkContainingModule = (summary, moduleSuffix) => {
   }
 
   return null;
+};
+
+const collectStaticClosure = (summary, fileName, seen = new Set()) => {
+  if (seen.has(fileName)) {
+    return seen;
+  }
+
+  seen.add(fileName);
+  const chunk = summary[fileName];
+  const imports = chunk && Array.isArray(chunk.imports) ? chunk.imports : [];
+  imports.forEach((importFile) => collectStaticClosure(summary, importFile, seen));
+  return seen;
 };
 
 const collectStaticSize = (summary, fileName, seen = new Set()) => {
@@ -146,12 +160,21 @@ try {
     );
   }
 
-  const dynamicImports = new Set(
-    Array.isArray(dashboardChunkEntry.chunk.dynamicImports) ? dashboardChunkEntry.chunk.dynamicImports : [],
-  );
+  // Rollup may place the widget in a shared chunk that the dynamically imported widgets chunk
+  // pulls in statically, so check reachability rather than a direct dynamic import.
+  const eagerChunks = collectStaticClosure(summary, dashboardChunkEntry.fileName);
+  if (eagerChunks.has(jobQueueChunkEntry.fileName)) {
+    throw new Error('JobQueue widget chunk is loaded eagerly with the dashboard entry.');
+  }
 
-  if (!dynamicImports.has(jobQueueChunkEntry.fileName)) {
-    throw new Error('Dashboard chunk does not declare the JobQueue widget chunk as a dynamic import.');
+  const dynamicImports = Array.isArray(dashboardChunkEntry.chunk.dynamicImports)
+    ? dashboardChunkEntry.chunk.dynamicImports
+    : [];
+  const lazyChunks = new Set();
+  dynamicImports.forEach((fileName) => collectStaticClosure(summary, fileName, lazyChunks));
+
+  if (!lazyChunks.has(jobQueueChunkEntry.fileName)) {
+    throw new Error('JobQueue widget chunk is not reachable through a dashboard dynamic import.');
   }
 
   const initialBudgetKb = Number(process.env.DASHBOARD_INITIAL_BUDGET_KB ?? '550');

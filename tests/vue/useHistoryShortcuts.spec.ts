@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 
 import { useGenerationOrchestratorStore } from '../../app/frontend/src/features/generation/stores/useGenerationOrchestratorStore';
-import { useHistoryShortcuts } from '../../app/frontend/src/composables/history/useHistoryShortcuts';
+import { useHistoryShortcuts } from '@/features/history/composables/useHistoryShortcuts';
 
 describe('useHistoryShortcuts', () => {
   beforeEach(() => {

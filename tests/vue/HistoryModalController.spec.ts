@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { GenerationHistoryResult } from '../../app/frontend/src/types';
 
-vi.mock('../../app/frontend/src/components/history/HistoryModalLauncher.vue', async () => {
+vi.mock('@/features/history/components/HistoryModalLauncher.vue', async () => {
   const { defineComponent, h } = await import('vue');
   return {
     default: defineComponent({
@@ -30,7 +30,7 @@ vi.mock('../../app/frontend/src/components/history/HistoryModalLauncher.vue', as
   };
 });
 
-import HistoryModalController from '../../app/frontend/src/components/history/HistoryModalController.vue';
+import HistoryModalController from '@/features/history/components/HistoryModalController.vue';
 
 describe('HistoryModalController', () => {
   const createResult = (id: number): GenerationHistoryResult => ({

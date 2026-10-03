@@ -12,7 +12,7 @@ python-multipart>=0.0.20,<0.1.0
 jinja2>=3.1.0,<4.0.0
 
 # Database and ORM
-sqlmodel>=0.0.24,<0.1.0
+sqlmodel>=0.0.24,<0.0.45  # 0.0.45+ requires tz-aware datetimes and TIMESTAMPTZ columns
 alembic>=1.16.4,<1.17.0
 psycopg[binary]>=3.2.9,<3.3.0
 

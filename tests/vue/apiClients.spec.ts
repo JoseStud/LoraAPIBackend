@@ -1,13 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useActiveJobsApi } from '../../app/frontend/src/composables/shared/apiClients';
 import {
-
-  fetchDashboardStats,
-  fetchSystemStatus,
+  useActiveJobsApi,
   useDashboardStatsApi,
   useSystemStatusApi,
-} from '../../app/frontend/src/services/system';
+} from '../../app/frontend/src/composables/shared/apiClients';
+import { fetchDashboardStats, fetchSystemStatus } from '@/services/system/systemService';
 import { createBackendClient } from '@/services/shared/http';
 
 

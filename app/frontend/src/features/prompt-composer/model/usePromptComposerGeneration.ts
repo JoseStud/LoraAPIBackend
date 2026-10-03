@@ -2,10 +2,10 @@ import { computed, onBeforeUnmount, ref, shallowRef, type ComputedRef, type Ref 
 
 import { useNotifications } from '@/composables/shared';
 import {
+  createGenerationParams,
   useGenerationOrchestratorManager,
   type GenerationOrchestratorBinding,
 } from '@/features/generation/public';
-import { createGenerationParams } from '@/features/generation/services/generationService';
 import type { CompositionEntry, GenerationRequestPayload } from '@/types';
 
 import { cloneCompositionEntries } from '../lib/composition';

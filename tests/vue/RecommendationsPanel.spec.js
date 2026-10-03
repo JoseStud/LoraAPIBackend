@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { enableAutoUnmount, mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 
 vi.mock('../../app/frontend/src/config/runtime.ts', () => {
@@ -18,10 +18,10 @@ vi.mock('../../app/frontend/src/config/runtime.ts', () => {
   };
 });
 
-import RecommendationsPanel from '../../app/frontend/src/components/recommendations/RecommendationsPanel.vue';
+import RecommendationsPanel from '@/features/recommendations/components/RecommendationsPanel.vue';
 import { useAppStore } from '../../app/frontend/src/stores/app';
-import { useAdapterCatalogStore } from '../../app/frontend/src/stores/adapterCatalog';
 import { useSettingsStore } from '../../app/frontend/src/stores/settings';
+import { createAdapterFixture } from '../fixtures/adapters';
 
 const flush = async () => {
   await Promise.resolve();
@@ -30,10 +30,11 @@ const flush = async () => {
   await nextTick();
 };
 
+enableAutoUnmount(afterEach);
+
 describe('RecommendationsPanel.vue', () => {
   beforeEach(() => {
     useAppStore().$reset();
-    useAdapterCatalogStore().reset();
     const settingsStore = useSettingsStore();
     settingsStore.reset();
     settingsStore.setSettings({ backendUrl: '/api/v1' });
@@ -50,14 +51,22 @@ describe('RecommendationsPanel.vue', () => {
       const url = extractUrl(input);
       if (url.includes('/adapters')) {
         return jsonResponse({ items: [
-          { id: '1', name: 'Lora One', description: 'First' },
-          { id: '2', name: 'Lora Two', description: 'Second' },
+          createAdapterFixture({ id: '1', name: 'Lora One', description: 'First' }),
+          createAdapterFixture({ id: '2', name: 'Lora Two', description: 'Second' }),
         ] });
       }
       if (url.includes('/recommendations/similar/')) {
-        return jsonResponse({ recommendations: [
-          { lora_id: '2', lora_name: 'Rec Two', lora_description: 'Nice', similarity_score: 0.91, final_score: 0.88 },
-        ] });
+        return jsonResponse({
+          target_lora_id: '1',
+          prompt: null,
+          recommendations: [
+            { lora_id: '2', lora_name: 'Rec Two', lora_description: 'Nice', similarity_score: 0.91, final_score: 0.88, explanation: '' },
+          ],
+          total_candidates: 1,
+          processing_time_ms: 5,
+          recommendation_config: {},
+          generated_at: '2024-01-01T00:00:00Z',
+        });
       }
       return jsonResponse({});
     });

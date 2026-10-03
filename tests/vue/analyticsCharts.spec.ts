@@ -11,10 +11,10 @@ import {
   buildPalette,
   formatTimeLabel,
 } from '../../app/frontend/src/utils/charts';
-import GenerationVolumeChart from '../../app/frontend/src/components/analytics/GenerationVolumeChart.vue';
-import PerformanceTrendChart from '../../app/frontend/src/components/analytics/PerformanceTrendChart.vue';
-import LoraUsageChart from '../../app/frontend/src/components/analytics/LoraUsageChart.vue';
-import ResourceUsageChart from '../../app/frontend/src/components/analytics/ResourceUsageChart.vue';
+import GenerationVolumeChart from '@/features/analytics/components/GenerationVolumeChart.vue';
+import PerformanceTrendChart from '@/features/analytics/components/PerformanceTrendChart.vue';
+import LoraUsageChart from '@/features/analytics/components/LoraUsageChart.vue';
+import ResourceUsageChart from '@/features/analytics/components/ResourceUsageChart.vue';
 
 const { chartSpy } = vi.hoisted(() => ({
   chartSpy: vi.fn(),
