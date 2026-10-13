@@ -144,6 +144,9 @@
               {{ statusLabel }}
             </div>
             <div class="text-sm text-gray-500">Overall Status</div>
+            <ul v-if="alerts.length" class="mt-1 text-xs text-gray-600" data-testid="system-status-alerts">
+              <li v-for="alert in alerts" :key="alert">{{ alert }}</li>
+            </ul>
           </div>
           <div v-if="hasWorkerStats" class="text-center">
             <div class="text-2xl font-bold text-blue-600">{{ activeWorkersLabel }}</div>
@@ -191,6 +194,7 @@ const {
   metrics,
   stats,
   status,
+  alerts,
   error,
 } = useAdminMetrics({ intervalMs: 5_000 });
 
@@ -293,7 +297,8 @@ const activeWorkersLabel = computed(() =>
 
 const totalWorkersLabel = computed(() => {
   if (systemStats.value.total_workers == null) {
-    return 'N/A';
+    // the queue reports jobs in progress but not the size of its worker pool
+    return 'jobs in progress';
   }
   return `${systemStats.value.total_workers} total`;
 });

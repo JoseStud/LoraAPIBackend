@@ -1,11 +1,29 @@
 """Dashboard API endpoints for frontend statistics and system health."""
 
+import os
+from typing import Optional
+
 from fastapi import APIRouter, Depends
 
 from backend.core.dependencies import get_application_services, get_domain_services
 from backend.services import ApplicationServices, DomainServices
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+
+
+def _database_size_bytes() -> Optional[int]:
+    """Return the SQLite database file size, or None for other databases."""
+    from backend.core.database import ENGINE
+
+    url = ENGINE.url
+    if url.get_backend_name() != "sqlite" or not url.database:
+        return None
+    if url.database == ":memory:":
+        return None
+    try:
+        return os.path.getsize(url.database)
+    except OSError:
+        return None
 
 
 @router.get("/stats")
@@ -18,6 +36,9 @@ async def get_dashboard_stats(
     stats["active_jobs"] = application.deliveries.count_active_jobs()
 
     status_payload = await application.system.get_system_status_payload()
+    # jobs currently being processed; the queue doesn't report a worker pool size
+    stats["active_workers"] = status_payload.get("active_workers")
+    stats["database_size"] = _database_size_bytes()
     system_health = (
         await application.system.get_health_summary(status_payload)
     ).as_dict()

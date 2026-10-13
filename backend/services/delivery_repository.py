@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
-from sqlalchemy import func
+from sqlalchemy import Integer, func
 from sqlmodel import Session, select
 
 from backend.models import DeliveryJob
@@ -232,6 +232,24 @@ class DeliveryJobRepository:
             or 0
         )
         return int(result)
+
+    def get_result_statistics(self) -> Dict[str, Any]:
+        """Summarise finished generation results for the history views."""
+        succeeded = DeliveryJob.status == "succeeded"
+        total, avg_rating, favorites = self._session.execute(
+            select(
+                func.count(DeliveryJob.id),
+                func.avg(DeliveryJob.rating),
+                func.sum(func.cast(DeliveryJob.is_favorite, Integer)),
+            ).where(succeeded)
+        ).one()
+        return {
+            "total_results": int(total or 0),
+            "avg_rating": round(float(avg_rating), 2)
+            if avg_rating is not None
+            else 0.0,
+            "total_favorites": int(favorites or 0),
+        }
 
     def get_queue_statistics(self) -> Dict[str, int]:
         """Summarise queue-oriented counts for dashboards."""

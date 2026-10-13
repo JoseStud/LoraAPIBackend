@@ -47,12 +47,13 @@ const GenerationLoraReferenceSchema: z.ZodType<GenerationLoraReference> = z
   })
   .passthrough();
 
-const GenerationHistoryStatsSchema: z.ZodType<GenerationHistoryStats> = z
+const GenerationHistoryStatsSchema: z.ZodType<GenerationHistoryStats, z.ZodTypeDef, unknown> = z
   .object({
     total_results: z.number().finite(),
     avg_rating: z.number().finite(),
     total_favorites: z.number().finite(),
-    total_size: z.number().finite(),
+    // not reported by /results/stats; the backend doesn't track file sizes
+    total_size: z.number().finite().optional().default(0),
   })
   .transform((stats) => ({
     total_results: stats.total_results,

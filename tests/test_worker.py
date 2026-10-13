@@ -9,7 +9,7 @@ fakeredis = pytest.importorskip("fakeredis")
 from rq import Queue, SimpleWorker  # noqa: E402
 
 from backend.core.config import settings  # noqa: E402
-from backend.core.database import get_session_context, init_db  # noqa: E402
+from backend.core.database import get_session_context  # noqa: E402
 from backend.models.deliveries import DeliveryJob  # noqa: E402
 from backend.services.queue import QueueOrchestrator, RedisQueueBackend  # noqa: E402
 from backend.workers import tasks as worker_tasks  # noqa: E402
@@ -20,7 +20,7 @@ from backend.workers.tasks import (  # noqa: E402
 )
 
 
-def test_worker_process_cycle(tmp_path, monkeypatch):
+def test_worker_process_cycle(tmp_path, monkeypatch, db_session):
     """Run a full enqueue -> worker cycle using a FakeRedis connection."""
     # Use FakeRedis for the queue connection
     fake_redis = fakeredis.FakeStrictRedis()
@@ -39,13 +39,11 @@ def test_worker_process_cycle(tmp_path, monkeypatch):
         monkeypatch.setattr(context.queue_backend, "_queue", fake_q, raising=False)
         set_worker_context(context)
 
-        # Ensure DB initialized in a temp directory to avoid collisions. The DB
-        # is created in the module path, so ensure init_db runs (it will create
-        # db.sqlite next to files).
+        # db_session swaps the engine for an in-memory database, so the job
+        # doesn't land in the real db.sqlite.
         monkeypatch.setattr(
             "backend.workers.tasks.migrate_db_to_latest", lambda: None, raising=False
         )
-        init_db()
 
         # enqueue a simple CLI delivery
         did = enqueue_delivery(

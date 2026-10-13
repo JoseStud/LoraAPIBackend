@@ -82,6 +82,42 @@ export const deriveSeverityFromMetrics = (metrics: SystemMetricsSnapshot): Syste
   return 'healthy';
 };
 
+/**
+ * Explain why deriveSeverityFromMetrics raised a warning or error, using the
+ * same thresholds, so the dashboard can say what is wrong.
+ */
+export const describeMetricAlerts = (metrics: SystemMetricsSnapshot): string[] => {
+  const alerts: string[] = [];
+  const level = (value: number, warn: number, error: number) =>
+    value > error ? 'critical' : value > warn ? 'high' : null;
+
+  const memory = clampPercent(metrics.memory_percent);
+  const memoryLevel = level(memory, 85, 95);
+  if (memoryLevel) {
+    alerts.push(`Memory ${memory}% used`);
+  }
+
+  const disk = clampPercent(metrics.disk_percent);
+  const diskLevel = level(disk, 85, 95);
+  if (diskLevel) {
+    alerts.push(`Disk ${disk}% full`);
+  }
+
+  for (const gpu of metrics.gpus ?? []) {
+    const name = gpu.name || `GPU ${gpu.id}`;
+    const temperature = typeof gpu.temperature === 'number' ? gpu.temperature : 0;
+    if (level(temperature, 75, 85)) {
+      alerts.push(`${name} at ${temperature}°C`);
+    }
+    const vram = clampPercent(gpu.memory_percent);
+    if (level(vram, 85, 95)) {
+      alerts.push(`${name} VRAM ${vram}% used`);
+    }
+  }
+
+  return alerts;
+};
+
 export const mergeStatusLevels = (
   base: SystemStatusLevel,
   derived: SystemStatusLevel,

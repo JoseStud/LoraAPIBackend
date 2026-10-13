@@ -14,6 +14,7 @@ import {
   defaultResourceStats,
   defaultSystemStatus,
   deriveSeverityFromMetrics,
+  describeMetricAlerts,
   mergeStatusLevels,
   normaliseStatus,
 } from '@/utils/systemMetrics';
@@ -106,6 +107,7 @@ export const useAdminMetricsStore = defineStore('adminMetrics', () => {
   const metrics = computed(() => metricsResource.data.value?.metrics ?? emptyMetricsSnapshot());
   const stats = computed(() => metricsResource.data.value?.stats ?? defaultResourceStats());
   const status = computed(() => metricsResource.data.value?.status ?? defaultSystemStatus);
+  const alerts = computed(() => describeMetricAlerts(metrics.value));
   const apiAvailable = computed(() => metricsResource.data.value?.apiAvailable ?? true);
   const lastUpdated = computed(() => metricsResource.data.value?.lastUpdated ?? null);
 
@@ -127,6 +129,7 @@ export const useAdminMetricsStore = defineStore('adminMetrics', () => {
     metrics,
     stats,
     status,
+    alerts,
     lastUpdated,
     error,
     apiAvailable,

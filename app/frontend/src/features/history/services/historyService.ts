@@ -19,7 +19,7 @@ import type {
   GenerationHistoryPayload,
   GenerationRatingUpdate,
 } from '@/types';
-import { parseHistoryListPayload, parseHistoryResult } from './historySchemas';
+import { parseHistoryListPayload, parseHistoryResult, parseHistoryStats } from './historySchemas';
 
 const historyPaths = createBackendPathResolver('generation');
 const historyPath = historyPaths.path;
@@ -137,6 +137,19 @@ export const listResults = async (
   );
   const parsed = parseHistoryListPayload(result.data, 'generation history list response');
   return toListOutput(parsed);
+};
+
+/** Totals across every finished result, not just the page that was listed. */
+export const fetchResultStats = async (
+  options: ListResultsOptions = {},
+  client?: BackendHttpClient | null,
+): Promise<GenerationHistoryStats> => {
+  const backend = resolveClient(client);
+  const result = await backend.requestJson<unknown>(
+    historyPath('/results/stats'),
+    withSameOrigin({ signal: options.signal }),
+  );
+  return toStats(parseHistoryStats(result.data, 'generation history stats response'));
 };
 
 export const rateResult = async (

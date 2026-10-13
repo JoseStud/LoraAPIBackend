@@ -91,13 +91,19 @@ export function formatDurationFromMilliseconds(milliseconds: number, options?: F
 
 export type DateInput = Date | string | number;
 
+const NAIVE_ISO_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/;
+
 function toDate(input: DateInput): Date | null {
   if (input instanceof Date) {
     return Number.isNaN(input.getTime()) ? null : input;
   }
 
   if (typeof input === 'string' || typeof input === 'number') {
-    const date = new Date(input);
+    // The backend stores UTC but serialises it without an offset, which the
+    // browser would read as local time.
+    const value =
+      typeof input === 'string' && NAIVE_ISO_DATETIME.test(input.trim()) ? `${input.trim()}Z` : input;
+    const date = new Date(value);
     return Number.isNaN(date.getTime()) ? null : date;
   }
 

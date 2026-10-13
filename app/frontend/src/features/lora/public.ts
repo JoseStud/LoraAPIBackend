@@ -6,3 +6,4 @@ export { useAdapterSummaries } from './composables/useAdapterSummaries';
 export type { AdapterCatalogStore } from './stores/adapterCatalog';
 
 export { fetchTopAdapters } from './services/lora/loraService';
+export { htmlToPlainText } from './utils/libraryMeta';
