@@ -17,3 +17,10 @@ def test_frontend_settings_endpoint(client: TestClient):
         "websocketRetryMs": backend_settings.GENERATION_WEBSOCKET_RETRY_INTERVAL_MS,
         "systemStatusMs": backend_settings.GENERATION_SYSTEM_STATUS_POLL_INTERVAL_MS,
     }
+
+
+def test_frontend_settings_available_under_api_base(client: TestClient):
+    """The SPA requests settings through its /api/v1 base."""
+    response = client.get("/api/v1/frontend/settings")
+    assert response.status_code == 200
+    assert response.json() == client.get("/frontend/settings").json()
