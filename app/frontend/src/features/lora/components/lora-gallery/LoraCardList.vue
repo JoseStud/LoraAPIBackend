@@ -36,7 +36,7 @@
               <h3 class="lora-card-title text-sm">
                 {{ card.name }}
               </h3>
-              <span v-if="card.version" class="text-xs text-gray-500">v{{ card.version }}</span>
+              <span v-if="card.version" class="text-xs text-gray-500">{{ /^\d/.test(card.version) ? `v${card.version}` : card.version }}</span>
               <span
                 v-if="card.archetype"
                 class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800"

@@ -184,3 +184,107 @@ const onSortChange = (event: Event) => {
   emit('update:sort-by', (event.target as HTMLSelectElement).value as LoraGallerySortOption);
 };
 </script>
+
+<style scoped>
+.filters-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.search-bar-container {
+  position: relative;
+}
+
+.search-input {
+  width: 100%;
+  border: 1px solid var(--color-secondary-300);
+  border-radius: 0.5rem;
+  padding: 0.5rem 2.5rem 0.5rem 2.25rem;
+  font-size: 0.875rem;
+}
+
+.search-input:focus {
+  border-color: var(--color-primary-500);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.search-icon-container {
+  position: absolute;
+  top: 50%;
+  left: 0.625rem;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.clear-search-container {
+  position: absolute;
+  top: 50%;
+  right: 0.5rem;
+  transform: translateY(-50%);
+}
+
+.clear-search-btn {
+  display: flex;
+  border-radius: 0.25rem;
+  padding: 0.125rem;
+  color: var(--color-secondary-400);
+}
+
+.clear-search-btn:hover {
+  color: var(--color-secondary-700);
+}
+
+.filter-options-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+}
+
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.filter-label {
+  color: var(--color-secondary-600);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.tag-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.form-select {
+  width: auto;
+  max-width: 14rem;
+  border: 1px solid var(--color-secondary-300);
+  border-radius: 0.375rem;
+  padding: 0.25rem 2rem 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.more-tags-btn {
+  color: var(--color-primary-600);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+</style>

@@ -86,7 +86,7 @@
       </div>
 
       <div class="lora-card-meta">
-        <span v-if="card.version" class="text-xs text-gray-500">v{{ card.version }}</span>
+        <span v-if="card.version" class="text-xs text-gray-500">{{ versionLabel }}</span>
         <span v-if="card.type" class="tag tag-blue">
           {{ card.type }}
         </span>
@@ -192,6 +192,10 @@ const emit = defineEmits<{
 }>();
 
 const triggerText = computed(() => props.card.triggers.join(', '));
+// Prefix bare numbers ("1.0" -> "v1.0"); keep names like "v2" or "ilxl-v0.1".
+const versionLabel = computed(() =>
+  props.card.version && /^\d/.test(props.card.version) ? `v${props.card.version}` : props.card.version,
+);
 const traitSummary = computed(() =>
   TRAIT_KEYS.filter((key) => props.card.traits[key])
     .map((key) => `${key}: ${props.card.traits[key]}`)
@@ -419,5 +423,49 @@ onUnmounted(() => {
   display: flex;
   gap: 0.5rem;
   margin-top: auto;
+}
+
+.lora-card-tags {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.lora-card-tags .tag {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 0.25rem;
+  background: var(--color-secondary-100);
+  padding: 0.0625rem 0.375rem;
+  color: var(--color-secondary-700);
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lora-card-tags > span:last-child:not(.tag) {
+  flex-shrink: 0;
+}
+
+.status-badge {
+  border-radius: 9999px;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+}
+
+.status-active {
+  background: var(--color-success-500);
+  color: #fff;
+}
+
+.status-inactive {
+  background: rgba(15, 23, 42, 0.7);
+  color: #fff;
 }
 </style>
