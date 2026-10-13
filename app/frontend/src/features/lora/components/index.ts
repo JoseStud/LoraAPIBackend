@@ -6,4 +6,3 @@ export { default as LoraGalleryBulkActions } from './lora-gallery/LoraGalleryBul
 export { default as LoraGalleryFilters } from './lora-gallery/LoraGalleryFilters.vue';
 export { default as LoraGalleryGrid } from './lora-gallery/LoraGalleryGrid.vue';
 export { default as LoraGalleryHeader } from './lora-gallery/LoraGalleryHeader.vue';
-export { default as LoraGalleryTagModal } from './lora-gallery/LoraGalleryTagModal.vue';

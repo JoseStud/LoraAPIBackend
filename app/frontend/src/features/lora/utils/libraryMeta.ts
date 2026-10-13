@@ -2,20 +2,56 @@ import type { AdapterRead, LoraListItem } from '@/types';
 
 /**
  * Presentation helpers for library metadata written by the importer sidecars:
- * archetype, series and appearance traits (tags such as `archetype:Spiky-Hothead`,
- * `series:Naruto`, `hair:blond spiky`, mirrored in `extra`), trigger words and
- * CivitAI identity.
+ * archetype and series tags (`archetype:Spiky-Hothead`, `series:Naruto`),
+ * fixed-vocabulary appearance facets (`hair-color:black`, `outfit:hero suit`),
+ * descriptive traits in `extra.archetype_axes`, trigger words and CivitAI
+ * identity.
  */
 
-export const TRAIT_KEYS = ['shape', 'palette', 'build', 'costume', 'hair'] as const;
+/** Descriptive, free-text appearance notes (shown on the detail page). */
+export const TRAIT_KEYS = ['hair', 'build', 'palette', 'costume'] as const;
 export type TraitKey = (typeof TRAIT_KEYS)[number];
 export type LoraTraits = Partial<Record<TraitKey, string>>;
 
-const PREFIXED_TAG_KEYS = new Set<string>(['archetype', 'series', ...TRAIT_KEYS]);
+/** Filterable appearance facets, in display order. */
+export const FACET_KEYS = ['hair-color', 'hair-style', 'build', 'color', 'outfit'] as const;
+export type FacetKey = (typeof FACET_KEYS)[number];
+export type LoraFacets = Partial<Record<FacetKey, string[]>>;
+
+export const FACET_LABELS: Record<FacetKey, string> = {
+  'hair-color': 'Hair colour',
+  'hair-style': 'Hair style',
+  build: 'Build',
+  color: 'Main colours',
+  outfit: 'Outfit',
+};
+
+const FACET_KEY_SET = new Set<string>(FACET_KEYS);
+// Metadata tags shown through chips/facets, plus the free-text trait tags older
+// sidecars wrote (shape:, palette:, costume:, hair:).
+const PREFIXED_TAG_KEYS = new Set<string>([
+  'archetype',
+  'series',
+  ...FACET_KEYS,
+  'shape',
+  'palette',
+  'costume',
+  'hair',
+]);
+
+/** CivitAI tags that describe nearly every LoRA in a character library. */
+const GENERIC_TAGS = new Set([
+  'anime', 'character', 'characters', 'male', 'female', 'man', 'men', 'boy', 'boys', 'girl',
+  'shonen', 'lora', 'illustrious', 'sdxl', 'pony', 'style', 'concept',
+]);
+
+const words = (text: string): string[] =>
+  text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 
 type LoraLike = Partial<
   Pick<
     AdapterRead,
+    | 'name'
     | 'tags'
     | 'trained_words'
     | 'activation_text'
@@ -31,8 +67,12 @@ export interface LoraLibraryMeta {
   archetype: string | null;
   series: string | null;
   traits: LoraTraits;
+  facets: LoraFacets;
   triggers: string[];
-  /** Tags without the `key:value` metadata tags shown elsewhere. */
+  /**
+   * CivitAI tags worth showing: metadata tags, generic tags and tags that
+   * only repeat the character or series name are left out.
+   */
   displayTags: string[];
   previewImage: string | null;
   civitaiUrl: string | null;
@@ -108,33 +148,55 @@ export const buildCivitaiUrl = (
 export const getLoraLibraryMeta = (lora: LoraLike): LoraLibraryMeta => {
   const extra = (lora.extra ?? {}) as Record<string, unknown>;
   const fromTags: Record<string, string> = {};
-  const displayTags: string[] = [];
+  const facets: LoraFacets = {};
+  const plainTags: string[] = [];
 
   for (const tag of lora.tags ?? []) {
     const parsed = splitPrefixedTag(tag);
-    if (parsed) {
-      fromTags[parsed[0]] ??= parsed[1];
+    if (!parsed) {
+      plainTags.push(tag);
+    } else if (FACET_KEY_SET.has(parsed[0])) {
+      const values = (facets[parsed[0] as FacetKey] ??= []);
+      if (!values.includes(parsed[1])) {
+        values.push(parsed[1]);
+      }
     } else {
-      displayTags.push(tag);
+      fromTags[parsed[0]] ??= parsed[1];
     }
   }
 
+  // Descriptive notes; legacy sidecars carried some of them as tags.
   const axes = (extra.archetype_axes ?? {}) as Record<string, unknown>;
   const traits: LoraTraits = {};
   for (const key of TRAIT_KEYS) {
-    const value = asString(axes[key]) ?? fromTags[key] ?? null;
+    const value = asString(axes[key]) ?? (key === 'build' ? null : fromTags[key]) ?? null;
     if (value) {
       traits[key] = value;
     }
   }
+
+  const series = asString(extra.series) ?? fromTags.series ?? null;
+  const nameWords = new Set(words(`${lora.name ?? ''} ${series ?? ''}`));
+  const seen = new Set<string>();
+  const displayTags = plainTags.filter((tag) => {
+    const key = tag.trim().toLowerCase();
+    const tagWords = words(key);
+    if (!key || seen.has(key) || GENERIC_TAGS.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    // "bakugo katsuki", "katsuki bakugo", "my hero academia" just repeat the card title.
+    return !(tagWords.length > 0 && tagWords.every((word) => nameWords.has(word)));
+  });
 
   const trained = (lora.trained_words ?? []).map((word) => word.trim()).filter(Boolean);
   const triggers = trained.length > 0 ? trained : splitTriggers(lora.activation_text);
 
   return {
     archetype: asString(lora.archetype) ?? asString(extra.archetype) ?? fromTags.archetype ?? null,
-    series: asString(extra.series) ?? fromTags.series ?? null,
+    series,
     traits,
+    facets,
     triggers: Array.from(new Set(triggers)),
     displayTags,
     previewImage: asString(lora.preview_image) ?? asString(lora.preview_image_url),

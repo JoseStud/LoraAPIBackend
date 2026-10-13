@@ -48,10 +48,9 @@ describe('LoraCard library metadata', () => {
     expect(wrapper.find('img.lora-card-preview-image').attributes('src')).toBe(
       'https://image.civitai.com/killua.jpeg',
     );
-    // metadata tags are shown as chips, not repeated in the tag list
-    const tags = wrapper.find('.lora-card-tags').text();
-    expect(tags).toContain('anime');
-    expect(tags).not.toContain('archetype:');
+    // raw and metadata tags stay off the card
+    expect(wrapper.text()).not.toContain('archetype:');
+    expect(wrapper.text()).not.toContain('hair:');
   });
 
   it('copies the trigger words', async () => {

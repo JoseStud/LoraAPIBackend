@@ -121,15 +121,6 @@
         </button>
       </div>
 
-      <div v-if="card.tags.length > 0" class="lora-card-tags">
-        <span v-for="tag in card.tags.slice(0, 3)" :key="tag" class="tag">
-          {{ tag }}
-        </span>
-        <span v-if="card.tags.length > 3" class="text-xs text-gray-500">
-          +{{ card.tags.length - 3 }} more
-        </span>
-      </div>
-
       <div v-if="isActive" class="lora-card-weight-control">
         <label class="form-label text-xs">Weight</label>
         <input
@@ -423,32 +414,6 @@ onUnmounted(() => {
   display: flex;
   gap: 0.5rem;
   margin-top: auto;
-}
-
-.lora-card-tags {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 0.25rem;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.lora-card-tags .tag {
-  flex-shrink: 1;
-  min-width: 0;
-  overflow: hidden;
-  border-radius: 0.25rem;
-  background: var(--color-secondary-100);
-  padding: 0.0625rem 0.375rem;
-  color: var(--color-secondary-700);
-  font-size: 0.6875rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lora-card-tags > span:last-child:not(.tag) {
-  flex-shrink: 0;
 }
 
 .status-badge {

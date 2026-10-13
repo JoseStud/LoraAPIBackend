@@ -77,11 +77,19 @@
           <p v-else class="text-sm text-gray-500">No trigger words listed for this LoRA.</p>
         </section>
 
-        <section v-if="traitRows.length > 0" class="lora-detail-section">
+        <section v-if="facetRows.length > 0 || traitRows.length > 0" class="lora-detail-section">
           <h2 class="lora-detail-heading">Appearance</h2>
-          <dl class="lora-detail-grid" data-testid="lora-detail-traits">
-            <template v-for="row in traitRows" :key="row.key">
+          <dl v-if="facetRows.length > 0" class="lora-detail-grid" data-testid="lora-detail-facets">
+            <template v-for="row in facetRows" :key="row.key">
               <dt>{{ row.label }}</dt>
+              <dd class="flex flex-wrap gap-1">
+                <span v-for="value in row.values" :key="value" class="lora-chip lora-chip-series">{{ value }}</span>
+              </dd>
+            </template>
+          </dl>
+          <dl v-if="traitRows.length > 0" class="lora-detail-grid lora-detail-notes" data-testid="lora-detail-traits">
+            <template v-for="row in traitRows" :key="row.key">
+              <dt>{{ row.label }} notes</dt>
               <dd>{{ row.value }}</dd>
             </template>
           </dl>
@@ -95,7 +103,7 @@
         </section>
 
         <section v-if="meta.displayTags.length > 0" class="lora-detail-section">
-          <h2 class="lora-detail-heading">Tags</h2>
+          <h2 class="lora-detail-heading">CivitAI tags</h2>
           <div class="flex flex-wrap gap-1">
             <span v-for="tag in meta.displayTags" :key="tag" class="lora-chip lora-chip-series">{{ tag }}</span>
           </div>
@@ -145,6 +153,8 @@ import { RouterLink } from 'vue-router';
 import { fetchAdapterById, toggleLoraActiveState } from '../../services/lora/loraService';
 import { useAdapterCatalogStore } from '../../stores/adapterCatalog';
 import {
+  FACET_KEYS,
+  FACET_LABELS,
   formatArchetypeLabel,
   getLoraLibraryMeta,
   htmlToPlainText,
@@ -175,6 +185,10 @@ const fileSize = computed(() => {
   const kb = lora.value?.primary_file_size_kb;
   return typeof kb === 'number' && kb > 0 ? formatFileSize(kb * 1024, { decimals: 1 }) : null;
 });
+const facetRows = computed(() =>
+  FACET_KEYS.map((key) => ({ key, label: FACET_LABELS[key], values: meta.value?.facets[key] ?? [] }))
+    .filter((row) => row.values.length > 0),
+);
 const traitRows = computed(() =>
   TRAIT_KEYS.filter((key) => meta.value?.traits[key]).map((key) => ({
     key,
@@ -300,6 +314,12 @@ watch(
 
 .lora-detail-grid dt {
   color: var(--color-secondary-500);
+}
+
+.lora-detail-notes {
+  margin-top: 0.25rem;
+  color: var(--color-secondary-600);
+  font-size: 0.8125rem;
 }
 
 .lora-detail-trigger {

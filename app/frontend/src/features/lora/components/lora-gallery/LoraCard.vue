@@ -91,7 +91,6 @@ const cardViewModel = computed<LoraCardViewModel>(() => ({
   type: loraRef.value.type,
   description: htmlToPlainText(loraRef.value.description) || null,
   previewImage: meta.value.previewImage,
-  tags: meta.value.displayTags,
   detailsUrl: detailsUrl.value,
   qualityScore: qualityScore.value,
   archetype: meta.value.archetype,

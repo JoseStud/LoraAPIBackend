@@ -3,7 +3,18 @@ import type { Ref } from 'vue';
 
 import type { GalleryLora, LoraGallerySortOption } from '@/types';
 import { useSyncedQueryParam } from '@/composables/shared';
-import { getLoraLibraryMeta, type LoraLibraryMeta } from '../../utils/libraryMeta';
+import {
+  FACET_KEYS,
+  getLoraLibraryMeta,
+  type FacetKey,
+  type LoraLibraryMeta,
+} from '../../utils/libraryMeta';
+
+export type FacetSelection = Partial<Record<FacetKey, string[]>>;
+export interface FacetOption {
+  value: string;
+  count: number;
+}
 
 const sortedUnique = (values: Array<string | null>): string[] =>
   Array.from(new Set(values.filter((value): value is string => Boolean(value)))).sort((a, b) =>
@@ -16,7 +27,7 @@ export function useLoraGalleryFilters(
 ) {
   const searchTerm = searchTermRef ?? useSyncedQueryParam();
   const activeOnly = ref(false);
-  const selectedTags = ref<string[]>([]);
+  const selectedFacets = ref<FacetSelection>({});
   const selectedArchetype = ref('');
   const selectedSeries = ref('');
   const sortBy = ref<LoraGallerySortOption>('name_asc');
@@ -38,6 +49,31 @@ export function useLoraGalleryFilters(
   const availableSeries = computed(() =>
     sortedUnique(loras.value.map((lora) => metaFor(lora).series)),
   );
+
+  /** Facet values present in the catalog, most common first. */
+  const facetOptions = computed(() => {
+    const options = {} as Record<FacetKey, FacetOption[]>;
+    for (const key of FACET_KEYS) {
+      const counts = new Map<string, number>();
+      for (const lora of loras.value) {
+        for (const value of metaFor(lora).facets[key] ?? []) {
+          counts.set(value, (counts.get(value) ?? 0) + 1);
+        }
+      }
+      options[key] = Array.from(counts, ([value, count]) => ({ value, count })).sort(
+        (a, b) => b.count - a.count || a.value.localeCompare(b.value),
+      );
+    }
+    return options;
+  });
+
+  const toggleFacet = (key: FacetKey, value: string) => {
+    const current = selectedFacets.value[key] ?? [];
+    const next = current.includes(value)
+      ? current.filter((item) => item !== value)
+      : [...current, value];
+    selectedFacets.value = { ...selectedFacets.value, [key]: next };
+  };
 
   const filteredLoras = computed<GalleryLora[]>(() => {
     let filtered = [...loras.value];
@@ -72,18 +108,22 @@ export function useLoraGalleryFilters(
       filtered = filtered.filter(lora => lora.active);
     }
 
-    if (selectedTags.value.length > 0) {
-      filtered = filtered.filter((lora: GalleryLora) =>
-        lora.tags?.some((tag: string) => selectedTags.value.includes(tag))
-      );
-    }
-
     if (selectedArchetype.value) {
       filtered = filtered.filter((lora) => metaFor(lora).archetype === selectedArchetype.value);
     }
 
     if (selectedSeries.value) {
       filtered = filtered.filter((lora) => metaFor(lora).series === selectedSeries.value);
+    }
+
+    // Any selected value within a facet; every facet with a selection.
+    for (const key of FACET_KEYS) {
+      const wanted = selectedFacets.value[key] ?? [];
+      if (wanted.length > 0) {
+        filtered = filtered.filter((lora) =>
+          (metaFor(lora).facets[key] ?? []).some((value) => wanted.includes(value)),
+        );
+      }
     }
 
     filtered.sort((a, b) => {
@@ -116,20 +156,22 @@ export function useLoraGalleryFilters(
   const clearFilters = () => {
     searchTerm.value = '';
     activeOnly.value = false;
-    selectedTags.value = [];
     selectedArchetype.value = '';
     selectedSeries.value = '';
+    selectedFacets.value = {};
     sortBy.value = 'name_asc';
   };
 
   return {
     searchTerm,
     activeOnly,
-    selectedTags,
     selectedArchetype,
     selectedSeries,
     availableArchetypes,
     availableSeries,
+    selectedFacets,
+    facetOptions,
+    toggleFacet,
     sortBy,
     filteredLoras,
     clearFilters,

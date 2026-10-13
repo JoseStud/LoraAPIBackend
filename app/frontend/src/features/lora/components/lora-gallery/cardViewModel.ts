@@ -9,8 +9,6 @@ export type LoraCardViewModel = {
   /** Plain-text description (HTML already stripped). */
   description?: string | null;
   previewImage?: string | null;
-  /** Tags without the archetype/series/trait metadata tags. */
-  tags: string[];
   detailsUrl: string;
   qualityScore: number | null;
   archetype: string | null;

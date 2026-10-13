@@ -83,14 +83,6 @@
               {{ card.triggers.join(', ') }}
             </button>
 
-            <div v-if="card.tags.length > 0" class="flex space-x-1">
-              <span v-for="tag in card.tags.slice(0, 2)" :key="tag" class="tag">
-                {{ tag }}
-              </span>
-              <span v-if="card.tags.length > 2" class="text-xs text-gray-500">
-                +{{ card.tags.length - 2 }}
-              </span>
-            </div>
           </div>
         </div>
 

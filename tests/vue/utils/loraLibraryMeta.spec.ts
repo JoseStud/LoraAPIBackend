@@ -10,29 +10,53 @@ import {
 
 describe('getLoraLibraryMeta', () => {
   const sidecarLora = {
+    name: 'Killua Zoldyck',
     tags: [
       'anime',
       'archetype:Cool-Sharp-Rival',
       'series:Hunter x Hunter',
-      'hair:white spiky',
+      'hair-color:white/silver',
+      'hair-style:spiky',
+      'color:blue',
+      'color:white',
+      'color:blue',
       'male',
+      'killua zoldyck',
+      'hxh',
+      'hunter x hunter',
+      'assassin',
     ],
     trained_words: ['killua_zoldyck', ' ', 'killua_zoldyck'],
     activation_text: 'ignored when trained words exist',
-    extra: { archetype_axes: { shape: 'angular', build: 'slim' } },
+    extra: { archetype_axes: { hair: 'white spiky', build: 'slim' } },
     archetype: null,
     civitai_model_id: 375513,
     civitai_version_id: 1153592,
     preview_image_url: 'https://image.civitai.com/k.jpeg',
   };
 
-  it('reads archetype, series and traits from sidecar tags and extra', () => {
+  it('reads archetype, series, facets and traits from sidecar tags and extra', () => {
     const meta = getLoraLibraryMeta(sidecarLora);
 
     expect(meta.archetype).toBe('Cool-Sharp-Rival');
     expect(meta.series).toBe('Hunter x Hunter');
-    expect(meta.traits).toEqual({ shape: 'angular', build: 'slim', hair: 'white spiky' });
-    expect(meta.displayTags).toEqual(['anime', 'male']);
+    expect(meta.facets).toEqual({
+      'hair-color': ['white/silver'],
+      'hair-style': ['spiky'],
+      color: ['blue', 'white'],
+    });
+    expect(meta.traits).toEqual({ hair: 'white spiky', build: 'slim' });
+  });
+
+  it('keeps only CivitAI tags that add information', () => {
+    // generic tags and tags repeating the name or series are dropped
+    expect(getLoraLibraryMeta(sidecarLora).displayTags).toEqual(['hxh', 'assassin']);
+  });
+
+  it('hides legacy free-text trait tags', () => {
+    const meta = getLoraLibraryMeta({ tags: ['shape:angular', 'palette:red', 'costume:robe', 'hair:spiky', 'cool'] });
+    expect(meta.displayTags).toEqual(['cool']);
+    expect(meta.traits).toEqual({ palette: 'red', costume: 'robe', hair: 'spiky' });
   });
 
   it('prefers the archetype column over tags', () => {
@@ -62,6 +86,7 @@ describe('getLoraLibraryMeta', () => {
       archetype: null,
       series: null,
       traits: {},
+      facets: {},
       triggers: [],
       displayTags: [],
       previewImage: null,

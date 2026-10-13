@@ -19,22 +19,15 @@
         <LoraGalleryFilters
           v-model:search-term="searchTerm"
           v-model:active-only="activeOnly"
-          v-model:selected-tags="selectedTags"
           v-model:sort-by="sortBy"
           v-model:selected-archetype="selectedArchetype"
           v-model:selected-series="selectedSeries"
-          :available-tags="tagOptions"
           :available-archetypes="availableArchetypes"
           :available-series="availableSeries"
-          :is-tag-modal-open="isTagModalOpen"
-          @clear-filters="handleClearFilters"
-          @open-tag-modal="toggleTagModal"
-        />
-        <LoraGalleryTagModal
-          :show="isTagModalOpen"
-          :available-tags="tagOptions"
-          v-model:selected-tags="selectedTags"
-          @close="closeTagModal"
+          :facet-options="facetOptions"
+          :selected-facets="selectedFacets"
+          @toggle-facet="toggleFacet"
+          @clear-filters="clearFilters"
         />
       </div>
 
@@ -52,7 +45,7 @@
         :bulk-mode="bulkMode"
         :selected-loras="selectedLoras"
         key-field="id"
-        :grid-item-size="560"
+        :grid-item-size="530"
         :grid-item-width="320"
         :list-item-size="210"
         :min-item-size="190"
@@ -66,13 +59,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-
 import LoraGalleryBulkActions from './LoraGalleryBulkActions.vue';
 import LoraGalleryFilters from './LoraGalleryFilters.vue';
 import LoraGalleryGrid from './LoraGalleryGrid.vue';
 import LoraGalleryHeader from './LoraGalleryHeader.vue';
-import LoraGalleryTagModal from './LoraGalleryTagModal.vue';
 import { useLoraGalleryData } from '../../composables/lora-gallery/useLoraGalleryData';
 import { useLoraGalleryFilters } from '../../composables/lora-gallery/useLoraGalleryFilters';
 import { useLoraGallerySelection } from '../../composables/lora-gallery/useLoraGallerySelection';
@@ -91,7 +81,6 @@ const {
   isInitialized,
   isLoading,
   loras,
-  availableTags,
   initialize,
   performBulkAction: runBulkAction,
   applyLoraUpdate,
@@ -103,20 +92,17 @@ const searchQuery = useSyncedQueryParam();
 const {
   searchTerm,
   activeOnly,
-  selectedTags,
   selectedArchetype,
   selectedSeries,
   availableArchetypes,
   availableSeries,
+  selectedFacets,
+  facetOptions,
+  toggleFacet,
   sortBy,
   filteredLoras,
   clearFilters,
 } = useLoraGalleryFilters(loras, searchQuery);
-
-// Archetype and series have their own dropdowns; keep them out of the tag list.
-const tagOptions = computed(() =>
-  availableTags.value.filter((tag) => !/^(archetype|series):/i.test(tag)),
-);
 
 const {
   selectedLoras,
@@ -133,20 +119,6 @@ const {
   deselect,
 } = useLoraGallerySelection(filteredLoras);
 
-const isTagModalOpen = ref(false);
-
-const handleClearFilters = () => {
-  clearFilters();
-  isTagModalOpen.value = false;
-};
-
-const toggleTagModal = () => {
-  isTagModalOpen.value = !isTagModalOpen.value;
-};
-
-const closeTagModal = () => {
-  isTagModalOpen.value = false;
-};
 
 const performBulkAction = async (action: LoraBulkAction) => {
   if (selectedCount.value === 0) {

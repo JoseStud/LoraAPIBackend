@@ -31,10 +31,20 @@ const gojo = createAdapterFixture({
   name: 'Satoru Gojo',
   active: false,
   description: '<p>Strongest sorcerer.</p>',
-  tags: ['archetype:Cool-Sharp-Rival', 'series:Jujutsu Kaisen', 'hair:white spiky', 'anime'],
+  tags: [
+    'archetype:Cool-Sharp-Rival',
+    'series:Jujutsu Kaisen',
+    'hair-color:white/silver',
+    'outfit:school uniform',
+    'color:black',
+    'color:white',
+    'anime',
+    'gojo satoru',
+    'blindfold',
+  ],
   trained_words: ['gojo_satoru', 'blindfold'],
   triggers: [],
-  extra: { archetype_axes: { shape: 'angular', build: 'very tall' } },
+  extra: { archetype_axes: { hair: 'white spiky', build: 'very tall' } },
   primary_file_name: 'Gojo.safetensors',
   primary_file_size_kb: 223108,
   primary_file_sha256: 'ABC123',
@@ -57,9 +67,15 @@ describe('LoraDetail', () => {
     expect(wrapper.text()).toContain('Cool Sharp Rival');
     expect(wrapper.text()).toContain('Jujutsu Kaisen');
     expect(wrapper.findAll('[data-testid="lora-detail-triggers"] li')).toHaveLength(2);
-    const traits = wrapper.find('[data-testid="lora-detail-traits"]').text();
-    expect(traits).toContain('angular');
-    expect(traits).toContain('white spiky');
+    const facets = wrapper.find('[data-testid="lora-detail-facets"]').text();
+    expect(facets).toContain('Hair colour');
+    expect(facets).toContain('white/silver');
+    expect(facets).toContain('school uniform');
+    expect(wrapper.find('[data-testid="lora-detail-traits"]').text()).toContain('very tall');
+    // generic and name-only tags are hidden; descriptive ones stay
+    expect(wrapper.text()).toContain('blindfold');
+    expect(wrapper.text()).not.toMatch(/\banime\b/);
+    expect(wrapper.text()).not.toContain('gojo satoru');
     expect(wrapper.find('[data-testid="lora-detail-description"]').text()).toBe('Strongest sorcerer.');
     expect(wrapper.text()).toContain('ABC123');
     expect(wrapper.find('[data-testid="lora-detail-civitai"]').attributes('href')).toBe(

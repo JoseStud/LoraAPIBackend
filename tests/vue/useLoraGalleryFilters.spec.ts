@@ -9,9 +9,9 @@ const make = (id: string, name: string, tags: string[], trained_words: string[] 
   createAdapterFixture({ id, name, tags, trained_words, triggers: [] }) as unknown as GalleryLora;
 
 const loras = ref<GalleryLora[]>([
-  make('1', 'Naruto', ['archetype:Spiky-Hothead', 'series:Naruto'], ['naruto_uzumaki']),
-  make('2', 'Sasuke', ['archetype:Cool-Sharp-Rival', 'series:Naruto'], ['sasuke_uchiha']),
-  make('3', 'Killua', ['archetype:Cool-Sharp-Rival', 'series:Hunter x Hunter'], ['killua_zoldyck']),
+  make('1', 'Naruto', ['archetype:Spiky-Hothead', 'series:Naruto', 'hair-color:blond', 'build:slim', 'outfit:hero suit'], ['naruto_uzumaki']),
+  make('2', 'Sasuke', ['archetype:Cool-Sharp-Rival', 'series:Naruto', 'hair-color:black', 'build:slim', 'outfit:robe/kimono'], ['sasuke_uchiha']),
+  make('3', 'Killua', ['archetype:Cool-Sharp-Rival', 'series:Hunter x Hunter', 'hair-color:white/silver', 'build:slim', 'outfit:casual'], ['killua_zoldyck']),
   make('4', 'Untagged', []),
 ]);
 
@@ -45,5 +45,35 @@ describe('useLoraGalleryFilters library filters', () => {
 
     search.value = 'hunter x';
     expect(filters.filteredLoras.value.map((l) => l.name)).toEqual(['Killua']);
+  });
+
+  it('counts facet values, most common first', () => {
+    const filters = useLoraGalleryFilters(loras, ref(''));
+
+    expect(filters.facetOptions.value.build).toEqual([{ value: 'slim', count: 3 }]);
+    expect(filters.facetOptions.value['hair-color'].map((o) => o.value)).toEqual([
+      'black',
+      'blond',
+      'white/silver',
+    ]);
+    expect(filters.facetOptions.value['hair-style']).toEqual([]);
+  });
+
+  it('matches any value within a facet and every selected facet', () => {
+    const filters = useLoraGalleryFilters(loras, ref(''));
+
+    filters.toggleFacet('hair-color', 'black');
+    filters.toggleFacet('hair-color', 'white/silver');
+    expect(filters.filteredLoras.value.map((l) => l.name)).toEqual(['Killua', 'Sasuke']);
+
+    filters.toggleFacet('outfit', 'casual');
+    expect(filters.filteredLoras.value.map((l) => l.name)).toEqual(['Killua']);
+
+    // toggling again removes the value
+    filters.toggleFacet('outfit', 'casual');
+    expect(filters.filteredLoras.value).toHaveLength(2);
+
+    filters.clearFilters();
+    expect(filters.selectedFacets.value).toEqual({});
   });
 });
