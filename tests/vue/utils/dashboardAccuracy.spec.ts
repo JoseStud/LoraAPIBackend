@@ -29,20 +29,28 @@ describe('describeMetricAlerts', () => {
     gpus: [],
   };
 
-  it('explains the status raised by deriveSeverityFromMetrics', () => {
+  it('treats a nearly full disk as a warning and says why', () => {
     const metrics = {
       ...base,
       disk_percent: 96,
-      memory_percent: 89,
-      gpus: [{ id: 0, name: 'RX 6600', temperature: 80, memory_percent: 36 }],
+      memory_percent: 86,
+      gpus: [{ id: 0, name: 'RX 6600', temperature: 49, memory_percent: 100 }],
+    };
+
+    // busy RAM and full VRAM are normal with a model loaded
+    expect(deriveSeverityFromMetrics(metrics)).toBe('warning');
+    expect(describeMetricAlerts(metrics)).toEqual(['Disk 96% full']);
+  });
+
+  it('reports an error only when something is about to fail', () => {
+    const metrics = {
+      ...base,
+      disk_percent: 99,
+      gpus: [{ id: 0, name: 'RX 6600', temperature: 97, memory_percent: 40 }],
     };
 
     expect(deriveSeverityFromMetrics(metrics)).toBe('error');
-    expect(describeMetricAlerts(metrics)).toEqual([
-      'Memory 89% used',
-      'Disk 96% full',
-      'RX 6600 at 80°C',
-    ]);
+    expect(describeMetricAlerts(metrics)).toEqual(['Disk 99% full', 'RX 6600 at 97°C']);
   });
 
   it('is empty when everything is within limits', () => {
