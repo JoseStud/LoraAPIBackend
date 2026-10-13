@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -134,3 +135,16 @@ async def test_system_status_handles_healthy_runtime(monkeypatch):
 
     session.close()
     session.bind.dispose()
+
+
+def test_disk_usage_is_measured_on_the_lora_library(tmp_path, monkeypatch):
+    """The library often sits on another drive, so report that drive."""
+    from backend.services import system as system_module
+
+    monkeypatch.setattr(system_module.settings, "IMPORT_PATH", str(tmp_path))
+    assert system_module._storage_path() == str(tmp_path)
+
+    monkeypatch.setattr(
+        system_module.settings, "IMPORT_PATH", str(tmp_path / "missing")
+    )
+    assert system_module._storage_path() == os.getcwd()

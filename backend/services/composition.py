@@ -1,6 +1,7 @@
 """Composition service for LoRA prompt formatting."""
 
 from dataclasses import dataclass
+from pathlib import PurePath
 from typing import TYPE_CHECKING, List
 
 from backend.models.adapters import Adapter
@@ -16,6 +17,20 @@ class CompositionResult:
     prompt: str
     tokens: List[str]
     warnings: List[str]
+
+
+def lora_prompt_name(adapter: Adapter) -> str:
+    """Return the name SD.Next knows the LoRA by: its file name without suffix.
+
+    SD.Next resolves ``<lora:NAME:w>`` against file names, so the display name
+    (e.g. "Sosuke Aizen") would silently match nothing.
+    """
+    for candidate in (adapter.primary_file_name, adapter.file_path):
+        if candidate:
+            stem = PurePath(candidate).stem
+            if stem:
+                return stem
+    return adapter.name
 
 
 class ComposeService:
@@ -57,7 +72,7 @@ class ComposeService:
         """
         tokens = []
         for adapter in adapters:
-            token = self.format_token(adapter.name, adapter.weight)
+            token = self.format_token(lora_prompt_name(adapter), adapter.weight)
             tokens.append(token)
 
         # Build prompt components

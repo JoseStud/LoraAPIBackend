@@ -30,7 +30,14 @@ describe('PromptComposer.vue', () => {
       const url = typeof input === 'string' ? input : input?.url || '';
       if (url.includes('/api/v1/adapters')) {
         return jsonResponse({ items: [
-          createAdapterFixture({ id: '1', name: 'LoraOne', description: 'First', active: true }),
+          createAdapterFixture({
+            id: '1',
+            name: 'Lora One',
+            description: 'First',
+            active: true,
+            // SD.Next resolves <lora:…> against the file name
+            file_path: '/loras/Shonen/LoraOne.safetensors',
+          }),
           createAdapterFixture({ id: '2', name: 'LoraTwo', description: 'Second', active: false }),
         ] });
       }
@@ -54,7 +61,7 @@ describe('PromptComposer.vue', () => {
     await flush();
     expect(wrapper.text()).toContain('Prompt Composer');
     expect(wrapper.find('[data-testid="lora-list"]').exists()).toBe(true);
-    expect(wrapper.text()).toContain('LoraOne');
+    expect(wrapper.text()).toContain('Lora One');
   });
 
   it('validates base prompt before generation', async () => {
@@ -154,7 +161,7 @@ describe('PromptComposer.vue', () => {
     await nextTick();
     const listText = wrapper.find('[data-testid="lora-list"]').text();
     expect(listText).toContain('LoraTwo');
-    expect(listText).not.toContain('LoraOne');
+    expect(listText).not.toContain('Lora One');
   });
 
   it('saves and loads composition from localStorage', async () => {
