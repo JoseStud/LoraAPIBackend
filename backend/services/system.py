@@ -390,9 +390,15 @@ class SystemService:
 
         return payload
 
-    async def get_health_summary(self) -> SystemHealthSummary:
-        """Compute a lightweight system health summary for dashboard views."""
-        payload = await self.get_system_status_payload()
+    async def get_health_summary(
+        self, payload: Optional[Dict[str, Any]] = None
+    ) -> SystemHealthSummary:
+        """Compute a lightweight system health summary for dashboard views.
+
+        Pass an already collected status payload to avoid gathering it twice.
+        """
+        if payload is None:
+            payload = await self.get_system_status_payload()
 
         used_bytes = _megabytes_to_bytes(payload.get("memory_used"))
         total_bytes = _megabytes_to_bytes(payload.get("memory_total"))

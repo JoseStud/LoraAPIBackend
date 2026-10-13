@@ -82,6 +82,11 @@ def test_dashboard_stats_reflects_live_data(client, db_session):
         and system_health["storage_usage"]
     )
 
+    # live readings come along so the dashboard doesn't parse the strings above
+    metrics = payload["metrics"]
+    if metrics is not None:  # psutil is optional
+        assert {"cpu_percent", "memory_total", "gpus"} <= metrics.keys()
+
 
 def test_dashboard_endpoints_handle_empty_dataset(client):
     """Endpoints should gracefully handle empty databases."""

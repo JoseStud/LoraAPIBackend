@@ -5,6 +5,7 @@ import { createBackendPathBuilder } from '@/utils/backend';
 import type {
   DashboardStatsSummary,
   FrontendRuntimeSettings,
+  GpuTelemetry,
   SystemMetricsSnapshot,
   SystemStatusPayload,
 } from '@/types';
@@ -123,6 +124,41 @@ const parsePercentage = (input?: string | null): number | null => {
   return Number.isFinite(value) ? value : null;
 };
 
+const MIB = 1024 ** 2;
+
+const finiteOrNull = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) ? value : null;
+
+/** Convert the backend's live metrics (sizes in MiB) into a snapshot in bytes. */
+const snapshotFromLiveMetrics = (live: Record<string, unknown>): SystemMetricsSnapshot | null => {
+  const cpuPercent = finiteOrNull(live.cpu_percent);
+  const memoryTotal = finiteOrNull(live.memory_total);
+  if (cpuPercent == null || memoryTotal == null) {
+    return null;
+  }
+
+  const toBytesFromMib = (value: unknown): number | null => {
+    const mib = finiteOrNull(value);
+    return mib == null ? null : mib * MIB;
+  };
+
+  const gpus = Array.isArray(live.gpus) ? (live.gpus as GpuTelemetry[]) : [];
+
+  return {
+    ...emptyMetricsSnapshot(),
+    cpu_percent: clampPercentage(cpuPercent),
+    memory_percent: clampPercentage(finiteOrNull(live.memory_percent) ?? 0),
+    memory_used: toBytesFromMib(live.memory_used) ?? 0,
+    memory_total: memoryTotal * MIB,
+    disk_percent: finiteOrNull(live.disk_percent),
+    disk_used: toBytesFromMib(live.disk_used),
+    disk_total: toBytesFromMib(live.disk_total),
+    gpus,
+    uptime_seconds: finiteOrNull(live.uptime_seconds),
+    timestamp: typeof live.timestamp === 'string' ? live.timestamp : null,
+  };
+};
+
 export const deriveMetricsFromDashboard = (
   summary?: DashboardStatsSummary | null,
 ): SystemMetricsSnapshot => {
@@ -130,6 +166,16 @@ export const deriveMetricsFromDashboard = (
   if (!summary) {
     return snapshot;
   }
+
+  const live =
+    summary.metrics && typeof summary.metrics === 'object'
+      ? snapshotFromLiveMetrics(summary.metrics as Record<string, unknown>)
+      : null;
+  if (live) {
+    return live;
+  }
+
+  // Older backends only send formatted strings; gpu_memory is the best we have.
 
   const health = summary.system_health ?? {};
 

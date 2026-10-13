@@ -17,11 +17,16 @@ async def get_dashboard_stats(
     stats = domain.adapters.get_dashboard_statistics()
     stats["active_jobs"] = application.deliveries.count_active_jobs()
 
-    system_health = (await application.system.get_health_summary()).as_dict()
+    status_payload = await application.system.get_system_status_payload()
+    system_health = (
+        await application.system.get_health_summary(status_payload)
+    ).as_dict()
 
     return {
         "stats": stats,
         "system_health": system_health,
+        # Live CPU, RAM, disk and GPU readings (sizes in MiB).
+        "metrics": status_payload.get("metrics"),
     }
 
 

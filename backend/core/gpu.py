@@ -1,9 +1,119 @@
 """GPU detection and configuration utilities."""
 
 import logging
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
+
+DRM_ROOT = Path("/sys/class/drm")
+PCI_IDS_PATHS = (Path("/usr/share/hwdata/pci.ids"), Path("/usr/share/misc/pci.ids"))
+_VENDORS = {
+    "0x1002": ("amd", "AMD"),
+    "0x10de": ("nvidia", "NVIDIA"),
+    "0x8086": ("intel", "Intel"),
+}
+
+
+def _read_sysfs(path: Path) -> Optional[str]:
+    try:
+        return path.read_text().strip()
+    except (OSError, ValueError):
+        return None
+
+
+def _read_sysfs_int(path: Path) -> Optional[int]:
+    value = _read_sysfs(path)
+    try:
+        return int(value) if value is not None else None
+    except ValueError:
+        return None
+
+
+def _pci_device_name(vendor_id: str, device_id: str) -> Optional[str]:
+    """Look up a marketing name such as "Radeon RX 6600" in the pci.ids database."""
+    vendor = vendor_id.removeprefix("0x").lower()
+    device = device_id.removeprefix("0x").lower()
+    for ids_path in PCI_IDS_PATHS:
+        try:
+            lines = ids_path.read_text(errors="replace").splitlines()
+        except OSError:
+            continue
+        in_vendor = False
+        for line in lines:
+            if not line or line.startswith("#"):
+                continue
+            if not line.startswith("\t"):
+                in_vendor = line.lower().startswith(vendor + " ")
+                continue
+            if in_vendor and not line.startswith("\t\t"):
+                code, _, name = line.strip().partition(" ")
+                if code.lower() == device:
+                    name = name.strip()
+                    # "Navi 23 [Radeon RX 6600/6600 XT/6600M]" -> the bracketed part
+                    if "[" in name and name.endswith("]"):
+                        name = name[name.index("[") + 1 : -1]
+                    return name
+    return None
+
+
+def _detect_sysfs_gpu() -> Optional[Dict[str, Any]]:
+    """Read the GPU from Linux DRM sysfs, for hosts where PyTorch can't see it.
+
+    The manager usually runs without a GPU-enabled PyTorch build (generation
+    happens in SD.Next), so this reports the card that is actually installed.
+    Only drivers that expose VRAM counters (amdgpu) are recognised.
+    """
+    best: Optional[Dict[str, Any]] = None
+    try:
+        cards = sorted(DRM_ROOT.glob("card[0-9]*"))
+    except OSError:
+        return None
+    for card in cards:
+        if "-" in card.name:  # connectors such as card1-DP-1
+            continue
+        device_dir = card / "device"
+        vram_total = _read_sysfs_int(device_dir / "mem_info_vram_total")
+        if not vram_total:
+            continue
+        vendor_id = (_read_sysfs(device_dir / "vendor") or "").lower()
+        device_id = (_read_sysfs(device_dir / "device") or "").lower()
+        gpu_type, vendor_label = _VENDORS.get(vendor_id, ("unknown", "GPU"))
+        model = _pci_device_name(vendor_id, device_id) if vendor_id else None
+        details: Dict[str, Any] = {
+            "device_name": f"{vendor_label} {model}"
+            if model
+            else f"{vendor_label} GPU ({device_id})",
+            "memory_total": vram_total,
+            "memory_used": _read_sysfs_int(device_dir / "mem_info_vram_used"),
+            "utilization": _read_sysfs_int(device_dir / "gpu_busy_percent"),
+            "source": "sysfs",
+            "torch_usable": False,
+        }
+        hwmon = next(iter(sorted((device_dir / "hwmon").glob("hwmon*"))), None)
+        if hwmon is not None:
+            temp = _read_sysfs_int(hwmon / "temp1_input")
+            power = _read_sysfs_int(hwmon / "power1_average") or _read_sysfs_int(
+                hwmon / "power1_input"
+            )
+            pwm = _read_sysfs_int(hwmon / "pwm1")
+            pwm_max = _read_sysfs_int(hwmon / "pwm1_max") or 255
+            details["temperature"] = round(temp / 1000) if temp is not None else None
+            details["power_draw_watts"] = (
+                round(power / 1_000_000) if power is not None else None
+            )
+            details["fan_speed"] = (
+                round(pwm * 100 / pwm_max) if pwm is not None else None
+            )
+        if best is None or vram_total > best["details"]["memory_total"]:
+            best = {
+                "available": True,
+                "type": gpu_type,
+                # PyTorch can't use it from this process, so keep tensors on the CPU.
+                "device": "cpu",
+                "details": details,
+            }
+    return best
 
 
 def detect_gpu() -> Dict[str, Any]:
@@ -89,15 +199,22 @@ def detect_gpu() -> Dict[str, Any]:
             return gpu_info
 
         # No GPU detected
-        logger.info("No GPU detected, using CPU")
+        logger.info("No GPU detected by PyTorch")
         gpu_info["details"]["pytorch_version"] = torch.__version__
 
     except ImportError:
-        logger.warning("PyTorch not available, GPU detection disabled")
+        logger.debug("PyTorch not available, reading the GPU from sysfs")
         gpu_info["details"]["error"] = "PyTorch not installed"
     except Exception as e:
         logger.error(f"Error during GPU detection: {e}")
         gpu_info["details"]["error"] = str(e)
+
+    sysfs_gpu = _detect_sysfs_gpu()
+    if sysfs_gpu is not None:
+        sysfs_gpu["details"]["pytorch_version"] = gpu_info["details"].get(
+            "pytorch_version"
+        )
+        return sysfs_gpu
 
     return gpu_info
 
@@ -131,7 +248,22 @@ def get_gpu_memory_info() -> Optional[Dict[str, int]]:
                 "free": torch.cuda.get_device_properties(0).total_memory
                 - torch.cuda.memory_allocated(0),
             }
+    except ImportError:
+        pass
     except Exception as e:
         logger.error(f"Error getting GPU memory info: {e}")
+
+    sysfs_gpu = _detect_sysfs_gpu()
+    if sysfs_gpu is not None:
+        details = sysfs_gpu["details"]
+        total = details["memory_total"]
+        used = details.get("memory_used") or 0
+        # Card-wide usage: every process using the GPU, SD.Next included.
+        return {
+            "total": total,
+            "allocated": used,
+            "reserved": used,
+            "free": total - used,
+        }
 
     return None

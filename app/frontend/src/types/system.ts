@@ -189,5 +189,7 @@ export interface DashboardStatsSummary {
     [key: string]: unknown;
   };
   system_health: DashboardSystemHealth;
+  /** Live readings from the system status collector; sizes are in MiB. */
+  metrics?: Record<string, unknown> | null;
   [key: string]: unknown;
 }
