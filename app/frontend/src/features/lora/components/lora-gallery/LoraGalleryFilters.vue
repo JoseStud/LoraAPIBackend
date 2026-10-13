@@ -5,7 +5,7 @@
         type="text"
         class="search-input"
         :value="searchTerm"
-        placeholder="Search LoRAs by name, description, tags..."
+        placeholder="Search by name, series, trigger words, tags..."
         @input="onSearch"
       >
       <div class="search-icon-container">
@@ -67,6 +67,36 @@
         </div>
       </div>
 
+      <div v-if="availableArchetypes.length > 0" class="filter-group">
+        <label for="filter-archetype" class="filter-label">Archetype:</label>
+        <select
+          id="filter-archetype"
+          class="form-select"
+          :value="selectedArchetype"
+          @change="emit('update:selected-archetype', ($event.target as HTMLSelectElement).value)"
+        >
+          <option value="">All</option>
+          <option v-for="archetype in availableArchetypes" :key="archetype" :value="archetype">
+            {{ formatArchetypeLabel(archetype) }}
+          </option>
+        </select>
+      </div>
+
+      <div v-if="availableSeries.length > 0" class="filter-group">
+        <label for="filter-series" class="filter-label">Series:</label>
+        <select
+          id="filter-series"
+          class="form-select"
+          :value="selectedSeries"
+          @change="emit('update:selected-series', ($event.target as HTMLSelectElement).value)"
+        >
+          <option value="">All</option>
+          <option v-for="series in availableSeries" :key="series" :value="series">
+            {{ series }}
+          </option>
+        </select>
+      </div>
+
       <div class="filter-group">
         <label for="sort-by" class="filter-label">Sort by:</label>
         <select
@@ -94,22 +124,34 @@
 
 <script setup lang="ts">
 import type { LoraGallerySortOption } from '@/types';
+import { formatArchetypeLabel } from '../../utils/libraryMeta';
 
 defineOptions({ name: 'LoraGalleryFilters' });
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   searchTerm: string;
   activeOnly: boolean;
   selectedTags: string[];
   availableTags: string[];
   sortBy: LoraGallerySortOption;
   isTagModalOpen: boolean;
-}>();
+  selectedArchetype?: string;
+  selectedSeries?: string;
+  availableArchetypes?: string[];
+  availableSeries?: string[];
+}>(), {
+  selectedArchetype: '',
+  selectedSeries: '',
+  availableArchetypes: () => [],
+  availableSeries: () => [],
+});
 
 const emit = defineEmits<{
   (event: 'update:search-term', value: string): void;
   (event: 'update:active-only', value: boolean): void;
   (event: 'update:selected-tags', value: string[]): void;
+  (event: 'update:selected-archetype', value: string): void;
+  (event: 'update:selected-series', value: string): void;
   (event: 'update:sort-by', value: LoraGallerySortOption): void;
   (event: 'clear-filters'): void;
   (event: 'open-tag-modal'): void;

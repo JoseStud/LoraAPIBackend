@@ -21,14 +21,18 @@
           v-model:active-only="activeOnly"
           v-model:selected-tags="selectedTags"
           v-model:sort-by="sortBy"
-          :available-tags="availableTags"
+          v-model:selected-archetype="selectedArchetype"
+          v-model:selected-series="selectedSeries"
+          :available-tags="tagOptions"
+          :available-archetypes="availableArchetypes"
+          :available-series="availableSeries"
           :is-tag-modal-open="isTagModalOpen"
           @clear-filters="handleClearFilters"
           @open-tag-modal="toggleTagModal"
         />
         <LoraGalleryTagModal
           :show="isTagModalOpen"
-          :available-tags="availableTags"
+          :available-tags="tagOptions"
           v-model:selected-tags="selectedTags"
           @close="closeTagModal"
         />
@@ -48,7 +52,7 @@
         :bulk-mode="bulkMode"
         :selected-loras="selectedLoras"
         key-field="id"
-        :grid-item-size="460"
+        :grid-item-size="560"
         :grid-item-width="320"
         :list-item-size="210"
         :min-item-size="190"
@@ -62,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import LoraGalleryBulkActions from './LoraGalleryBulkActions.vue';
 import LoraGalleryFilters from './LoraGalleryFilters.vue';
@@ -100,10 +104,19 @@ const {
   searchTerm,
   activeOnly,
   selectedTags,
+  selectedArchetype,
+  selectedSeries,
+  availableArchetypes,
+  availableSeries,
   sortBy,
   filteredLoras,
   clearFilters,
 } = useLoraGalleryFilters(loras, searchQuery);
+
+// Archetype and series have their own dropdowns; keep them out of the tag list.
+const tagOptions = computed(() =>
+  availableTags.value.filter((tag) => !/^(archetype|series):/i.test(tag)),
+);
 
 const {
   selectedLoras,

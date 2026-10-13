@@ -85,6 +85,17 @@ export const fetchAdapterList = async (
   } satisfies AdapterListResponse;
 };
 
+export const fetchAdapterById = async (
+  loraId: string,
+  client?: BackendHttpClientInput,
+): Promise<AdapterRead> => {
+  const backend = resolveClient(client);
+  const payload = await backend.getJson<{ adapter?: unknown } | null>(
+    adaptersPath(`/${encodeURIComponent(loraId)}`),
+  );
+  return parseAdapterRead(payload?.adapter, 'adapter detail');
+};
+
 export const fetchAdapters = async (
   query: AdapterListQuery = {},
   client?: BackendHttpClientInput,

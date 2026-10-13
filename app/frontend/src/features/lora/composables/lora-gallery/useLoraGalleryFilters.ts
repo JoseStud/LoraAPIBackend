@@ -3,6 +3,12 @@ import type { Ref } from 'vue';
 
 import type { GalleryLora, LoraGallerySortOption } from '@/types';
 import { useSyncedQueryParam } from '@/composables/shared';
+import { getLoraLibraryMeta, type LoraLibraryMeta } from '../../utils/libraryMeta';
+
+const sortedUnique = (values: Array<string | null>): string[] =>
+  Array.from(new Set(values.filter((value): value is string => Boolean(value)))).sort((a, b) =>
+    a.localeCompare(b),
+  );
 
 export function useLoraGalleryFilters(
   loras: Ref<GalleryLora[]>,
@@ -11,7 +17,27 @@ export function useLoraGalleryFilters(
   const searchTerm = searchTermRef ?? useSyncedQueryParam();
   const activeOnly = ref(false);
   const selectedTags = ref<string[]>([]);
+  const selectedArchetype = ref('');
+  const selectedSeries = ref('');
   const sortBy = ref<LoraGallerySortOption>('name_asc');
+
+  const metaById = computed(() => {
+    const map = new Map<string, LoraLibraryMeta>();
+    for (const lora of loras.value) {
+      map.set(lora.id, getLoraLibraryMeta(lora));
+    }
+    return map;
+  });
+
+  const metaFor = (lora: GalleryLora): LoraLibraryMeta =>
+    metaById.value.get(lora.id) ?? getLoraLibraryMeta(lora);
+
+  const availableArchetypes = computed(() =>
+    sortedUnique(loras.value.map((lora) => metaFor(lora).archetype)),
+  );
+  const availableSeries = computed(() =>
+    sortedUnique(loras.value.map((lora) => metaFor(lora).series)),
+  );
 
   const filteredLoras = computed<GalleryLora[]>(() => {
     let filtered = [...loras.value];
@@ -19,6 +45,7 @@ export function useLoraGalleryFilters(
     if (searchTerm.value) {
       const query = searchTerm.value.toLowerCase();
       filtered = filtered.filter((lora: GalleryLora) => {
+        const meta = metaFor(lora);
         const matchesName = lora.name.toLowerCase().includes(query);
         const matchesDescription = lora.description
           ?.toLowerCase()
@@ -26,8 +53,18 @@ export function useLoraGalleryFilters(
         const matchesTags = lora.tags?.some((tag: string) =>
           tag.toLowerCase().includes(query)
         );
+        const matchesTriggers = meta.triggers.some((trigger) =>
+          trigger.toLowerCase().includes(query)
+        );
+        const matchesSeries = meta.series?.toLowerCase().includes(query);
 
-        return matchesName || matchesDescription || Boolean(matchesTags);
+        return (
+          matchesName
+          || matchesDescription
+          || Boolean(matchesTags)
+          || matchesTriggers
+          || Boolean(matchesSeries)
+        );
       });
     }
 
@@ -39,6 +76,14 @@ export function useLoraGalleryFilters(
       filtered = filtered.filter((lora: GalleryLora) =>
         lora.tags?.some((tag: string) => selectedTags.value.includes(tag))
       );
+    }
+
+    if (selectedArchetype.value) {
+      filtered = filtered.filter((lora) => metaFor(lora).archetype === selectedArchetype.value);
+    }
+
+    if (selectedSeries.value) {
+      filtered = filtered.filter((lora) => metaFor(lora).series === selectedSeries.value);
     }
 
     filtered.sort((a, b) => {
@@ -72,6 +117,8 @@ export function useLoraGalleryFilters(
     searchTerm.value = '';
     activeOnly.value = false;
     selectedTags.value = [];
+    selectedArchetype.value = '';
+    selectedSeries.value = '';
     sortBy.value = 'name_asc';
   };
 
@@ -79,6 +126,10 @@ export function useLoraGalleryFilters(
     searchTerm,
     activeOnly,
     selectedTags,
+    selectedArchetype,
+    selectedSeries,
+    availableArchetypes,
+    availableSeries,
     sortBy,
     filteredLoras,
     clearFilters,

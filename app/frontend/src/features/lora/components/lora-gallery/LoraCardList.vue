@@ -17,7 +17,9 @@
               v-if="card.previewImage"
               :src="card.previewImage"
               :alt="card.name"
-              class="w-full h-full object-cover"
+              class="w-full h-full object-cover object-top"
+              loading="lazy"
+              referrerpolicy="no-referrer"
             >
             <div v-else class="lora-card-preview-placeholder">
               <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -35,6 +37,14 @@
                 {{ card.name }}
               </h3>
               <span v-if="card.version" class="text-xs text-gray-500">v{{ card.version }}</span>
+              <span
+                v-if="card.archetype"
+                class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800"
+                data-testid="lora-card-archetype"
+              >
+                {{ formatArchetypeLabel(card.archetype) }}
+              </span>
+              <span v-if="card.series" class="text-xs text-gray-500">{{ card.series }}</span>
               <span :class="['status-badge', isActive ? 'status-active' : 'status-inactive']">
                 {{ isActive ? 'Active' : 'Inactive' }}
               </span>
@@ -58,9 +68,20 @@
           </div>
 
           <div class="mt-1 flex items-center space-x-4">
-            <p v-if="card.description" class="lora-card-description text-sm flex-1">
+            <p v-if="card.description" class="lora-card-description text-sm flex-1 truncate" :title="card.description">
               {{ card.description }}
             </p>
+
+            <button
+              v-if="card.triggers.length > 0"
+              type="button"
+              class="max-w-xs truncate rounded bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-700 hover:bg-gray-200"
+              :title="`Copy: ${card.triggers.join(', ')}`"
+              aria-label="Copy trigger words"
+              @click="emit('copy-triggers')"
+            >
+              {{ card.triggers.join(', ') }}
+            </button>
 
             <div v-if="card.tags.length > 0" class="flex space-x-1">
               <span v-for="tag in card.tags.slice(0, 2)" :key="tag" class="tag">
@@ -91,17 +112,8 @@
 </template>
 
 <script setup lang="ts">
-type LoraCardViewModel = {
-  id: string;
-  name: string;
-  version?: string | null;
-  type?: string | null;
-  description?: string | null;
-  previewImage?: string | null;
-  tags: string[];
-  detailsUrl: string;
-  qualityScore: number | null;
-};
+import type { LoraCardViewModel } from './cardViewModel';
+import { formatArchetypeLabel } from '../../utils/libraryMeta';
 
 const props = defineProps<{
   card: LoraCardViewModel;
@@ -115,6 +127,7 @@ const emit = defineEmits<{
   (e: 'toggle-selection', id: string): void;
   (e: 'toggle-active'): void;
   (e: 'change-weight', value: number): void;
+  (e: 'copy-triggers'): void;
 }>();
 
 const onWeightInput = (event: Event) => {

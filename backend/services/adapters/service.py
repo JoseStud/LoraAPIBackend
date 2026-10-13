@@ -10,6 +10,9 @@ from backend.schemas.adapters import AdapterCreate
 from backend.services.storage import get_storage_service
 
 from .repository import (
+    find_by_identity as repository_find_by_identity,
+)
+from .repository import (
     save_adapter as repository_save_adapter,
 )
 from .repository import (
@@ -89,8 +92,12 @@ class AdapterService:
         """Create and persist an Adapter from a creation payload."""
         return repository_save_adapter(self.db_session, payload)
 
+    def find_by_identity(self, payload: AdapterCreate) -> Optional[Adapter]:
+        """Return the stored adapter for this payload's file, if any."""
+        return repository_find_by_identity(self.db_session, payload)
+
     def upsert_adapter(self, payload: AdapterCreate) -> Adapter:
-        """Idempotently create or update an adapter by (name, version)."""
+        """Idempotently create or update an adapter, matched by file identity."""
         return repository_upsert_adapter(self.db_session, payload)
 
     def get_adapter(self, adapter_id: str) -> Optional[Adapter]:

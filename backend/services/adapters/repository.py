@@ -30,6 +30,11 @@ def save_adapter(db_session: Session, payload: AdapterCreate) -> Adapter:
         primary_file_sha256=payload.primary_file_sha256,
         primary_file_download_url=payload.primary_file_download_url,
         primary_file_local_path=payload.primary_file_local_path,
+        civitai_model_id=payload.civitai_model_id,
+        civitai_version_id=payload.civitai_version_id,
+        preview_image_url=payload.preview_image_url,
+        archetype=payload.archetype,
+        archetype_confidence=payload.archetype_confidence,
         supports_generation=payload.supports_generation or False,
         sd_version=payload.sd_version,
         nsfw_level=payload.nsfw_level or 0,
@@ -80,6 +85,14 @@ def _apply_payload_updates(adapter: Adapter, payload: AdapterCreate) -> None:
     adapter.primary_file_local_path = (
         payload.primary_file_local_path or adapter.primary_file_local_path
     )
+    adapter.civitai_model_id = payload.civitai_model_id or adapter.civitai_model_id
+    adapter.civitai_version_id = (
+        payload.civitai_version_id or adapter.civitai_version_id
+    )
+    adapter.preview_image_url = payload.preview_image_url or adapter.preview_image_url
+    adapter.archetype = payload.archetype or adapter.archetype
+    if payload.archetype_confidence is not None:
+        adapter.archetype_confidence = payload.archetype_confidence
     adapter.supports_generation = (
         payload.supports_generation
         if payload.supports_generation is not None
@@ -98,15 +111,42 @@ def _apply_payload_updates(adapter: Adapter, payload: AdapterCreate) -> None:
     adapter.last_ingested_at = payload.last_ingested_at or adapter.last_ingested_at
 
 
-def upsert_adapter(db_session: Session, payload: AdapterCreate) -> Adapter:
-    """Idempotently create or update an adapter by (name, version)."""
+def find_by_identity(db_session: Session, payload: AdapterCreate) -> Optional[Adapter]:
+    """Return the adapter this payload describes, if one is already stored.
+
+    File identity wins over labels: a CivitAI version id or file hash match is
+    the same LoRA even when the name or version label differs. Falls back to
+    the (name, version) pair for adapters without identity metadata.
+    """
+    if payload.civitai_version_id is not None:
+        found = db_session.exec(
+            select(Adapter).where(
+                Adapter.civitai_version_id == payload.civitai_version_id
+            )
+        ).first()
+        if found:
+            return found
+
+    if payload.primary_file_sha256:
+        found = db_session.exec(
+            select(Adapter).where(
+                Adapter.primary_file_sha256 == payload.primary_file_sha256
+            )
+        ).first()
+        if found:
+            return found
+
     query = select(Adapter).where(Adapter.name == payload.name)
     if payload.version is None:
         query = query.where(Adapter.version.is_(None))
     else:
         query = query.where(Adapter.version == payload.version)
+    return db_session.exec(query).first()
 
-    existing = db_session.exec(query).first()
+
+def upsert_adapter(db_session: Session, payload: AdapterCreate) -> Adapter:
+    """Idempotently create or update an adapter, matched by file identity."""
+    existing = find_by_identity(db_session, payload)
     if existing:
         _apply_payload_updates(existing, payload)
         db_session.add(existing)
