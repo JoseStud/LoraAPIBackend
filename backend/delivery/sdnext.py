@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import shlex
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
@@ -16,6 +18,45 @@ from .sdnext_client import SDNextSession
 from .storage import FileSystemImageStorage, ImageStorage
 
 logger = logging.getLogger(__name__)
+
+
+async def run_pre_generate_command() -> None:
+    """Run SDNEXT_PRE_GENERATE_COMMAND and wait for it, if one is configured.
+
+    Generation still goes ahead when the command fails or times out; the
+    command is a safeguard (such as freeing the GPU), not a requirement.
+    """
+    command = (settings.SDNEXT_PRE_GENERATE_COMMAND or "").strip()
+    if not command:
+        return
+
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *shlex.split(command),
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    except (OSError, ValueError) as exc:
+        logger.warning("Pre-generate command could not start (%s): %s", command, exc)
+        return
+
+    try:
+        _, stderr = await asyncio.wait_for(
+            process.communicate(), timeout=settings.SDNEXT_PRE_GENERATE_TIMEOUT
+        )
+    except asyncio.TimeoutError:
+        process.kill()
+        await process.wait()
+        logger.warning("Pre-generate command timed out: %s", command)
+        return
+
+    if process.returncode != 0:
+        logger.warning(
+            "Pre-generate command exited with %s: %s %s",
+            process.returncode,
+            command,
+            (stderr or b"").decode(errors="replace").strip(),
+        )
 
 
 class SDNextGenerationBackend(GenerationBackend):
@@ -77,6 +118,7 @@ class SDNextGenerationBackend(GenerationBackend):
         save_images = params.get("save_images", True)
         return_format = params.get("return_format", "base64")
 
+        await run_pre_generate_command()
         submission = await self._session.submit_txt2img(prompt, gen_params)
         if not submission.ok:
             return SDNextGenerationResult(
