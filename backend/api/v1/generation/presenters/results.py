@@ -11,6 +11,7 @@ from backend.services.generation import (
     GenerationCoordinator,
     normalize_generation_status,
 )
+from backend.utils.images import to_browser_image_src
 
 __all__ = ["build_result"]
 
@@ -20,7 +21,7 @@ def _extract_image_url(result_payload: Dict[str, Any]) -> Optional[str]:
     if isinstance(images, list) and images:
         first_image = images[0]
         if isinstance(first_image, str):
-            return first_image
+            return to_browser_image_src(first_image)
     return None
 
 
@@ -49,8 +50,9 @@ def build_result(
     result_payload = serialized.get("result") or {}
 
     thumbnail_url = result_payload.get("thumbnail_url")
-    if not isinstance(thumbnail_url, str):
-        thumbnail_url = None
+    thumbnail_url = (
+        to_browser_image_src(thumbnail_url) if isinstance(thumbnail_url, str) else None
+    )
 
     return GenerationResultSummary(
         id=job.id,

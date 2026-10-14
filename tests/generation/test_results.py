@@ -112,3 +112,29 @@ def test_export_generation_results_returns_archive(
         with archive.open(metadata_name) as meta_file:
             metadata = meta_file.read().decode("utf-8")
             assert "Export prompt" in metadata
+
+
+def test_list_results_returns_browser_loadable_image_urls(
+    client: TestClient,
+    delivery_service: DeliveryService,
+):
+    """Raw base64 becomes a data URI; server file paths are not exposed."""
+    stored = _store_completed_job(delivery_service, "Base64 prompt")
+    on_disk = _store_completed_job(
+        delivery_service,
+        "File prompt",
+        result_overrides={"images": ["/app/outputs/job_0.png"]},
+    )
+    remote = _store_completed_job(
+        delivery_service,
+        "Remote prompt",
+        result_overrides={"images": ["https://example.test/a.png"]},
+    )
+
+    response = client.get("/api/v1/generation/results")
+    assert response.status_code == 200
+    urls = {item["id"]: item["image_url"] for item in response.json()}
+
+    assert urls[stored.id] == f"data:image/png;base64,{PNG_BASE64}"
+    assert urls[on_disk.id] is None
+    assert urls[remote.id] == "https://example.test/a.png"
