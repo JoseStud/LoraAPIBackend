@@ -137,14 +137,26 @@ class SDNextGenerationBackend(GenerationBackend):
                 images_payload, list
             ):
                 raise ValueError("Invalid response shape")
-            if not images_payload or not all(
-                isinstance(image, str) for image in images_payload
-            ):
+            if not all(isinstance(image, str) for image in images_payload):
                 raise ValueError("Missing image data")
         except (ValueError, TypeError):
             logger.exception("Invalid SDNext generation payload")
             return SDNextGenerationResult(
                 job_id=job_id, status="failed", error_message="Invalid SDNext response"
+            )
+
+        if not images_payload:
+            # SD.Next answers 200 with no images when it aborts a job, e.g. the
+            # model is still loading or the GPU ran out of memory.
+            logger.warning("SDNext returned no images: %s", generation_info)
+            return SDNextGenerationResult(
+                job_id=job_id,
+                status="failed",
+                error_message=(
+                    "SD.Next returned no images (model still loading or out of "
+                    "GPU memory?); see the SD.Next log"
+                ),
+                generation_info=generation_info or None,
             )
 
         try:

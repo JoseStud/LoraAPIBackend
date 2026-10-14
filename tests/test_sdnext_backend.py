@@ -220,3 +220,20 @@ async def test_failing_pre_generate_command_does_not_block_generation(
     await backend.generate_image("prompt", {"generation_params": {}})
 
     assert len(session.submissions) == 1
+
+
+@pytest.mark.anyio("asyncio")
+async def test_empty_image_list_reports_an_aborted_job() -> None:
+    """SD.Next answers 200 with no images when it aborts (e.g. GPU OOM)."""
+    session = FakeSDNextSession(
+        submit_response=SDNextResponse(
+            ok=True, status=200, data={"images": [], "info": "{}"}
+        )
+    )
+
+    result = await SDNextGenerationBackend(session=session).generate_image(
+        "prompt", {"generation_params": {}}
+    )
+
+    assert result.status == "failed"
+    assert "returned no images" in (result.error_message or "")
