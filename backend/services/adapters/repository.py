@@ -111,41 +111,84 @@ def _apply_payload_updates(adapter: Adapter, payload: AdapterCreate) -> None:
     adapter.last_ingested_at = payload.last_ingested_at or adapter.last_ingested_at
 
 
+class AdapterIdentityConflict(ValueError):
+    """The payload's file identity clashes with stored adapters.
+
+    ``detail`` is a fixed, client-safe description of the clash.
+    """
+
+    def __init__(self, detail: str) -> None:
+        """Store ``detail`` as the message and as an attribute."""
+        super().__init__(detail)
+        self.detail = detail
+
+
+def _identity_differs(adapter: Adapter, payload: AdapterCreate) -> bool:
+    """Return True when both sides know a file identity and they disagree."""
+    pairs = (
+        (payload.civitai_version_id, adapter.civitai_version_id),
+        (payload.primary_file_sha256, adapter.primary_file_sha256),
+    )
+    return any(new is not None and old is not None and new != old for new, old in pairs)
+
+
 def find_by_identity(db_session: Session, payload: AdapterCreate) -> Optional[Adapter]:
     """Return the adapter this payload describes, if one is already stored.
 
     File identity wins over labels: a CivitAI version id or file hash match is
     the same LoRA even when the name or version label differs. Falls back to
-    the (name, version) pair for adapters without identity metadata.
+    the (name, version) pair for adapters without conflicting identity
+    metadata.
+
+    Raises:
+        AdapterIdentityConflict: the version id and the hash belong to two
+            different adapters, or the (name, version) pair is taken by a
+            different file. Updating either would overwrite another LoRA.
+
     """
+    by_version = None
     if payload.civitai_version_id is not None:
-        found = db_session.exec(
+        by_version = db_session.exec(
             select(Adapter).where(
                 Adapter.civitai_version_id == payload.civitai_version_id
             )
         ).first()
-        if found:
-            return found
 
+    by_hash = None
     if payload.primary_file_sha256:
-        found = db_session.exec(
+        by_hash = db_session.exec(
             select(Adapter).where(
                 Adapter.primary_file_sha256 == payload.primary_file_sha256
             )
         ).first()
-        if found:
-            return found
+
+    if by_version and by_hash and by_version.id != by_hash.id:
+        raise AdapterIdentityConflict(
+            "CivitAI version and file hash belong to two different adapters"
+        )
+    if by_version or by_hash:
+        return by_version or by_hash
 
     query = select(Adapter).where(Adapter.name == payload.name)
     if payload.version is None:
         query = query.where(Adapter.version.is_(None))
     else:
         query = query.where(Adapter.version == payload.version)
-    return db_session.exec(query).first()
+    found = db_session.exec(query).first()
+    if found and _identity_differs(found, payload):
+        raise AdapterIdentityConflict(
+            "adapter with this name and version already exists for a different file"
+        )
+    return found
 
 
 def upsert_adapter(db_session: Session, payload: AdapterCreate) -> Adapter:
-    """Idempotently create or update an adapter, matched by file identity."""
+    """Idempotently create or update an adapter, matched by file identity.
+
+    Raises:
+        AdapterIdentityConflict: see :func:`find_by_identity`.
+
+    """
     existing = find_by_identity(db_session, payload)
     if existing:
         _apply_payload_updates(existing, payload)

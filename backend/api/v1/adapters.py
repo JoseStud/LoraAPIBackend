@@ -13,6 +13,7 @@ from backend.schemas import (
     AdapterWrapper,
 )
 from backend.services import DomainServices
+from backend.services.adapters import AdapterIdentityConflict
 
 router = APIRouter()
 
@@ -32,7 +33,10 @@ def create_adapter(
     # Refuse the same file under any label (CivitAI version, hash), then the
     # same (name, version). Uses the injected service's session so the test
     # override for get_session is respected.
-    existing = service.find_by_identity(payload)
+    try:
+        existing = service.find_by_identity(payload)
+    except AdapterIdentityConflict as exc:
+        raise HTTPException(status_code=400, detail=exc.detail) from exc
     if existing:
         if (
             payload.civitai_version_id is not None

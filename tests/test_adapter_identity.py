@@ -2,8 +2,10 @@
 
 import json
 
+import pytest
+
 from backend.schemas.adapters import AdapterCreate
-from backend.services.adapters import AdapterService
+from backend.services.adapters import AdapterIdentityConflict, AdapterService
 
 SHA = "66490cdca0a6168a5c7426eb6f079c95995c2b906342640b8c4eb781f53eadd6"
 
@@ -188,3 +190,135 @@ def test_api_refuses_duplicate_file(client, mock_storage):
     )
     assert by_version.status_code == 400
     assert "CivitAI version" in json.dumps(by_version.json())
+
+
+def test_upsert_refuses_same_label_for_a_different_file(db_session, mock_storage):
+    """Two files sharing a (name, version) label must not merge into one row."""
+    mock_storage.exists.return_value = True
+    svc = AdapterService(db_session)
+    first = svc.upsert_adapter(
+        AdapterCreate(
+            name="Gojo Satoru",
+            version="v1.0",
+            file_path="/tmp/gojo_a.safetensors",
+            primary_file_sha256="AA",
+            civitai_version_id=1,
+        )
+    )
+
+    with pytest.raises(AdapterIdentityConflict, match="different file"):
+        svc.upsert_adapter(
+            AdapterCreate(
+                name="Gojo Satoru",
+                version="v1.0",
+                file_path="/tmp/gojo_b.safetensors",
+                primary_file_sha256="BB",
+                civitai_version_id=2,
+            )
+        )
+
+    db_session.refresh(first)
+    assert first.primary_file_sha256 == "AA"
+    assert first.civitai_version_id == 1
+    assert first.file_path == "/tmp/gojo_a.safetensors"
+    assert svc.count_total() == 1
+
+
+def test_upsert_fills_identity_into_label_match_without_one(db_session, mock_storage):
+    """A (name, version) match with no stored identity is still updated."""
+    mock_storage.exists.return_value = True
+    svc = AdapterService(db_session)
+    first = svc.upsert_adapter(
+        AdapterCreate(name="Gon", version="v1", file_path="/tmp/gon.safetensors")
+    )
+
+    again = svc.upsert_adapter(
+        AdapterCreate(
+            name="Gon",
+            version="v1",
+            file_path="/tmp/gon.safetensors",
+            primary_file_sha256=SHA,
+            civitai_version_id=7,
+        )
+    )
+
+    assert again.id == first.id
+    assert again.primary_file_sha256 == SHA.upper()
+    assert again.civitai_version_id == 7
+
+
+def test_upsert_refuses_identity_split_across_two_adapters(db_session, mock_storage):
+    """Version id of one adapter plus the hash of another is a conflict.
+
+    Updating either row would copy the other's identity onto it and violate
+    the unique indexes.
+    """
+    mock_storage.exists.return_value = True
+    svc = AdapterService(db_session)
+    a = svc.upsert_adapter(
+        AdapterCreate(
+            name="A", file_path="/tmp/a", primary_file_sha256="AA", civitai_version_id=1
+        )
+    )
+    svc.upsert_adapter(
+        AdapterCreate(
+            name="B", file_path="/tmp/b", primary_file_sha256="BB", civitai_version_id=2
+        )
+    )
+
+    with pytest.raises(AdapterIdentityConflict, match="two different adapters"):
+        svc.upsert_adapter(
+            AdapterCreate(
+                name="A",
+                file_path="/tmp/a",
+                primary_file_sha256="BB",
+                civitai_version_id=1,
+            )
+        )
+
+    db_session.refresh(a)
+    assert a.primary_file_sha256 == "AA"
+    assert svc.count_total() == 2
+
+
+def test_api_reports_identity_conflicts_as_400(client, mock_storage):
+    """Conflicting identity is a client error, not an IntegrityError 500."""
+    mock_storage.exists.return_value = True
+    base = {"file_path": "/fake/1", "weight": 1.0}
+    for name, sha, version_id in (("A", "AA", 1), ("B", "BB", 2)):
+        created = client.post(
+            "/api/v1/adapters",
+            json={
+                **base,
+                "name": name,
+                "version": "v1",
+                "primary_file_sha256": sha,
+                "civitai_version_id": version_id,
+            },
+        )
+        assert created.status_code == 201
+
+    split = client.post(
+        "/api/v1/adapters",
+        json={
+            **base,
+            "name": "C",
+            "primary_file_sha256": "BB",
+            "civitai_version_id": 1,
+        },
+    )
+    assert split.status_code == 400
+    assert "two different adapters" in json.dumps(split.json())
+
+    same_label = client.post(
+        "/api/v1/adapters",
+        json={
+            **base,
+            "name": "A",
+            "version": "v1",
+            "primary_file_sha256": "CC",
+            "civitai_version_id": 3,
+        },
+    )
+    assert same_label.status_code == 400
+    assert "different file" in json.dumps(same_label.json())

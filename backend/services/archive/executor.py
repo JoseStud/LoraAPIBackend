@@ -10,9 +10,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, List, Optional, Tuple
 
-from sqlmodel import select
-
-from backend.models import Adapter
 from backend.schemas.adapters import AdapterCreate
 from backend.services.adapters import AdapterService
 
@@ -210,12 +207,8 @@ class ArchiveImportExecutor:
             payload.json_file_path = str(metadata_path)
 
     def _persist_adapter(self, payload: AdapterCreate) -> str:
-        session = self._adapter_service.db_session
-        stmt = select(Adapter).where(Adapter.name == payload.name)
-        if payload.version is None:
-            stmt = stmt.where(Adapter.version.is_(None))
-        else:
-            stmt = stmt.where(Adapter.version == payload.version)
-        existing = session.exec(stmt).first()
+        # Same lookup the upsert uses, so a file matched by hash or CivitAI
+        # version under a new name counts as updated.
+        existing = self._adapter_service.find_by_identity(payload)
         self._adapter_service.upsert_adapter(payload)
         return "updated" if existing else "created"

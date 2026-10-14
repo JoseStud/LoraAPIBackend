@@ -1,6 +1,7 @@
 """Adapter service package."""
 
+from .repository import AdapterIdentityConflict
 from .search import AdapterSearchResult
 from .service import AdapterService
 
-__all__ = ["AdapterService", "AdapterSearchResult"]
+__all__ = ["AdapterIdentityConflict", "AdapterService", "AdapterSearchResult"]
