@@ -41,8 +41,8 @@ describe('PromptComposer.vue', () => {
           createAdapterFixture({ id: '2', name: 'LoraTwo', description: 'Second', active: false }),
         ] });
       }
-      if (url.endsWith('/generate')) {
-        return jsonResponse({ ok: true });
+      if (url.endsWith('/queue-generation')) {
+        return jsonResponse({ delivery_id: 'job-1' });
       }
       return jsonResponse({});
     });
@@ -205,8 +205,10 @@ describe('PromptComposer.vue', () => {
     const generateBtn = wrapper.find('[data-testid="generate-image"]');
     await generateBtn.trigger('click');
     await flush();
-    // Called at least once for /generate
-    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/generate'), expect.any(Object));
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/generation/queue-generation'),
+      expect.any(Object),
+    );
   });
 
   it('copies prompt to clipboard', async () => {

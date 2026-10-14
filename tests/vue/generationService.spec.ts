@@ -113,9 +113,19 @@ describe('generationService URL resolution', () => {
     await startGeneration(payload)
 
     expect(fetch).toHaveBeenCalledWith(
-      'https://configured.example/api/generation/generate',
+      'https://configured.example/api/generation/queue-generation',
       expect.objectContaining({ method: 'POST', body: JSON.stringify(payload) }),
     )
+  })
+
+  it('queues the job and reports it as queued', async () => {
+    const response = await startGeneration(createGenerationPayload(), '/api')
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/generation/queue-generation',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(response).toEqual({ job_id: 'job-1', status: 'queued', progress: 0 })
   })
 
   it('resolves cancelGenerationJob with override', async () => {

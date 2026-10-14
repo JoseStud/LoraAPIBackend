@@ -116,6 +116,10 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
       queue,
       results,
       systemStatus: systemStatusModule,
+      onJobsFinished: () => {
+        // Failures are already reported through the transport error channel.
+        transportActions.loadRecentResults().catch(() => undefined);
+      },
     });
 
     const { createResultFromCompletion: _ignored, ...resultsPublic } = results;

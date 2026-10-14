@@ -148,3 +148,8 @@ export const GenerationRequestPayloadSchema: z.ZodType<GenerationRequestPayload>
     negative_prompt: value.negative_prompt,
     denoising_strength: value.denoising_strength,
   }));
+
+/** Response from `POST /generation/queue-generation`. */
+export const DeliveryCreateResponseSchema = z.object({
+  delivery_id: z.string().min(1),
+});
