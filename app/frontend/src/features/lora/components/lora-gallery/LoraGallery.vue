@@ -19,18 +19,15 @@
         <LoraGalleryFilters
           v-model:search-term="searchTerm"
           v-model:active-only="activeOnly"
-          v-model:selected-tags="selectedTags"
           v-model:sort-by="sortBy"
-          :available-tags="availableTags"
-          :is-tag-modal-open="isTagModalOpen"
-          @clear-filters="handleClearFilters"
-          @open-tag-modal="toggleTagModal"
-        />
-        <LoraGalleryTagModal
-          :show="isTagModalOpen"
-          :available-tags="availableTags"
-          v-model:selected-tags="selectedTags"
-          @close="closeTagModal"
+          v-model:selected-archetype="selectedArchetype"
+          v-model:selected-series="selectedSeries"
+          :available-archetypes="availableArchetypes"
+          :available-series="availableSeries"
+          :facet-options="facetOptions"
+          :selected-facets="selectedFacets"
+          @toggle-facet="toggleFacet"
+          @clear-filters="clearFilters"
         />
       </div>
 
@@ -48,7 +45,7 @@
         :bulk-mode="bulkMode"
         :selected-loras="selectedLoras"
         key-field="id"
-        :grid-item-size="460"
+        :grid-item-size="530"
         :grid-item-width="320"
         :list-item-size="210"
         :min-item-size="190"
@@ -68,11 +65,11 @@ import LoraGalleryBulkActions from './LoraGalleryBulkActions.vue';
 import LoraGalleryFilters from './LoraGalleryFilters.vue';
 import LoraGalleryGrid from './LoraGalleryGrid.vue';
 import LoraGalleryHeader from './LoraGalleryHeader.vue';
-import LoraGalleryTagModal from './LoraGalleryTagModal.vue';
 import { useLoraGalleryData } from '../../composables/lora-gallery/useLoraGalleryData';
 import { useLoraGalleryFilters } from '../../composables/lora-gallery/useLoraGalleryFilters';
+import { useLoraGalleryRouteSync } from '../../composables/lora-gallery/useLoraGalleryRouteSync';
 import { useLoraGallerySelection } from '../../composables/lora-gallery/useLoraGallerySelection';
-import { useAsyncLifecycleTask, useDialogService, useNotifications, useSyncedQueryParam } from '@/composables/shared';
+import { useAsyncLifecycleTask, useDialogService, useNotifications } from '@/composables/shared';
 import type {
   LoraBulkAction,
   LoraUpdatePayload,
@@ -87,23 +84,37 @@ const {
   isInitialized,
   isLoading,
   loras,
-  availableTags,
   initialize,
   performBulkAction: runBulkAction,
   applyLoraUpdate,
   removeLora,
 } = useLoraGalleryData();
 
-const searchQuery = useSyncedQueryParam();
+const searchQuery = ref('');
 
 const {
   searchTerm,
   activeOnly,
-  selectedTags,
+  selectedArchetype,
+  selectedSeries,
+  availableArchetypes,
+  availableSeries,
+  selectedFacets,
+  facetOptions,
+  toggleFacet,
   sortBy,
   filteredLoras,
   clearFilters,
 } = useLoraGalleryFilters(loras, searchQuery);
+
+useLoraGalleryRouteSync({
+  searchTerm,
+  activeOnly,
+  selectedArchetype,
+  selectedSeries,
+  sortBy,
+  selectedFacets,
+});
 
 const {
   selectedLoras,
@@ -120,20 +131,6 @@ const {
   deselect,
 } = useLoraGallerySelection(filteredLoras);
 
-const isTagModalOpen = ref(false);
-
-const handleClearFilters = () => {
-  clearFilters();
-  isTagModalOpen.value = false;
-};
-
-const toggleTagModal = () => {
-  isTagModalOpen.value = !isTagModalOpen.value;
-};
-
-const closeTagModal = () => {
-  isTagModalOpen.value = false;
-};
 
 const performBulkAction = async (action: LoraBulkAction) => {
   if (selectedCount.value === 0) {

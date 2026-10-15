@@ -82,6 +82,18 @@ def _collect_gpu_metrics(
     return [gpu_entry]
 
 
+def _storage_path() -> str:
+    """Return the directory whose disk the dashboard reports.
+
+    The LoRA library (IMPORT_PATH) is what fills up, and it often lives on a
+    different drive from the app, so measure that when it exists.
+    """
+    import_path = settings.IMPORT_PATH
+    if import_path and os.path.isdir(import_path):
+        return import_path
+    return os.getcwd()
+
+
 def _system_metrics(gpu_metrics: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     try:
         import psutil  # type: ignore
@@ -90,7 +102,8 @@ def _system_metrics(gpu_metrics: List[Dict[str, Any]]) -> Optional[Dict[str, Any
 
     try:
         virtual_memory = psutil.virtual_memory()
-        disk = psutil.disk_usage(os.getcwd())
+        disk_path = _storage_path()
+        disk = psutil.disk_usage(disk_path)
         cpu_percent = psutil.cpu_percent(interval=None)
         uptime_seconds = int(psutil.boot_time())
         now = int(datetime.now(timezone.utc).timestamp())
@@ -104,6 +117,7 @@ def _system_metrics(gpu_metrics: List[Dict[str, Any]]) -> Optional[Dict[str, Any
             "disk_percent": int(getattr(disk, "percent", 0)) if disk else None,
             "disk_used": _to_mebibytes(getattr(disk, "used", 0)) if disk else None,
             "disk_total": _to_mebibytes(getattr(disk, "total", 0)) if disk else None,
+            "disk_path": disk_path,
             "gpus": gpu_metrics,
             "uptime_seconds": uptime,
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -159,7 +173,7 @@ class SystemService:
         return getattr(self._delivery_service, "db_session", None)
 
     def _get_storage_usage_fallback(self) -> str:
-        storage_path = settings.IMPORT_PATH or os.getcwd()
+        storage_path = _storage_path()
         try:
             usage = shutil.disk_usage(storage_path)
             used = _bytes_to_gigabytes(usage.used)
@@ -390,9 +404,15 @@ class SystemService:
 
         return payload
 
-    async def get_health_summary(self) -> SystemHealthSummary:
-        """Compute a lightweight system health summary for dashboard views."""
-        payload = await self.get_system_status_payload()
+    async def get_health_summary(
+        self, payload: Optional[Dict[str, Any]] = None
+    ) -> SystemHealthSummary:
+        """Compute a lightweight system health summary for dashboard views.
+
+        Pass an already collected status payload to avoid gathering it twice.
+        """
+        if payload is None:
+            payload = await self.get_system_status_payload()
 
         used_bytes = _megabytes_to_bytes(payload.get("memory_used"))
         total_bytes = _megabytes_to_bytes(payload.get("memory_total"))

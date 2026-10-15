@@ -19,6 +19,11 @@ const router = createRouter({
       component: () => import('@/views/LorasView.vue'),
     },
     {
+      path: '/loras/:id',
+      name: 'lora-detail',
+      component: () => import('@/views/LoraDetailView.vue'),
+    },
+    {
       path: '/recommendations',
       name: 'recommendations',
       component: () => import('@/views/RecommendationsView.vue'),

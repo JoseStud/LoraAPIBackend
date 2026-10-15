@@ -8,12 +8,15 @@ export interface AdapterHandlerDependencies {
   queue: Pick<
     QueueModule,
     | 'ingestQueue'
+    | 'jobsByBackendId'
     | 'handleProgressMessage'
     | 'handleCompletionMessage'
     | 'handleErrorMessage'
   >;
   results: Pick<ResultsModule, 'setResults' | 'addResult' | 'createResultFromCompletion'>;
   systemStatus: Pick<SystemStatusModule, 'applySystemStatusPayload' | 'setConnectionState'>;
+  /** Called with the backend ids of jobs that left the active queue. */
+  onJobsFinished?: (jobIds: string[]) => void;
 }
 
 export interface AdapterHandlers {
@@ -30,7 +33,20 @@ export const createAdapterHandlers = ({
   queue,
   results,
   systemStatus,
+  onJobsFinished,
 }: AdapterHandlerDependencies): AdapterHandlers => {
+  // The active-jobs feed drops a job once it completes or fails, which is the
+  // signal (without WebSocket completion events) that its result is available.
+  const handleQueueUpdate: AdapterHandlers['onQueueUpdate'] = (list) => {
+    const before = [...queue.jobsByBackendId.value.keys()];
+    queue.ingestQueue(list);
+    const after = queue.jobsByBackendId.value;
+    const finished = before.filter((id) => !after.has(id));
+    if (finished.length > 0) {
+      onJobsFinished?.(finished);
+    }
+  };
+
   const handleCompletion: AdapterHandlers['onComplete'] = (message) => {
     queue.handleCompletionMessage(message);
     const result = results.createResultFromCompletion(message);
@@ -40,7 +56,7 @@ export const createAdapterHandlers = ({
 
   return {
     onSystemStatus: systemStatus.applySystemStatusPayload,
-    onQueueUpdate: queue.ingestQueue,
+    onQueueUpdate: handleQueueUpdate,
     onProgress: queue.handleProgressMessage,
     onComplete: handleCompletion,
     onError: queue.handleErrorMessage,

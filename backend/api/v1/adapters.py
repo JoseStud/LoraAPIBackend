@@ -4,10 +4,8 @@ from typing import List, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
-from sqlmodel import select
 
 from backend.core.dependencies import get_domain_services
-from backend.models import Adapter
 from backend.schemas import (
     AdapterCreate,
     AdapterListResponse,
@@ -15,6 +13,7 @@ from backend.schemas import (
     AdapterWrapper,
 )
 from backend.services import DomainServices
+from backend.services.adapters import AdapterIdentityConflict
 
 router = APIRouter()
 
@@ -31,20 +30,27 @@ def create_adapter(
             status_code=400,
             detail="file_path does not exist or is not readable",
         )
-    # ensure unique using the same session backing the injected service so the
-    # test override for get_session (which returns the in-memory session) is
-    # respected and the saved adapter is visible to subsequent requests.
-    sess = service.db_session
-    st = select(Adapter).where(Adapter.name == payload.name)
-    if payload.version is None:
-        st = st.where(Adapter.version.is_(None))
-    else:
-        st = st.where(Adapter.version == payload.version)
-    if sess.exec(st).first():
-        raise HTTPException(
-            status_code=400,
-            detail="adapter with this name and version already exists",
-        )
+    # Refuse the same file under any label (CivitAI version, hash), then the
+    # same (name, version). Uses the injected service's session so the test
+    # override for get_session is respected.
+    try:
+        existing = service.find_by_identity(payload)
+    except AdapterIdentityConflict as exc:
+        raise HTTPException(status_code=400, detail=exc.detail) from exc
+    if existing:
+        if (
+            payload.civitai_version_id is not None
+            and existing.civitai_version_id == payload.civitai_version_id
+        ):
+            detail = "adapter with this CivitAI version already exists"
+        elif (
+            payload.primary_file_sha256
+            and existing.primary_file_sha256 == payload.primary_file_sha256
+        ):
+            detail = "adapter with this file hash already exists"
+        else:
+            detail = "adapter with this name and version already exists"
+        raise HTTPException(status_code=400, detail=detail)
     a = service.save_adapter(payload)
     ra = a.model_dump()
     return {"adapter": ra}

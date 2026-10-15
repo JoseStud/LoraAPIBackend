@@ -54,7 +54,7 @@
             <div>
               <p class="font-medium text-gray-900">{{ item.name }}</p>
               <p class="text-xs text-gray-500">
-                {{ item.description ? truncate(item.description, 96) : 'No description available.' }}
+                {{ item.summary || 'No description available.' }}
               </p>
             </div>
             <div class="shrink-0 text-right text-xs text-gray-500">
@@ -82,11 +82,9 @@ import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { RouterLink } from 'vue-router';
 
-import { useAdapterCatalogStore } from '@/features/lora/public';
+import { htmlToPlainText, useAdapterCatalogStore } from '@/features/lora/public';
 import { formatRelativeTime } from '@/utils/format';
 import { useAsyncLifecycleTask, useNotifications } from '@/composables/shared';
-
-const SUMMARY_QUERY = Object.freeze({ perPage: 12, sort: 'last_updated_desc' as const });
 
 const catalogStore = useAdapterCatalogStore();
 const { loras, isLoading } = storeToRefs(catalogStore);
@@ -106,7 +104,9 @@ const getTimestamp = (value: string | undefined | null): number => {
 const recentLoras = computed(() =>
   [...loras.value]
     .sort((a, b) => getTimestamp(b.updated_at ?? b.created_at) - getTimestamp(a.updated_at ?? a.created_at))
-    .slice(0, 5),
+    .slice(0, 5)
+    // descriptions are CivitAI HTML; show them as plain text
+    .map((item) => ({ ...item, summary: truncate(htmlToPlainText(item.description), 96) })),
 );
 
 const truncate = (value: string, maxLength: number) => {
@@ -116,18 +116,21 @@ const truncate = (value: string, maxLength: number) => {
   return `${value.slice(0, maxLength)}…`;
 };
 
+// Use the shared catalog query. A smaller page here replaced the catalog other
+// views read from (the gallery and recommendations then saw only 12 LoRAs) and
+// made the totals count just that page.
 const refresh = async () => {
-  await catalogStore.ensureLoaded(SUMMARY_QUERY);
+  await catalogStore.refresh();
 };
 
 useAsyncLifecycleTask(
   async () => {
     if (!loras.value.length) {
-      await refresh();
+      await catalogStore.ensureLoaded();
       return;
     }
 
-    void catalogStore.ensureLoaded(SUMMARY_QUERY);
+    void catalogStore.ensureLoaded();
   },
   {
     errorMessage: (error) =>

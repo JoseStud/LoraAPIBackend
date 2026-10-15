@@ -21,7 +21,9 @@ const buildFinalPrompt = (base: string, items: CompositionEntry[]): string => {
     return '';
   }
 
-  const tokens = items.map((entry) => `<lora:${entry.name}:${formatWeightToken(entry.weight)}>`);
+  const tokens = items.map(
+    (entry) => `<lora:${entry.promptName || entry.name}:${formatWeightToken(entry.weight)}>`,
+  );
   return [trimmedBase, ...tokens].join(' ');
 };
 
@@ -88,7 +90,12 @@ export const usePromptComposerState = (): PromptComposerStateBindings => {
       return;
     }
 
-    activeLoras.value.push({ id: lora.id, name: lora.name, weight: PROMPT_COMPOSITION_DEFAULT_WEIGHT });
+    activeLoras.value.push({
+      id: lora.id,
+      name: lora.name,
+      promptName: lora.promptName,
+      weight: PROMPT_COMPOSITION_DEFAULT_WEIGHT,
+    });
   };
 
   const removeFromComposition = (index: number): void => {

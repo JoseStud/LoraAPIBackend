@@ -1,7 +1,7 @@
 <template>
-  <div class="mobile-nav-root">
+  <div class="mobile-nav-root lg:hidden">
     <button
-      class="mobile-nav-toggle lg:hidden touch-target"
+      class="mobile-nav-toggle touch-target"
       :class="{ 'mobile-safe-top': true }"
       :aria-expanded="isOpen"
       aria-controls="mobile-navigation"

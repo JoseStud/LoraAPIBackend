@@ -14,6 +14,10 @@ adapter_table_args = (
     Index("idx_adapter_created_at", "created_at"),
     Index("idx_adapter_updated_at", "updated_at"),
     Index("idx_adapter_last_ingested_at", "last_ingested_at"),
+    # File identity: the same LoRA file must not be registered twice, even
+    # under a different name or version label.
+    Index("ux_adapter_primary_file_sha256", "primary_file_sha256", unique=True),
+    Index("ux_adapter_civitai_version_id", "civitai_version_id", unique=True),
 )
 
 
@@ -49,6 +53,9 @@ class Adapter(SQLModel, table=True):
     primary_file_sha256: Optional[str] = None
     primary_file_download_url: Optional[str] = None
     primary_file_local_path: Optional[str] = None
+    civitai_model_id: Optional[int] = None
+    civitai_version_id: Optional[int] = None
+    preview_image_url: Optional[str] = None
     supports_generation: bool = False
     sd_version: Optional[str] = None
     nsfw_level: int = 0

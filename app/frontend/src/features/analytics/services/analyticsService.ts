@@ -111,11 +111,10 @@ export const fetchPerformanceAnalytics = async (
   client?: BackendHttpClient | null,
 ): Promise<PerformanceAnalyticsSummaryResult> => {
   const backend = resolveClient(client);
-  const baseUrl = backend.resolve('/analytics/summary');
-  const separator = baseUrl.includes('?') ? '&' : '?';
-  const targetUrl = `${baseUrl}${separator}time_range=${encodeURIComponent(timeRange)}`;
-
-  const data = await backend.getJson<PerformanceAnalyticsSummaryApi>(targetUrl);
+  // getJson resolves against the backend base itself; pre-resolving doubles /api/v1.
+  const data = await backend.getJson<PerformanceAnalyticsSummaryApi>(
+    `/analytics/summary?time_range=${encodeURIComponent(timeRange)}`,
+  );
   const payload = data ?? null;
 
   return {

@@ -124,6 +124,12 @@ async def frontend_settings():
     }
 
 
+# The SPA resolves this through its API base, so serve it under /api/v1 as well.
+backend_app.add_api_route(
+    "/v1/frontend/settings", frontend_settings, methods=["GET"], tags=["frontend"]
+)
+
+
 # Service health endpoint
 @app.get("/health")
 async def health_check():

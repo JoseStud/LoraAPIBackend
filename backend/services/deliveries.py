@@ -118,6 +118,10 @@ class DeliveryService:
         """Return the number of jobs currently in flight."""
         return self._repository.count_active_jobs()
 
+    def get_result_statistics(self) -> Dict[str, Any]:
+        """Return counts, average rating and favourites for finished results."""
+        return self._repository.get_result_statistics()
+
     def get_queue_statistics(self) -> Dict[str, int]:
         """Return queue statistics derived from the delivery jobs table."""
         return self._repository.get_queue_statistics()

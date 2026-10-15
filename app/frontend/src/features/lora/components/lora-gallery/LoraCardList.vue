@@ -12,12 +12,20 @@
         </div>
 
         <div class="flex-shrink-0">
-          <div class="lora-card-list-thumbnail">
+          <component
+            :is="bulkMode ? 'div' : 'a'"
+            class="lora-card-list-thumbnail block"
+            :href="bulkMode ? undefined : card.detailsUrl"
+            :aria-label="bulkMode ? undefined : `View details for ${card.name}`"
+            @click="onDetailsClick"
+          >
             <img
               v-if="card.previewImage"
               :src="card.previewImage"
               :alt="card.name"
-              class="w-full h-full object-cover"
+              class="w-full h-full object-cover object-top"
+              loading="lazy"
+              referrerpolicy="no-referrer"
             >
             <div v-else class="lora-card-preview-placeholder">
               <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -25,16 +33,29 @@
                       d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
             </div>
-          </div>
+          </component>
         </div>
 
         <div class="flex-1 min-w-0">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-3">
               <h3 class="lora-card-title text-sm">
-                {{ card.name }}
+                <a
+                  :href="card.detailsUrl"
+                  class="hover:text-blue-700 hover:underline"
+                  data-testid="lora-card-title-link"
+                  @click="onDetailsClick"
+                >{{ card.name }}</a>
               </h3>
-              <span v-if="card.version" class="text-xs text-gray-500">v{{ card.version }}</span>
+              <span v-if="card.version" class="text-xs text-gray-500">{{ /^\d/.test(card.version) ? `v${card.version}` : card.version }}</span>
+              <span
+                v-if="card.archetype"
+                class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800"
+                data-testid="lora-card-archetype"
+              >
+                {{ formatArchetypeLabel(card.archetype) }}
+              </span>
+              <span v-if="card.series" class="text-xs text-gray-500">{{ card.series }}</span>
               <span :class="['status-badge', isActive ? 'status-active' : 'status-inactive']">
                 {{ isActive ? 'Active' : 'Inactive' }}
               </span>
@@ -58,18 +79,21 @@
           </div>
 
           <div class="mt-1 flex items-center space-x-4">
-            <p v-if="card.description" class="lora-card-description text-sm flex-1">
+            <p v-if="card.description" class="lora-card-description text-sm flex-1 truncate" :title="card.description">
               {{ card.description }}
             </p>
 
-            <div v-if="card.tags.length > 0" class="flex space-x-1">
-              <span v-for="tag in card.tags.slice(0, 2)" :key="tag" class="tag">
-                {{ tag }}
-              </span>
-              <span v-if="card.tags.length > 2" class="text-xs text-gray-500">
-                +{{ card.tags.length - 2 }}
-              </span>
-            </div>
+            <button
+              v-if="card.triggers.length > 0"
+              type="button"
+              class="max-w-xs truncate rounded bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-700 hover:bg-gray-200"
+              :title="`Copy: ${card.triggers.join(', ')}`"
+              aria-label="Copy trigger words"
+              @click="emit('copy-triggers')"
+            >
+              {{ card.triggers.join(', ') }}
+            </button>
+
           </div>
         </div>
 
@@ -81,7 +105,11 @@
           >
             {{ isActive ? 'Deactivate' : 'Activate' }}
           </button>
-          <a :href="card.detailsUrl" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+          <a
+            :href="card.detailsUrl"
+            class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            @click="onDetailsClick"
+          >
             View →
           </a>
         </div>
@@ -91,17 +119,9 @@
 </template>
 
 <script setup lang="ts">
-type LoraCardViewModel = {
-  id: string;
-  name: string;
-  version?: string | null;
-  type?: string | null;
-  description?: string | null;
-  previewImage?: string | null;
-  tags: string[];
-  detailsUrl: string;
-  qualityScore: number | null;
-};
+import type { LoraCardViewModel } from './cardViewModel';
+import { isPlainLeftClick } from '../../utils/links';
+import { formatArchetypeLabel } from '../../utils/libraryMeta';
 
 const props = defineProps<{
   card: LoraCardViewModel;
@@ -115,7 +135,17 @@ const emit = defineEmits<{
   (e: 'toggle-selection', id: string): void;
   (e: 'toggle-active'): void;
   (e: 'change-weight', value: number): void;
+  (e: 'copy-triggers'): void;
+  (e: 'open-details'): void;
 }>();
+
+const onDetailsClick = (event: MouseEvent) => {
+  // The thumbnail is a plain container in bulk mode, not a link.
+  if (event.currentTarget instanceof HTMLAnchorElement && isPlainLeftClick(event)) {
+    event.preventDefault();
+    emit('open-details');
+  }
+};
 
 const onWeightInput = (event: Event) => {
   const target = event.target as HTMLInputElement | null;

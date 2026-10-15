@@ -1,5 +1,6 @@
 import type {
   CompositionEntry,
+  DeliveryCreateResponse,
   GenerationCancelResponse,
   GenerationDownloadMetadata,
   GenerationFormState,
@@ -17,7 +18,7 @@ import {
   withSameOrigin,
   type BackendClientInput,
 } from '@/services/shared/backendHelpers';
-import { GenerationRequestPayloadSchema } from '@/schemas';
+import { DeliveryCreateResponseSchema, GenerationRequestPayloadSchema } from '@/schemas';
 import { parseGenerationJobStatuses } from './validation';
 
 export type GenerationParamOverrides =
@@ -104,18 +105,24 @@ export const toGenerationRequestPayload = (
     denoising_strength: state.denoising_strength,
   });
 
+/**
+ * Queue a generation on the backend worker. Progress and the finished result
+ * arrive through the transport (WebSocket and active-job polling), so the
+ * returned job always starts out queued.
+ */
 export const startGeneration = async (
   payload: GenerationRequestPayload,
   input?: GenerationClientInput,
 ): Promise<GenerationStartResponse> => {
   const backend = resolveClient(input);
   const normalizedPayload = GenerationRequestPayloadSchema.parse(payload);
-  const result = await backend.postJson<GenerationStartResponse, GenerationRequestPayload>(
-    generationPath('generate'),
+  const result = await backend.postJson<DeliveryCreateResponse, GenerationRequestPayload>(
+    generationPath('queue-generation'),
     normalizedPayload,
     withSameOrigin(),
   );
-  return ensureData(result);
+  const { delivery_id: jobId } = DeliveryCreateResponseSchema.parse(ensureData(result));
+  return { job_id: jobId, status: 'queued', progress: 0 };
 };
 
 export const cancelGenerationJob = async (

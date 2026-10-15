@@ -168,34 +168,17 @@ describe('LoraCard', () => {
     expect(wrapper.find('.lora-card-weight-control').exists()).toBe(false);
   });
 
-  it('displays tags correctly', () => {
+  it('shows the type badge but leaves raw CivitAI tags to the detail page', () => {
     const wrapper = mount(LoraCard, {
       props: {
-        lora: mockLora
+        lora: { ...mockLora, tags: ['tag1', 'tag2', 'tag3', 'tag4', 'tag5'] }
       }
     });
 
     const tags = wrapper.findAll('.tag');
-    expect(tags.length).toBe(3); // Including the type tag
-    const tagTexts = tags.map(tag => tag.text());
-    expect(tagTexts).toContain('test');
-    expect(tagTexts).toContain('lora');
-    expect(tagTexts).toContain('character'); // from lora.type
-  });
-
-  it('shows "more tags" indicator when there are more than 3 tags', () => {
-    const loraWithManyTags = {
-      ...mockLora,
-      tags: ['tag1', 'tag2', 'tag3', 'tag4', 'tag5']
-    };
-
-    const wrapper = mount(LoraCard, {
-      props: {
-        lora: loraWithManyTags
-      }
-    });
-
-    expect(wrapper.text()).toContain('+2 more');
+    expect(tags.map(tag => tag.text())).toEqual(['character']); // from lora.type
+    expect(wrapper.text()).not.toContain('tag1');
+    expect(wrapper.text()).not.toContain('more');
   });
 
   it('uses correct API URL composition for actions', async () => {

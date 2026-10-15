@@ -260,6 +260,10 @@ const apiMocks = {
         generation_info: null,
     }),
 
+    'POST /api/generation/queue-generation': () => ({
+        delivery_id: 'job-1',
+    }),
+
     'GET /api/v1/generation/jobs/active': () => ({
         data: [
             {

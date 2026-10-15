@@ -6,6 +6,7 @@ describe('adapterHandlers', () => {
   it('delegates events to queue, results, and system status modules', () => {
     const queue = {
       ingestQueue: vi.fn(),
+      jobsByBackendId: { value: new Map() },
       handleProgressMessage: vi.fn(),
       handleCompletionMessage: vi.fn(),
       handleErrorMessage: vi.fn(),
@@ -46,5 +47,33 @@ describe('adapterHandlers', () => {
 
     handlers.onRecentResults([{ id: 'result-1' }] as any);
     expect(results.setResults).toHaveBeenCalled();
+  });
+
+  it('reports jobs that left the active queue so results can be refreshed', () => {
+    const jobsByBackendId = { value: new Map([['job-1', {}], ['job-2', {}]]) };
+    const queue = {
+      jobsByBackendId,
+      ingestQueue: vi.fn((list: Array<{ id: string }>) => {
+        jobsByBackendId.value = new Map(list.map((job) => [job.id, {}]));
+      }),
+      handleProgressMessage: vi.fn(),
+      handleCompletionMessage: vi.fn(),
+      handleErrorMessage: vi.fn(),
+    } as any;
+    const onJobsFinished = vi.fn();
+
+    const handlers = createAdapterHandlers({
+      queue,
+      results: {} as any,
+      systemStatus: {} as any,
+      onJobsFinished,
+    });
+
+    handlers.onQueueUpdate([{ id: 'job-2' }] as any);
+    expect(onJobsFinished).toHaveBeenCalledWith(['job-1']);
+
+    onJobsFinished.mockClear();
+    handlers.onQueueUpdate([{ id: 'job-2' }, { id: 'job-3' }] as any);
+    expect(onJobsFinished).not.toHaveBeenCalled();
   });
 });

@@ -112,4 +112,18 @@ describe('createGenerationWebSocketManager', () => {
 
     manager.stop();
   });
+
+  it('connects to the progress socket at the API root, not under /generation', () => {
+    const manager = createGenerationWebSocketManager({ getBackendUrl: () => '/api/v1' });
+    manager.start();
+    expect(MockWebSocket.instances[0].url).toMatch(/^ws:\/\/[^/]+\/api\/v1\/ws\/progress$/);
+    manager.stop();
+
+    const remote = createGenerationWebSocketManager({
+      getBackendUrl: () => 'https://example.test/api/v1',
+    });
+    remote.start();
+    expect(MockWebSocket.instances[1].url).toBe('wss://example.test/api/v1/ws/progress');
+    remote.stop();
+  });
 });

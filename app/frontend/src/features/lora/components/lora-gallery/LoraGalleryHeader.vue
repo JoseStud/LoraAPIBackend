@@ -1,9 +1,5 @@
 <template>
   <div class="loras-page-header">
-    <div>
-      <h1 class="page-title">LoRA Collection</h1>
-      <p class="page-subtitle">Browse and manage your LoRA adapters</p>
-    </div>
     <div class="header-actions">
       <button
         class="btn btn-sm"

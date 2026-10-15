@@ -176,3 +176,64 @@ async def test_progress_session_error_produces_unknown_status() -> None:
 
     assert result.status == "unknown"
     assert result.error_message == "oops"
+
+
+@pytest.mark.anyio
+async def test_pre_generate_command_runs_before_submission(tmp_path, monkeypatch):
+    """The configured command finishes before SD.Next gets the job."""
+    from backend.delivery import sdnext as sdnext_module
+
+    marker = tmp_path / "ran"
+    session = FakeSDNextSession()
+    seen_marker_at_submit: list[bool] = []
+    original_submit = session.submit_txt2img
+
+    async def submit(prompt, params):
+        seen_marker_at_submit.append(marker.exists())
+        return await original_submit(prompt, params)
+
+    session.submit_txt2img = submit  # type: ignore[method-assign]
+    monkeypatch.setattr(
+        sdnext_module.settings, "SDNEXT_PRE_GENERATE_COMMAND", f"touch {marker}"
+    )
+
+    backend = SDNextGenerationBackend(session=session)
+    await backend.generate_image("prompt", {"generation_params": {}})
+
+    assert seen_marker_at_submit == [True]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "command", ["false", "definitely-not-a-real-command-xyz", "sleep 5"]
+)
+async def test_failing_pre_generate_command_does_not_block_generation(
+    monkeypatch, command
+):
+    from backend.delivery import sdnext as sdnext_module
+
+    monkeypatch.setattr(sdnext_module.settings, "SDNEXT_PRE_GENERATE_COMMAND", command)
+    monkeypatch.setattr(sdnext_module.settings, "SDNEXT_PRE_GENERATE_TIMEOUT", 1)
+    session = FakeSDNextSession()
+
+    backend = SDNextGenerationBackend(session=session)
+    await backend.generate_image("prompt", {"generation_params": {}})
+
+    assert len(session.submissions) == 1
+
+
+@pytest.mark.anyio("asyncio")
+async def test_empty_image_list_reports_an_aborted_job() -> None:
+    """SD.Next answers 200 with no images when it aborts (e.g. GPU OOM)."""
+    session = FakeSDNextSession(
+        submit_response=SDNextResponse(
+            ok=True, status=200, data={"images": [], "info": "{}"}
+        )
+    )
+
+    result = await SDNextGenerationBackend(session=session).generate_image(
+        "prompt", {"generation_params": {}}
+    )
+
+    assert result.status == "failed"
+    assert "returned no images" in (result.error_message or "")

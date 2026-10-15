@@ -29,6 +29,12 @@ export class HistoryServiceParseError extends Error {
 
 const NullableString = z.union([z.string(), z.null()]).optional();
 const NullableNumber = z.number().finite().nullable().optional();
+// The backend sends null for unset image settings; treat it as absent.
+const OptionalNumber = z
+  .number()
+  .finite()
+  .nullish()
+  .transform((value) => value ?? undefined);
 
 const GenerationLoraReferenceSchema: z.ZodType<GenerationLoraReference> = z
   .object({
@@ -41,12 +47,13 @@ const GenerationLoraReferenceSchema: z.ZodType<GenerationLoraReference> = z
   })
   .passthrough();
 
-const GenerationHistoryStatsSchema: z.ZodType<GenerationHistoryStats> = z
+const GenerationHistoryStatsSchema: z.ZodType<GenerationHistoryStats, z.ZodTypeDef, unknown> = z
   .object({
     total_results: z.number().finite(),
     avg_rating: z.number().finite(),
     total_favorites: z.number().finite(),
-    total_size: z.number().finite(),
+    // not reported by /results/stats; the backend doesn't track file sizes
+    total_size: z.number().finite().optional().default(0),
   })
   .transform((stats) => ({
     total_results: stats.total_results,
@@ -71,10 +78,10 @@ const GenerationHistoryResultSchema = z
     negative_prompt: NullableString,
     image_url: NullableString,
     thumbnail_url: NullableString,
-    width: z.number().finite().optional(),
-    height: z.number().finite().optional(),
-    steps: z.number().finite().optional(),
-    cfg_scale: z.number().finite().optional(),
+    width: OptionalNumber,
+    height: OptionalNumber,
+    steps: OptionalNumber,
+    cfg_scale: OptionalNumber,
     seed: NullableNumber,
     created_at: z.string(),
     finished_at: NullableString,

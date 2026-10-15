@@ -53,11 +53,23 @@ const createCatalogState = (
   return state;
 };
 
+// SD.Next resolves <lora:NAME> against file names, not display names.
+const toPromptName = (item: GalleryLora): string | undefined => {
+  const source = item.primary_file_name || item.file_path;
+  if (!source) {
+    return undefined;
+  }
+  const fileName = source.split(/[\\/]/).pop() ?? '';
+  const stem = fileName.replace(/\.[^.]+$/, '');
+  return stem || undefined;
+};
+
 const toSummary = (item: GalleryLora): AdapterSummary => ({
   id: item.id,
   name: item.name,
   description: item.description,
   active: item.active ?? true,
+  promptName: toPromptName(item),
 });
 
 export const useAdapterCatalogStore = defineStore('adapterCatalog', () => {

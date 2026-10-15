@@ -35,6 +35,11 @@ class AdapterCreate(BaseModel):
     primary_file_sha256: Optional[str] = None
     primary_file_download_url: Optional[str] = None
     primary_file_local_path: Optional[str] = None
+    civitai_model_id: Optional[int] = None
+    civitai_version_id: Optional[int] = None
+    preview_image_url: Optional[str] = None
+    archetype: Optional[str] = None
+    archetype_confidence: Optional[float] = None
     supports_generation: Optional[bool] = False
     sd_version: Optional[str] = None
     nsfw_level: Optional[int] = 0
@@ -66,6 +71,14 @@ class AdapterCreate(BaseModel):
         # Round to nearest integer and return as int
         return int(round(f))
 
+    @field_validator("primary_file_sha256", mode="before")
+    def _normalise_sha256(cls, v):
+        """Store hashes upper-case so identity checks are case-insensitive."""
+        if v is None:
+            return v
+        text = str(v).strip()
+        return text.upper() or None
+
 
 class AdapterRead(BaseModel):
     """Public read model for adapters."""
@@ -92,6 +105,9 @@ class AdapterRead(BaseModel):
     primary_file_sha256: Optional[str] = None
     primary_file_download_url: Optional[str] = None
     primary_file_local_path: Optional[str] = None
+    civitai_model_id: Optional[int] = None
+    civitai_version_id: Optional[int] = None
+    preview_image_url: Optional[str] = None
     supports_generation: bool = False
     sd_version: Optional[str] = None
     nsfw_level: int = 0
@@ -138,6 +154,7 @@ class AdapterPatch(BaseModel):
     triggers: Optional[List[str]] = None
     archetype: Optional[str] = None
     archetype_confidence: Optional[StrictFloat] = None
+    preview_image_url: Optional[str] = None
     visibility: Optional[str] = None
     nsfw_level: Optional[StrictInt] = None
     supports_generation: Optional[StrictBool] = None

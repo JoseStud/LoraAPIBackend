@@ -32,6 +32,14 @@ async def list_generation_results(
     return controller.list_results(application=application, limit=limit, offset=offset)
 
 
+@router.get("/results/stats")
+async def get_generation_result_stats(
+    application: ApplicationServices = Depends(get_application_services),
+):
+    """Return totals for finished results (count, average rating, favourites)."""
+    return application.deliveries.get_result_statistics()
+
+
 @router.delete("/results/bulk-delete")
 async def bulk_delete_generation_results(
     request: GenerationBulkDeleteRequest,

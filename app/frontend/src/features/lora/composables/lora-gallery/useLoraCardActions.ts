@@ -72,6 +72,12 @@ export const useLoraCardActions = ({ lora, emitUpdate, emitDelete }: UseLoraCard
     }
   };
 
+  const handleOpenDetails = () => {
+    router.push(detailsUrl.value).catch((error: unknown) => {
+      console.error('Error navigating to LoRA details:', error);
+    });
+  };
+
   const handleRecommendations = () => {
     try {
       const targetUrl = buildRecommendationsUrl(lora.value.id);
@@ -120,6 +126,7 @@ export const useLoraCardActions = ({ lora, emitUpdate, emitDelete }: UseLoraCard
     qualityScore,
     handleToggleActive,
     handleWeightChange,
+    handleOpenDetails,
     handleRecommendations,
     handleGeneratePreview,
     handleDelete,

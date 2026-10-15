@@ -1117,6 +1117,16 @@ export interface components {
             primary_file_download_url?: string | null;
             /** Primary File Local Path */
             primary_file_local_path?: string | null;
+            /** Civitai Model Id */
+            civitai_model_id?: number | null;
+            /** Civitai Version Id */
+            civitai_version_id?: number | null;
+            /** Preview Image Url */
+            preview_image_url?: string | null;
+            /** Archetype */
+            archetype?: string | null;
+            /** Archetype Confidence */
+            archetype_confidence?: number | null;
             /**
              * Supports Generation
              * @default false
@@ -1191,6 +1201,8 @@ export interface components {
             archetype?: string | null;
             /** Archetype Confidence */
             archetype_confidence?: number | null;
+            /** Preview Image Url */
+            preview_image_url?: string | null;
             /** Visibility */
             visibility?: string | null;
             /** Nsfw Level */
@@ -1252,6 +1264,12 @@ export interface components {
             primary_file_download_url?: string | null;
             /** Primary File Local Path */
             primary_file_local_path?: string | null;
+            /** Civitai Model Id */
+            civitai_model_id?: number | null;
+            /** Civitai Version Id */
+            civitai_version_id?: number | null;
+            /** Preview Image Url */
+            preview_image_url?: string | null;
             /**
              * Supports Generation
              * @default false

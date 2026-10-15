@@ -311,6 +311,13 @@ describe('LoraGallery', () => {
     expect(wrapper.vm.searchTerm).toBe('');
   });
 
+  it('leaves the page title to the view', async () => {
+    const wrapper = await mountGallery();
+
+    // LorasView's PageHeader titles the page; a second h1 here duplicated it.
+    expect(wrapper.find('h1').exists()).toBe(false);
+  });
+
   it('toggles view mode', async () => {
     const wrapper = await mountGallery();
 

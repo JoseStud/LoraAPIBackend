@@ -16,10 +16,13 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
+      <div
+        class="grid grid-cols-2 gap-3 text-center"
+        :class="showStorage ? 'sm:grid-cols-4' : 'sm:grid-cols-3'"
+      >
         <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
           <div class="text-xl font-semibold text-gray-900">{{ stats.total_results }}</div>
-          <div class="text-xs uppercase tracking-wide text-gray-500">Images</div>
+          <div class="text-xs uppercase tracking-wide text-gray-500">Results</div>
         </div>
         <div class="rounded-lg border border-gray-200 bg-emerald-50 p-3">
           <div class="text-xl font-semibold text-emerald-700">{{ formattedAverage }}</div>
@@ -29,7 +32,7 @@
           <div class="text-xl font-semibold text-indigo-700">{{ stats.total_favorites }}</div>
           <div class="text-xs uppercase tracking-wide text-indigo-700">Favorites</div>
         </div>
-        <div class="rounded-lg border border-gray-200 bg-sky-50 p-3">
+        <div v-if="showStorage" class="rounded-lg border border-gray-200 bg-sky-50 p-3">
           <div class="text-xl font-semibold text-sky-700">{{ formattedSize }}</div>
           <div class="text-xs uppercase tracking-wide text-sky-700">Storage</div>
         </div>
@@ -61,7 +64,7 @@
               <p class="font-medium text-gray-900">
                 {{ item.prompt ? truncate(item.prompt, 100) : 'Untitled generation' }}
               </p>
-              <p class="text-xs text-gray-500">
+              <p v-if="item.width || item.height || item.cfg_scale != null" class="text-xs text-gray-500">
                 {{ item.width ?? '—' }}×{{ item.height ?? '—' }} · CFG {{ item.cfg_scale ?? '—' }}
               </p>
             </div>
@@ -98,7 +101,7 @@ import { storeToRefs } from 'pinia';
 import { RouterLink } from 'vue-router';
 
 import { useBackendClient } from '@/services/shared/http';
-import { listResults as listHistoryResults } from '@/features/history/public';
+import { fetchResultStats, listResults as listHistoryResults } from '@/features/history/public';
 import { useGenerationOrchestratorFacade } from '@/features/generation/public';
 import { formatFileSize, formatRelativeTime } from '@/utils/format';
 import { mapGenerationResultsToHistory } from '@/utils/generationHistory';
@@ -140,6 +143,8 @@ const errorMessage = computed(() => {
 
 const formattedAverage = computed(() => stats.value.avg_rating.toFixed(1));
 const formattedSize = computed(() => formatFileSize(stats.value.total_size));
+// The backend doesn't track file sizes yet, so hide the tile rather than show 0.
+const showStorage = computed(() => stats.value.total_size > 0);
 
 const recentResults = computed<GenerationHistoryResult[]>(() => {
   const limit = SUMMARY_QUERY.page_size ?? 4;
@@ -168,8 +173,12 @@ const refresh = async () => {
   error.value = null;
 
   try {
-    const output = await listHistoryResults({ ...SUMMARY_QUERY }, {}, backendClient);
-    stats.value = output.stats;
+    // The list only covers the latest page, so totals come from /results/stats.
+    const [output, totals] = await Promise.all([
+      listHistoryResults({ ...SUMMARY_QUERY }, {}, backendClient),
+      fetchResultStats({}, backendClient).catch(() => null),
+    ]);
+    stats.value = totals ?? output.stats;
     fetchedResults.value = output.results;
   } catch (err) {
     error.value = err instanceof Error ? err : new Error('Failed to load generation summary');

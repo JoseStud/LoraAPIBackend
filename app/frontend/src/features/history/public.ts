@@ -6,5 +6,5 @@ export { default as GenerationHistory } from './components/GenerationHistory.vue
 /** @internal */
 export { default as HistoryRecentResultCard } from './components/HistoryRecentResultCard.vue';
 
-export { listResults } from './services/historyService';
+export { fetchResultStats, listResults } from './services/historyService';
 export type { ListResultsOptions, ListResultsOutput } from './services/historyService';

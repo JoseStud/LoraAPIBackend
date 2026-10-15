@@ -47,6 +47,41 @@ class ParsedMetadata:
     extra: Dict[str, Any]
 
 
+def _as_int(value: Any) -> Optional[int]:
+    """Return ``value`` as an int, or None when it is missing or not numeric."""
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_still_image(image: Dict[str, Any]) -> bool:
+    """Return True for still images (not videos or animations) with a URL."""
+    if image.get("type", "image") != "image":
+        return False
+    url = str(image.get("url") or "")
+    return bool(url) and not url.lower().split("?")[0].endswith((
+        ".mp4",
+        ".webm",
+        ".gif",
+    ))
+
+
+def _first_preview_image_url(images: Any) -> Optional[str]:
+    """Pick the first still sample image from a CivitAI ``images`` list.
+
+    Rating is not filtered here; the sidecar decides which images it lists.
+    """
+    if not isinstance(images, list):
+        return None
+    for image in images:
+        if isinstance(image, dict) and _is_still_image(image):
+            return str(image["url"])
+    return None
+
+
 def parse_civitai_json(json_path: str) -> ParsedMetadata:
     """Parse a Civitai-style JSON file into ParsedMetadata.
 
@@ -73,6 +108,14 @@ def parse_civitai_json(json_path: str) -> ParsedMetadata:
     activation_text = data.get("activation text")
     stats = data.get("stats")
 
+    civitai = data.get("civitai") if isinstance(data.get("civitai"), dict) else {}
+    civitai_model_id = _as_int(data.get("modelId") or civitai.get("modelId"))
+    civitai_version_id = _as_int(civitai.get("versionId"))
+    archetype = (
+        data.get("archetype") if isinstance(data.get("archetype"), str) else None
+    )
+    preview_image_url = data.get("preview_image_url")
+
     # Extract version, trained words, and file info from modelVersions
     model_versions = data.get("modelVersions", [])
     if model_versions:
@@ -80,6 +123,13 @@ def parse_civitai_json(json_path: str) -> ParsedMetadata:
         version = first_version.get("name") or data.get("version")
         published_at = first_version.get("publishedAt")
         trained_words = first_version.get("trainedWords", [])
+        if civitai_version_id is None:
+            civitai_version_id = _as_int(first_version.get("id"))
+        if civitai_model_id is None:
+            # CivitAI model JSON: top-level "id" is the model id
+            civitai_model_id = _as_int(first_version.get("modelId") or data.get("id"))
+        if not preview_image_url:
+            preview_image_url = _first_preview_image_url(first_version.get("images"))
 
         # Extract primary file info
         files = first_version.get("files", [])
@@ -151,6 +201,10 @@ def parse_civitai_json(json_path: str) -> ParsedMetadata:
         "nsfwLevel",
         "activation text",
         "stats",
+        "archetype",
+        "civitai",
+        "modelId",
+        "preview_image_url",
     }
     extra = {k: v for k, v in data.items() if k not in mapped_keys}
 
@@ -174,6 +228,10 @@ def parse_civitai_json(json_path: str) -> ParsedMetadata:
             "nsfw_level": nsfw_level,
             "activation_text": activation_text,
             "stats": stats,
+            "archetype": archetype,
+            "civitai_model_id": civitai_model_id,
+            "civitai_version_id": civitai_version_id,
+            "preview_image_url": preview_image_url,
             "unmapped": extra,
         },
     )
@@ -295,6 +353,10 @@ def register_adapter_from_metadata(
         "nsfw_level": extra_data.get("nsfw_level", 0),
         "activation_text": extra_data.get("activation_text"),
         "stats": extra_data.get("stats"),
+        "archetype": extra_data.get("archetype"),
+        "civitai_model_id": extra_data.get("civitai_model_id"),
+        "civitai_version_id": extra_data.get("civitai_version_id"),
+        "preview_image_url": extra_data.get("preview_image_url"),
         "extra": extra_data.get("unmapped"),
         # Ingestion tracking
         "json_file_path": json_path,

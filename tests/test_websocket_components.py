@@ -23,6 +23,11 @@ from backend.services.websocket import (
 )
 from backend.services.websocket.persistence import DeliveryJobStateRepository
 
+PNG_BASE64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQAB"
+    "DQottAAAAABJRU5ErkJggg=="
+)
+
 
 class _FakeWebSocket:
     def __init__(self) -> None:
@@ -83,7 +88,7 @@ async def test_job_progress_monitor_merges_persisted_state() -> None:
         result={
             "status": "completed",
             "progress": 1.0,
-            "images": ["stored-image"],
+            "images": [PNG_BASE64, "/app/outputs/job_0.png"],
             "generation_info": {"duration": 1.2},
         },
         started_at=datetime.now(timezone.utc) - timedelta(seconds=5),
@@ -124,7 +129,7 @@ async def test_job_progress_monitor_merges_persisted_state() -> None:
 
     assert completions
     assert completions[0].status == "completed"
-    assert completions[0].images == ["stored-image"]
+    assert completions[0].images == [f"data:image/png;base64,{PNG_BASE64}"]
     assert completions[0].generation_info == {"duration": 1.2}
     assert completions[0].total_duration is not None
 

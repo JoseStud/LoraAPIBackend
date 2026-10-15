@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     SDNEXT_DEFAULT_SAMPLER: str = "DPM++ 2M"
     SDNEXT_DEFAULT_CFG_SCALE: float = 7.0
     SDNEXT_OUTPUT_DIR: Optional[str] = None  # local storage for generated images
+    # Command run (and awaited) before each SD.Next generation, e.g. to free the
+    # GPU by pausing desktop effects: "gamemode-toggle on". Failures are logged.
+    SDNEXT_PRE_GENERATE_COMMAND: Optional[str] = None
+    SDNEXT_PRE_GENERATE_TIMEOUT: int = 30  # seconds
 
     # Generation polling intervals (milliseconds)
     GENERATION_QUEUE_POLL_INTERVAL_MS: int = Field(default=2_000, gt=0)

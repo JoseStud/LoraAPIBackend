@@ -54,33 +54,54 @@ export const normaliseStatus = (status?: string | null): SystemStatusLevel => {
   return DEFAULT_STATUS;
 };
 
-export const deriveSeverityFromMetrics = (metrics: SystemMetricsSnapshot): SystemStatusLevel => {
-  const memoryPercent = clampPercent(metrics.memory_percent);
-  const diskPercent = clampPercent(metrics.disk_percent);
-  const gpus = metrics.gpus ?? [];
+// Warning means "keep an eye on it"; error means something is about to fail.
+// Busy RAM and full VRAM are normal while SD.Next has a model loaded, so VRAM
+// isn't judged at all and RAM only counts when it is nearly exhausted.
+const THRESHOLDS = {
+  memory: { warning: 90, error: 98 },
+  disk: { warning: 90, error: 98 },
+  gpuTemperature: { warning: 85, error: 95 },
+} as const;
 
-  const hasCriticalGpu = gpus.some((gpu) => {
+type MetricAlert = { level: Exclude<SystemStatusLevel, 'healthy' | 'unknown'>; message: string };
+
+const levelFor = (value: number, limits: { warning: number; error: number }) =>
+  value > limits.error ? 'error' : value > limits.warning ? 'warning' : null;
+
+const assessMetrics = (metrics: SystemMetricsSnapshot): MetricAlert[] => {
+  const alerts: MetricAlert[] = [];
+  const push = (level: MetricAlert['level'] | null, message: string) => {
+    if (level) {
+      alerts.push({ level, message });
+    }
+  };
+
+  const memory = clampPercent(metrics.memory_percent);
+  push(levelFor(memory, THRESHOLDS.memory), `Memory ${memory}% used`);
+
+  const disk = clampPercent(metrics.disk_percent);
+  push(levelFor(disk, THRESHOLDS.disk), `Disk ${disk}% full`);
+
+  for (const gpu of metrics.gpus ?? []) {
+    const name = gpu.name || `GPU ${gpu.id}`;
     const temperature = typeof gpu.temperature === 'number' ? gpu.temperature : 0;
-    const memory = clampPercent(gpu.memory_percent);
-    return temperature > 85 || memory > 95;
-  });
+    push(levelFor(temperature, THRESHOLDS.gpuTemperature), `${name} at ${temperature}°C`);
+  }
 
-  if (memoryPercent > 95 || diskPercent > 95 || hasCriticalGpu) {
+  return alerts;
+};
+
+export const deriveSeverityFromMetrics = (metrics: SystemMetricsSnapshot): SystemStatusLevel => {
+  const alerts = assessMetrics(metrics);
+  if (alerts.some((alert) => alert.level === 'error')) {
     return 'error';
   }
-
-  const hasWarningGpu = gpus.some((gpu) => {
-    const temperature = typeof gpu.temperature === 'number' ? gpu.temperature : 0;
-    const memory = clampPercent(gpu.memory_percent);
-    return temperature > 75 || memory > 85;
-  });
-
-  if (memoryPercent > 85 || diskPercent > 85 || hasWarningGpu) {
-    return 'warning';
-  }
-
-  return 'healthy';
+  return alerts.length > 0 ? 'warning' : 'healthy';
 };
+
+/** Explain why deriveSeverityFromMetrics raised a warning or error. */
+export const describeMetricAlerts = (metrics: SystemMetricsSnapshot): string[] =>
+  assessMetrics(metrics).map((alert) => alert.message);
 
 export const mergeStatusLevels = (
   base: SystemStatusLevel,

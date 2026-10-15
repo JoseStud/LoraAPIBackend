@@ -12,18 +12,43 @@ class TestComposeService:
         token = compose_service.format_token("test-lora", 0.75)
         assert token == "<lora:test-lora:0.750>"
 
+    def test_tokens_use_the_file_name_sdnext_resolves(self, compose_service):
+        """SD.Next matches <lora:NAME> against file names, not display names."""
+        adapters = [
+            Adapter(
+                name="Sosuke Aizen",
+                file_path="/loras/Shonen/Cool-Sharp-Rival/Aizen_Brave_Souls_Bleach.safetensors",
+                weight=0.8,
+                active=True,
+            ),
+            Adapter(
+                name="Asta",
+                file_path="/loras/other/path.safetensors",
+                primary_file_name="asta-v1.safetensors",
+                weight=1.0,
+                active=True,
+            ),
+        ]
+
+        _, tokens = compose_service.compose_prompt(adapters)
+
+        assert tokens == [
+            "<lora:Aizen_Brave_Souls_Bleach:0.800>",
+            "<lora:asta-v1:1.000>",
+        ]
+
     def test_compose_from_adapter_service_builds_prompt(self, compose_service):
         """Helper should compose prompt, tokens, and warnings in one place."""
         adapters = [
             Adapter(
                 name="alpha",
-                file_path="/tmp/a",
+                file_path="/tmp/alpha.safetensors",
                 weight=0.5,
                 active=True,
             ),
             Adapter(
                 name="beta",
-                file_path="/tmp/b",
+                file_path="/tmp/beta.safetensors",
                 weight=0.75,
                 active=True,
             ),
@@ -58,8 +83,18 @@ class TestComposeService:
     def test_compose_from_adapter_service_captures_warnings(self, compose_service):
         """Warnings from validation should propagate through the helper."""
         adapters = [
-            Adapter(name="gamma", file_path="/tmp/a", weight=0.0, active=True),
-            Adapter(name="gamma", file_path="/tmp/b", weight=0.0, active=True),
+            Adapter(
+                name="gamma",
+                file_path="/tmp/gamma.safetensors",
+                weight=0.0,
+                active=True,
+            ),
+            Adapter(
+                name="gamma",
+                file_path="/tmp/gamma2.safetensors",
+                weight=0.0,
+                active=True,
+            ),
         ]
 
         class DummyAdapterService:
@@ -74,7 +109,7 @@ class TestComposeService:
 
         assert "Duplicate adapter names" in " ".join(result.warnings)
         assert "Adapters with zero weight" in " ".join(result.warnings)
-        assert result.prompt == "start <lora:gamma:0.000> <lora:gamma:0.000> end"
+        assert result.prompt == "start <lora:gamma:0.000> <lora:gamma2:0.000> end"
 
     def test_validate_adapters_reports_each_duplicate_once(self, compose_service):
         """Duplicate adapter warnings should enumerate each repeated name once."""

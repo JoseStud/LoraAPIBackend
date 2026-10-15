@@ -82,19 +82,36 @@ def test_dashboard_stats_reflects_live_data(client, db_session):
         and system_health["storage_usage"]
     )
 
+    # live readings come along so the dashboard doesn't parse the strings above
+    metrics = payload["metrics"]
+    if metrics is not None:  # psutil is optional
+        assert {"cpu_percent", "memory_total", "gpus"} <= metrics.keys()
+
 
 def test_dashboard_endpoints_handle_empty_dataset(client):
     """Endpoints should gracefully handle empty databases."""
     stats_response = client.get("/api/v1/dashboard/stats")
     assert stats_response.status_code == 200
     stats_payload = stats_response.json()
-    assert stats_payload["stats"] == {
+    stats = stats_payload["stats"]
+    assert {
+        key: stats[key]
+        for key in (
+            "total_loras",
+            "active_loras",
+            "embeddings_coverage",
+            "recent_imports",
+            "active_jobs",
+        )
+    } == {
         "total_loras": 0,
         "active_loras": 0,
         "embeddings_coverage": 0,
         "recent_imports": 0,
         "active_jobs": 0,
     }
+    assert stats["active_workers"] == 0
+    assert stats["database_size"] is None or stats["database_size"] >= 0
     assert stats_payload["system_health"]["queue_status"] == "idle"
 
     featured_response = client.get("/api/v1/dashboard/featured-loras")
@@ -169,3 +186,33 @@ def test_activity_feed_reflects_recent_jobs(client, db_session):
         assert entry["icon"]
         assert entry["timestamp"].endswith("Z") or "T" in entry["timestamp"]
         assert entry["message"].startswith("Delivery job")
+
+
+def test_generation_result_stats_cover_all_finished_jobs(client, db_session):
+    """Result totals count every succeeded job, not just one page."""
+    now = datetime.now(timezone.utc)
+    jobs = [
+        DeliveryJob(
+            prompt="a", mode="api", status="succeeded", created_at=now, rating=4
+        ),
+        DeliveryJob(
+            prompt="b",
+            mode="api",
+            status="succeeded",
+            created_at=now,
+            rating=2,
+            is_favorite=True,
+        ),
+        DeliveryJob(prompt="c", mode="api", status="succeeded", created_at=now),
+        DeliveryJob(prompt="d", mode="api", status="failed", created_at=now, rating=5),
+    ]
+    db_session.add_all(jobs)
+    db_session.commit()
+
+    response = client.get("/api/v1/generation/results/stats")
+    assert response.status_code == 200
+    assert response.json() == {
+        "total_results": 3,
+        "avg_rating": 3.0,
+        "total_favorites": 1,
+    }

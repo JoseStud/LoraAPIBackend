@@ -10,6 +10,7 @@ from typing import Any, Awaitable, Callable, Dict, Optional, Protocol
 import structlog
 
 from backend.schemas import GenerationComplete, ProgressUpdate, SDNextGenerationResult
+from backend.utils.images import to_browser_image_src
 
 logger = structlog.get_logger(__name__)
 
@@ -301,7 +302,11 @@ class JobProgressMonitor:
                 persisted_state.finished_at,
             )
 
-        if images is not None and not images:
+        if images:
+            # Clients render these directly, so send loadable sources only.
+            sources = (to_browser_image_src(i) for i in images if isinstance(i, str))
+            images = [src for src in sources if src] or None
+        else:
             images = None
 
         return GenerationComplete(

@@ -4,6 +4,16 @@
   /* Buttons */
   .btn { @apply inline-flex items-center justify-center font-medium rounded px-4 py-2 text-sm; }
   .btn-primary { @apply bg-blue-600 hover:bg-blue-700 text-white; }
+  /* Square icon button: drop .btn's padding so the 40px box doesn't crush the icon */
+  .btn-icon { @apply h-10 w-10 shrink-0 p-0; }
+
+  /* Empty states (queue, active jobs, results, history) */
+  .empty-state,
+  .empty-state-container { @apply flex flex-col items-center justify-center px-4 py-8 text-center; }
+  .empty-state-icon { @apply mb-3 h-12 w-12 shrink-0 text-gray-400; }
+  .empty-state-title { @apply text-sm font-medium text-gray-900; }
+  .empty-state-message { @apply mt-1 text-sm text-gray-500; }
+  .empty-state-actions { @apply mt-4; }
 
   /* Card */
   .card { @apply bg-white border border-gray-200 rounded-lg overflow-hidden; }

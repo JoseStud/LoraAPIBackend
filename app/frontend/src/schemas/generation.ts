@@ -11,6 +11,12 @@ const NormalizedStatusSchema = z.string();
 const NullableString = z.union([z.string(), z.null()]).optional();
 
 const NullableIsoString = z.union([z.string(), z.null()]).optional();
+// The backend sends null for unset image settings; treat it as absent.
+const OptionalNumber = z
+  .number()
+  .finite()
+  .nullish()
+  .transform((value) => value ?? undefined);
 
 const RequiredIdSchema = z
   .union([z.string(), z.number()])
@@ -84,10 +90,10 @@ const GenerationResultObject = z
     negative_prompt: NullableString,
     image_url: NullableString,
     thumbnail_url: NullableString,
-    width: z.number().finite().optional(),
-    height: z.number().finite().optional(),
-    steps: z.number().finite().optional(),
-    cfg_scale: z.number().finite().optional(),
+    width: OptionalNumber,
+    height: OptionalNumber,
+    steps: OptionalNumber,
+    cfg_scale: OptionalNumber,
     seed: z.number().finite().nullable().optional(),
     created_at: z.string().optional(),
     finished_at: NullableIsoString,
@@ -142,3 +148,8 @@ export const GenerationRequestPayloadSchema: z.ZodType<GenerationRequestPayload>
     negative_prompt: value.negative_prompt,
     denoising_strength: value.denoising_strength,
   }));
+
+/** Response from `POST /generation/queue-generation`. */
+export const DeliveryCreateResponseSchema = z.object({
+  delivery_id: z.string().min(1),
+});

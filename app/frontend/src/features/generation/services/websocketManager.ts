@@ -1,5 +1,5 @@
 import { generationPollingConfig } from '../config/polling';
-import { resolveGenerationBaseUrl } from './generationService';
+import { resolveBackendUrl } from './generationService';
 import { ensureArray } from './validation';
 import type {
   GenerationCompleteMessage,
@@ -28,7 +28,8 @@ const appendWebSocketPath = (path: string): string => {
 };
 
 const resolveWebSocketUrl = (backendUrl?: string | null): string => {
-  const base = resolveGenerationBaseUrl(backendUrl ?? undefined);
+  // The progress socket lives at the API root, not under /generation.
+  const base = resolveBackendUrl('', backendUrl ?? undefined);
 
   if (/^https?:\/\//i.test(base)) {
     try {
@@ -224,6 +225,9 @@ export const createGenerationWebSocketManager = (
           break;
         case 'system_status':
           options.onSystemStatus?.(payload as GenerationSystemStatusMessage);
+          break;
+        case 'connected':
+          // handshake acknowledgement from the server; nothing to update
           break;
         case 'generation_started':
           logDebug('Generation job started', (payload as { job_id?: string }).job_id);
