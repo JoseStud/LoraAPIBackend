@@ -61,7 +61,10 @@ npm run build
   Add a revision there for every schema change and check with
   `alembic upgrade head` + `alembic check` on an empty database.
 - **Dev environment**: `make dev` (`docker-compose.dev.yml`, configured by
-  `.env.docker`). There is no other supported Docker stack.
+  `.env.docker`). There is no other supported Docker stack. It sets
+  `REDIS_URL`, so the API only enqueues generation jobs and the `worker`
+  service (an RQ worker) runs them; the API and worker share `./outputs` as
+  `SDNEXT_OUTPUT_DIR`.
 - **Security**: single-user, trusted-LAN tool. The API key is served to the
   browser by `/frontend/settings` and is not an access control (README,
   "Security model"). Don't build features that assume real authentication, and

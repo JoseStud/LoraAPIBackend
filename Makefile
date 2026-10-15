@@ -4,12 +4,16 @@ ENV_FILE := $(if $(wildcard .env.docker),.env.docker,.env.docker.example)
 
 .PHONY: dev dev-ml dev-down dev-clean dev-logs deps-lock
 
+# outputs/ is created here so Docker doesn't create the bind mount owned by root,
+# which the non-root api and worker containers could not write to.
 dev:
 	@echo "Using $(ENV_FILE) for environment configuration"
+	@mkdir -p outputs
 	$(COMPOSE) --env-file $(ENV_FILE) -f $(COMPOSE_FILE) up --build
 
 dev-ml:
 	@echo "Using $(ENV_FILE) for environment configuration"
+	@mkdir -p outputs
 	$(COMPOSE) --env-file $(ENV_FILE) -f $(COMPOSE_FILE) --profile ml up --build
 
 dev-down:

@@ -43,6 +43,8 @@ data_store.json
 
 # Docker
 docker-compose.override.yml
+# Generated images from the dev stack (SDNEXT_OUTPUT_DIR)
+/outputs/
 
 # Ruff cache
 __pycache__

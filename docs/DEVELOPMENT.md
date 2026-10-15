@@ -125,8 +125,10 @@ inconsistent error payload handling.【F:app/frontend/src/services/shared/http/i
 ### Docker workflow
 
 `docker-compose.dev.yml` provides the canonical developer topology: FastAPI with
-hot reload, the Vite dev server, PostgreSQL, Redis, and an optional SDNext
-profile. Bind mounts keep reload latency low while allowing editors to work
+hot reload, an RQ worker that runs queued generations (restarted by
+`watchfiles` when backend code changes), the Vite dev server, PostgreSQL,
+Redis, and an optional SDNext profile. Generated images go to `./outputs`,
+which the API and worker share as `SDNEXT_OUTPUT_DIR`. Bind mounts keep reload latency low while allowing editors to work
 against the host filesystem.【F:docker-compose.dev.yml†L1-L104】【F:backend/containers/dev.Dockerfile†L1-L45】【F:app/frontend/containers/dev.Dockerfile†L1-L28】
 
 1. Copy `.env.docker.example` to `.env.docker` when you need to override API
