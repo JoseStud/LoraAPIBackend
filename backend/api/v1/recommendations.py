@@ -90,12 +90,11 @@ async def get_similar_loras(
         )
 
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=404, detail="LoRA not found") from exc
     except Exception as exc:
-        logger.exception("similar_loras failed")
+        logger.exception("Recommendation generation failed")
         raise HTTPException(
-            status_code=500,
-            detail=f"Recommendation generation failed: {exc}",
+            status_code=500, detail="Recommendation generation failed"
         ) from exc
 
 
@@ -145,9 +144,9 @@ async def get_recommendations_for_prompt(
         )
 
     except Exception as exc:
+        logger.exception("Prompt recommendation failed")
         raise HTTPException(
-            status_code=500,
-            detail=f"Prompt recommendation failed: {exc}",
+            status_code=500, detail="Prompt recommendation failed"
         ) from exc
 
 
@@ -179,15 +178,14 @@ async def get_recommendations_for_trigger(
             generated_at=datetime.now(timezone.utc),
         )
     except Exception as exc:
-        logger.exception("trigger_recommendations failed")
+        logger.exception("Trigger recommendation failed")
         raise HTTPException(
-            status_code=500,
-            detail=f"Trigger recommendation failed: {exc}",
+            status_code=500, detail="Trigger recommendation failed"
         ) from exc
 
 
 @router.get("/recommendations/stats", response_model=RecommendationStats)
-async def get_recommendation_stats(
+def get_recommendation_stats(
     services: ServiceRegistry = Depends(get_services),
 ):
     """Get comprehensive statistics about the recommendation system.
@@ -205,9 +203,8 @@ async def get_recommendation_stats(
         return stats
 
     except Exception as exc:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get stats: {exc}"
-        ) from exc
+        logger.exception("Failed to get stats")
+        raise HTTPException(status_code=500, detail="Failed to get stats") from exc
 
 
 @router.post(
@@ -247,14 +244,14 @@ async def compute_embeddings(
         return BatchEmbeddingResponse(**result)
 
     except Exception as exc:
+        logger.exception("Embedding computation failed")
         raise HTTPException(
-            status_code=500,
-            detail=f"Embedding computation failed: {exc}",
+            status_code=500, detail="Embedding computation failed"
         ) from exc
 
 
 @router.get("/recommendations/embeddings/{lora_id}", response_model=EmbeddingStatus)
-async def get_embedding_status(
+def get_embedding_status(
     lora_id: str,
     services: ServiceRegistry = Depends(get_services),
 ):
@@ -274,9 +271,9 @@ async def get_embedding_status(
         return status
 
     except Exception as exc:
+        logger.exception("Failed to get embedding status")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get embedding status: {exc}",
+            status_code=500, detail="Failed to get embedding status"
         ) from exc
 
 
@@ -313,16 +310,16 @@ async def compute_single_embedding(
             raise HTTPException(status_code=500, detail="Embedding computation failed")
 
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=404, detail="LoRA not found") from exc
     except Exception as exc:
+        logger.exception("Embedding computation failed")
         raise HTTPException(
-            status_code=500,
-            detail=f"Embedding computation failed: {exc}",
+            status_code=500, detail="Embedding computation failed"
         ) from exc
 
 
 @router.post("/recommendations/feedback", response_model=RecommendationFeedbackRead)
-async def submit_recommendation_feedback(
+def submit_recommendation_feedback(
     feedback: UserFeedbackRequest,
     services: ServiceRegistry = Depends(get_services),
 ):
@@ -342,16 +339,18 @@ async def submit_recommendation_feedback(
         return RecommendationFeedbackRead.from_orm(record)
 
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except Exception as exc:
         raise HTTPException(
-            status_code=500,
-            detail=f"Feedback submission failed: {exc}",
+            status_code=404, detail="Recommendation session or LoRA not found"
+        ) from exc
+    except Exception as exc:
+        logger.exception("Feedback submission failed")
+        raise HTTPException(
+            status_code=500, detail="Feedback submission failed"
         ) from exc
 
 
 @router.post("/recommendations/preferences", response_model=UserPreferenceRead)
-async def update_user_preferences(
+def update_user_preferences(
     preference: UserPreferenceRequest,
     services: ServiceRegistry = Depends(get_services),
 ):
@@ -373,10 +372,8 @@ async def update_user_preferences(
         return UserPreferenceRead.from_orm(preference_record)
 
     except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Preference update failed: {exc}",
-        ) from exc
+        logger.exception("Preference update failed")
+        raise HTTPException(status_code=500, detail="Preference update failed") from exc
 
 
 @router.post(
@@ -403,13 +400,12 @@ async def rebuild_similarity_index(
         return result
 
     except Exception as exc:
-        raise HTTPException(
-            status_code=500, detail=f"Index rebuild failed: {exc}"
-        ) from exc
+        logger.exception("Index rebuild failed")
+        raise HTTPException(status_code=500, detail="Index rebuild failed") from exc
 
 
 @router.get("/recommendations/health")
-async def get_recommendation_health(
+def get_recommendation_health(
     services: ServiceRegistry = Depends(get_services),
 ):
     """Get health status of the recommendation system.
@@ -447,9 +443,9 @@ async def get_recommendation_health(
 
         return health_status
 
-    except Exception as e:
+    except Exception:
+        logger.exception("Recommendation health check failed")
         return {
             "status": "unhealthy",
-            "error": str(e),
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }

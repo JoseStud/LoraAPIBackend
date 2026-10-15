@@ -20,7 +20,7 @@ router = APIRouter()
 
 
 @router.get("/results", response_model=List[GenerationResultSummary])
-async def list_generation_results(
+def list_generation_results(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     services: ServiceRegistry = Depends(get_services),
@@ -30,7 +30,7 @@ async def list_generation_results(
 
 
 @router.get("/results/stats")
-async def get_generation_result_stats(
+def get_generation_result_stats(
     services: ServiceRegistry = Depends(get_services),
 ):
     """Return totals for finished results (count, average rating, favourites)."""
@@ -38,7 +38,7 @@ async def get_generation_result_stats(
 
 
 @router.delete("/results/bulk-delete")
-async def bulk_delete_generation_results(
+def bulk_delete_generation_results(
     request: GenerationBulkDeleteRequest,
     services: ServiceRegistry = Depends(get_services),
 ):
@@ -52,7 +52,7 @@ async def bulk_delete_generation_results(
 
 
 @router.delete("/results/{result_id}", status_code=204)
-async def delete_generation_result(
+def delete_generation_result(
     result_id: str,
     services: ServiceRegistry = Depends(get_services),
 ):
@@ -65,7 +65,7 @@ async def delete_generation_result(
 
 
 @router.get("/results/{result_id}/download")
-async def download_generation_result(
+def download_generation_result(
     result_id: str,
     services: ServiceRegistry = Depends(get_services),
 ):

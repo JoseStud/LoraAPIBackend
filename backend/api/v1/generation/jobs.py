@@ -50,7 +50,7 @@ async def queue_generation_job(
 
 
 @router.get("/jobs/active", response_model=List[GenerationJobStatus])
-async def list_active_generation_jobs(
+def list_active_generation_jobs(
     limit: int = Query(50, ge=1, le=200),
     services: ServiceRegistry = Depends(get_services),
 ):
@@ -59,7 +59,7 @@ async def list_active_generation_jobs(
 
 
 @router.get("/jobs/{job_id}", response_model=DeliveryWrapper)
-async def get_generation_job(
+def get_generation_job(
     job_id: str,
     services: ServiceRegistry = Depends(get_services),
 ):

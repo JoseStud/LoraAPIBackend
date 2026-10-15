@@ -6,6 +6,7 @@ from active adapters and optionally schedules a delivery.
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi.concurrency import run_in_threadpool
 
 from backend.core.dependencies import get_services
 from backend.schemas import ComposeRequest, ComposeResponse
@@ -25,7 +26,8 @@ async def compose(
 ):
     """Compose a prompt from active adapters and optionally schedule delivery."""
     # Compose prompt and collect warnings via the shared helper
-    composition = services.compose.compose_from_adapter_service(
+    composition = await run_in_threadpool(
+        services.compose.compose_from_adapter_service,
         services.adapters,
         prefix=req.prefix or "",
         suffix=req.suffix or "",
@@ -43,7 +45,8 @@ async def compose(
                 sdnext_config.generation_params.model_copy()
             )
             generation_params.prompt = composition.prompt
-            job = services.generation_coordinator.schedule_generation_job(
+            job = await run_in_threadpool(
+                services.generation_coordinator.schedule_generation_job,
                 generation_params,
                 backend=req.delivery.mode,
                 mode=sdnext_config.mode,
@@ -56,7 +59,8 @@ async def compose(
                 generation_params,
             )
         else:
-            job = services.deliveries.schedule_job(
+            job = await run_in_threadpool(
+                services.deliveries.schedule_job,
                 composition.prompt,
                 req.delivery.mode,
                 req.delivery.model_dump(),

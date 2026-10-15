@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 @router.post("/deliveries", status_code=201, response_model=DeliveryCreateResponse)
-async def create_delivery(
+def create_delivery(
     delivery: DeliveryCreate,
     background_tasks: BackgroundTasks,
     services: ServiceRegistry = Depends(get_services),

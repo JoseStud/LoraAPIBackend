@@ -6,6 +6,7 @@ from typing import Dict
 
 import structlog
 from fastapi import HTTPException
+from fastapi.concurrency import run_in_threadpool
 
 from backend.delivery import get_delivery_registry, get_generation_backend
 from backend.schemas import (
@@ -106,7 +107,8 @@ async def compose_and_generate(
     services: ServiceRegistry,
 ) -> SDNextGenerationResult:
     """Compose a prompt and immediately generate images."""
-    composition = services.compose.compose_from_adapter_service(
+    composition = await run_in_threadpool(
+        services.compose.compose_from_adapter_service,
         services.adapters,
         prefix=compose_request.prefix or "",
         suffix=compose_request.suffix or "",

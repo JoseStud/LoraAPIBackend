@@ -22,7 +22,7 @@ router = APIRouter()
 
 
 @router.get("/backends", response_model=Dict[str, bool])
-async def list_generation_backends():
+def list_generation_backends():
     """List available generation backends and their status."""
     return controller.list_generation_backends()
 

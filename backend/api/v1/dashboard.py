@@ -1,9 +1,10 @@
 """Dashboard API endpoints for frontend statistics and system health."""
 
 import os
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends
+from fastapi.concurrency import run_in_threadpool
 
 from backend.core.dependencies import get_services
 from backend.services import ServiceRegistry
@@ -26,18 +27,23 @@ def _database_size_bytes() -> Optional[int]:
         return None
 
 
+def _collect_stats(services: ServiceRegistry) -> Dict[str, Any]:
+    stats = services.adapters.get_dashboard_statistics()
+    stats["active_jobs"] = services.deliveries.count_active_jobs()
+    stats["database_size"] = _database_size_bytes()
+    return stats
+
+
 @router.get("/stats")
 async def get_dashboard_stats(
     services: ServiceRegistry = Depends(get_services),
 ):
     """Get dashboard statistics and system health information."""
-    stats = services.adapters.get_dashboard_statistics()
-    stats["active_jobs"] = services.deliveries.count_active_jobs()
+    stats = await run_in_threadpool(_collect_stats, services)
 
     status_payload = await services.system.get_system_status_payload()
     # jobs currently being processed; the queue doesn't report a worker pool size
     stats["active_workers"] = status_payload.get("active_workers")
-    stats["database_size"] = _database_size_bytes()
     system_health = (await services.system.get_health_summary(status_payload)).as_dict()
 
     return {
@@ -49,7 +55,7 @@ async def get_dashboard_stats(
 
 
 @router.get("/featured-loras")
-async def get_featured_loras(services: ServiceRegistry = Depends(get_services)):
+def get_featured_loras(services: ServiceRegistry = Depends(get_services)):
     """Get featured LoRAs for the dashboard."""
     featured_loras = services.adapters.get_featured_adapters(limit=5)
 
@@ -68,7 +74,7 @@ async def get_featured_loras(services: ServiceRegistry = Depends(get_services)):
 
 
 @router.get("/activity-feed")
-async def get_activity_feed(
+def get_activity_feed(
     services: ServiceRegistry = Depends(get_services),
 ):
     """Get recent activity feed for the dashboard."""
