@@ -3,7 +3,7 @@
  * this module instead of reaching into nested folders.
  */
 export { default as GenerationShell } from './ui/GenerationShell.vue';
-export { useGenerationStudioController } from './controller/useGenerationStudioController';
+export { useGenerationStudioController } from './composables/useGenerationStudioController';
 export { default as JobQueueWidget } from './public/jobQueueWidget';
 export { default as SystemAdminStatusCard } from './components/system/SystemAdminStatusCard.vue';
 export { default as SystemStatusCard } from './components/system/SystemStatusCard.vue';

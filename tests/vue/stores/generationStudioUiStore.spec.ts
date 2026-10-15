@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { createGalleryModalVm } from '@/features/generation/vm/createGalleryModalVm'
-import { createStudioVm } from '@/features/generation/vm/createStudioVm'
+import {
+  createGalleryModalVm,
+  createStudioVm,
+} from '@/features/generation/composables/useGenerationStudioController'
 import type { GenerationResult } from '@/types'
 
 describe('generation studio view models', () => {

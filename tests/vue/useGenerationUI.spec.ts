@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
-import { useGenerationUI } from '@/features/generation/composables/useGenerationUI'
+import {
+  createGalleryModalVm,
+  createStudioVm,
+  useGenerationUI,
+} from '@/features/generation/composables/useGenerationStudioController'
 import { useGenerationFormStore } from '@/features/generation/stores/form'
 import { useGenerationOrchestratorStore } from '@/features/generation/stores/useGenerationOrchestratorStore'
-import { createGalleryModalVm } from '@/features/generation/vm/createGalleryModalVm'
-import { createStudioVm } from '@/features/generation/vm/createStudioVm'
 import type { GenerationResult } from '@/types'
 
 describe('useGenerationUI', () => {

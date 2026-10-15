@@ -8,8 +8,8 @@ import type { UseGenerationStudioOptions } from '@/features/generation/composabl
 import { useGenerationFormStore } from '@/features/generation/stores/form'
 import type { UseGenerationStudioReturn } from '@/features/generation/composables/useGenerationStudio'
 import { PERSISTENCE_KEYS } from '@/composables/shared'
-import * as studioVmModule from '@/features/generation/vm/createStudioVm'
-import * as galleryVmModule from '@/features/generation/vm/createGalleryModalVm'
+import * as studioVmModule from '@/features/generation/composables/useGenerationStudioController'
+import * as galleryVmModule from '@/features/generation/composables/useGenerationStudioController'
 import type { ResultItemView } from '@/features/generation/orchestrator'
 
 const orchestratorBindingMocks = vi.hoisted(() => {
