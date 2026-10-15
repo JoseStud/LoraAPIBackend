@@ -149,7 +149,11 @@ Read these before changing the matching subsystem:
   commands and the routing of adapter callbacks into the store live in
   `features/generation/stores/orchestrator/transportModule.ts`. Extend those
   instead of adding polling to components. Polling intervals come from
-  `features/generation/config/polling.ts`. The progress socket's message
+  `features/generation/config/polling.ts`. `/system/status` has one poller per
+  backend, `features/generation/stores/systemStatusController.ts`, shared by
+  the Studio transport and the dashboard status card; it pauses itself while
+  the page is hidden or offline, and the transport's status refresh goes
+  through it. The progress socket's message
   shapes are pinned by `tests/fixtures/generation_websocket_contract.json`,
   checked from both sides (`tests/test_websocket_contract.py` and
   `websocketContract.spec.ts`); regenerate it with `UPDATE_WS_CONTRACT=1`

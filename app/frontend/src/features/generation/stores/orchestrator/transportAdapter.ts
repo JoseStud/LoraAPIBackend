@@ -51,6 +51,8 @@ export interface GenerationTransportAdapterOptions {
   onTransportError?: (error: GenerationTransportError) => void;
   onHydrateSystemStatus: () => Promise<void> | void;
   onReleaseSystemStatus: () => void;
+  /** Fetches `/system/status` through the shared status controller instead of the queue client. */
+  refreshSystemStatus?: () => Promise<void>;
 }
 
 export interface GenerationTransportAdapter {
@@ -118,6 +120,7 @@ export const createGenerationTransportAdapter = (
       logger: logDebug,
       onHydrateSystemStatus: () => options.onHydrateSystemStatus(),
       onReleaseSystemStatus: () => options.onReleaseSystemStatus(),
+      refreshSystemStatus: options.refreshSystemStatus,
       onTransportError: (error) => {
         options.onTransportError?.(error);
       },

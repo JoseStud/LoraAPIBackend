@@ -183,6 +183,7 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
           transportModule.recordTransportError(error);
         },
         onHydrateSystemStatus: () => controller.ensureHydrated(),
+        refreshSystemStatus: () => controller.refresh(),
         onReleaseSystemStatus: () => {
           systemStatusRelease.value?.();
           systemStatusRelease.value = null;

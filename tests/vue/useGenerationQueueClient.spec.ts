@@ -131,6 +131,24 @@ describe('useGenerationQueueClient validation', () => {
     warnSpy.mockRestore();
   });
 
+  it('delegates system status refreshes to a shared poller when one is provided', async () => {
+    const queueClient = createQueueClient();
+    const refreshSystemStatus = vi.fn().mockResolvedValue(undefined);
+    const onSystemStatus = vi.fn();
+
+    const composable = useGenerationQueueClient(
+      { getBackendUrl: () => null, queueClient },
+      { refreshSystemStatus, onSystemStatus },
+    );
+
+    await composable.refreshAllData(10);
+
+    expect(refreshSystemStatus).toHaveBeenCalledTimes(1);
+    expect(queueClient.fetchSystemStatus).not.toHaveBeenCalled();
+    expect(onSystemStatus).not.toHaveBeenCalled();
+    expect(queueClient.fetchActiveJobs).toHaveBeenCalledTimes(1);
+  });
+
   it('reports HTTP transport errors with metadata', async () => {
     const apiError = new ApiError({
       message: 'Server exploded',
