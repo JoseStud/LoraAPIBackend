@@ -57,6 +57,7 @@ def test_services_are_built_once_and_shared_between_dependents(db_session) -> No
         "generation",
         "analytics",
         "recommendations",
+        "recommendation_jobs",
         "archive",
         "deliveries",
         "websocket",
@@ -74,6 +75,9 @@ def test_services_are_built_once_and_shared_between_dependents(db_session) -> No
         registry.deliveries,
         registry.websocket,
         registry.generation,
+    )
+    mocks["recommendation_jobs"].assert_called_once_with(
+        registry._queue_orchestrator, gpu_available=False
     )
 
 

@@ -28,7 +28,9 @@ from .providers.generation import (
     make_generation_service,
 )
 from .providers.recommendations import (
+    RecommendationJobServiceFactory,
     RecommendationServiceFactory,
+    make_recommendation_job_service,
     make_recommendation_service,
 )
 from .providers.storage import (
@@ -43,6 +45,7 @@ from .providers.websocket import (
     default_websocket_service_factory,
 )
 from .queue import QueueOrchestrator
+from .recommendation_jobs import RecommendationJobService
 from .recommendations import RecommendationService
 from .storage import StorageService
 from .system import SystemService
@@ -59,6 +62,9 @@ class ServiceFactories:
     generation: GenerationServiceFactory = make_generation_service
     analytics: AnalyticsServiceFactory = make_analytics_service
     recommendation: RecommendationServiceFactory = make_recommendation_service
+    recommendation_jobs: RecommendationJobServiceFactory = (
+        make_recommendation_job_service
+    )
     archive: ArchiveServiceFactory = make_archive_service
     delivery: DeliveryServiceFactory = make_delivery_service
     generation_coordinator: GenerationCoordinatorFactory = make_generation_coordinator
@@ -143,6 +149,21 @@ class ServiceRegistry:
             )
         return self._factories.recommendation(
             session,
+            gpu_available=self._recommendation_gpu_available,
+        )
+
+    @cached_property
+    def recommendation_jobs(self) -> RecommendationJobService:
+        """Return the service that queues long-running recommendation work."""
+        if self._queue_orchestrator is None:
+            raise ValueError("RecommendationJobService requires a queue orchestrator")
+        if self._recommendation_gpu_available is None:
+            raise ValueError(
+                "RecommendationJobService requires an explicit "
+                "recommendation_gpu_available flag",
+            )
+        return self._factories.recommendation_jobs(
+            self._queue_orchestrator,
             gpu_available=self._recommendation_gpu_available,
         )
 

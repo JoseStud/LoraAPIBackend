@@ -8,11 +8,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from backend.core.dependencies import get_services
 from backend.schemas.recommendations import (
     BatchEmbeddingRequest,
-    BatchEmbeddingResponse,
     EmbeddingStatus,
-    IndexRebuildResponse,
     PromptRecommendationRequest,
     RecommendationFeedbackRead,
+    RecommendationJobRead,
     RecommendationResponse,
     RecommendationStats,
     UserFeedbackRequest,
@@ -208,45 +207,35 @@ def get_recommendation_stats(
 
 
 @router.post(
-    "/recommendations/embeddings/compute", response_model=BatchEmbeddingResponse
+    "/recommendations/embeddings/compute",
+    response_model=RecommendationJobRead,
+    status_code=202,
 )
-async def compute_embeddings(
+def compute_embeddings(
     request: BatchEmbeddingRequest,
     services: ServiceRegistry = Depends(get_services),
 ):
-    """Compute embeddings for LoRAs in batch.
+    """Queue embedding computation for LoRAs in batch.
 
     Args:
         request: Batch embedding request specifying which LoRAs to process
-        services: Domain service container that provides recommendation logic
+        services: Domain service container that provides the job queue
 
     Returns:
-        Processing results with counts and timing information
+        The queued job; poll ``/recommendations/jobs/{job_id}`` for the
+        `BatchEmbeddingResponse` result.
 
     """
     try:
-        recommendation_service = services.recommendations
-        if request.compute_all:
-            # Compute for all active LoRAs
-            result = await recommendation_service.embeddings.compute_batch(
-                adapter_ids=None,
-                force_recompute=request.force_recompute,
-                batch_size=request.batch_size,
-            )
-        else:
-            # Compute for specific LoRAs
-            result = await recommendation_service.embeddings.compute_batch(
-                adapter_ids=request.adapter_ids,
-                force_recompute=request.force_recompute,
-                batch_size=request.batch_size,
-            )
-
-        return BatchEmbeddingResponse(**result)
-
+        return services.recommendation_jobs.enqueue_embeddings_batch(
+            None if request.compute_all else request.adapter_ids,
+            force_recompute=request.force_recompute,
+            batch_size=request.batch_size,
+        )
     except Exception as exc:
-        logger.exception("Embedding computation failed")
+        logger.exception("Failed to queue embedding computation")
         raise HTTPException(
-            status_code=500, detail="Embedding computation failed"
+            status_code=500, detail="Failed to queue embedding computation"
         ) from exc
 
 
@@ -277,44 +266,40 @@ def get_embedding_status(
         ) from exc
 
 
-@router.post("/recommendations/embeddings/{lora_id}/compute")
-async def compute_single_embedding(
+@router.post(
+    "/recommendations/embeddings/{lora_id}/compute",
+    response_model=RecommendationJobRead,
+    status_code=202,
+)
+def compute_single_embedding(
     lora_id: str,
     force_recompute: bool = Query(default=False),
     services: ServiceRegistry = Depends(get_services),
 ):
-    """Compute embeddings for a single LoRA.
+    """Queue embedding computation for a single LoRA.
 
     Args:
         lora_id: ID of the LoRA to process
         force_recompute: Whether to recompute existing embeddings
-        services: Domain service container that provides recommendation logic
+        services: Domain service container that provides the job queue
 
     Returns:
-        Success status
+        The queued job; poll ``/recommendations/jobs/{job_id}`` for the
+        `EmbeddingComputeResponse` result.
 
     """
+    if services.adapters.get_adapter(lora_id) is None:
+        raise HTTPException(status_code=404, detail="LoRA not found")
+
     try:
-        recommendation_service = services.recommendations
-        success = await recommendation_service.embeddings.compute_for_lora(
+        return services.recommendation_jobs.enqueue_embedding(
             lora_id,
             force_recompute=force_recompute,
         )
-
-        if success:
-            return {
-                "status": "success",
-                "message": f"Embeddings computed for {lora_id}",
-            }
-        else:
-            raise HTTPException(status_code=500, detail="Embedding computation failed")
-
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail="LoRA not found") from exc
     except Exception as exc:
-        logger.exception("Embedding computation failed")
+        logger.exception("Failed to queue embedding computation")
         raise HTTPException(
-            status_code=500, detail="Embedding computation failed"
+            status_code=500, detail="Failed to queue embedding computation"
         ) from exc
 
 
@@ -378,30 +363,62 @@ def update_user_preferences(
 
 @router.post(
     "/recommendations/index/rebuild",
-    response_model=IndexRebuildResponse,
+    response_model=RecommendationJobRead,
+    status_code=202,
 )
-async def rebuild_similarity_index(
+def rebuild_similarity_index(
     force: bool = Query(default=False),
     services: ServiceRegistry = Depends(get_services),
 ):
-    """Rebuild the similarity index for fast recommendations.
+    """Queue a rebuild of the similarity index used for fast recommendations.
 
     Args:
         force: Force rebuild even if index exists
-        services: Domain service container that provides recommendation logic
+        services: Domain service container that provides the job queue
 
     Returns:
-        Rebuild status and timing
+        The queued job; poll ``/recommendations/jobs/{job_id}`` for the
+        `IndexRebuildResponse` result.
 
     """
     try:
-        recommendation_service = services.recommendations
-        result = await recommendation_service.refresh_indexes(force=force)
-        return result
-
+        return services.recommendation_jobs.enqueue_index_rebuild(force=force)
     except Exception as exc:
-        logger.exception("Index rebuild failed")
-        raise HTTPException(status_code=500, detail="Index rebuild failed") from exc
+        logger.exception("Failed to queue index rebuild")
+        raise HTTPException(
+            status_code=500, detail="Failed to queue index rebuild"
+        ) from exc
+
+
+@router.get(
+    "/recommendations/jobs/{job_id}",
+    response_model=RecommendationJobRead,
+)
+def get_recommendation_job(
+    job_id: str,
+    services: ServiceRegistry = Depends(get_services),
+):
+    """Return the status of a queued recommendation job.
+
+    Args:
+        job_id: Identifier returned when the job was queued
+        services: Domain service container that provides the job queue
+
+    Returns:
+        The job's status, and its result once it has succeeded
+
+    """
+    try:
+        job = services.recommendation_jobs.get_job(job_id)
+    except Exception as exc:
+        logger.exception("Failed to get recommendation job %s", job_id)
+        raise HTTPException(
+            status_code=500, detail="Failed to get recommendation job"
+        ) from exc
+
+    if job is None:
+        raise HTTPException(status_code=404, detail="Recommendation job not found")
+    return job
 
 
 @router.get("/recommendations/health")

@@ -1,7 +1,7 @@
 """Recommendation request/response schemas."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -181,3 +181,36 @@ class IndexRebuildResponse(BaseModel):
     rebuilt_at: datetime
     skipped: bool = False
     skipped_reason: Optional[str] = None
+
+
+class EmbeddingComputeResponse(BaseModel):
+    """Result of computing embeddings for a single LoRA."""
+
+    status: Literal["success"] = "success"
+    message: str
+
+
+RecommendationJobKind = Literal["embeddings_batch", "embedding", "index_rebuild"]
+RecommendationJobState = Literal["queued", "running", "succeeded", "failed"]
+
+
+class RecommendationJobRead(BaseModel):
+    """A queued recommendation job: embedding computation or an index rebuild.
+
+    ``result`` is set once the job has succeeded and has the shape the
+    endpoint that queued it used to return synchronously: a
+    ``BatchEmbeddingResponse``, an ``EmbeddingComputeResponse`` or an
+    ``IndexRebuildResponse``, depending on ``kind``. ``error`` is a generic
+    message when the job failed; details are only logged server-side.
+    """
+
+    job_id: str
+    kind: RecommendationJobKind
+    status: RecommendationJobState
+    created_at: Optional[datetime] = None
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+    result: Optional[
+        Union[BatchEmbeddingResponse, EmbeddingComputeResponse, IndexRebuildResponse]
+    ] = None
+    error: Optional[str] = None

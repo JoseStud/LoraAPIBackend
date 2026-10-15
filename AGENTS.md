@@ -176,6 +176,8 @@ Read these before changing the matching subsystem:
 - **Recommendations**: GPU detection and embedding workflows go through
   `EmbeddingCoordinator`
   (`backend/services/recommendations/embedding_coordinator.py`).
+  Long-running work (embedding computation, index rebuilds) is enqueued
+  through `services.recommendation_jobs`, never run in the request.
 
 ### Frontend orchestration map
 

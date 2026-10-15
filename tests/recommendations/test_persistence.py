@@ -105,3 +105,28 @@ class TestEmbeddingBatchRunner:
         assert result["skipped_count"] == 1
         computer.compute.assert_awaited_once()
         computer.compute.assert_awaited_with("adapter-2", force_recompute=False)
+
+    @pytest.mark.anyio("asyncio")
+    async def test_batch_compute_reports_generic_errors(
+        self,
+        db_session,
+        sample_adapter,
+    ):
+        db_session.add(sample_adapter)
+        db_session.commit()
+
+        repository = LoRAEmbeddingRepository(db_session)
+        computer = MagicMock()
+        computer.compute = AsyncMock(side_effect=RuntimeError("/secret/path missing"))
+
+        runner = EmbeddingBatchRunner(repository, computer)
+
+        result = await runner.run(force_recompute=True)
+
+        assert result["error_count"] == 1
+        assert result["errors"] == [
+            {
+                "adapter_id": sample_adapter.id,
+                "error": "Embedding computation failed",
+            },
+        ]

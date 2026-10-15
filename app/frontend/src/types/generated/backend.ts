@@ -707,14 +707,15 @@ export interface paths {
         put?: never;
         /**
          * Compute Embeddings
-         * @description Compute embeddings for LoRAs in batch.
+         * @description Queue embedding computation for LoRAs in batch.
          *
          *     Args:
          *         request: Batch embedding request specifying which LoRAs to process
-         *         services: Domain service container that provides recommendation logic
+         *         services: Domain service container that provides the job queue
          *
          *     Returns:
-         *         Processing results with counts and timing information
+         *         The queued job; poll ``/recommendations/jobs/{job_id}`` for the
+         *         `BatchEmbeddingResponse` result.
          */
         post: operations["compute_embeddings_v1_recommendations_embeddings_compute_post"];
         delete?: never;
@@ -761,15 +762,16 @@ export interface paths {
         put?: never;
         /**
          * Compute Single Embedding
-         * @description Compute embeddings for a single LoRA.
+         * @description Queue embedding computation for a single LoRA.
          *
          *     Args:
          *         lora_id: ID of the LoRA to process
          *         force_recompute: Whether to recompute existing embeddings
-         *         services: Domain service container that provides recommendation logic
+         *         services: Domain service container that provides the job queue
          *
          *     Returns:
-         *         Success status
+         *         The queued job; poll ``/recommendations/jobs/{job_id}`` for the
+         *         `EmbeddingComputeResponse` result.
          */
         post: operations["compute_single_embedding_v1_recommendations_embeddings__lora_id__compute_post"];
         delete?: never;
@@ -843,16 +845,44 @@ export interface paths {
         put?: never;
         /**
          * Rebuild Similarity Index
-         * @description Rebuild the similarity index for fast recommendations.
+         * @description Queue a rebuild of the similarity index used for fast recommendations.
          *
          *     Args:
          *         force: Force rebuild even if index exists
-         *         services: Domain service container that provides recommendation logic
+         *         services: Domain service container that provides the job queue
          *
          *     Returns:
-         *         Rebuild status and timing
+         *         The queued job; poll ``/recommendations/jobs/{job_id}`` for the
+         *         `IndexRebuildResponse` result.
          */
         post: operations["rebuild_similarity_index_v1_recommendations_index_rebuild_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/recommendations/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Recommendation Job
+         * @description Return the status of a queued recommendation job.
+         *
+         *     Args:
+         *         job_id: Identifier returned when the job was queued
+         *         services: Domain service container that provides the job queue
+         *
+         *     Returns:
+         *         The job's status, and its result once it has succeeded
+         */
+        get: operations["get_recommendation_job_v1_recommendations_jobs__job_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1640,6 +1670,20 @@ export interface components {
             delivery: components["schemas"]["DeliveryRead"];
         };
         /**
+         * EmbeddingComputeResponse
+         * @description Result of computing embeddings for a single LoRA.
+         */
+        EmbeddingComputeResponse: {
+            /**
+             * Status
+             * @default success
+             * @constant
+             */
+            status: "success";
+            /** Message */
+            message: string;
+        };
+        /**
          * EmbeddingStatus
          * @description Status of embedding computation for a LoRA.
          */
@@ -2165,6 +2209,40 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /**
+         * RecommendationJobRead
+         * @description A queued recommendation job: embedding computation or an index rebuild.
+         *
+         *     ``result`` is set once the job has succeeded and has the shape the
+         *     endpoint that queued it used to return synchronously: a
+         *     ``BatchEmbeddingResponse``, an ``EmbeddingComputeResponse`` or an
+         *     ``IndexRebuildResponse``, depending on ``kind``. ``error`` is a generic
+         *     message when the job failed; details are only logged server-side.
+         */
+        RecommendationJobRead: {
+            /** Job Id */
+            job_id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "embeddings_batch" | "embedding" | "index_rebuild";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "succeeded" | "failed";
+            /** Created At */
+            created_at?: string | null;
+            /** Started At */
+            started_at?: string | null;
+            /** Finished At */
+            finished_at?: string | null;
+            /** Result */
+            result?: components["schemas"]["BatchEmbeddingResponse"] | components["schemas"]["EmbeddingComputeResponse"] | components["schemas"]["IndexRebuildResponse"] | null;
+            /** Error */
+            error?: string | null;
         };
         /**
          * RecommendationResponse
@@ -3510,12 +3588,12 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BatchEmbeddingResponse"];
+                    "application/json": components["schemas"]["RecommendationJobRead"];
                 };
             };
             /** @description Validation Error */
@@ -3574,12 +3652,12 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["RecommendationJobRead"];
                 };
             };
             /** @description Validation Error */
@@ -3671,12 +3749,43 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendationJobRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_recommendation_job_v1_recommendations_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IndexRebuildResponse"];
+                    "application/json": components["schemas"]["RecommendationJobRead"];
                 };
             };
             /** @description Validation Error */

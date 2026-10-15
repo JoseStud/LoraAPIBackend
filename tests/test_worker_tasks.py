@@ -81,7 +81,7 @@ def test_rebuild_similarity_index_delegates_to_embedding_coordinator(
         )
 
     assert embeddings.calls == [True]
-    assert result == response.model_dump()
+    assert result == response.model_dump(mode="json")
     assert result["status"] == "rebuilt"
 
 

@@ -6,6 +6,8 @@ from typing import Optional, Protocol
 
 from sqlmodel import Session
 
+from ..queue import QueueOrchestrator
+from ..recommendation_jobs import RecommendationJobService
 from ..recommendations import (
     EmbeddingCoordinator,
     EmbeddingManager,
@@ -152,7 +154,31 @@ def make_recommendation_service(
     ).build()
 
 
+class RecommendationJobServiceFactory(Protocol):
+    """Callable protocol for creating :class:`RecommendationJobService` instances."""
+
+    def __call__(
+        self,
+        queue_orchestrator: QueueOrchestrator,
+        *,
+        gpu_available: bool,
+    ) -> RecommendationJobService:
+        """Create a :class:`RecommendationJobService` instance."""
+        ...
+
+
+def make_recommendation_job_service(
+    queue_orchestrator: QueueOrchestrator,
+    *,
+    gpu_available: bool,
+) -> RecommendationJobService:
+    """Create a :class:`RecommendationJobService` on the shared queue."""
+    return RecommendationJobService(queue_orchestrator, gpu_available=gpu_available)
+
+
 __all__ = [
+    "RecommendationJobServiceFactory",
     "RecommendationServiceFactory",
+    "make_recommendation_job_service",
     "make_recommendation_service",
 ]

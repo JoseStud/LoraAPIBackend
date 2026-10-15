@@ -53,3 +53,10 @@ export type EmbeddingStatus = Schemas['EmbeddingStatus'];
 export type BatchEmbeddingRequest = Schemas['BatchEmbeddingRequest'];
 
 export type BatchEmbeddingResponse = Schemas['BatchEmbeddingResponse'];
+
+export type EmbeddingComputeResponse = Schemas['EmbeddingComputeResponse'];
+
+export type IndexRebuildResponse = Schemas['IndexRebuildResponse'];
+
+/** Returned (HTTP 202) by the embedding and index endpoints; poll `/recommendations/jobs/{job_id}`. */
+export type RecommendationJob = Schemas['RecommendationJobRead'];

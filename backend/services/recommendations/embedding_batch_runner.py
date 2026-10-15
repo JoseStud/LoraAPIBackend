@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from datetime import datetime, timezone
 from typing import Any, Dict, Sequence
 
 from .embedding_computer import EmbeddingComputer
 from .embedding_repository import LoRAEmbeddingRepository
+
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingBatchRunner:
@@ -60,12 +63,15 @@ class EmbeddingBatchRunner:
                         force_recompute=force_recompute,
                     )
                     processed_count += 1
-                except Exception as exc:  # pragma: no cover - detailed reporting only
+                except Exception:
+                    # The batch result reaches API clients, so the exception
+                    # text is only logged.
+                    logger.exception("Embedding computation failed for %s", adapter.id)
                     error_count += 1
                     errors.append(
                         {
                             "adapter_id": adapter.id,
-                            "error": str(exc),
+                            "error": "Embedding computation failed",
                         },
                     )
 
