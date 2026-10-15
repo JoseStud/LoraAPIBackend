@@ -13,8 +13,8 @@ import os
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
-from backend.core.dependencies import get_application_services, get_core_services
-from backend.services import ApplicationServices, CoreServices
+from backend.core.dependencies import get_services
+from backend.services import ServiceRegistry
 from backend.utils.images import resolve_output_dir
 
 router = APIRouter(prefix="/generation", tags=["generation"])
@@ -33,24 +33,23 @@ _CACHE_CONTROL = "private, max-age=86400"
 async def get_result_image(
     job_id: str,
     index: int,
-    application: ApplicationServices = Depends(get_application_services),
-    core: CoreServices = Depends(get_core_services),
+    services: ServiceRegistry = Depends(get_services),
 ) -> FileResponse:
     """Return image ``index`` of a generation result as a file."""
-    job = application.deliveries.get_job(job_id)
+    job = services.deliveries.get_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Image not found")
 
-    asset = application.deliveries.result_manager.resolve_image_asset(
+    asset = services.deliveries.result_manager.resolve_image_asset(
         job,
         index,
-        core.storage,
-        coordinator=application.generation_coordinator,
+        services.storage,
+        coordinator=services.generation_coordinator,
     )
     if asset is None or not asset.path:
         raise HTTPException(status_code=404, detail="Image not found")
 
-    if not core.storage.validate_file_path(asset.path, root=resolve_output_dir()):
+    if not services.storage.validate_file_path(asset.path, root=resolve_output_dir()):
         raise HTTPException(status_code=404, detail="Image not found")
 
     return FileResponse(
