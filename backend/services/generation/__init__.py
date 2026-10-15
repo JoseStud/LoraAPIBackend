@@ -199,6 +199,7 @@ class GenerationCoordinator:
         save_images: bool = True,
         return_format: str = "base64",
         background_tasks: Optional[BackgroundTasks] = None,
+        client_ref: Optional[str] = None,
         **enqueue_kwargs: Any,
     ) -> DeliveryJob:
         """Create and enqueue a generation delivery job."""
@@ -209,6 +210,8 @@ class GenerationCoordinator:
             "return_format": return_format,
             "backend": backend,
         }
+        if client_ref:
+            delivery_params["client_ref"] = client_ref
 
         schedule_kwargs: Dict[str, Any] = dict(enqueue_kwargs)
         if background_tasks is not None:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
 
@@ -29,6 +29,11 @@ async def queue_generation_job(
     mode: str = "deferred",
     save_images: bool = True,
     return_format: str = "base64",
+    client_ref: Optional[str] = Query(
+        None,
+        max_length=200,
+        description="Opaque caller tag echoed back in the job-finished webhook.",
+    ),
     application: ApplicationServices = Depends(get_application_services),
 ):
     """Queue a generation job for background processing."""
@@ -40,6 +45,7 @@ async def queue_generation_job(
         mode=mode,
         save_images=save_images,
         return_format=return_format,
+        client_ref=client_ref,
     )
 
 

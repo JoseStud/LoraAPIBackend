@@ -271,3 +271,49 @@ async def test_queue_generation_job_falls_back_to_background_tasks(
     broadcast_args, broadcast_kwargs = broadcast_mock.await_args
     assert broadcast_args[0] == job_id
     assert broadcast_kwargs == {}
+
+
+@pytest.mark.anyio
+async def test_queue_generation_job_stores_client_ref(
+    client: TestClient,
+    db_session,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """``client_ref`` is kept with the job so the finished webhook can echo it."""
+    queue = RecordingQueueBackend()
+    monkeypatch.setattr(websocket_service, "start_job_monitoring", AsyncMock())
+    monkeypatch.setattr(
+        websocket_service.manager, "broadcast_generation_started", AsyncMock()
+    )
+
+    def override_service_container():
+        builder = get_service_container_builder()
+        return builder.build(
+            db_session,
+            queue_orchestrator=QueueOrchestrator(primary_backend=queue),
+            delivery_repository=DeliveryJobRepository(db_session),
+            analytics_repository=AnalyticsRepository(db_session),
+            recommendation_gpu_available=False,
+        )
+
+    backend_app.dependency_overrides[get_service_container] = override_service_container
+    try:
+        response = client.post(
+            "/api/v1/generation/queue-generation",
+            params={"client_ref": "n8n-form"},
+            json={"prompt": "Tagged job"},
+        )
+        too_long = client.post(
+            "/api/v1/generation/queue-generation",
+            params={"client_ref": "x" * 201},
+            json={"prompt": "Tagged job"},
+        )
+    finally:
+        backend_app.dependency_overrides.pop(get_service_container, None)
+
+    assert response.status_code == 200
+    job_id = response.json()["delivery_id"]
+    repository = DeliveryJobRepository(db_session)
+    job = repository.get_job(job_id)
+    assert repository.get_job_params(job)["client_ref"] == "n8n-form"
+    assert too_long.status_code == 422

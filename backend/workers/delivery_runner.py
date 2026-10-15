@@ -11,6 +11,7 @@ from backend.delivery.base import DeliveryRegistry
 from backend.schemas import SDNextGenerationParams
 from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
+from backend.services.job_webhooks import NOTIFY_STATUSES, JobWebhookNotifier
 
 _SUCCESS_STATUSES = {"ok", "completed", 200}
 logger = logging.getLogger(__name__)
@@ -19,9 +20,19 @@ logger = logging.getLogger(__name__)
 class DeliveryRunner:
     """Coordinate delivery job execution using registered backends."""
 
-    def __init__(self, delivery_registry: DeliveryRegistry) -> None:
-        """Store the registry used to resolve delivery backends."""
+    def __init__(
+        self,
+        delivery_registry: DeliveryRegistry,
+        *,
+        webhook_notifier: Optional[JobWebhookNotifier] = None,
+    ) -> None:
+        """Store the registry and an optional finished-job webhook notifier.
+
+        Without an explicit notifier, one is built from settings per job, so a
+        missing ``JOB_WEBHOOK_URL`` simply disables the webhook.
+        """
         self._delivery_registry = delivery_registry
+        self._webhook_notifier = webhook_notifier
 
     def process_delivery_job(
         self,
@@ -99,8 +110,32 @@ class DeliveryRunner:
             service = DeliveryService(repository)
             service.update_job_status(job_id, status, result_payload)
 
+        if status in NOTIFY_STATUSES:
+            await self._notify_finished(job_id, status, prompt, params, result_payload)
+
         if error is not None and raise_on_error:
             raise error
+
+    async def _notify_finished(
+        self,
+        job_id: str,
+        status: str,
+        prompt: str,
+        params: Dict[str, Any],
+        result: Dict[str, Any],
+    ) -> None:
+        """Announce a final job status through the webhook, if configured."""
+        notifier = self._webhook_notifier or JobWebhookNotifier.from_settings()
+        if notifier is None:
+            return
+        payload = notifier.build_payload(
+            job_id,
+            status,
+            prompt,
+            params if isinstance(params, dict) else {},
+            result,
+        )
+        await notifier.send(payload)
 
     async def _execute_delivery_backend(
         self,

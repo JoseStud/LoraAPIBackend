@@ -67,6 +67,14 @@ class Settings(BaseSettings):
     SDNEXT_PRE_GENERATE_COMMAND: Optional[str] = None
     SDNEXT_PRE_GENERATE_TIMEOUT: int = 30  # seconds
 
+    # Outbound webhook fired when a queued generation job finishes (e.g. an n8n
+    # Webhook node). Unset disables it. The token is sent in the header named
+    # by JOB_WEBHOOK_TOKEN_HEADER so the receiver can reject other callers.
+    JOB_WEBHOOK_URL: Optional[str] = None
+    JOB_WEBHOOK_TOKEN: Optional[str] = None
+    JOB_WEBHOOK_TOKEN_HEADER: str = "X-LoRA-Manager-Token"
+    JOB_WEBHOOK_TIMEOUT: float = Field(default=5.0, gt=0)
+
     # Generation polling intervals (milliseconds)
     GENERATION_QUEUE_POLL_INTERVAL_MS: int = Field(default=2_000, gt=0)
     GENERATION_WEBSOCKET_RETRY_INTERVAL_MS: int = Field(default=3_000, gt=0)
