@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 
 import SystemStatusCard from '@/features/generation/components/system/SystemStatusCard.vue';
-import { useGenerationConnectionStore } from '@/features/generation/stores/connection';
+import { useGenerationOrchestratorStore } from '@/features/generation/stores/useGenerationOrchestratorStore';
 
 const mockController = {
   ensureHydrated: vi.fn().mockResolvedValue(undefined),
@@ -30,7 +30,7 @@ const flush = async () => {
 
 describe('SystemStatusCard.vue', () => {
   beforeEach(() => {
-    const store = useGenerationConnectionStore();
+    const store = useGenerationOrchestratorStore();
     store.resetState();
     mockController.ensureHydrated.mockClear();
     mockController.refresh.mockClear();
@@ -44,7 +44,7 @@ describe('SystemStatusCard.vue', () => {
   });
 
   it('renders system status using shared store data (simple variant)', async () => {
-    const store = useGenerationConnectionStore();
+    const store = useGenerationOrchestratorStore();
     store.updateSystemStatus({
       gpu_status: 'Available',
       queue_length: 3,
@@ -67,7 +67,7 @@ describe('SystemStatusCard.vue', () => {
   });
 
   it('shows fallback messaging when real-time status is unavailable (detailed variant)', async () => {
-    const store = useGenerationConnectionStore();
+    const store = useGenerationOrchestratorStore();
     store.resetSystemStatus();
     store.markSystemStatusUnavailable(new Date('2024-01-01T00:00:00Z'));
 

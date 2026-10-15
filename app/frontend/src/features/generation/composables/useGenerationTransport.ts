@@ -1,4 +1,3 @@
-import { extractGenerationErrorMessage } from '../services/updates';
 import type { GenerationQueueClient } from '../services/queueClient';
 import type { GenerationWebSocketManager } from '../services/websocketManager';
 import type { GenerationJobInput } from '../stores/useGenerationOrchestratorStore';
@@ -20,6 +19,16 @@ import type {
 
 import { useGenerationQueueClient } from './useGenerationQueueClient';
 import { useGenerationSocketBridge } from './useGenerationSocketBridge';
+
+const extractGenerationErrorMessage = (message: GenerationErrorMessage): string => {
+  if (typeof message.error === 'string' && message.error.trim()) {
+    return message.error;
+  }
+  if (typeof message.status === 'string' && message.status.trim()) {
+    return message.status;
+  }
+  return 'Unknown error';
+};
 
 export interface GenerationNotificationAdapter {
   notify(message: string, type?: NotificationType): void;

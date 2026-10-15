@@ -11,17 +11,14 @@ const actionMocks = vi.hoisted(() => ({
   clearCompletedJobs: vi.fn(),
 }));
 
-vi.mock('@/features/generation/composables/useJobQueue', () => ({
-  useJobQueue: () => ({
-    jobs: queueState.jobs,
-    isReady: { value: true },
-    queueManagerActive: { value: true },
-  }),
-}));
-
 vi.mock('@/features/generation/composables/useJobQueueActions', async () => {
   const { ref: vueRef } = await vi.importActual('vue');
   return {
+    useJobQueue: () => ({
+      jobs: queueState.jobs,
+      isReady: { value: true },
+      queueManagerActive: { value: true },
+    }),
     useJobQueueActions: () => ({
       isCancelling: vueRef(false),
       cancelJob: actionMocks.cancelJob,

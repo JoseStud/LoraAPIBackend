@@ -2,7 +2,7 @@ import { computed, onScopeDispose } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { acquireSystemStatusController } from '../stores/systemStatusController';
-import { useGenerationConnectionStore } from '../stores/connection';
+import { useGenerationOrchestratorStore } from '../stores/useGenerationOrchestratorStore';
 
 const formatMemory = (used: number | null | undefined, total: number | null | undefined) => {
   if (!total) {
@@ -68,7 +68,7 @@ const getGpuStatusClass = (gpuStatus: string | null | undefined) => {
 };
 
 export const useSystemStatus = () => {
-  const connectionStore = useGenerationConnectionStore();
+  const connectionStore = useGenerationOrchestratorStore();
   const {
     systemStatus,
     systemStatusApiAvailable: apiAvailable,
