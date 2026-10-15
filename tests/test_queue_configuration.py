@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import builtins
+import threading
 import types
 from unittest.mock import MagicMock
 
@@ -13,6 +14,7 @@ from backend.core.config import settings
 from backend.services import get_service_container_builder
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.delivery_repository import DeliveryJobRepository
+from backend.services.in_process_jobs import InProcessJobRunner
 from backend.services.queue import (
     BackgroundTaskQueueBackend,
     QueueBackend,
@@ -135,55 +137,39 @@ def test_redis_backend_recovers_from_connection_error(monkeypatch) -> None:
     assert result == {"job_id": "job-1"}
 
 
-def test_background_queue_schedules_coroutine(monkeypatch) -> None:
-    """BackgroundTaskQueueBackend should schedule coroutines on the running loop."""
-    scheduled = []
+def test_background_queue_awaits_coroutine_runner() -> None:
+    """The fallback awaits a coroutine runner on the in-process job thread."""
+    executed: list[tuple[str, str]] = []
 
-    async def runner(job_id: str):
-        return job_id
+    async def runner(job_id: str) -> None:
+        await asyncio.sleep(0)
+        executed.append((job_id, threading.current_thread().name))
 
-    backend = BackgroundTaskQueueBackend(lambda job_id: runner(job_id))
+    job_runner = InProcessJobRunner(thread_name="test-jobs")
+    backend = BackgroundTaskQueueBackend(runner, job_runner=job_runner)
+    try:
+        backend.enqueue_delivery("job-2").result(timeout=5)
+    finally:
+        job_runner.stop()
 
-    class DummyLoop:
-        def create_task(self, coro):
-            scheduled.append(coro)
-            return object()
-
-    monkeypatch.setattr(asyncio, "get_running_loop", lambda: DummyLoop())
-
-    backend.enqueue_delivery("job-2")
-
-    assert scheduled
-    assert asyncio.iscoroutine(scheduled[0])
-    scheduled[0].close()
+    assert executed == [("job-2", "test-jobs")]
 
 
-def test_background_queue_runs_coroutine_without_loop(monkeypatch) -> None:
-    """BackgroundTaskQueueBackend should fall back to anyio when no loop is active."""
+def test_background_queue_ignores_request_background_tasks() -> None:
+    """Jobs never run as request background tasks, which could overlap."""
     executed: list[str] = []
-
-    async def runner(job_id: str):
-        executed.append(job_id)
-
-    backend = BackgroundTaskQueueBackend(lambda job_id: runner(job_id))
-
-    def raise_no_loop():
-        raise RuntimeError("no event loop")
-
-    monkeypatch.setattr(asyncio, "get_running_loop", raise_no_loop)
-
-    import anyio
-    from anyio import from_thread
-
-    def fail_portal(*args, **kwargs):
-        raise RuntimeError("no portal")
-
-    monkeypatch.setattr(from_thread, "run", fail_portal)
-    monkeypatch.setattr(anyio, "run", lambda func, coro: asyncio.run(func(coro)))
-
-    backend.enqueue_delivery("job-3")
+    background_tasks = MagicMock()
+    job_runner = InProcessJobRunner()
+    backend = BackgroundTaskQueueBackend(executed.append, job_runner=job_runner)
+    try:
+        backend.enqueue_delivery("job-3", background_tasks=background_tasks).result(
+            timeout=5
+        )
+    finally:
+        job_runner.stop()
 
     assert executed == ["job-3"]
+    background_tasks.add_task.assert_not_called()
 
 
 def test_orchestrator_logs_warning_when_primary_errors(capsys) -> None:
@@ -202,7 +188,7 @@ def test_orchestrator_logs_warning_when_primary_errors(capsys) -> None:
         fallback_backend=fallback,
     )
 
-    orchestrator.enqueue_delivery("job-error")
+    orchestrator.enqueue_delivery("job-error").result(timeout=5)
 
     out = capsys.readouterr().out
 
@@ -235,7 +221,7 @@ def test_orchestrator_reports_missing_redis_dependency(capsys, monkeypatch) -> N
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
 
-    orchestrator.enqueue_delivery("job-missing-redis")
+    orchestrator.enqueue_delivery("job-missing-redis").result(timeout=5)
 
     out = capsys.readouterr().out
 
@@ -279,7 +265,7 @@ def test_orchestrator_logs_redis_outage_warning(capsys, monkeypatch) -> None:
         fallback_backend=fallback,
     )
 
-    orchestrator.enqueue_delivery("job-redis-outage")
+    orchestrator.enqueue_delivery("job-redis-outage").result(timeout=5)
 
     out = capsys.readouterr().out
 

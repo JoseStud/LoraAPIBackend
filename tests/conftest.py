@@ -21,8 +21,10 @@ from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.composition import ComposeService
 from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
+from backend.services.in_process_jobs import get_in_process_job_runner
 from backend.services.providers.generation import make_compose_service
 from backend.services.queue import create_queue_orchestrator
+from tests.util.in_process_jobs import InProcessJobGate
 from tests.util.service_container import reset_service_container_builder
 
 
@@ -55,6 +57,17 @@ def no_lifespan_job_recovery(monkeypatch):
     from backend.services.job_recovery import JobRecovery
 
     monkeypatch.setattr(JobRecovery, "start", lambda self: None)
+
+
+@pytest.fixture(autouse=True)
+def stop_in_process_jobs():
+    """Stop the process-wide in-process job runner after each test.
+
+    A job a test left queued would otherwise run during the next test.
+    ``db_session`` also stops it, before it restores the real engine.
+    """
+    yield
+    get_in_process_job_runner().stop()
 
 
 @pytest.fixture(name="mock_storage")
@@ -115,6 +128,8 @@ def db_session_fixture():
         with Session(engine) as session:
             yield session
     finally:
+        # Stop in-process jobs before the real engine comes back.
+        get_in_process_job_runner().stop()
         core_database.ENGINE = original_engine
 
 
@@ -151,11 +166,22 @@ def compose_service() -> ComposeService:
     return make_compose_service()
 
 
+@pytest.fixture
+def in_process_jobs(db_session: Session) -> InProcessJobGate:
+    """Hold in-process delivery jobs until the test runs them.
+
+    Call ``in_process_jobs.run_queued_jobs()`` once the requests that queue
+    jobs have returned.
+    """
+    return InProcessJobGate()
+
+
 @pytest.fixture(name="client")
-def client_fixture(db_session: Session, monkeypatch):
+def client_fixture(db_session: Session, in_process_jobs: InProcessJobGate, monkeypatch):
     """FastAPI TestClient fixture.
 
-    This overrides `get_session` with a test double.
+    This overrides `get_session` with a test double. Jobs the requests queue
+    in-process wait for ``in_process_jobs.run_queued_jobs()``.
     """
 
     def get_session_override():

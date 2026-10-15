@@ -128,8 +128,17 @@ Read these before changing the matching subsystem:
 - **Queue orchestration**: `QueueOrchestrator` (`backend/services/queue.py`)
   picks Redis/RQ when available and falls back to `BackgroundTaskQueueBackend`.
   Enqueue through `QueueOrchestrator.enqueue_delivery()` so the fallback keeps
-  working. Services take a `TaskScheduler` (the protocol in `queue.py`), not
-  FastAPI's `BackgroundTasks`; routers pass `BackgroundTasks`, which fits it.
+  working. The fallback hands every job to the process-wide
+  `InProcessJobRunner` (`backend/services/in_process_jobs.py`): one thread with
+  one long-lived event loop that runs jobs one at a time in FIFO order, because
+  SDNext renders one job at a time and its progress and interrupt endpoints are
+  global. Never run in-process jobs from request threads or per-job
+  `asyncio.run`. The lifespan stops the runner on shutdown. Services take a
+  `TaskScheduler` (the protocol in `queue.py`), not FastAPI's `BackgroundTasks`;
+  routers pass `BackgroundTasks`, which fits it, but the in-process fallback
+  ignores it. `DeliveryHTTPClient` keeps one aiohttp session per event loop, so
+  the shared SDNext client works from the API loop, the runner loop and RQ
+  workers alike.
 - **Job status transitions**: a delivery job moves `pending`/`retrying` →
   `running` → `succeeded`/`failed`/`retrying`, or to `cancelled` from any
   active status. Change status through `DeliveryService.claim_job`,
@@ -144,7 +153,8 @@ Read these before changing the matching subsystem:
   by the lifespan, fails jobs `running` longer than
   `JOB_RUNNING_TIMEOUT_SECONDS` (also the RQ job timeout) at startup and every
   `JOB_RECOVERY_INTERVAL_SECONDS`. Without Redis it fails every running job at
-  startup and requeues the waiting ones, which lived only in the old process.
+  startup and requeues the waiting ones, which lived only in the old process,
+  through the orchestrator onto the same in-process runner as new requests.
   Tests stub `JobRecovery.start` (autouse fixture in `tests/conftest.py`).
 - **Configuration**: runtime settings live only in `backend/core/config.py`, so
   startup validation and the frontend `/frontend/settings` payload stay

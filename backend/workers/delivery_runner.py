@@ -70,10 +70,9 @@ class DeliveryRunner:
     ) -> Optional[asyncio.Task[None]]:
         """Process a delivery job.
 
-        Without a running event loop (an RQ worker, or a FastAPI background
-        task in the threadpool) the job runs to completion before this
-        returns. On a running loop it is scheduled as a task, which is
-        returned.
+        Without a running event loop (an RQ worker) the job runs to completion
+        before this returns. On a running loop (the in-process job runner) it
+        is scheduled as a task, which is returned.
         """
 
         async def runner() -> None:

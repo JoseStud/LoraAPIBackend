@@ -9,14 +9,15 @@ The API therefore fails jobs that have been running for longer than
 
 Without Redis the API process is the only runner, so at startup every
 ``running`` job is failed at once and the jobs still waiting to run are
-queued again; they lived only in the previous process.
+queued again; they lived only in the previous process. They go through the
+queue orchestrator to the same in-process job runner as new requests, so
+recovered and new jobs still run one at a time.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Any, Callable, Dict, List, Optional
@@ -26,7 +27,6 @@ from backend.core.database import get_session_context
 
 from .deliveries import DeliveryService
 from .job_webhooks import JobWebhookNotifier
-from .queue import TaskScheduler
 
 logger = logging.getLogger(__name__)
 
@@ -61,13 +61,8 @@ def recover_jobs(
     *,
     at_startup: bool,
     running_timeout: timedelta,
-    scheduler: Optional[TaskScheduler] = None,
 ) -> RecoveryReport:
-    """Fail jobs that lost their runner and, after an in-process restart, requeue.
-
-    ``scheduler`` runs requeued jobs when there is no durable queue; without
-    one they run before this returns.
-    """
+    """Fail jobs that lost their runner and, after an in-process restart, requeue."""
     orchestrator = deliveries.queue_orchestrator
     in_process = orchestrator is None or not orchestrator.has_durable_queue()
     restarted_in_process = at_startup and in_process
@@ -82,28 +77,10 @@ def recover_jobs(
 
     if restarted_in_process and orchestrator is not None:
         for job in deliveries.list_claimable_jobs():
-            deliveries.enqueue_job(job.id, background_tasks=scheduler)
+            deliveries.enqueue_job(job.id)
             report.requeued.append(job.id)
 
     return report
-
-
-class ThreadTaskScheduler:
-    """Run scheduled tasks one at a time on a background thread."""
-
-    def __init__(self) -> None:
-        """Create the executor; its thread starts with the first task."""
-        self._executor = ThreadPoolExecutor(
-            max_workers=1, thread_name_prefix="job-recovery"
-        )
-
-    def add_task(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
-        """Queue ``func(*args, **kwargs)`` behind the tasks already queued."""
-        self._executor.submit(func, *args, **kwargs)
-
-    def shutdown(self) -> None:
-        """Drop queued tasks; a task already running is left to finish."""
-        self._executor.shutdown(wait=False, cancel_futures=True)
 
 
 class JobRecovery:
@@ -124,7 +101,6 @@ class JobRecovery:
         self._running_timeout = running_timeout
         self._deliveries_factory = deliveries_factory or _container_deliveries
         self._notifier_factory = notifier_factory
-        self._scheduler = ThreadTaskScheduler()
         self._task: Optional[asyncio.Task[None]] = None
 
     @classmethod
@@ -141,7 +117,7 @@ class JobRecovery:
             self._task = asyncio.create_task(self._run())
 
     async def stop(self) -> None:
-        """Stop the loop and drop requeued jobs that have not started."""
+        """Stop the recovery loop."""
         task, self._task = self._task, None
         if task is not None:
             task.cancel()
@@ -149,7 +125,6 @@ class JobRecovery:
                 await task
             except asyncio.CancelledError:
                 pass
-        self._scheduler.shutdown()
 
     async def run_once(self, *, at_startup: bool) -> RecoveryReport:
         """Run one recovery pass and announce the jobs it failed."""
@@ -160,7 +135,6 @@ class JobRecovery:
                     self._deliveries_factory(session),
                     at_startup=at_startup,
                     running_timeout=self._running_timeout,
-                    scheduler=self._scheduler,
                 )
 
         report = await asyncio.to_thread(_recover)
@@ -212,6 +186,5 @@ __all__ = [
     "INTERRUPTED_RESULT",
     "JobRecovery",
     "RecoveryReport",
-    "ThreadTaskScheduler",
     "recover_jobs",
 ]
