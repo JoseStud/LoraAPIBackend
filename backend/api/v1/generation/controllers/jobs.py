@@ -14,7 +14,7 @@ from backend.schemas import (
     GenerationJobStatus,
     SDNextGenerationParams,
 )
-from backend.services import ApplicationServices
+from backend.services import ServiceRegistry
 
 from ..presenters.jobs import build_active_job
 
@@ -37,7 +37,7 @@ def _coerce_params(payload: object) -> dict:
 
 async def schedule_generation_job(
     *,
-    application: ApplicationServices,
+    services: ServiceRegistry,
     generation_params: SDNextGenerationParams,
     background_tasks: BackgroundTasks,
     backend: str,
@@ -47,7 +47,7 @@ async def schedule_generation_job(
     client_ref: Optional[str] = None,
 ) -> DeliveryCreateResponse:
     """Queue a generation job for background processing."""
-    coordinator = application.generation_coordinator
+    coordinator = services.generation_coordinator
     job = coordinator.schedule_generation_job(
         generation_params,
         backend=backend,
@@ -64,12 +64,12 @@ async def schedule_generation_job(
 
 def list_active_jobs(
     *,
-    application: ApplicationServices,
+    services: ServiceRegistry,
     limit: int,
 ) -> List[GenerationJobStatus]:
     """Return active generation jobs for frontend queues."""
-    coordinator = application.generation_coordinator
-    jobs = application.deliveries.list_jobs_by_statuses(
+    coordinator = services.generation_coordinator
+    jobs = services.deliveries.list_jobs_by_statuses(
         statuses=ACTIVE_JOB_STATUSES,
         limit=limit,
     )
@@ -78,16 +78,16 @@ def list_active_jobs(
 
 def get_job_wrapper(
     *,
-    application: ApplicationServices,
+    services: ServiceRegistry,
     job_id: str,
 ) -> DeliveryWrapper:
     """Get generation job status and results."""
-    job = application.deliveries.get_job(job_id)
+    job = services.deliveries.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    presenter = build_active_job(job, application.generation_coordinator)
-    params = _coerce_params(application.deliveries.get_job_params(job))
+    presenter = build_active_job(job, services.generation_coordinator)
+    params = _coerce_params(services.deliveries.get_job_params(job))
 
     delivery_read = DeliveryRead(
         id=job.id,
@@ -106,11 +106,11 @@ def get_job_wrapper(
 
 def cancel_job(
     *,
-    application: ApplicationServices,
+    services: ServiceRegistry,
     job_id: str,
 ) -> GenerationCancelResponse:
     """Cancel an active generation job."""
-    job = application.deliveries.get_job(job_id)
+    job = services.deliveries.get_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -119,10 +119,10 @@ def cancel_job(
             status_code=400, detail="Job cannot be cancelled in its current state"
         )
 
-    application.deliveries.update_job_status(
+    services.deliveries.update_job_status(
         job_id, "cancelled", result={"status": "cancelled"}
     )
-    application.websocket.stop_job_monitoring(job_id)
+    services.websocket.stop_job_monitoring(job_id)
 
     return GenerationCancelResponse(
         status="cancelled", message="Generation job cancelled"

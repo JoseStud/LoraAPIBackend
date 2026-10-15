@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Protocol
 
 from ..deliveries import DeliveryService
@@ -32,15 +31,7 @@ def make_delivery_service(
     return DeliveryService(repository, queue_orchestrator=queue_orchestrator)
 
 
-@dataclass(frozen=True)
-class DeliveryProviders:
-    """Grouped delivery-related provider callables."""
-
-    delivery: DeliveryServiceFactory = make_delivery_service
-
-
 __all__ = [
-    "DeliveryProviders",
     "DeliveryServiceFactory",
     "make_delivery_service",
 ]

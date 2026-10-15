@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import backend_app
-from backend.core.dependencies import get_application_services, get_domain_services
+from backend.core.dependencies import get_services
 from backend.schemas import SDNextGenerationResult
 
 
@@ -96,26 +96,20 @@ def test_compose_and_generate_uses_shared_orchestration(client: TestClient):
         status="running",
     )
 
-    stub_domain = SimpleNamespace()
-    stub_domain.adapters = object()
-    stub_domain.compose = SimpleNamespace(
+    stub_services = SimpleNamespace()
+    stub_services.adapters = object()
+    stub_services.compose = SimpleNamespace(
         compose_from_adapter_service=lambda adapters, prefix="", suffix="": composition,
     )
-    stub_domain.generation = SimpleNamespace(
+    stub_services.generation = SimpleNamespace(
         validate_generation_params=AsyncMock(return_value=[]),
         generate_image=AsyncMock(return_value=generation_result),
     )
-
-    stub_application = SimpleNamespace(
-        generation_coordinator=SimpleNamespace(
-            broadcast_job_started=AsyncMock(),
-        ),
+    stub_services.generation_coordinator = SimpleNamespace(
+        broadcast_job_started=AsyncMock(),
     )
 
-    backend_app.dependency_overrides[get_domain_services] = lambda: stub_domain
-    backend_app.dependency_overrides[get_application_services] = lambda: (
-        stub_application
-    )
+    backend_app.dependency_overrides[get_services] = lambda: stub_services
 
     response = client.post(
         "/api/v1/generation/compose-and-generate",
@@ -130,16 +124,16 @@ def test_compose_and_generate_uses_shared_orchestration(client: TestClient):
     body = response.json()
     assert body["job_id"] == "job-123"
 
-    validate_call = stub_domain.generation.validate_generation_params.await_args
+    validate_call = stub_services.generation.validate_generation_params.await_args
     assert validate_call.args[0].prompt == "composed prompt"
 
-    generate_call = stub_domain.generation.generate_image.await_args
+    generate_call = stub_services.generation.generate_image.await_args
     assert generate_call.args[0] == "composed prompt"
     assert generate_call.kwargs["mode"] == "deferred"
     assert generate_call.kwargs["return_format"] == "url"
     assert generate_call.kwargs["save_images"] is False
 
-    stub_application.generation_coordinator.broadcast_job_started.assert_awaited_once_with(
+    stub_services.generation_coordinator.broadcast_job_started.assert_awaited_once_with(
         "job-123",
         validate_call.args[0],
     )

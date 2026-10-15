@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Optional, Protocol
 
 from ..adapters import AdapterService
@@ -47,15 +46,7 @@ def make_archive_service(
     )
 
 
-@dataclass(frozen=True)
-class ArchiveProviders:
-    """Grouped archive-related provider callables."""
-
-    archive: ArchiveServiceFactory = make_archive_service
-
-
 __all__ = [
-    "ArchiveProviders",
     "ArchiveServiceFactory",
     "make_archive_service",
 ]

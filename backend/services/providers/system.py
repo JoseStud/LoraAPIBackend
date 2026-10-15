@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Protocol
 
 from backend.core.config import settings
@@ -32,15 +31,7 @@ def make_system_service(delivery_service: DeliveryService) -> SystemService:
     )
 
 
-@dataclass(frozen=True)
-class SystemProviders:
-    """Grouped system-related provider callables."""
-
-    system: SystemServiceFactory = make_system_service
-
-
 __all__ = [
-    "SystemProviders",
     "SystemServiceFactory",
     "make_system_service",
 ]

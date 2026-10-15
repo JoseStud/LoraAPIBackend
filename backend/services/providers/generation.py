@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Protocol
 
 from ..composition import ComposeService
@@ -61,19 +60,9 @@ def make_generation_coordinator(
     )
 
 
-@dataclass(frozen=True)
-class GenerationProviders:
-    """Grouped generation-related provider callables."""
-
-    compose: ComposeServiceFactory = make_compose_service
-    generation: GenerationServiceFactory = make_generation_service
-    coordinator: GenerationCoordinatorFactory = make_generation_coordinator
-
-
 __all__ = [
     "ComposeServiceFactory",
     "GenerationCoordinatorFactory",
-    "GenerationProviders",
     "GenerationServiceFactory",
     "make_compose_service",
     "make_generation_coordinator",

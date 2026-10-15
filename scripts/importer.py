@@ -395,7 +395,7 @@ def register_adapter_from_metadata(
                 analytics_repository=AnalyticsRepository(session),
                 recommendation_gpu_available=False,
             )
-            adapter = services.domain.adapters.upsert_adapter(ac)
+            adapter = services.adapters.upsert_adapter(ac)
         logger.info("Upserted adapter %s (id=%s)", adapter.name, adapter.id)
         result["status"] = "upserted"
         result["id"] = adapter.id

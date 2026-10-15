@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Optional, Protocol
 
 from ..websocket import WebSocketService, websocket_service
@@ -35,15 +34,7 @@ def default_websocket_service_factory() -> WebSocketService:
     return make_websocket_service(service=websocket_service)
 
 
-@dataclass(frozen=True)
-class WebSocketProviders:
-    """Grouped websocket-related provider callables."""
-
-    websocket: WebSocketServiceFactory = default_websocket_service_factory
-
-
 __all__ = [
-    "WebSocketProviders",
     "WebSocketServiceFactory",
     "default_websocket_service_factory",
     "make_websocket_service",

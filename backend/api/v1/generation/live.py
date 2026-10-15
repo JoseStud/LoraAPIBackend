@@ -6,10 +6,7 @@ from typing import Dict
 
 from fastapi import APIRouter, Depends
 
-from backend.core.dependencies import (
-    get_application_services,
-    get_domain_services,
-)
+from backend.core.dependencies import get_services
 from backend.schemas import (
     ComposeRequest,
     GenerationMode,
@@ -17,7 +14,7 @@ from backend.schemas import (
     SDNextGenerationParams,
     SDNextGenerationResult,
 )
-from backend.services import ApplicationServices, DomainServices
+from backend.services import ServiceRegistry
 
 from .controllers import live as controller
 
@@ -37,8 +34,7 @@ async def generate_image(
     mode: GenerationMode = GenerationMode.IMMEDIATE,
     save_images: bool = True,
     return_format: GenerationResultFormat = GenerationResultFormat.BASE64,
-    domain: DomainServices = Depends(get_domain_services),
-    application: ApplicationServices = Depends(get_application_services),
+    services: ServiceRegistry = Depends(get_services),
 ):
     """Generate an image using the specified backend."""
     return await controller.generate_image(
@@ -47,8 +43,7 @@ async def generate_image(
         mode=mode,
         save_images=save_images,
         return_format=return_format,
-        domain=domain,
-        application=application,
+        services=services,
     )
 
 
@@ -69,8 +64,7 @@ async def compose_and_generate(
     mode: GenerationMode = GenerationMode.IMMEDIATE,
     save_images: bool = True,
     return_format: GenerationResultFormat = GenerationResultFormat.BASE64,
-    domain: DomainServices = Depends(get_domain_services),
-    application: ApplicationServices = Depends(get_application_services),
+    services: ServiceRegistry = Depends(get_services),
 ):
     """Compose LoRA prompt and immediately generate images."""
     return await controller.compose_and_generate(
@@ -80,6 +74,5 @@ async def compose_and_generate(
         mode=mode,
         save_images=save_images,
         return_format=return_format,
-        domain=domain,
-        application=application,
+        services=services,
     )

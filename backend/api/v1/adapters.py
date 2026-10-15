@@ -5,14 +5,14 @@ from typing import List, Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 
-from backend.core.dependencies import get_domain_services
+from backend.core.dependencies import get_services
 from backend.schemas import (
     AdapterCreate,
     AdapterListResponse,
     AdapterPatch,
     AdapterWrapper,
 )
-from backend.services import DomainServices
+from backend.services import ServiceRegistry
 from backend.services.adapters import AdapterIdentityConflict
 
 router = APIRouter()
@@ -21,7 +21,7 @@ router = APIRouter()
 @router.post("/adapters", status_code=201, response_model=AdapterWrapper)
 def create_adapter(
     payload: AdapterCreate,
-    services: DomainServices = Depends(get_domain_services),  # noqa: B008
+    services: ServiceRegistry = Depends(get_services),  # noqa: B008
 ):
     """Create a new adapter from the provided payload."""
     service = services.adapters
@@ -64,7 +64,7 @@ def list_adapters(
     sort: str = "name",
     page: int = 1,
     per_page: int = 24,
-    services: DomainServices = Depends(get_domain_services),  # noqa: B008
+    services: ServiceRegistry = Depends(get_services),  # noqa: B008
 ):
     """Return a paginated list of adapters via the service layer."""
     tag_filters = (
@@ -108,7 +108,7 @@ class BulkActionRequest(BaseModel):
 
 
 @router.get("/adapters/tags")
-def get_adapter_tags(services: DomainServices = Depends(get_domain_services)):
+def get_adapter_tags(services: ServiceRegistry = Depends(get_services)):
     """Return unique tag list across all adapters.
 
     Response shape matches frontend expectation: {"tags": [..]}.
@@ -126,7 +126,7 @@ def get_adapter_tags(services: DomainServices = Depends(get_domain_services)):
 @router.post("/adapters/bulk")
 def bulk_adapter_action(
     request: BulkActionRequest,
-    services: DomainServices = Depends(get_domain_services),  # noqa: B008
+    services: ServiceRegistry = Depends(get_services),  # noqa: B008
 ):
     """Perform a bulk action on a list of adapters in a transaction.
 
@@ -160,7 +160,7 @@ def bulk_adapter_action(
 def patch_adapter(
     adapter_id: str,
     payload: AdapterPatch,
-    services: DomainServices = Depends(get_domain_services),  # noqa: B008
+    services: ServiceRegistry = Depends(get_services),  # noqa: B008
 ):
     """Update an adapter's mutable fields using a validated payload.
 
@@ -187,7 +187,7 @@ def patch_adapter(
 @router.delete("/adapters/{adapter_id}", status_code=204)
 def delete_adapter(
     adapter_id: str,
-    services: DomainServices = Depends(get_domain_services),  # noqa: B008
+    services: ServiceRegistry = Depends(get_services),  # noqa: B008
 ):
     """Delete an adapter by id.
 
@@ -201,7 +201,7 @@ def delete_adapter(
 @router.get("/adapters/{adapter_id}", response_model=AdapterWrapper)
 def get_adapter(
     adapter_id: str,
-    services: DomainServices = Depends(get_domain_services),  # noqa: B008
+    services: ServiceRegistry = Depends(get_services),  # noqa: B008
 ):
     """Return a single adapter by id.
 
@@ -218,7 +218,7 @@ def get_adapter(
 def activate_adapter(
     adapter_id: str,
     ordinal: int = None,
-    services: DomainServices = Depends(get_domain_services),  # noqa: B008
+    services: ServiceRegistry = Depends(get_services),  # noqa: B008
 ):
     """Mark an adapter active and optionally set its ordinal."""
     a = services.adapters.activate_adapter(adapter_id, ordinal)
@@ -231,7 +231,7 @@ def activate_adapter(
 @router.post("/adapters/{adapter_id}/deactivate", response_model=AdapterWrapper)
 def deactivate_adapter(
     adapter_id: str,
-    services: DomainServices = Depends(get_domain_services),  # noqa: B008
+    services: ServiceRegistry = Depends(get_services),  # noqa: B008
 ):
     """Mark an adapter inactive."""
     a = services.adapters.deactivate_adapter(adapter_id)

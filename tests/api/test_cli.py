@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import backend_app
-from backend.core.dependencies import get_service_container
+from backend.core.dependencies import get_services
 from backend.services import get_service_container_builder
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.delivery_repository import DeliveryJobRepository
@@ -37,14 +37,14 @@ def test_compose_uses_primary_queue_backend(
             recommendation_gpu_available=False,
         )
 
-    backend_app.dependency_overrides[get_service_container] = override_service_container
+    backend_app.dependency_overrides[get_services] = override_service_container
     try:
         response = client.post(
             "/api/v1/compose",
             json={"prefix": "p", "delivery": {"mode": "cli", "cli": {}}},
         )
     finally:
-        backend_app.dependency_overrides.pop(get_service_container, None)
+        backend_app.dependency_overrides.pop(get_services, None)
 
     assert response.status_code == 200
     body = response.json()
@@ -83,14 +83,14 @@ def test_compose_falls_back_to_background_queue(
             recommendation_gpu_available=False,
         )
 
-    backend_app.dependency_overrides[get_service_container] = override_service_container
+    backend_app.dependency_overrides[get_services] = override_service_container
     try:
         response = client.post(
             "/api/v1/compose",
             json={"prefix": "p", "delivery": {"mode": "cli", "cli": {}}},
         )
     finally:
-        backend_app.dependency_overrides.pop(get_service_container, None)
+        backend_app.dependency_overrides.pop(get_services, None)
 
     assert response.status_code == 200
     body = response.json()
@@ -147,14 +147,14 @@ async def test_queue_generation_job_uses_primary_queue_backend(
             recommendation_gpu_available=False,
         )
 
-    backend_app.dependency_overrides[get_service_container] = override_service_container
+    backend_app.dependency_overrides[get_services] = override_service_container
     try:
         response = client.post(
             "/api/v1/generation/queue-generation",
             json={"prompt": "Track primary"},
         )
     finally:
-        backend_app.dependency_overrides.pop(get_service_container, None)
+        backend_app.dependency_overrides.pop(get_services, None)
 
     assert response.status_code == 200
     payload = response.json()
@@ -240,14 +240,14 @@ async def test_queue_generation_job_falls_back_to_background_tasks(
             recommendation_gpu_available=False,
         )
 
-    backend_app.dependency_overrides[get_service_container] = override_service_container
+    backend_app.dependency_overrides[get_services] = override_service_container
     try:
         response = client.post(
             "/api/v1/generation/queue-generation",
             json={"prompt": "Track fallback"},
         )
     finally:
-        backend_app.dependency_overrides.pop(get_service_container, None)
+        backend_app.dependency_overrides.pop(get_services, None)
 
     assert response.status_code == 200
     payload = response.json()
@@ -296,7 +296,7 @@ async def test_queue_generation_job_stores_client_ref(
             recommendation_gpu_available=False,
         )
 
-    backend_app.dependency_overrides[get_service_container] = override_service_container
+    backend_app.dependency_overrides[get_services] = override_service_container
     try:
         response = client.post(
             "/api/v1/generation/queue-generation",
@@ -309,7 +309,7 @@ async def test_queue_generation_job_stores_client_ref(
             json={"prompt": "Tagged job"},
         )
     finally:
-        backend_app.dependency_overrides.pop(get_service_container, None)
+        backend_app.dependency_overrides.pop(get_services, None)
 
     assert response.status_code == 200
     job_id = response.json()["delivery_id"]

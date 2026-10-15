@@ -302,20 +302,14 @@ def test_service_container_uses_custom_providers(db_session):
     generation_coordinator_provider = MagicMock(return_value=generation_coordinator)
 
     builder = get_service_container_builder().with_overrides(
-        storage=lambda providers: replace(
-            providers,
+        factories=lambda factories: replace(
+            factories,
             storage=storage_provider,
             adapter=adapter_provider,
-        ),
-        domain=lambda factories: replace(
-            factories,
             compose=compose_provider,
             generation=generation_provider,
             analytics=analytics_provider,
             recommendation=recommendation_provider,
-        ),
-        infrastructure=lambda factories: replace(
-            factories,
             archive=archive_provider,
             delivery=delivery_provider,
             generation_coordinator=generation_coordinator_provider,
@@ -331,49 +325,49 @@ def test_service_container_uses_custom_providers(db_session):
         recommendation_gpu_available=True,
     )
 
-    assert registry.core.storage is storage_service
+    assert registry.storage is storage_service
     storage_provider.assert_called_once_with()
 
-    assert registry.domain.adapters is adapter_service
+    assert registry.adapters is adapter_service
     adapter_provider.assert_called_once_with(
         db_session=db_session,
         storage_service=storage_service,
     )
 
-    assert registry.domain.compose is compose_service
+    assert registry.compose is compose_service
     compose_provider.assert_called_once_with()
 
-    assert registry.domain.generation is generation_service
+    assert registry.generation is generation_service
     generation_provider.assert_called_once_with()
 
-    assert registry.domain.analytics is analytics_service
+    assert registry.analytics is analytics_service
     analytics_provider.assert_called_once_with(
         db_session,
         repository=analytics_repository,
     )
 
-    assert registry.domain.recommendations is recommendation_service
+    assert registry.recommendations is recommendation_service
     recommendation_provider.assert_called_once_with(
         db_session,
         gpu_available=True,
     )
 
-    assert registry.application.archive is archive_service
+    assert registry.archive is archive_service
     archive_provider.assert_called_once_with(adapter_service, storage_service)
 
-    assert registry.application.deliveries is delivery_service
+    assert registry.deliveries is delivery_service
     delivery_provider.assert_called_once_with(
         delivery_repository,
         queue_orchestrator=queue_orchestrator,
     )
 
-    assert registry.application.websocket is websocket_service
+    assert registry.websocket is websocket_service
     websocket_provider.assert_called_once_with()
 
-    assert registry.application.system is system_service
+    assert registry.system is system_service
     system_provider.assert_called_once_with(delivery_service)
 
-    assert registry.application.generation_coordinator is generation_coordinator
+    assert registry.generation_coordinator is generation_coordinator
     generation_coordinator_provider.assert_called_once_with(
         delivery_service,
         websocket_service,

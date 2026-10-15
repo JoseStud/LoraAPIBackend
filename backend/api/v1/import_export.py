@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, Upl
 from fastapi.responses import StreamingResponse
 
 from backend.core.config import settings
-from backend.core.dependencies import get_application_services
+from backend.core.dependencies import get_services
 from backend.schemas.import_export import (
     BackupCreateRequest,
     BackupHistoryItem,
@@ -16,7 +16,7 @@ from backend.schemas.import_export import (
     ExportEstimate,
     ImportConfig,
 )
-from backend.services import ApplicationServices
+from backend.services import ServiceRegistry
 from backend.utils import format_bytes, format_duration
 
 router = APIRouter(tags=["import-export"])
@@ -25,7 +25,7 @@ router = APIRouter(tags=["import-export"])
 @router.post("/export/estimate")
 async def estimate_export(
     config: ExportConfig,
-    services: ApplicationServices = Depends(get_application_services),
+    services: ServiceRegistry = Depends(get_services),
 ) -> ExportEstimate:
     """Calculate export size and time estimates using archive metadata."""
     if not config.loras:
@@ -42,7 +42,7 @@ async def estimate_export(
 @router.post("/export")
 async def export_data(
     config: ExportConfig,
-    services: ApplicationServices = Depends(get_application_services),
+    services: ServiceRegistry = Depends(get_services),
 ):
     """Stream an archive export of adapters using the archive helper."""
     if not config.loras:
@@ -67,7 +67,7 @@ async def export_data(
 async def import_data(
     files: List[UploadFile] = File(...),
     config: str = Form(...),
-    services: ApplicationServices = Depends(get_application_services),
+    services: ServiceRegistry = Depends(get_services),
 ):
     """Import adapters from uploaded archives after validation."""
     try:
@@ -126,7 +126,7 @@ async def import_data(
 
 @router.get("/backups/history")
 async def get_backup_history(
-    services: ApplicationServices = Depends(get_application_services),
+    services: ServiceRegistry = Depends(get_services),
 ) -> List[BackupHistoryItem]:
     """Get persisted backup history entries."""
     return services.backups.list_history()
@@ -135,7 +135,7 @@ async def get_backup_history(
 @router.post("/backup/create")
 async def create_backup(
     payload: BackupCreateRequest,
-    services: ApplicationServices = Depends(get_application_services),
+    services: ServiceRegistry = Depends(get_services),
 ):
     """Create a new backup and return the created metadata."""
     entry = services.backups.create_backup(payload.backup_type)
@@ -152,7 +152,7 @@ async def create_backup(
 @router.delete("/backups/{backup_id}", status_code=204)
 async def delete_backup(
     backup_id: str,
-    services: ApplicationServices = Depends(get_application_services),
+    services: ServiceRegistry = Depends(get_services),
 ) -> Response:
     """Delete a backup entry and its archive."""
     removed = services.backups.delete_backup(backup_id)

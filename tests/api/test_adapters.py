@@ -104,7 +104,7 @@ def test_patch_adapter_rejects_invalid_payloads(
     adapter_id = creation.json()["adapter"]["id"]
 
     sentinel_services = SimpleNamespace(adapters=MagicMock())
-    backend_app.dependency_overrides[adapters_router.get_domain_services] = lambda: (
+    backend_app.dependency_overrides[adapters_router.get_services] = lambda: (
         sentinel_services
     )
     try:
@@ -122,7 +122,7 @@ def test_patch_adapter_rejects_invalid_payloads(
 
         assert sentinel_services.adapters.patch_adapter.call_count == 0
     finally:
-        backend_app.dependency_overrides.pop(adapters_router.get_domain_services, None)
+        backend_app.dependency_overrides.pop(adapters_router.get_services, None)
 
 
 def test_patch_adapter_applies_valid_partial_update(

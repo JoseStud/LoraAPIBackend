@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Optional, Protocol
 
 from sqlmodel import Session
@@ -42,15 +41,7 @@ def make_analytics_service(
     )
 
 
-@dataclass(frozen=True)
-class AnalyticsProviders:
-    """Grouped analytics-related provider callables."""
-
-    analytics: AnalyticsServiceFactory = make_analytics_service
-
-
 __all__ = [
-    "AnalyticsProviders",
     "AnalyticsServiceFactory",
     "make_analytics_service",
 ]

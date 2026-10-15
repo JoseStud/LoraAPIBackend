@@ -2,14 +2,14 @@
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
-from backend.core.dependencies import get_application_services
+from backend.core.dependencies import get_services
 from backend.schemas import (
     DeliveryCreate,
     DeliveryCreateResponse,
     DeliveryRead,
     DeliveryWrapper,
 )
-from backend.services import ApplicationServices
+from backend.services import ServiceRegistry
 
 router = APIRouter()
 
@@ -18,7 +18,7 @@ router = APIRouter()
 async def create_delivery(
     delivery: DeliveryCreate,
     background_tasks: BackgroundTasks,
-    services: ApplicationServices = Depends(get_application_services),
+    services: ServiceRegistry = Depends(get_services),
 ):
     """Create a delivery job and either enqueue it or schedule a background task."""
     job = services.deliveries.schedule_job(
@@ -34,7 +34,7 @@ async def create_delivery(
 @router.get("/deliveries/{delivery_id}", response_model=DeliveryWrapper)
 def get_delivery(
     delivery_id: str,
-    services: ApplicationServices = Depends(get_application_services),
+    services: ServiceRegistry = Depends(get_services),
 ):
     """Return the delivery job state for `delivery_id`."""
     dj = services.deliveries.get_job(delivery_id)
