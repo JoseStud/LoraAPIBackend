@@ -59,6 +59,8 @@ interface QueueClientCallbacks {
   logger?: (...args: unknown[]) => void;
   onHydrateSystemStatus?: () => Promise<void> | void;
   onReleaseSystemStatus?: () => void;
+  /** Replaces this client's own status fetch, so a shared poller can own `/system/status`. */
+  refreshSystemStatus?: () => Promise<void>;
   onTransportError?: (error: GenerationTransportError) => void;
 }
 
@@ -130,6 +132,11 @@ export const useGenerationQueueClient = (
   };
 
   const refreshSystemStatus = async (): Promise<void> => {
+    if (callbacks.refreshSystemStatus) {
+      await callbacks.refreshSystemStatus();
+      return;
+    }
+
     try {
       const status = await getQueueClient().fetchSystemStatus();
       if (status) {
