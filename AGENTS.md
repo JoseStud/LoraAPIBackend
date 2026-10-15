@@ -91,10 +91,13 @@ Read these before changing the matching subsystem:
   Add endpoints through the routers, not ad hoc routes.
 - **Service container**: all service wiring goes through
   `ServiceContainerBuilder` (`backend/services/service_container_builder.py`).
-  Use `get_service_container_builder()` / `service_container_builder_scope()`
-  (`backend/services/__init__.py`) or builder overrides in tests instead of
-  instantiating services directly; direct instantiation skips the locking and
-  cache invalidation that protect long-running workers.
+  `get_service_container_builder()` (`backend/services/__init__.py`) returns
+  one process-wide builder, so its cached queue orchestrator and GPU check are
+  shared by every request and worker. `service_container_builder_scope()`
+  exists only to install an override for the current context (tests,
+  scripts). Get services from the builder instead of instantiating them
+  directly; direct instantiation skips the locking and cache invalidation that
+  protect long-running workers.
 - **Queue orchestration**: `QueueOrchestrator` (`backend/services/queue.py`)
   picks Redis/RQ when available and falls back to `BackgroundTaskQueueBackend`.
   Enqueue through `QueueOrchestrator.enqueue_delivery()` so the fallback keeps
