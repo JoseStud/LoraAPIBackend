@@ -1,13 +1,9 @@
 # Generation Orchestrator Façade Contract
 
-The generation feature surfaces its queue, history, and transport state through the
-`useGenerationOrchestratorFacade()` helper located in
-`app/frontend/src/features/generation/orchestrator/facade.ts`. The façade is the only public
-entry-point for orchestration behaviour; Pinia stores and helper modules remain `@internal` to
-the feature package so callers cannot bypass lifecycle guarantees introduced during the recent
-manager refactor.
-
-## Public API
+`useGenerationOrchestratorFacade()` (`app/frontend/src/features/generation/orchestrator/facade.ts`)
+is a read-only view of the generation orchestrator store. It returns frozen snapshots of the
+queue, results and system status plus the transport state. It has no lifecycle and no commands:
+reading it registers no consumer and starts no polling or WebSocket.
 
 ```ts
 import { useGenerationOrchestratorFacade } from '@/features/generation/orchestrator';
@@ -15,62 +11,43 @@ import type { GenerationOrchestratorFacade } from '@/features/generation/orchest
 ```
 
 `@/features/generation/orchestrator` is a path alias (Vite, Vitest and `tsconfig.json`) for
-`orchestrator/facade.ts`, which exports both the factory and the façade type. Code outside the
-feature imports `useGenerationOrchestratorFacade` from `@/features/generation/public`.
-It wires together the orchestrator store, the manager store, and the shared notification
-adapter so that every consumer interacts with a single, shared orchestrator instance.
+`orchestrator/facade.ts`. Code outside the feature imports `useGenerationOrchestratorFacade`
+from `@/features/generation/public`.
 
-## Read-only selectors
+## Selectors
 
-All selectors resolve to immutable snapshots backed by the orchestrator store. They expose
-queue, history, and transport state without leaking mutable references:
-
-- `queue`, `jobs`, `activeJobs`, `sortedActiveJobs`, `hasActiveJobs`, `jobsByBackendId` – queue
-  views derived from the façade's underlying Pinia store.
-- `results`, `recentResults`, `historyLimit` – recent history constrained by the configured
-  retention settings.
+- `queue`, `jobs`, `activeJobs`, `sortedActiveJobs`, `hasActiveJobs` – the job queue.
+- `results`, `recentResults`, `historyLimit` – recent results, capped by the history limit.
 - `systemStatus`, `systemStatusReady`, `systemStatusLastUpdated`, `systemStatusApiAvailable`,
-  `queueManagerActive` – backend availability snapshots sourced from the system status module.
-- `isActive`, `isConnected`, `pollIntervalMs` – orchestrator lifecycle markers, including the
-  active transport polling cadence.
+  `queueManagerActive` – backend availability.
+- `isActive`, `isConnected`, `pollIntervalMs` – whether the orchestrator is running and how often
+  it polls.
 - `transportMetrics`, `transportPhase`, `transportReconnectAttempt`,
   `transportConsecutiveFailures`, `transportNextRetryDelayMs`, `transportLastConnectedAt`,
   `transportLastDisconnectedAt`, `transportDowntimeMs`, `transportTotalDowntimeMs`,
-  `lastError`, `lastSnapshot` – comprehensive transport telemetry for debugging reconnect
-  behaviour.
-- `pendingActionsCount`, `lastActionAt`, `lastCommandError` – façade-level instrumentation used
-  to show optimistic UI states and error feedback.
+  `transportPaused`, `transportPauseReasons`, `transportPauseSince`,
+  `transportLastPauseEvent`, `transportLastResumeEvent`, `lastError`, `lastSnapshot` – transport
+  telemetry.
 
-Each selector is typed as a `ComputedRef` or `ReadonlyRef` that wraps `freezeDeep`-produced
-snapshots. Mutating the returned structures throws at runtime, preserving store integrity.
+Arrays and objects are `freezeDeep` snapshots typed `DeepReadonly`; mutating them throws in every
+build (`facade.readonly.test-d.ts` pins the types).
 
-## Command methods
+## Running the orchestrator and sending commands
 
-Consumers mutate orchestrator state exclusively through façade commands. The implementation
-logs start/success/error events and updates the telemetry selectors listed above:
+There is one lifecycle API: `useGenerationOrchestratorManager().acquire(...)`. A binding keeps the
+shared orchestrator alive until it is released, and carries every command (`initialize`,
+`startGeneration`, `cancelJob`, `removeJob`, `clearCompletedJobs`, `clearQueue`, `deleteResult`,
+`refreshResults`, `setHistoryLimit`, ...). The manager store
+(`stores/orchestratorManagerStore.ts`) destroys the orchestrator when the last binding is
+released, from whichever call site.
 
-- `ensureInitialized(options?)` – acquire the shared orchestrator instance via the manager store,
-  bootstrapping transport connections on first use.
-- `cancelJob(jobId)` – cancel an active job through the transport adapter and refresh queue
-  state.
-- `removeJob(jobId)` / `removeJobLocal(jobId)` – drop jobs from the queue cache after
-  completion or local clean-up.
-- `clearCompletedJobs()` – prune completed entries without touching running jobs.
-- `refreshHistory(options?)` – reload recent results, optionally surfacing success notifications.
-- `setHistoryLimit(limit)` – update the retained result count and trigger a history refresh.
-- `reconnect()` – force a transport reconnection handshake.
-- `releaseIfLastConsumer()` – release the orchestrator when the final consumer unmounts so
-  transport watchers tear down cleanly.
+- The Studio acquires its binding in `useGenerationStudioController`.
+- Dashboard widgets call `useGenerationWidgetBinding(label)`
+  (`composables/useGenerationWidgetBinding.ts`), which acquires on mount with
+  `autoSync: false` (the widget does not drive the history limit or the backend URL), logs
+  orchestrator notifications to the console instead of toasting them, and releases on unmount.
+- Command call sites that are not mounted for long, such as `useJobQueueActions`, acquire a
+  binding for their effect scope and release it when the scope stops.
 
-## Lifecycle guarantees
-
-The façade acquires access to the orchestrator through `useGenerationOrchestratorManagerStore`
-(`stores/orchestratorManagerStore.ts`), which tracks active consumers and orchestrates
-initialization/cleanup. Tests and downstream
-features must never instantiate the orchestrator store directly—doing so bypasses the shared
-transport binding and reintroduces the duplicate polling issues the refactor eliminated.
-
-When extending the façade, add new selectors or commands to `facade.ts` rather than exporting
-additional helpers from the Pinia stores. This keeps the public surface narrow while allowing
-the underlying modules (`queueModule`, `resultsModule`, `systemStatusModule`, `transportModule`
-and the `transportAdapter`, all in `stores/orchestrator/`) to evolve without breaking consumers.
+Never instantiate the orchestrator store or call its lifecycle methods directly; that bypasses
+consumer counting and brings back duplicate polling.

@@ -1,42 +1,24 @@
-import {
-  computed,
-  getCurrentScope,
-  onBeforeUnmount,
-  onMounted,
-  onScopeDispose,
-  ref,
-  shallowRef,
-} from 'vue';
+import { computed, getCurrentScope, onScopeDispose, ref, shallowRef } from 'vue';
 
 import {
   useGenerationOrchestratorManager,
   type GenerationOrchestratorBinding,
 } from './useGenerationOrchestratorManager';
+import { useGenerationWidgetBinding } from './useGenerationWidgetBinding';
 import { useGenerationOrchestratorFacade } from '@/features/generation/orchestrator';
 import type { ReadonlyQueue } from '@/features/generation/orchestrator';
 import { useNotifications } from '@/composables/shared';
 import type { NotificationType } from '@/types';
 
 /**
- * Read-only view of the shared queue for the JobQueue widget. Acquires the façade in read-only mode
- * on mount and releases it on unmount; the job list mirrors the manager's sorted active jobs.
+ * Read-only view of the shared queue for the JobQueue widget. Holds an orchestrator binding while
+ * mounted; the job list mirrors the manager's sorted active jobs.
  */
 export const useJobQueue = () => {
   const facade = useGenerationOrchestratorFacade();
+  useGenerationWidgetBinding('JobQueue');
 
-  onMounted(() => {
-    void facade
-      .ensureInitialized({ readOnly: true })
-      .catch((error) => {
-        console.error('[useJobQueue] Failed to initialize job queue facade', error);
-      });
-  });
-
-  onBeforeUnmount(() => {
-    facade.releaseIfLastConsumer();
-  });
-
-  const jobs = computed<ReadonlyQueue>(() => facade.sortedActiveJobs.value)
+  const jobs = computed<ReadonlyQueue>(() => facade.sortedActiveJobs.value);
 
   return {
     jobs,
@@ -100,22 +82,14 @@ export const useJobQueueActions = (_options: UseJobQueueActionsOptions = {}) => 
       return false;
     }
 
-    ensureBinding();
+    const binding = ensureBinding();
 
-    const activeJobs = generationFacade.activeJobs.value;
-    const job = activeJobs.find((item) => {
-      const backendJobId = (item as { backendId?: string }).backendId
-        ?? (item as { jobId?: string | number }).jobId;
-      const normalizedBackend =
-        typeof backendJobId === 'number' || typeof backendJobId === 'string'
-          ? String(backendJobId)
-          : null;
-      return (
+    const job = generationFacade.activeJobs.value.find(
+      (item) =>
         item.id === normalizedJobId ||
         item.uiId === normalizedJobId ||
-        normalizedBackend === normalizedJobId
-      );
-    });
+        item.backendId === normalizedJobId,
+    );
 
     if (!job) {
       dispatchToast('Job not found', 'error');
@@ -125,7 +99,7 @@ export const useJobQueueActions = (_options: UseJobQueueActionsOptions = {}) => 
     isCancelling.value = true;
 
     try {
-      await generationFacade.cancelJob(normalizedJobId);
+      await binding.cancelJob(job.backendId);
       return true;
     } catch (error) {
       debug('Failed to cancel job', error);
@@ -137,13 +111,11 @@ export const useJobQueueActions = (_options: UseJobQueueActionsOptions = {}) => 
   };
 
   const clearCompletedJobs = (): void => {
-    ensureBinding();
-    generationFacade.clearCompletedJobs();
+    ensureBinding().clearCompletedJobs();
   };
 
   const removeJob = (jobId: string | number): void => {
-    ensureBinding();
-    generationFacade.removeJob(jobId);
+    ensureBinding().removeJob(String(jobId).trim());
   };
 
   return {

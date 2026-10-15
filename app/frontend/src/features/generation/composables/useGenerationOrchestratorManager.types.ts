@@ -33,7 +33,11 @@ export interface GenerationOrchestratorBinding {
   loadActiveJobsData: () => Promise<void>;
   loadRecentResultsData: (notifySuccess?: boolean) => Promise<void>;
   startGeneration: (payload: GenerationRequestPayload) => Promise<GenerationStartResponse>;
+  /** Cancels the job with this backend id. */
   cancelJob: (jobId: string) => Promise<void>;
+  /** Drops a job from the local queue by UI or backend id; the backend is not told. */
+  removeJob: (jobId: string) => void;
+  clearCompletedJobs: () => void;
   clearQueue: () => Promise<void>;
   deleteResult: (resultId: string | number) => Promise<void>;
   refreshResults: (notifySuccess?: boolean) => Promise<void>;

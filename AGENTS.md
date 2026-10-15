@@ -157,10 +157,17 @@ Read these before changing the matching subsystem:
   visibility/online/offline listeners. Effects start on the first `acquire()`
   and stop when the last consumer releases, from any call site. Acquire
   bindings with `useGenerationOrchestratorManager().acquire(...)`; never create
-  orchestrator instances inside components. The Studio's binding and view
+  orchestrator instances inside components. A binding is the only lifecycle
+  API and carries every command. `useGenerationOrchestratorFacade()`
+  (`features/generation/orchestrator/facade.ts`) is a read-only view of the
+  store: it registers no consumer and starts nothing. Dashboard widgets that
+  need the orchestrator running call `useGenerationWidgetBinding(label)`,
+  which acquires on mount (no history/backend sync, notifications logged
+  rather than toasted) and releases on unmount. The Studio's binding and view
   state live in `features/generation/composables/useGenerationStudioController.ts`,
   composed by `useGenerationStudio.ts`; dashboard widgets must not import them.
-  ADR 007's 2026-10-15 amendment has the full module map.
+  ADR 007's 2026-10-15 amendments have the full module map and the
+  single-lifecycle decision.
 - **Transport**: queue polling and WebSocket updates are wired in
   `features/generation/stores/orchestrator/transportAdapter.ts` (HTTP through
   `composables/useGenerationQueueClient.ts`, the socket through
@@ -227,7 +234,7 @@ Run the relevant rows for cross-cutting PRs and note the results in the PR.
 
 | Area | Expectation | How to check |
 | --- | --- | --- |
-| Orchestrator lifecycle | Consumers from separate call sites share one transport, one set of watchers and listeners, torn down once when the last releases | `npx vitest run tests/vue/composables/useGenerationOrchestratorManager.lifecycle.spec.ts tests/vue/composables/useGenerationOrchestratorManager.spec.ts tests/vue/composables/useGenerationOrchestratorManager.integration.spec.ts` |
+| Orchestrator lifecycle | Consumers from separate call sites share one transport, one set of watchers and listeners, torn down once when the last releases | `npx vitest run tests/vue/composables/useGenerationOrchestratorManager.lifecycle.spec.ts tests/vue/composables/useGenerationOrchestratorManager.spec.ts tests/vue/composables/useGenerationOrchestratorManager.integration.spec.ts tests/vue/composables/useGenerationWidgetBinding.spec.ts` |
 | Visibility / offline | Polling pauses while hidden or offline and resumes without duplicate jobs | DevTools Page Visibility and offline toggles; watch the network tab |
 | Widgets without Studio | Dashboard widgets render without loading the Studio bundle | `npm run check:bundle`; load the dashboard route directly |
 | HTTP errors | 401/403/5xx normalised; only idempotent requests retried; aborted requests never retried | `npx vitest run tests/vue/services/httpClient.spec.ts tests/vue/useApi.spec.ts` |

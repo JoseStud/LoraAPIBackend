@@ -53,13 +53,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import { useSystemStatus } from '../../composables/useSystemStatus';
 import SystemStatusCardDetailed from './SystemStatusCardDetailed.vue';
 import SystemStatusCardSimple from './SystemStatusCardSimple.vue';
 import SystemStatusCardSkeleton from './SystemStatusCardSkeleton.vue';
-import { useGenerationOrchestratorFacade } from '@/features/generation/orchestrator';
+import { useGenerationWidgetBinding } from '../../composables/useGenerationWidgetBinding';
 
 interface Props {
   variant?: 'simple' | 'detailed';
@@ -85,19 +85,7 @@ const {
   isReady,
 } = useSystemStatus();
 
-const orchestratorFacade = useGenerationOrchestratorFacade();
-
-onMounted(() => {
-  void orchestratorFacade
-    .ensureInitialized({ readOnly: true })
-    .catch((error) => {
-      console.error('[SystemStatusCard] Failed to initialize orchestrator facade', error);
-    });
-});
-
-onBeforeUnmount(() => {
-  orchestratorFacade.releaseIfLastConsumer();
-});
+useGenerationWidgetBinding('SystemStatusCard');
 
 const isDetailed = computed(() => props.variant === 'detailed');
 const isExpanded = ref(false);

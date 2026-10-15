@@ -57,7 +57,7 @@ We need an explicit decision record so future contributors preserve this archite
 ## Addendum 2025-03 – Queue/Results Read-only Façade
 
 - **Façade-only access.** External features (dashboard, summaries, admin views) must import `useGenerationOrchestratorFacade()` instead of reaching into Pinia stores. The façade now exposes immutable queue/result slices plus command helpers so consumers never mutate store internals directly (`app/frontend/src/features/generation/orchestrator/facade.ts`).
-- **Command telemetry.** The façade tracks `pendingActionsCount`, `lastActionAt`, and `lastCommandError` while logging start/success/error events for operations such as `cancelJob`, `refreshHistory`, and `setHistoryLimit`. These signals surface command latency and failure context without leaking store mutations to the UI layer.
+- **Command telemetry.** *(Superseded by the 2026-10-15 lifecycle amendment below.)* The façade tracked `pendingActionsCount`, `lastActionAt`, and `lastCommandError` around its commands.
 - **Store encapsulation.** Generation store modules are marked `@internal` and no longer exported through public barrels. ESLint forbids `@/features/generation/stores/**` imports outside the feature directory so only façade consumers cross the boundary (`.eslintrc.cjs`).
 
 ## Amendment 2026-10-15 – Consolidated module map
@@ -110,3 +110,32 @@ What changed is that each responsibility now lives in one module instead of a ch
 keep their own files and responsibilities. The adapter stays separate from `transportModule.ts` so
 tests can replace it with `vi.mock()` without replacing the transport state, and the view models
 stay outside `useGenerationStudio.ts` so its spec can spy on them across a module boundary.
+
+## Amendment 2026-10-15 – One lifecycle API
+
+**Why.** The façade had a second lifecycle beside `acquire()`: `ensureInitialized()` /
+`releaseIfLastConsumer()` registered "read-only consumers" in a separate set on the manager store,
+and the façade wrapped every binding command with its own `pendingActionsCount`,
+`lastActionAt` and `lastCommandError`. That state was created per call to
+`useGenerationOrchestratorFacade()`, so two components showed different pending counts for the
+same orchestrator, and teardown depended on two consumer sets agreeing.
+
+**Decision.**
+
+- `useGenerationOrchestratorFacade()` is a read-only view: selectors only, no lifecycle, no
+  commands, no per-call state. Reading it never starts the transport.
+- `useGenerationOrchestratorManager().acquire(...)` is the only way to keep the orchestrator
+  running or to send a command. The manager store has one consumer set; `hasActiveConsumers` is
+  `consumers.size > 0`.
+- Dashboard widgets that previously used the façade lifecycle (`SystemStatusCard`, `JobQueue`)
+  call `useGenerationWidgetBinding(label)`, which acquires on mount with `autoSync: false`, logs
+  notifications instead of toasting them (the manager broadcasts to every consumer, so toasting
+  would duplicate the Studio's toasts) and releases on unmount.
+- The binding gained `removeJob` and `clearCompletedJobs`, the two façade commands it lacked.
+  `useJobQueueActions` sends all three queue commands through its binding; `cancelJob` takes the
+  backend job id.
+
+`tests/vue/composables/useGenerationWidgetBinding.spec.ts` mounts widgets from separate components
+and checks that they share one orchestrator, which is destroyed after the last unmounts and kept
+while the Studio still holds a binding.
+
