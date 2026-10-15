@@ -11,7 +11,7 @@ Recent regressions exposed that different parts of the UI created bespoke genera
 The generation flow now centres on three cooperating pieces:
 
 1. **Generation Orchestrator Store** – a Pinia store that exposes immutable queue, results, transport, and system status state with explicit lifecycle and data-loading methods.
-2. **Generation Orchestrator Manager** – a composable that owns the single orchestrator instance, coordinates initialization/cleanup, and binds watchers to component lifecycles.
+2. **Generation Orchestrator Manager** – a Pinia setup store (`orchestratorManagerStore`) that owns the single orchestrator instance, its consumers, initialization/cleanup, and the shared watchers and environment listeners, fronted by the `useGenerationOrchestratorManager()` composable, a thin per-call wrapper.
 3. **Generation Helpers** – queue/history modules, transport adapters, schema normalizers, and HTTP clients that encapsulate specialised logic.
 
 We need an explicit decision record so future contributors preserve this architecture and avoid the anti-patterns that previously caused bugs.
@@ -23,8 +23,8 @@ We need an explicit decision record so future contributors preserve this archite
 - Keep helper responsibilities isolated:
   - Queue/history/system-status modules perform data shaping and state updates, including schema enforcement and normalisation.【F:app/frontend/src/features/generation/stores/orchestrator/queueModule.ts†L1-L132】【F:app/frontend/src/features/generation/stores/orchestrator/resultsModule.ts†L1-L214】【F:app/frontend/src/features/generation/stores/orchestrator/systemStatusModule.ts†L1-L200】
   - Transport modules and adapters encapsulate networking, reconnection, logging, and schema-validated parsing.【F:app/frontend/src/features/generation/stores/orchestrator/transportModule.ts†L1-L129】【F:app/frontend/src/features/generation/composables/createGenerationTransportAdapter.ts†L1-L218】
-  - Managers/composables acquire orchestrator access, manage consumers, and attach watchers for UI-owned behaviour (history size, backend URL changes).【F:app/frontend/src/features/generation/composables/useGenerationOrchestratorManager.ts†L1-L223】
-- Enforce **single-instance** orchestrator ownership. Components and features must obtain access through `useGenerationOrchestratorManager().acquire(...)`, ensuring initialization, teardown, and watchers are coordinated.【F:app/frontend/src/features/generation/composables/useGenerationOrchestrator.ts†L1-L23】【F:app/frontend/src/features/generation/composables/useGenerationOrchestratorManager.ts†L62-L204】
+  - The manager store acquires orchestrator access, manages consumers, and attaches watchers for UI-owned behaviour (history size, backend URL changes) plus the visibility/online/offline listeners. It creates them once, in its own effect scope, on the first `acquire()` and stops them when the last consumer releases, whichever call site it came from; `useGenerationOrchestratorManager()` only reads the store's refs and delegates `acquire()`.【F:app/frontend/src/features/generation/stores/orchestratorManagerStore.ts†L138-L528】【F:app/frontend/src/features/generation/composables/useGenerationOrchestratorManager.ts†L1-L78】
+- Enforce **single-instance** orchestrator ownership. Components and features must obtain access through `useGenerationOrchestratorManager().acquire(...)`, ensuring initialization, teardown, and watchers are coordinated.【F:app/frontend/src/features/generation/composables/useGenerationOrchestrator.ts†L1-L23】【F:app/frontend/src/features/generation/stores/orchestratorManagerStore.ts†L435-L512】
 - All generation-side effects (polling, WebSocket lifecycle, queue refreshes) must run inside explicit orchestrator methods or manager-controlled watchers. No helper should start background work on import or instantiation.
 
 ## Consequences

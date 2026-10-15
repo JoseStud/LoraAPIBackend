@@ -110,11 +110,14 @@ Read these before changing the matching subsystem:
 
 - **Generation orchestrator lifecycle**: views and components consume
   generation state only through `useGenerationOrchestratorManager`
-  (`features/generation/composables/useGenerationOrchestratorManager.ts`),
-  which shares one orchestrator and tears it down when the last consumer
-  releases it. Acquire bindings with
-  `useGenerationOrchestratorManager().acquire(...)`; never create orchestrator
-  instances inside components.
+  (`features/generation/composables/useGenerationOrchestratorManager.ts`).
+  Every call to it is a thin wrapper over one Pinia store,
+  `features/generation/stores/orchestratorManagerStore.ts`, which owns the
+  consumers, the history limit, the backend-URL and history watchers and the
+  visibility/online/offline listeners. Effects start on the first `acquire()`
+  and stop when the last consumer releases, from any call site. Acquire
+  bindings with `useGenerationOrchestratorManager().acquire(...)`; never create
+  orchestrator instances inside components.
 - **Transport**: queue polling, WebSocket updates and store syncing are wired in
   `features/generation/composables/useGenerationTransport.ts` and
   `createGenerationTransportAdapter.ts`, with state in
@@ -168,7 +171,7 @@ Run the relevant rows for cross-cutting PRs and note the results in the PR.
 
 | Area | Expectation | How to check |
 | --- | --- | --- |
-| Orchestrator lifecycle | Two consumers share one transport, torn down once when the last releases | `npx vitest run tests/vue/composables/useGenerationOrchestratorManager.spec.ts tests/vue/composables/useGenerationOrchestratorManager.integration.spec.ts` |
+| Orchestrator lifecycle | Consumers from separate call sites share one transport, one set of watchers and listeners, torn down once when the last releases | `npx vitest run tests/vue/composables/useGenerationOrchestratorManager.lifecycle.spec.ts tests/vue/composables/useGenerationOrchestratorManager.spec.ts tests/vue/composables/useGenerationOrchestratorManager.integration.spec.ts` |
 | Visibility / offline | Polling pauses while hidden or offline and resumes without duplicate jobs | DevTools Page Visibility and offline toggles; watch the network tab |
 | Widgets without Studio | Dashboard widgets render without loading the Studio bundle | `npm run check:bundle`; load the dashboard route directly |
 | HTTP errors | 401/403/5xx normalised; only idempotent requests retried; aborted requests never retried | `npx vitest run tests/vue/services/httpClient.spec.ts tests/vue/useApi.spec.ts` |
