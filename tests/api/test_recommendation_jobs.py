@@ -31,7 +31,7 @@ class _FakeEmbeddings:
         if self.error is not None:
             raise self.error
 
-    async def compute_batch(self, adapter_ids=None, *, force_recompute, batch_size):
+    def compute_batch(self, adapter_ids=None, *, force_recompute, batch_size):
         self.calls.append(("batch", adapter_ids, force_recompute, batch_size))
         self._maybe_fail()
         return {
@@ -43,12 +43,12 @@ class _FakeEmbeddings:
             "completed_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
         }
 
-    async def compute_for_lora(self, adapter_id, *, force_recompute=False):
+    def compute_for_lora(self, adapter_id, *, force_recompute=False):
         self.calls.append(("single", adapter_id, force_recompute))
         self._maybe_fail()
         return self.single_result
 
-    async def refresh_similarity_index(self, *, force=False):
+    def refresh_similarity_index(self, *, force=False):
         self.calls.append(("rebuild", force))
         self._maybe_fail()
         return IndexRebuildResponse(

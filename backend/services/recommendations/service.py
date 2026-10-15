@@ -52,7 +52,11 @@ class QueryMetrics:
 
 
 class RecommendationService:
-    """Serve recommendation queries, statistics, feedback and preferences."""
+    """Serve recommendation queries, statistics, feedback and preferences.
+
+    Every method blocks (database, model loading, encoding), so callers run
+    them off the event loop.
+    """
 
     def __init__(
         self,
@@ -96,7 +100,7 @@ class RecommendationService:
         finally:
             self._metrics.record_query((time.perf_counter() - start) * 1000)
 
-    async def similar_loras(
+    def similar_loras(
         self,
         *,
         target_lora_id: str,
@@ -107,7 +111,7 @@ class RecommendationService:
     ) -> List[RecommendationItem]:
         """Return LoRAs similar to the target adapter."""
         with self._timed_query():
-            return await strategies.get_similar_loras(
+            return strategies.get_similar_loras(
                 target_lora_id=target_lora_id,
                 limit=limit,
                 similarity_threshold=similarity_threshold,
@@ -118,7 +122,7 @@ class RecommendationService:
                 engine=self._model_registry.get_recommendation_engine(),
             )
 
-    async def recommend_for_prompt(
+    def recommend_for_prompt(
         self,
         *,
         prompt: str,
@@ -129,7 +133,7 @@ class RecommendationService:
     ) -> List[RecommendationItem]:
         """Return LoRA recommendations that enhance the provided prompt."""
         with self._timed_query():
-            return await strategies.get_recommendations_for_prompt(
+            return strategies.get_recommendations_for_prompt(
                 prompt=prompt,
                 active_loras=list(active_loras) if active_loras else None,
                 limit=limit,
@@ -140,7 +144,7 @@ class RecommendationService:
                 device=self.device,
             )
 
-    async def recommend_for_trigger(
+    def recommend_for_trigger(
         self,
         *,
         trigger_query: str,
@@ -148,7 +152,7 @@ class RecommendationService:
     ) -> List[RecommendationItem]:
         """Return LoRA recommendations that match the provided trigger query."""
         with self._timed_query():
-            return await strategies.get_recommendations_for_trigger(
+            return strategies.get_recommendations_for_trigger(
                 trigger_query=trigger_query,
                 limit=limit,
                 repository=self._repository,

@@ -26,7 +26,7 @@ class _FakeEmbeddings:
         self.error: Exception | None = None
         self.calls: list[tuple] = []
 
-    async def refresh_similarity_index(self, *, force=False):
+    def refresh_similarity_index(self, *, force=False):
         self.calls.append(("rebuild", force))
         if self.error is not None:
             raise self.error
@@ -38,7 +38,7 @@ class _FakeEmbeddings:
             rebuilt_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
         )
 
-    async def compute_for_lora(self, adapter_id, *, force_recompute=False):
+    def compute_for_lora(self, adapter_id, *, force_recompute=False):
         self.calls.append(("single", adapter_id, force_recompute))
         return True
 

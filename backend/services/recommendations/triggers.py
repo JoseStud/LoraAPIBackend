@@ -218,7 +218,13 @@ class TriggerRecommendationEngine:
         self, repository, query: str, limit: int
     ) -> List[TriggerCandidateResult]:
         """Return ranked trigger candidates for ``query``, refreshing the index."""
-        self._ensure_index(repository)
+        # Requests search from threadpool threads: read one consistent index
+        # even if another request rebuilds it meanwhile.
+        with self._lock:
+            self._ensure_index(repository)
+            trigger_to_loras = self._trigger_to_loras
+            vector_keys = self._vector_keys
+            vectors = self._vectors
         if not query:
             return []
 
@@ -226,7 +232,7 @@ class TriggerRecommendationEngine:
         scored: Dict[str, TriggerCandidateResult] = {}
 
         for canonical in resolution.canonical:
-            matches = self._trigger_to_loras.get(canonical, set())
+            matches = trigger_to_loras.get(canonical, set())
             for adapter_id in matches:
                 confidence = resolution.confidence.get(canonical, 1.0)
                 explanation = f"Exact trigger match: '{canonical}'"
@@ -245,13 +251,13 @@ class TriggerRecommendationEngine:
         need_semantic = len(scored) < limit
         if need_semantic and resolution.normalized_query:
             query_vector = self._embedder.encode_single(resolution.normalized_query)
-            if self._vectors is not None and len(self._vectors):
-                similarities = np.dot(self._vectors, query_vector)
+            if vectors is not None and len(vectors):
+                similarities = np.dot(vectors, query_vector)
                 top_indices = np.argsort(similarities)[::-1][
                     : self._max_semantic_candidates
                 ]
                 for idx in top_indices:
-                    adapter_id, trigger = self._vector_keys[idx]
+                    adapter_id, trigger = vector_keys[idx]
                     if adapter_id in scored and scored[adapter_id].signals.get("exact"):
                         continue
                     similarity = float(similarities[idx])

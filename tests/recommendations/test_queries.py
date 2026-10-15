@@ -3,7 +3,7 @@
 import pickle
 from dataclasses import dataclass
 from typing import List, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -32,18 +32,17 @@ def _service(repository=None, registry=None, metrics=None) -> RecommendationServ
 class TestRecommendationQueries:
     """Ensure queries call the strategies with the right collaborators."""
 
-    @pytest.mark.anyio("asyncio")
-    async def test_similar_loras_records_metrics(self):
+    def test_similar_loras_records_metrics(self):
         repository = MagicMock()
         registry = MagicMock()
         metrics = MagicMock()
         service = _service(repository, registry, metrics)
 
         payload = [MagicMock()]
-        strategy = AsyncMock(return_value=payload)
+        strategy = MagicMock(return_value=payload)
 
         with patch(f"{STRATEGIES}.get_similar_loras", strategy):
-            result = await service.similar_loras(
+            result = service.similar_loras(
                 target_lora_id="adapter-id",
                 limit=5,
                 similarity_threshold=0.3,
@@ -52,7 +51,7 @@ class TestRecommendationQueries:
             )
 
         assert result == payload
-        strategy.assert_awaited_once_with(
+        strategy.assert_called_once_with(
             target_lora_id="adapter-id",
             limit=5,
             similarity_threshold=0.3,
@@ -65,44 +64,42 @@ class TestRecommendationQueries:
         registry.get_recommendation_engine.assert_called_once()
         metrics.record_query.assert_called_once()
 
-    @pytest.mark.anyio("asyncio")
-    async def test_similar_loras_passes_diversify_flag(self):
+    def test_similar_loras_passes_diversify_flag(self):
         service = _service()
-        strategy = AsyncMock(return_value=[])
+        strategy = MagicMock(return_value=[])
 
         with patch(f"{STRATEGIES}.get_similar_loras", strategy):
-            await service.similar_loras(target_lora_id="adapter-1", limit=2)
-            await service.similar_loras(
+            service.similar_loras(target_lora_id="adapter-1", limit=2)
+            service.similar_loras(
                 target_lora_id="adapter-2",
                 limit=3,
                 diversify_results=False,
             )
 
-        assert strategy.await_count == 2
-        first_call_kwargs = strategy.await_args_list[0].kwargs
-        second_call_kwargs = strategy.await_args_list[1].kwargs
+        assert strategy.call_count == 2
+        first_call_kwargs = strategy.call_args_list[0].kwargs
+        second_call_kwargs = strategy.call_args_list[1].kwargs
         assert first_call_kwargs["diversify_results"] is True
         assert second_call_kwargs["diversify_results"] is False
 
-    @pytest.mark.anyio("asyncio")
-    async def test_prompt_query_records_metrics_and_defaults_weights(self):
+    def test_prompt_query_records_metrics_and_defaults_weights(self):
         repository = MagicMock()
         registry = MagicMock()
         metrics = MagicMock()
         service = _service(repository, registry, metrics)
 
         payload = [MagicMock()]
-        strategy = AsyncMock(return_value=payload)
+        strategy = MagicMock(return_value=payload)
 
         with patch(f"{STRATEGIES}.get_recommendations_for_prompt", strategy):
-            result = await service.recommend_for_prompt(
+            result = service.recommend_for_prompt(
                 prompt="test",
                 active_loras=("a",),
                 limit=3,
             )
 
         assert result == payload
-        strategy.assert_awaited_once_with(
+        strategy.assert_called_once_with(
             prompt="test",
             active_loras=["a"],
             limit=3,
@@ -115,39 +112,36 @@ class TestRecommendationQueries:
         registry.get_semantic_embedder.assert_called_once()
         metrics.record_query.assert_called_once()
 
-    @pytest.mark.anyio("asyncio")
-    async def test_trigger_query_records_metrics(self):
+    def test_trigger_query_records_metrics(self):
         repository = MagicMock()
         registry = MagicMock()
         metrics = MagicMock()
         service = _service(repository, registry, metrics)
 
-        strategy = AsyncMock(return_value=[])
+        strategy = MagicMock(return_value=[])
 
         with patch(f"{STRATEGIES}.get_recommendations_for_trigger", strategy):
-            await service.recommend_for_trigger(trigger_query="angel", limit=2)
+            service.recommend_for_trigger(trigger_query="angel", limit=2)
 
-        kwargs = strategy.await_args.kwargs
+        kwargs = strategy.call_args.kwargs
         assert kwargs["trigger_query"] == "angel"
         assert kwargs["limit"] == 2
         assert kwargs["repository"] is repository
         assert kwargs["trigger_engine"] is registry.get_trigger_engine.return_value
         metrics.record_query.assert_called_once()
 
-    @pytest.mark.anyio("asyncio")
-    async def test_failed_query_is_still_timed(self):
+    def test_failed_query_is_still_timed(self):
         metrics = QueryMetrics()
         service = _service(metrics=metrics)
-        strategy = AsyncMock(side_effect=ValueError("LoRA missing not found"))
+        strategy = MagicMock(side_effect=ValueError("LoRA missing not found"))
 
         with patch(f"{STRATEGIES}.get_similar_loras", strategy):
             with pytest.raises(ValueError):
-                await service.similar_loras(target_lora_id="missing")
+                service.similar_loras(target_lora_id="missing")
 
         assert metrics.total_queries == 1
 
-    @pytest.mark.anyio("asyncio")
-    async def test_prompt_query_generates_embeddings(self):
+    def test_prompt_query_generates_embeddings(self):
         @dataclass
         class _Adapter:
             id: str
@@ -210,7 +204,7 @@ class TestRecommendationQueries:
         metrics = MagicMock()
         service = _service(repository, registry, metrics)
 
-        results = await service.recommend_for_prompt(
+        results = service.recommend_for_prompt(
             prompt="glowing forest",
             active_loras=None,
             limit=1,

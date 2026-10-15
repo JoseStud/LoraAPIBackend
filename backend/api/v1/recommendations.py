@@ -19,13 +19,14 @@ from backend.schemas.recommendations import (
     UserPreferenceRequest,
 )
 from backend.services import ServiceRegistry
+from backend.services.recommendations import DEFAULT_WEIGHTS
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 @router.get("/recommendations/similar/{lora_id}", response_model=RecommendationResponse)
-async def get_similar_loras(
+def get_similar_loras(
     lora_id: str,
     limit: int = Query(default=10, ge=1, le=50),
     similarity_threshold: float = Query(default=0.1, ge=0.0, le=1.0),
@@ -63,7 +64,7 @@ async def get_similar_loras(
 
         # Generate recommendations
         recommendation_service = services.recommendations
-        recommendations = await recommendation_service.similar_loras(
+        recommendations = recommendation_service.similar_loras(
             target_lora_id=lora_id,
             limit=limit,
             similarity_threshold=similarity_threshold,
@@ -98,7 +99,7 @@ async def get_similar_loras(
 
 
 @router.post("/recommendations/for-prompt", response_model=RecommendationResponse)
-async def get_recommendations_for_prompt(
+def get_recommendations_for_prompt(
     request: PromptRecommendationRequest,
     services: ServiceRegistry = Depends(get_services),
 ):
@@ -117,12 +118,11 @@ async def get_recommendations_for_prompt(
 
         # Generate recommendations
         recommendation_service = services.recommendations
-        recommendations = await recommendation_service.recommend_for_prompt(
+        recommendations = recommendation_service.recommend_for_prompt(
             prompt=request.prompt,
             active_loras=request.active_loras,
             limit=request.limit,
             style_preference=request.style_preference,
-            weights=request.weights,
         )
 
         processing_time = (datetime.now() - start_time).total_seconds() * 1000
@@ -137,7 +137,8 @@ async def get_recommendations_for_prompt(
                 "gpu_enabled": recommendation_service.gpu_enabled,
                 "style_preference": request.style_preference,
                 "technical_requirements": request.technical_requirements,
-                "weights": request.weights,
+                # The request has no weights field; the service's defaults apply.
+                "weights": dict(DEFAULT_WEIGHTS),
             },
             generated_at=datetime.now(timezone.utc),
         )
@@ -150,7 +151,7 @@ async def get_recommendations_for_prompt(
 
 
 @router.get("/recommendations/by-trigger", response_model=RecommendationResponse)
-async def get_recommendations_for_trigger(
+def get_recommendations_for_trigger(
     trigger_query: str = Query(..., min_length=1),
     limit: int = Query(default=10, ge=1, le=50),
     services: ServiceRegistry = Depends(get_services),
@@ -159,7 +160,7 @@ async def get_recommendations_for_trigger(
     try:
         start_time = datetime.now()
         recommendation_service = services.recommendations
-        recommendations = await recommendation_service.recommend_for_trigger(
+        recommendations = recommendation_service.recommend_for_trigger(
             trigger_query=trigger_query,
             limit=limit,
         )
