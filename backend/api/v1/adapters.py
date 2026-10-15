@@ -1,5 +1,6 @@
 """HTTP routes for managing adapters."""
 
+import logging
 from typing import List, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -15,6 +16,7 @@ from backend.schemas import (
 from backend.services import ServiceRegistry
 from backend.services.adapters import AdapterIdentityConflict
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -116,8 +118,9 @@ def get_adapter_tags(services: ServiceRegistry = Depends(get_services)):
     try:
         tags = services.adapters.get_all_tags()
     except Exception as exc:  # pragma: no cover - defensive guard
+        logger.exception("Failed to load adapter tags")
         raise HTTPException(
-            status_code=500, detail=f"Failed to load adapter tags: {exc}"
+            status_code=500, detail="Failed to load adapter tags"
         ) from exc
 
     return {"tags": tags}
@@ -143,9 +146,8 @@ def bulk_adapter_action(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(
-            status_code=500, detail=f"Bulk action failed: {exc}"
-        ) from exc
+        logger.exception("Bulk action failed")
+        raise HTTPException(status_code=500, detail="Bulk action failed") from exc
 
     return {
         "success": True,
@@ -177,9 +179,8 @@ def patch_adapter(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive guard
-        raise HTTPException(
-            status_code=500, detail=f"Failed to patch adapter: {exc}"
-        ) from exc
+        logger.exception("Failed to patch adapter")
+        raise HTTPException(status_code=500, detail="Failed to patch adapter") from exc
 
     return {"adapter": updated.model_dump()}
 

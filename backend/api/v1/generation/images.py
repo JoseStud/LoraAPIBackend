@@ -30,7 +30,7 @@ _CACHE_CONTROL = "private, max-age=86400"
         404: {"description": "No such job, image or file."},
     },
 )
-async def get_result_image(
+def get_result_image(
     job_id: str,
     index: int,
     services: ServiceRegistry = Depends(get_services),

@@ -23,7 +23,7 @@ router = APIRouter(tags=["import-export"])
 
 
 @router.post("/export/estimate")
-async def estimate_export(
+def estimate_export(
     config: ExportConfig,
     services: ServiceRegistry = Depends(get_services),
 ) -> ExportEstimate:
@@ -40,7 +40,7 @@ async def estimate_export(
 
 
 @router.post("/export")
-async def export_data(
+def export_data(
     config: ExportConfig,
     services: ServiceRegistry = Depends(get_services),
 ):
@@ -64,7 +64,7 @@ async def export_data(
 
 
 @router.post("/import")
-async def import_data(
+def import_data(
     files: List[UploadFile] = File(...),
     config: str = Form(...),
     services: ServiceRegistry = Depends(get_services),
@@ -72,8 +72,8 @@ async def import_data(
     """Import adapters from uploaded archives after validation."""
     try:
         parsed_config = ImportConfig.model_validate_json(config)
-    except Exception as exc:  # pragma: no cover - defensive guard
-        raise HTTPException(status_code=400, detail=f"Invalid config: {exc}") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid import config") from exc
 
     if not files:
         raise HTTPException(status_code=400, detail="No files were provided for import")
@@ -125,7 +125,7 @@ async def import_data(
 
 
 @router.get("/backups/history")
-async def get_backup_history(
+def get_backup_history(
     services: ServiceRegistry = Depends(get_services),
 ) -> List[BackupHistoryItem]:
     """Get persisted backup history entries."""
@@ -133,7 +133,7 @@ async def get_backup_history(
 
 
 @router.post("/backup/create")
-async def create_backup(
+def create_backup(
     payload: BackupCreateRequest,
     services: ServiceRegistry = Depends(get_services),
 ):
@@ -150,7 +150,7 @@ async def create_backup(
 
 
 @router.delete("/backups/{backup_id}", status_code=204)
-async def delete_backup(
+def delete_backup(
     backup_id: str,
     services: ServiceRegistry = Depends(get_services),
 ) -> Response:

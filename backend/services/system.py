@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import os
 import shutil
 from dataclasses import dataclass
@@ -20,6 +22,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from sqlmodel import Session
 
     from .deliveries import DeliveryService
+
+logger = logging.getLogger(__name__)
 
 
 def _bytes_to_gigabytes(value: Optional[int]) -> float:
@@ -201,9 +205,10 @@ class SystemService:
 
         try:
             available = await session.health_check()
-        except Exception as exc:  # pragma: no cover - defensive guard
+        except Exception:  # pragma: no cover - defensive guard
+            logger.exception("SDNext health check failed")
             status["available"] = False
-            status["error"] = str(exc)
+            status["error"] = "Health check failed"
         else:
             status["available"] = bool(available)
             if not available:
@@ -292,7 +297,15 @@ class SystemService:
         }
 
     async def get_system_status_payload(self) -> Dict[str, Any]:
-        """Return the full system status payload consumed by API clients."""
+        """Return the full system status payload consumed by API clients.
+
+        Only the SDNext check is asynchronous; the GPU probes, database queries
+        and host metrics run in a worker thread so they do not block the loop.
+        """
+        sdnext_status = await self._gather_sdnext_status()
+        return await asyncio.to_thread(self._build_status_payload, sdnext_status)
+
+    def _build_status_payload(self, sdnext_status: Dict[str, Any]) -> Dict[str, Any]:
         observed_at = datetime.now(timezone.utc).isoformat()
 
         gpu_info = detect_gpu()
@@ -311,7 +324,6 @@ class SystemService:
 
         queue_stats = self._delivery_service.get_queue_statistics()
 
-        sdnext_status = await self._gather_sdnext_status()
         importer_status = self._gather_importer_status()
         recommendation_status = self._gather_recommendation_status()
         thresholds = self._queue_thresholds()

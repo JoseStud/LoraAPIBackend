@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 @router.post("/results/export")
-async def export_generation_results(
+def export_generation_results(
     request: GenerationExportRequest,
     services: ServiceRegistry = Depends(get_services),
 ):

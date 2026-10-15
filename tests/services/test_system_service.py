@@ -2,6 +2,7 @@ import os
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
 from backend.models import Adapter
@@ -22,7 +23,13 @@ class DummyDeliveryService:
 
 
 def _setup_session_with_adapter(*, last_ingested_at: datetime | None) -> Session:
-    engine = create_engine("sqlite://", echo=False)
+    # The status payload is built in a worker thread; share one connection.
+    engine = create_engine(
+        "sqlite://",
+        echo=False,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     SQLModel.metadata.create_all(engine)
     session = Session(engine)
 

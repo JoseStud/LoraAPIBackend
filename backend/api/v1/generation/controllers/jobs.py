@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import List, Optional
 
 from fastapi import BackgroundTasks, HTTPException
+from fastapi.concurrency import run_in_threadpool
 
 from backend.schemas import (
     DeliveryCreateResponse,
@@ -47,7 +48,8 @@ async def schedule_generation_job(
 ) -> DeliveryCreateResponse:
     """Queue a generation job for background processing."""
     coordinator = services.generation_coordinator
-    job = coordinator.schedule_generation_job(
+    job = await run_in_threadpool(
+        coordinator.schedule_generation_job,
         generation_params,
         backend=backend,
         mode=mode,
@@ -109,7 +111,7 @@ async def cancel_job(
     job_id: str,
 ) -> GenerationCancelResponse:
     """Cancel an active generation job."""
-    if services.deliveries.get_job(job_id) is None:
+    if await run_in_threadpool(services.deliveries.get_job, job_id) is None:
         raise HTTPException(status_code=404, detail="Job not found")
 
     if not await services.generation_coordinator.cancel_job(job_id):

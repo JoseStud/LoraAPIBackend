@@ -92,6 +92,14 @@ Read these before changing the matching subsystem:
   package registers nothing. Reach the registry through
   `get_delivery_registry()`, which runs the same idempotent registration.
   Add endpoints through the routers, not ad hoc routes.
+- **Route handlers and the event loop**: database, file and other blocking
+  work never runs on the event loop. A handler that only does synchronous work
+  is a plain `def` (FastAPI runs it in the threadpool). An `async def` handler
+  must await something and runs its synchronous steps through
+  `run_in_threadpool` (services use `asyncio.to_thread`, as
+  `SystemService.get_system_status_payload` does).
+  `tests/api/test_route_handlers.py` fails on an `async def` handler that never
+  awaits.
 - **Service container**: `ServiceRegistry`
   (`backend/services/service_registry.py`) is the only container. It holds one
   database session and exposes every service as a flat, lazily built

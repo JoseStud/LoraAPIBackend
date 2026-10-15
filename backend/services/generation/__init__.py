@@ -1,5 +1,6 @@
 """Generation service and helpers for SDNext integration."""
 
+import asyncio
 from typing import Any, Dict, List, Optional
 
 from backend.delivery import get_delivery_registry, get_generation_backend
@@ -294,13 +295,13 @@ class GenerationCoordinator:
         A running job's generation is interrupted too. The runner then finds
         the job cancelled and discards whatever the backend returns.
         """
-        previous_status = self._deliveries.cancel_job(job_id)
+        previous_status = await asyncio.to_thread(self._deliveries.cancel_job, job_id)
         if previous_status is None:
             return False
 
         self._websocket.stop_job_monitoring(job_id)
         if previous_status == "running":
-            job = self._deliveries.get_job(job_id)
+            job = await asyncio.to_thread(self._deliveries.get_job, job_id)
             backend_name = job.mode if job is not None else "sdnext"
             await self._generation_service.interrupt(backend_name)
         return True
