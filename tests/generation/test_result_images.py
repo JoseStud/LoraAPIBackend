@@ -420,3 +420,34 @@ def test_download_and_delete_follow_references(
 
     assert client.delete(f"/api/v1/generation/results/{job_id}").status_code == 204
     assert not path.exists()
+
+
+def test_job_status_exposes_browser_sources_not_references(
+    client: TestClient,
+    deliveries: DeliveryService,
+    output_dir: Path,
+):
+    """Job status responses never leak ``output://`` references."""
+    reference_job = _store_job(
+        deliveries,
+        [make_output_reference("a.png"), make_output_reference("b.png")],
+    )
+    legacy_job = _store_job(deliveries, [PNG_BASE64, "/app/outputs/raw.png"])
+
+    response = client.get(f"/api/v1/generation/jobs/{reference_job}")
+    assert response.status_code == 200
+    assert "output://" not in response.text
+    assert response.json()["delivery"]["result"]["images"] == [
+        f"/api/v1/generation/results/{reference_job}/images/0",
+        f"/api/v1/generation/results/{reference_job}/images/1",
+    ]
+
+    response = client.get(f"/api/v1/generation/jobs/{legacy_job}")
+    assert response.status_code == 200
+    # Unloadable entries (a bare server path) are dropped, not leaked.
+    assert response.json()["delivery"]["result"]["images"] == [
+        f"data:image/png;base64,{PNG_BASE64}"
+    ]
+
+    stored = deliveries.get_job(reference_job)
+    assert stored is not None and "output://" in stored.result

@@ -63,7 +63,9 @@ service runs without the wrapper in `app/main.py`). Routes are implemented under
 - `GET /v1/generation/jobs/active` – Return normalized telemetry for jobs in
   pending or running states.
 - `GET /v1/generation/jobs/{job_id}` – Fetch delivery/job details wrapped for
-  the frontend.
+  the frontend. Here and in `/jobs/active`, `result.images` holds
+  browser-loadable sources (the result image route or a `data:` URI), never the
+  stored references.
 - `POST /v1/generation/jobs/{job_id}/cancel` – Cancel a queued job when the
   backend supports it.
 - `GET /v1/generation/results` – List recent generation results. `image_url`
