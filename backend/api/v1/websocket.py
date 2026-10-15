@@ -8,8 +8,8 @@ route is available at ``/v1/ws/progress``.
 
 from fastapi import APIRouter, Depends, WebSocket
 
-from backend.core.dependencies import get_application_services
-from backend.services import ApplicationServices
+from backend.core.dependencies import get_services
+from backend.services import ServiceRegistry
 
 router = APIRouter()
 
@@ -20,7 +20,7 @@ PROGRESS_WEBSOCKET_ROUTE = "/ws/progress"
 @router.websocket(PROGRESS_WEBSOCKET_ROUTE)
 async def websocket_progress_endpoint(
     websocket: WebSocket,
-    container: ApplicationServices = Depends(get_application_services),
+    services: ServiceRegistry = Depends(get_services),
 ):
     """WebSocket endpoint for real-time generation progress monitoring.
 
@@ -52,4 +52,4 @@ async def websocket_progress_endpoint(
     }
     ```
     """
-    await container.websocket.handle_connection(websocket)
+    await services.websocket.handle_connection(websocket)

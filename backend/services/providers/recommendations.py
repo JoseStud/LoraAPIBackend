@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Optional, Protocol
 
 from sqlmodel import Session
@@ -153,15 +152,7 @@ def make_recommendation_service(
     ).build()
 
 
-@dataclass(frozen=True)
-class RecommendationProviders:
-    """Grouped recommendation-related provider callables."""
-
-    recommendation: RecommendationServiceFactory = make_recommendation_service
-
-
 __all__ = [
-    "RecommendationProviders",
     "RecommendationServiceFactory",
     "make_recommendation_service",
 ]

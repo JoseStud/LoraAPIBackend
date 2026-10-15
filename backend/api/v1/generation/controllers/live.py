@@ -15,7 +15,7 @@ from backend.schemas import (
     SDNextGenerationParams,
     SDNextGenerationResult,
 )
-from backend.services import ApplicationServices, DomainServices
+from backend.services import ServiceRegistry
 from backend.services.generation import normalize_generation_status
 
 logger = structlog.get_logger(__name__)
@@ -35,11 +35,10 @@ async def _execute_generation_request(
     mode: GenerationMode,
     save_images: bool,
     return_format: GenerationResultFormat,
-    domain: DomainServices,
-    application: ApplicationServices,
+    services: ServiceRegistry,
 ) -> SDNextGenerationResult:
     """Validate and orchestrate a generation request."""
-    warnings = await domain.generation.validate_generation_params(generation_params)
+    warnings = await services.generation.validate_generation_params(generation_params)
     if warnings:
         logger.warning(
             "generation parameter validation warnings",
@@ -54,7 +53,7 @@ async def _execute_generation_request(
         "return_format": return_format.value,
     }
 
-    result = await domain.generation.generate_image(
+    result = await services.generation.generate_image(
         generation_params.prompt,
         backend,
         generation_params,
@@ -62,7 +61,7 @@ async def _execute_generation_request(
     )
 
     if result.job_id and mode == GenerationMode.DEFERRED:
-        await application.generation_coordinator.broadcast_job_started(
+        await services.generation_coordinator.broadcast_job_started(
             result.job_id,
             generation_params,
         )
@@ -83,8 +82,7 @@ async def generate_image(
     mode: GenerationMode,
     save_images: bool,
     return_format: GenerationResultFormat,
-    domain: DomainServices,
-    application: ApplicationServices,
+    services: ServiceRegistry,
 ) -> SDNextGenerationResult:
     """Generate an image using the specified backend."""
     return await _execute_generation_request(
@@ -93,8 +91,7 @@ async def generate_image(
         mode=mode,
         save_images=save_images,
         return_format=return_format,
-        domain=domain,
-        application=application,
+        services=services,
     )
 
 
@@ -106,12 +103,11 @@ async def compose_and_generate(
     mode: GenerationMode,
     save_images: bool,
     return_format: GenerationResultFormat,
-    domain: DomainServices,
-    application: ApplicationServices,
+    services: ServiceRegistry,
 ) -> SDNextGenerationResult:
     """Compose a prompt and immediately generate images."""
-    composition = domain.compose.compose_from_adapter_service(
-        domain.adapters,
+    composition = services.compose.compose_from_adapter_service(
+        services.adapters,
         prefix=compose_request.prefix or "",
         suffix=compose_request.suffix or "",
     )
@@ -137,8 +133,7 @@ async def compose_and_generate(
         mode=mode,
         save_images=save_images,
         return_format=return_format,
-        domain=domain,
-        application=application,
+        services=services,
     )
 
 

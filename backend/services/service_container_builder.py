@@ -1,64 +1,17 @@
-"""Builder for composing core, domain, and infrastructure service registries."""
+"""Builder for :class:`ServiceRegistry` instances with cached shared dependencies."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
 from threading import RLock
 from typing import Callable, Optional, TypeVar, Union
 
 from sqlmodel import Session
 
 from .analytics_repository import AnalyticsRepository
-from .core_container import CoreServiceRegistry
 from .delivery_repository import DeliveryJobRepository
-from .domain_container import DomainServiceRegistry
-from .infra_container import InfrastructureServiceRegistry
-from .providers.analytics import AnalyticsServiceFactory, make_analytics_service
-from .providers.archive import ArchiveServiceFactory, make_archive_service
-from .providers.deliveries import DeliveryServiceFactory, make_delivery_service
-from .providers.generation import (
-    ComposeServiceFactory,
-    GenerationCoordinatorFactory,
-    GenerationServiceFactory,
-    make_compose_service,
-    make_generation_coordinator,
-    make_generation_service,
-)
-from .providers.recommendations import (
-    RecommendationServiceFactory,
-    make_recommendation_service,
-)
-from .providers.storage import StorageProviders
-from .providers.system import SystemServiceFactory, make_system_service
-from .providers.websocket import (
-    WebSocketServiceFactory,
-    default_websocket_service_factory,
-)
 from .queue import QueueOrchestrator, create_queue_orchestrator
 from .recommendations import RecommendationService
-from .service_registry import ServiceRegistry
-
-
-@dataclass(frozen=True)
-class DomainFactories:
-    """Grouped domain-level service factories."""
-
-    compose: ComposeServiceFactory = make_compose_service
-    generation: GenerationServiceFactory = make_generation_service
-    analytics: AnalyticsServiceFactory = make_analytics_service
-    recommendation: RecommendationServiceFactory = make_recommendation_service
-
-
-@dataclass(frozen=True)
-class InfrastructureFactories:
-    """Grouped infrastructure-level service factories."""
-
-    archive: ArchiveServiceFactory = make_archive_service
-    delivery: DeliveryServiceFactory = make_delivery_service
-    generation_coordinator: GenerationCoordinatorFactory = make_generation_coordinator
-    websocket: WebSocketServiceFactory = default_websocket_service_factory
-    system: SystemServiceFactory = make_system_service
-
+from .service_registry import ServiceFactories, ServiceRegistry
 
 T = TypeVar("T")
 
@@ -75,15 +28,12 @@ def _resolve_override(current: T, override: Optional[ConfigOverride[T]]) -> T:
 
 
 class ServiceContainerBuilder:
-    """Build composed service registries with cached infrastructure dependencies."""
+    """Build :class:`ServiceRegistry` objects that share one queue and GPU flag."""
 
     def __init__(
         self,
         *,
-        storage: Optional[StorageProviders] = None,
-        domain_factories: Optional[DomainFactories] = None,
-        infrastructure_factories: Optional[InfrastructureFactories] = None,
-        websocket_factory: Optional[WebSocketServiceFactory] = None,
+        factories: Optional[ServiceFactories] = None,
         queue_orchestrator_factory: Callable[
             [], QueueOrchestrator
         ] = create_queue_orchestrator,
@@ -98,17 +48,7 @@ class ServiceContainerBuilder:
         ] = RecommendationService.is_gpu_available,
     ) -> None:
         """Capture override factories and lazily constructed dependencies."""
-        if websocket_factory is not None:
-            infrastructure_factories = replace(
-                infrastructure_factories or InfrastructureFactories(),
-                websocket=websocket_factory,
-            )
-
-        self._storage = storage or StorageProviders()
-        self._domain_factories = domain_factories or DomainFactories()
-        self._infrastructure_factories = (
-            infrastructure_factories or InfrastructureFactories()
-        )
+        self._factories = factories or ServiceFactories()
         self._queue_orchestrator_factory = queue_orchestrator_factory
         self._analytics_repository_factory = analytics_repository_factory
         self._delivery_repository_factory = delivery_repository_factory
@@ -149,10 +89,7 @@ class ServiceContainerBuilder:
     def with_overrides(
         self,
         *,
-        storage: Optional[ConfigOverride[StorageProviders]] = None,
-        domain: Optional[ConfigOverride[DomainFactories]] = None,
-        infrastructure: Optional[ConfigOverride[InfrastructureFactories]] = None,
-        websocket_factory: Optional[WebSocketServiceFactory] = None,
+        factories: Optional[ConfigOverride[ServiceFactories]] = None,
         queue_orchestrator_factory: Optional[Callable[[], QueueOrchestrator]] = None,
         analytics_repository_factory: Optional[
             Callable[[Session], AnalyticsRepository]
@@ -162,19 +99,14 @@ class ServiceContainerBuilder:
         ] = None,
         recommendation_gpu_detector: Optional[Callable[[], bool]] = None,
     ) -> ServiceContainerBuilder:
-        """Return a new builder with overrides applied to the current configuration."""
-        storage_config = _resolve_override(self._storage, storage)
-        domain_config = _resolve_override(self._domain_factories, domain)
-        infrastructure_config = _resolve_override(
-            self._infrastructure_factories,
-            infrastructure,
-        )
+        """Return a new builder with overrides applied to the current configuration.
 
+        ``factories`` is either a replacement :class:`ServiceFactories` or a
+        callable that receives the current one, typically
+        ``lambda f: dataclasses.replace(f, adapter=...)``.
+        """
         return ServiceContainerBuilder(
-            storage=storage_config,
-            domain_factories=domain_config,
-            infrastructure_factories=infrastructure_config,
-            websocket_factory=websocket_factory,
+            factories=_resolve_override(self._factories, factories),
             queue_orchestrator_factory=(
                 queue_orchestrator_factory or self._queue_orchestrator_factory
             ),
@@ -256,37 +188,14 @@ class ServiceContainerBuilder:
                 "instance.",
             )
 
-        core = CoreServiceRegistry(
+        return ServiceRegistry(
             db_session,
-            storage_provider=self._storage.storage,
+            queue_orchestrator=queue,
             delivery_repository=delivery_repository,
             analytics_repository=analytics_repository,
-        )
-
-        domain = DomainServiceRegistry(
-            core,
-            db_session=db_session,
-            analytics_repository=analytics_repository,
-            adapter_provider=self._storage.adapter,
-            compose_provider=self._domain_factories.compose,
-            generation_provider=self._domain_factories.generation,
-            analytics_provider=self._domain_factories.analytics,
-            recommendation_provider=self._domain_factories.recommendation,
             recommendation_gpu_available=gpu_available,
+            factories=self._factories,
         )
-
-        infrastructure = InfrastructureServiceRegistry(
-            core,
-            domain,
-            queue_orchestrator=queue,
-            archive_provider=self._infrastructure_factories.archive,
-            delivery_provider=self._infrastructure_factories.delivery,
-            generation_coordinator_provider=self._infrastructure_factories.generation_coordinator,
-            websocket_provider=self._infrastructure_factories.websocket,
-            system_provider=self._infrastructure_factories.system,
-        )
-
-        return ServiceRegistry(core, domain, infrastructure)
 
 
 __all__ = ["ServiceContainerBuilder"]

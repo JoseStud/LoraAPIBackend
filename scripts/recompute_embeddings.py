@@ -71,7 +71,7 @@ async def _recompute_embeddings(*, batch_size: int) -> Dict[str, Any]:
             }
 
         container = create_service_container(session)
-        recommendation_service = container.domain.recommendations
+        recommendation_service = container.recommendations
 
         LOGGER.info("Starting batch embedding recompute (batch size=%s)", batch_size)
         batch_result = await recommendation_service.embeddings.compute_batch(

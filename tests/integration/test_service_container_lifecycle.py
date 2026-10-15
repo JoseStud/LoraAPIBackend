@@ -21,15 +21,15 @@ from tests.util.service_container import reset_service_container_builder
 
 def _snapshot_registry(registry) -> Dict[str, Any]:
     """Return a simplified view of the dependency graph for assertions."""
-    deliveries = registry.application.deliveries
+    deliveries = registry.deliveries
     orchestrator = deliveries.queue_orchestrator
     primary, fallback = orchestrator.get_backends()
     return {
-        "storage": type(registry.core.storage),
+        "storage": type(registry.storage),
         "delivery_repository": type(deliveries.repository),
         "queue_primary": type(primary) if primary is not None else None,
         "queue_fallback": type(fallback),
-        "system_service": type(registry.application.system),
+        "system_service": type(registry.system),
     }
 
 
@@ -56,7 +56,7 @@ def test_service_container_repeated_startup_is_deterministic(db_session) -> None
             recommendation_gpu_available=False,
         )
         snapshots.append(_snapshot_registry(registry))
-        orchestrators.append(registry.application.deliveries.queue_orchestrator)
+        orchestrators.append(registry.deliveries.queue_orchestrator)
 
     assert snapshots and snapshots.count(snapshots[0]) == len(snapshots)
     _assert_all_distinct(orchestrators)
@@ -88,14 +88,8 @@ def test_service_container_overrides_do_not_leak_state(db_session) -> None:
         delivery_repository=DeliveryJobRepository(db_session),
     )
 
-    assert (
-        override_registry_a.application.deliveries.queue_orchestrator
-        is sentinel_orchestrator
-    )
-    assert (
-        override_registry_b.application.deliveries.queue_orchestrator
-        is sentinel_orchestrator
-    )
+    assert override_registry_a.deliveries.queue_orchestrator is sentinel_orchestrator
+    assert override_registry_b.deliveries.queue_orchestrator is sentinel_orchestrator
     assert override_builder.get_recommendation_gpu_available() is True
     assert base_builder.get_recommendation_gpu_available() is False
 
@@ -105,10 +99,7 @@ def test_service_container_overrides_do_not_leak_state(db_session) -> None:
         delivery_repository=DeliveryJobRepository(db_session),
     )
 
-    assert (
-        base_registry.application.deliveries.queue_orchestrator
-        is not sentinel_orchestrator
-    )
+    assert base_registry.deliveries.queue_orchestrator is not sentinel_orchestrator
 
 
 @dataclass
@@ -160,7 +151,7 @@ def test_queue_fallback_recovers_from_redis_errors(db_session) -> None:
         analytics_repository=AnalyticsRepository(db_session),
         delivery_repository=DeliveryJobRepository(db_session),
     )
-    deliveries_one = registry_one.application.deliveries
+    deliveries_one = registry_one.deliveries
     background_tasks_one = BackgroundTasks()
     deliveries_one.enqueue_job("job-1", background_tasks=background_tasks_one)
 
@@ -179,7 +170,7 @@ def test_queue_fallback_recovers_from_redis_errors(db_session) -> None:
         analytics_repository=AnalyticsRepository(db_session),
         delivery_repository=DeliveryJobRepository(db_session),
     )
-    deliveries_two = registry_two.application.deliveries
+    deliveries_two = registry_two.deliveries
     orchestrator_two = deliveries_two.queue_orchestrator
 
     assert orchestrator_two is not orchestrator_one

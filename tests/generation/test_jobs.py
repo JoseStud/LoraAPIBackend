@@ -12,7 +12,7 @@ from fastapi import BackgroundTasks
 from fastapi.testclient import TestClient
 
 from app.main import backend_app
-from backend.core.dependencies import get_service_container
+from backend.core.dependencies import get_services
 from backend.delivery.base import DeliveryRegistry, GenerationBackend
 from backend.schemas import SDNextGenerationParams, SDNextGenerationResult
 from backend.services import get_service_container_builder
@@ -293,7 +293,7 @@ def test_compose_sdnext_uses_generation_coordinator(
 
     coordinator = RecordingCoordinator()
     builder = get_service_container_builder().with_overrides(
-        infrastructure=lambda factories: replace(
+        factories=lambda factories: replace(
             factories,
             generation_coordinator=lambda deliveries, websocket, generation: (
                 coordinator
@@ -308,7 +308,7 @@ def test_compose_sdnext_uses_generation_coordinator(
         recommendation_gpu_available=False,
     )
 
-    backend_app.dependency_overrides[get_service_container] = lambda: services
+    backend_app.dependency_overrides[get_services] = lambda: services
 
     try:
         response = client.post(
@@ -327,7 +327,7 @@ def test_compose_sdnext_uses_generation_coordinator(
             },
         )
     finally:
-        backend_app.dependency_overrides.pop(get_service_container, None)
+        backend_app.dependency_overrides.pop(get_services, None)
 
     assert response.status_code == 200
     body = response.json()

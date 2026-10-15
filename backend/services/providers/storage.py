@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Optional, Protocol
 
 from sqlmodel import Session
@@ -50,17 +49,8 @@ def make_adapter_service(
     return AdapterService(db_session, storage_backend=backend)
 
 
-@dataclass(frozen=True)
-class StorageProviders:
-    """Grouped storage-related provider callables."""
-
-    storage: StorageServiceFactory = make_storage_service
-    adapter: AdapterServiceFactory = make_adapter_service
-
-
 __all__ = [
     "AdapterServiceFactory",
-    "StorageProviders",
     "StorageServiceFactory",
     "make_adapter_service",
     "make_storage_service",

@@ -52,7 +52,7 @@ def _recommendation_override(embeddings):
     """Scope a builder whose recommendation service exposes ``embeddings``."""
     fake_service = SimpleNamespace(embeddings=embeddings)
     builder = get_service_container_builder().with_overrides(
-        domain=lambda factories: replace(
+        factories=lambda factories: replace(
             factories,
             recommendation=lambda db_session, **kwargs: fake_service,
         ),

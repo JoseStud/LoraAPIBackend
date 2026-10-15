@@ -7,10 +7,10 @@ from active adapters and optionally schedules a delivery.
 import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends
 
-from backend.core.dependencies import get_application_services, get_domain_services
+from backend.core.dependencies import get_services
 from backend.schemas import ComposeRequest, ComposeResponse
 from backend.schemas.generation import SDNextGenerationParams
-from backend.services import ApplicationServices, DomainServices
+from backend.services import ServiceRegistry
 
 logger = structlog.get_logger(__name__)
 
@@ -21,13 +21,12 @@ router = APIRouter()
 async def compose(
     req: ComposeRequest,
     background_tasks: BackgroundTasks,
-    domain: DomainServices = Depends(get_domain_services),
-    application: ApplicationServices = Depends(get_application_services),
+    services: ServiceRegistry = Depends(get_services),
 ):
     """Compose a prompt from active adapters and optionally schedule delivery."""
     # Compose prompt and collect warnings via the shared helper
-    composition = domain.compose.compose_from_adapter_service(
-        domain.adapters,
+    composition = services.compose.compose_from_adapter_service(
+        services.adapters,
         prefix=req.prefix or "",
         suffix=req.suffix or "",
     )
@@ -44,7 +43,7 @@ async def compose(
                 sdnext_config.generation_params.model_copy()
             )
             generation_params.prompt = composition.prompt
-            job = application.generation_coordinator.schedule_generation_job(
+            job = services.generation_coordinator.schedule_generation_job(
                 generation_params,
                 backend=req.delivery.mode,
                 mode=sdnext_config.mode,
@@ -52,12 +51,12 @@ async def compose(
                 return_format=sdnext_config.return_format,
                 background_tasks=background_tasks,
             )
-            await application.generation_coordinator.broadcast_job_started(
+            await services.generation_coordinator.broadcast_job_started(
                 job.id,
                 generation_params,
             )
         else:
-            job = application.deliveries.schedule_job(
+            job = services.deliveries.schedule_job(
                 composition.prompt,
                 req.delivery.mode,
                 req.delivery.model_dump(),

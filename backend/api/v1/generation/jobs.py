@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
 
-from backend.core.dependencies import get_application_services
+from backend.core.dependencies import get_services
 from backend.schemas import (
     DeliveryCreateResponse,
     DeliveryWrapper,
@@ -14,7 +14,7 @@ from backend.schemas import (
     GenerationJobStatus,
     SDNextGenerationParams,
 )
-from backend.services import ApplicationServices
+from backend.services import ServiceRegistry
 
 from .controllers import jobs as controller
 
@@ -34,11 +34,11 @@ async def queue_generation_job(
         max_length=200,
         description="Opaque caller tag echoed back in the job-finished webhook.",
     ),
-    application: ApplicationServices = Depends(get_application_services),
+    services: ServiceRegistry = Depends(get_services),
 ):
     """Queue a generation job for background processing."""
     return await controller.schedule_generation_job(
-        application=application,
+        services=services,
         generation_params=generation_params,
         background_tasks=background_tasks,
         backend=backend,
@@ -52,25 +52,25 @@ async def queue_generation_job(
 @router.get("/jobs/active", response_model=List[GenerationJobStatus])
 async def list_active_generation_jobs(
     limit: int = Query(50, ge=1, le=200),
-    application: ApplicationServices = Depends(get_application_services),
+    services: ServiceRegistry = Depends(get_services),
 ):
     """Return active generation jobs for frontend queues."""
-    return controller.list_active_jobs(application=application, limit=limit)
+    return controller.list_active_jobs(services=services, limit=limit)
 
 
 @router.get("/jobs/{job_id}", response_model=DeliveryWrapper)
 async def get_generation_job(
     job_id: str,
-    application: ApplicationServices = Depends(get_application_services),
+    services: ServiceRegistry = Depends(get_services),
 ):
     """Get generation job status and results."""
-    return controller.get_job_wrapper(application=application, job_id=job_id)
+    return controller.get_job_wrapper(services=services, job_id=job_id)
 
 
 @router.post("/jobs/{job_id}/cancel", response_model=GenerationCancelResponse)
 async def cancel_generation_job(
     job_id: str,
-    application: ApplicationServices = Depends(get_application_services),
+    services: ServiceRegistry = Depends(get_services),
 ):
     """Cancel an active generation job."""
-    return controller.cancel_job(application=application, job_id=job_id)
+    return controller.cancel_job(services=services, job_id=job_id)

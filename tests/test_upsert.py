@@ -18,7 +18,7 @@ def test_upsert_creates_and_updates(db_session, mock_storage):
         analytics_repository=AnalyticsRepository(db_session),
         recommendation_gpu_available=False,
     )
-    adapter_service = services.domain.adapters
+    adapter_service = services.adapters
     payload = AdapterCreate(
         name="u1",
         version="v1",

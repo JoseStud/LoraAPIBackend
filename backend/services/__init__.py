@@ -24,12 +24,7 @@ from .delivery_repository import DeliveryJobRepository
 from .generation import GenerationCoordinator, GenerationService
 from .queue import QueueOrchestrator
 from .service_container_builder import ServiceContainerBuilder
-from .service_registry import (
-    ApplicationServices,
-    CoreServices,
-    DomainServices,
-    ServiceRegistry,
-)
+from .service_registry import ServiceFactories, ServiceRegistry
 from .storage import StorageService
 from .system import SystemService
 from .websocket import WebSocketService
@@ -95,9 +90,7 @@ def create_service_container(db_session: Session) -> ServiceRegistry:
 
 
 __all__ = [
-    "ApplicationServices",
-    "CoreServices",
-    "DomainServices",
+    "ServiceFactories",
     "ServiceRegistry",
     "ServiceContainerBuilder",
     "create_service_container",
