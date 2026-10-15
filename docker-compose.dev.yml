@@ -52,6 +52,9 @@ services:
       # Empty disables generation; use http://host.docker.internal:7860 for an
       # SDNext running on the host, or http://sdnext:7860 with the `ml` profile.
       SDNEXT_BASE_URL: ${SDNEXT_BASE_URL:-}
+      # Finished-job webhook (n8n). Empty disables it. See docs/N8N_INTEGRATION.md.
+      JOB_WEBHOOK_URL: ${JOB_WEBHOOK_URL:-}
+      JOB_WEBHOOK_TOKEN: ${JOB_WEBHOOK_TOKEN:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

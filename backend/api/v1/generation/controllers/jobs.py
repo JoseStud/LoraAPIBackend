@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
 from fastapi import BackgroundTasks, HTTPException
 
@@ -44,6 +44,7 @@ async def schedule_generation_job(
     mode: str,
     save_images: bool,
     return_format: str,
+    client_ref: Optional[str] = None,
 ) -> DeliveryCreateResponse:
     """Queue a generation job for background processing."""
     coordinator = application.generation_coordinator
@@ -54,6 +55,7 @@ async def schedule_generation_job(
         save_images=save_images,
         return_format=return_format,
         background_tasks=background_tasks,
+        client_ref=client_ref,
     )
 
     await coordinator.broadcast_job_started(job.id, generation_params)
