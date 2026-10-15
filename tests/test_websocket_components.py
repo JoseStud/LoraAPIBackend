@@ -134,6 +134,173 @@ async def test_job_progress_monitor_merges_persisted_state() -> None:
     assert completions[0].total_duration is not None
 
 
+class _GlobalProgressClient:
+    """Fake SD.Next client: progress is global and ignores the job id."""
+
+    def __init__(self, progress: float) -> None:
+        self.progress = progress
+        self.calls: List[str] = []
+
+    async def check_progress(self, job_id: str) -> SDNextGenerationResult:
+        self.calls.append(job_id)
+        status = "running" if self.progress < 1.0 else "completed"
+        if self.progress == 0.0:
+            status = "pending"
+        return SDNextGenerationResult(
+            job_id=job_id, status=status, progress=self.progress
+        )
+
+
+class _FixedStateRepository:
+    def __init__(self, state: PersistedJobState | None) -> None:
+        self.state = state
+
+    def get_job_state(self, job_id: str) -> PersistedJobState | None:
+        return self.state
+
+
+def _persisted(status: str, result: dict | None = None) -> PersistedJobState:
+    return PersistedJobState(
+        status=status, result=result, started_at=None, finished_at=None
+    )
+
+
+async def _run_monitor(
+    repository: _FixedStateRepository | None,
+    client: _GlobalProgressClient,
+    *,
+    max_updates: int = 3,
+):
+    """Run the monitor until it completes or emits ``max_updates`` updates."""
+    monitor = JobProgressMonitor(repository=repository, poll_interval=0.0)
+    updates: List[ProgressUpdate] = []
+    completions = []
+
+    async def on_progress(update: ProgressUpdate) -> None:
+        updates.append(update)
+        if len(updates) >= max_updates:
+            monitor.stop("job-1")
+
+    async def on_complete(message) -> None:
+        completions.append(message)
+
+    task = await monitor.start("job-1", client, on_progress, on_complete)
+    await asyncio.wait_for(task, timeout=1.0)
+    return updates, completions
+
+
+@pytest.mark.anyio
+async def test_monitor_ignores_global_progress_for_queued_job() -> None:
+    client = _GlobalProgressClient(progress=0.6)
+
+    updates, completions = await _run_monitor(
+        _FixedStateRepository(_persisted("pending")), client
+    )
+
+    assert updates
+    assert all(u.status == "queued" for u in updates)
+    assert all(u.progress == 0.0 for u in updates)
+    assert completions == []
+    # SD.Next is not even asked while the job waits in the queue.
+    assert client.calls == []
+
+
+@pytest.mark.anyio
+async def test_monitor_reports_stored_progress_for_queued_job() -> None:
+    updates, _ = await _run_monitor(
+        _FixedStateRepository(_persisted("pending", {"progress": 0.2})),
+        _GlobalProgressClient(progress=0.6),
+        max_updates=1,
+    )
+
+    assert updates[0].status == "queued"
+    assert updates[0].progress == pytest.approx(0.2)
+
+
+@pytest.mark.anyio
+async def test_monitor_uses_live_progress_for_running_job() -> None:
+    updates, completions = await _run_monitor(
+        _FixedStateRepository(_persisted("running")),
+        _GlobalProgressClient(progress=0.6),
+    )
+
+    assert updates
+    assert all(u.status == "processing" for u in updates)
+    assert all(u.progress == pytest.approx(0.6) for u in updates)
+    assert completions == []
+
+
+@pytest.mark.anyio
+async def test_monitor_completes_from_persisted_state_when_sdnext_is_idle() -> None:
+    updates, completions = await _run_monitor(
+        _FixedStateRepository(_persisted("succeeded")),
+        _GlobalProgressClient(progress=0.0),
+    )
+
+    assert len(updates) == 1
+    assert updates[0].status == "completed"
+    assert updates[0].progress == pytest.approx(1.0)
+    assert len(completions) == 1
+    assert completions[0].status == "completed"
+
+
+@pytest.mark.anyio
+async def test_monitor_does_not_complete_queued_job_when_sdnext_finishes() -> None:
+    updates, completions = await _run_monitor(
+        _FixedStateRepository(_persisted("pending")),
+        _GlobalProgressClient(progress=1.0),
+    )
+
+    assert len(updates) == 3
+    assert all(u.status == "queued" for u in updates)
+    assert completions == []
+
+
+@pytest.mark.anyio
+async def test_monitor_does_not_complete_running_job_from_sdnext_alone() -> None:
+    updates, completions = await _run_monitor(
+        _FixedStateRepository(_persisted("running")),
+        _GlobalProgressClient(progress=1.0),
+    )
+
+    assert len(updates) == 3
+    assert all(u.status == "processing" for u in updates)
+    assert completions == []
+
+
+@pytest.mark.anyio
+async def test_monitor_skips_ticks_without_persisted_state() -> None:
+    client = _GlobalProgressClient(progress=0.6)
+    monitor = JobProgressMonitor(
+        repository=_FixedStateRepository(None), poll_interval=0.0
+    )
+    updates: List[ProgressUpdate] = []
+
+    async def on_progress(update: ProgressUpdate) -> None:
+        updates.append(update)
+
+    async def on_complete(message) -> None:  # pragma: no cover - must not run
+        raise AssertionError("unexpected completion")
+
+    task = await monitor.start("job-1", client, on_progress, on_complete)
+    for _ in range(5):
+        await asyncio.sleep(0)
+    monitor.stop("job-1")
+    await asyncio.wait_for(task, timeout=1.0)
+
+    assert updates == []
+    assert client.calls == []
+
+
+@pytest.mark.anyio
+async def test_monitor_without_repository_trusts_backend() -> None:
+    updates, completions = await _run_monitor(None, _GlobalProgressClient(progress=1.0))
+
+    assert len(updates) == 1
+    assert updates[0].status == "completed"
+    assert len(completions) == 1
+
+
 def test_delivery_job_state_repository_returns_persisted_state(
     delivery_service: DeliveryService,
 ) -> None:

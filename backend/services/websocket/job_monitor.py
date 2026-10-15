@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Awaitable, Callable, Dict, Optional, Protocol
+from typing import Any, Awaitable, Callable, Dict, Optional, Protocol, Tuple
 
 import structlog
 
@@ -46,9 +46,28 @@ class JobStateRepository(Protocol):
 ProgressCallback = Callable[[ProgressUpdate], Awaitable[None]]
 CompletionCallback = Callable[[GenerationComplete], Awaitable[None]]
 
+# (backend result, persisted state, status, progress, error message)
+_Observation = Tuple[
+    SDNextGenerationResult,
+    Optional[PersistedJobState],
+    str,
+    Optional[float],
+    Optional[str],
+]
+
 
 class JobProgressMonitor:
-    """Poll generation backends and combine progress with persisted state."""
+    """Poll generation backends and combine progress with persisted state.
+
+    SD.Next's progress endpoint is process-global: it reports whatever SD.Next
+    is rendering right now and ignores the job id it is asked about. Its value
+    is therefore only meaningful for the job that is actually running. When a
+    repository is configured, the persisted delivery job is authoritative:
+    live progress is read only while that job's persisted status normalizes
+    to ``processing``, queued jobs report their stored progress (or 0), and
+    completion is decided from the persisted status alone. Without a
+    repository the monitor trusts the generation backend's response.
+    """
 
     def __init__(
         self,
@@ -97,24 +116,18 @@ class JobProgressMonitor:
     ) -> None:
         try:
             while True:
-                result = await self._call_generation_progress(
-                    generation_service, job_id
-                )
-                persisted_state = self._safe_load_state(job_id)
+                observation = await self._observe(job_id, generation_service)
+                if observation is None:
+                    await asyncio.sleep(self._poll_interval)
+                    continue
 
-                status_value = _normalize_generation_status(result.status or "pending")
-                progress_value = self._normalize_progress(result.progress)
-                error_message = result.error_message
-
-                if persisted_state is not None:
-                    status_value, progress_value, error_message = (
-                        self._merge_persisted_state(
-                            status_value,
-                            progress_value,
-                            error_message,
-                            persisted_state,
-                        )
-                    )
+                (
+                    result,
+                    persisted_state,
+                    status_value,
+                    progress_value,
+                    error_message,
+                ) = observation
 
                 if progress_value is None:
                     progress_value = 0.0
@@ -145,6 +158,47 @@ class JobProgressMonitor:
             logger.error("Job monitoring error", job_id=job_id, error=str(exc))
         finally:
             self._tasks.pop(job_id, None)
+
+    async def _observe(
+        self,
+        job_id: str,
+        generation_service: GenerationProgressClient,
+    ) -> Optional[_Observation]:
+        """Poll once and return the state to broadcast for ``job_id``.
+
+        Returns ``None`` when a repository is configured but the job's state
+        could not be loaded; the caller skips that tick rather than report
+        SD.Next's global progress, which may belong to another job.
+        """
+        if self._repository is None:
+            result = await self._call_generation_progress(generation_service, job_id)
+            return (
+                result,
+                None,
+                _normalize_generation_status(result.status or "pending"),
+                self._normalize_progress(result.progress),
+                result.error_message,
+            )
+
+        persisted_state = self._safe_load_state(job_id)
+        if persisted_state is None:
+            logger.debug("No persisted state for monitored job", job_id=job_id)
+            return None
+
+        live_result: Optional[SDNextGenerationResult] = None
+        stored_status = _normalize_generation_status(_stored_status(persisted_state))
+        if stored_status == "processing":
+            live_result = await self._call_generation_progress(
+                generation_service, job_id
+            )
+
+        status_value, progress_value, error_message = self._merge_persisted_state(
+            persisted_state, live_result
+        )
+        result = live_result or SDNextGenerationResult(
+            job_id=job_id, status=status_value
+        )
+        return result, persisted_state, status_value, progress_value, error_message
 
     async def _call_generation_progress(
         self,
@@ -177,26 +231,24 @@ class JobProgressMonitor:
 
     def _merge_persisted_state(
         self,
-        status_value: str,
-        progress_value: Optional[float],
-        error_message: Optional[str],
         persisted_state: PersistedJobState,
+        live_result: Optional[SDNextGenerationResult],
     ) -> tuple[str, Optional[float], Optional[str]]:
+        """Derive status, progress and error with persisted state in charge.
+
+        ``live_result`` is supplied only while the persisted status is
+        ``processing``. For any other status SD.Next's global progress belongs
+        to a different job (or none) and is ignored.
+        """
         result_payload = persisted_state.result
-        stored_status = persisted_state.status
+        status_value = _normalize_generation_status(_stored_status(persisted_state))
 
-        if not stored_status and isinstance(result_payload, dict):
-            stored_status = result_payload.get("status")
-
-        mapped_status = (
-            _normalize_generation_status(stored_status) if stored_status else None
-        )
-        if mapped_status is not None:
-            status_value = mapped_status
-
-        stored_progress = self._extract_progress_from_payload(result_payload)
-        if stored_progress is not None:
-            progress_value = stored_progress
+        progress_value = self._extract_progress_from_payload(result_payload)
+        error_message: Optional[str] = None
+        if live_result is not None:
+            if progress_value is None:
+                progress_value = self._normalize_progress(live_result.progress)
+            error_message = live_result.error_message
 
         if status_value == "completed" and (
             progress_value is None or progress_value < 1.0
@@ -255,11 +307,7 @@ class JobProgressMonitor:
         if not persisted_state:
             return False
 
-        stored_status = persisted_state.status
-        payload = persisted_state.result
-        if not stored_status and isinstance(payload, dict):
-            stored_status = payload.get("status")
-
+        stored_status = _stored_status(persisted_state)
         if not stored_status:
             return False
 
@@ -344,3 +392,15 @@ def _normalize_generation_status(status: Optional[str]) -> str:
     from backend.services.generation.statuses import normalize_status
 
     return normalize_status(status).value
+
+
+def _stored_status(persisted_state: PersistedJobState) -> Optional[str]:
+    """Return the persisted status, falling back to the result payload's."""
+    if persisted_state.status:
+        return persisted_state.status
+    payload = persisted_state.result
+    if isinstance(payload, dict):
+        value = payload.get("status")
+        if isinstance(value, str) and value:
+            return value
+    return None
