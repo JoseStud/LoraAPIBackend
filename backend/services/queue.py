@@ -4,18 +4,28 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Optional, Tuple, Type
+from typing import Any, Callable, Optional, Protocol, Tuple, Type
 
 import structlog
-from fastapi import BackgroundTasks
 
 from backend.core.config import settings
-from backend.delivery.base import delivery_registry
+from backend.delivery import get_delivery_registry
 from backend.workers.delivery_runner import DeliveryRunner
 
 logger = structlog.get_logger(__name__)
 
 PrimaryFallbackQueues = Tuple[Optional["QueueBackend"], "QueueBackend"]
+
+
+class TaskScheduler(Protocol):
+    """Anything that can run a callable after the current request completes.
+
+    FastAPI's ``BackgroundTasks`` satisfies this structurally, so routers keep
+    passing it while services stay independent of the web framework.
+    """
+
+    def add_task(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
+        """Schedule ``func(*args, **kwargs)`` to run later."""
 
 
 class QueueBackend(ABC):
@@ -26,7 +36,7 @@ class QueueBackend(ABC):
         self,
         job_id: str,
         *,
-        background_tasks: Optional[BackgroundTasks] = None,
+        background_tasks: Optional[TaskScheduler] = None,
         **enqueue_kwargs: Any,
     ) -> Any:
         """Enqueue a delivery job for processing."""
@@ -136,7 +146,7 @@ class RedisQueueBackend(QueueBackend):
         self,
         job_id: str,
         *,
-        background_tasks: Optional[BackgroundTasks] = None,
+        background_tasks: Optional[TaskScheduler] = None,
         **enqueue_kwargs: Any,
     ) -> Any:
         """Enqueue ``job_id`` on the configured Redis queue."""
@@ -155,7 +165,7 @@ class RedisQueueBackend(QueueBackend):
 
 
 class BackgroundTaskQueueBackend(QueueBackend):
-    """Queue implementation that executes jobs in-process via BackgroundTasks."""
+    """Queue implementation that executes jobs in-process via a TaskScheduler."""
 
     def __init__(self, runner: Callable[[str], Any]) -> None:
         """Create a background task queue backend.
@@ -192,7 +202,7 @@ class BackgroundTaskQueueBackend(QueueBackend):
         self,
         job_id: str,
         *,
-        background_tasks: Optional[BackgroundTasks] = None,
+        background_tasks: Optional[TaskScheduler] = None,
         **enqueue_kwargs: Any,
     ) -> None:
         """Schedule ``job_id`` for in-process execution."""
@@ -220,7 +230,7 @@ class QueueOrchestrator:
         self._fallback_backend = fallback_backend
         self._redis_url_factory = redis_url_factory
         self._delivery_runner_factory = delivery_runner_factory or (
-            lambda: DeliveryRunner(delivery_registry)
+            lambda: DeliveryRunner(get_delivery_registry())
         )
         self._delivery_runner: Optional[DeliveryRunner] = None
 
@@ -238,7 +248,7 @@ class QueueOrchestrator:
         self,
         job_id: str,
         *,
-        background_tasks: Optional[BackgroundTasks] = None,
+        background_tasks: Optional[TaskScheduler] = None,
         **enqueue_kwargs: Any,
     ) -> Any:
         """Enqueue ``job_id`` using the configured queue strategy."""

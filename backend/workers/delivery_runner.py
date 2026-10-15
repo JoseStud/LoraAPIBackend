@@ -4,17 +4,33 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
+
+from sqlmodel import Session
 
 from backend.core.database import get_session_context
 from backend.delivery.base import DeliveryRegistry
 from backend.schemas import SDNextGenerationParams
-from backend.services.deliveries import DeliveryService
-from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.job_webhooks import NOTIFY_STATUSES, JobWebhookNotifier
+
+if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
+    from backend.services.deliveries import DeliveryService
 
 _SUCCESS_STATUSES = {"ok", "completed", 200}
 logger = logging.getLogger(__name__)
+
+DeliveryServiceFactory = Callable[[Session], "DeliveryService"]
+
+
+def _container_delivery_service(session: Session) -> DeliveryService:
+    """Build the delivery service through the shared service container.
+
+    Imported lazily: ``backend.services`` imports the queue module, which in
+    turn imports this one.
+    """
+    from backend.services import get_service_container_builder
+
+    return get_service_container_builder().build(session).deliveries
 
 
 class DeliveryRunner:
@@ -25,14 +41,21 @@ class DeliveryRunner:
         delivery_registry: DeliveryRegistry,
         *,
         webhook_notifier: Optional[JobWebhookNotifier] = None,
+        delivery_service_factory: Optional[DeliveryServiceFactory] = None,
     ) -> None:
-        """Store the registry and an optional finished-job webhook notifier.
+        """Store the registry, the delivery service factory and a webhook notifier.
 
-        Without an explicit notifier, one is built from settings per job, so a
-        missing ``JOB_WEBHOOK_URL`` simply disables the webhook.
+        ``delivery_service_factory`` builds the :class:`DeliveryService` used to
+        read and update job state for a given session; by default it goes
+        through the shared service container. Without an explicit notifier,
+        one is built from settings per job, so a missing ``JOB_WEBHOOK_URL``
+        simply disables the webhook.
         """
         self._delivery_registry = delivery_registry
         self._webhook_notifier = webhook_notifier
+        self._delivery_service_factory = (
+            delivery_service_factory or _container_delivery_service
+        )
 
     def process_delivery_job(
         self,
@@ -79,8 +102,7 @@ class DeliveryRunner:
         status: str = "failed"
 
         with get_session_context() as session:
-            repository = DeliveryJobRepository(session)
-            service = DeliveryService(repository)
+            service = self._delivery_service_factory(session)
             job = service.get_job(job_id)
             if job is None:
                 return
@@ -106,8 +128,7 @@ class DeliveryRunner:
                 status = "failed"
 
         with get_session_context() as session:
-            repository = DeliveryJobRepository(session)
-            service = DeliveryService(repository)
+            service = self._delivery_service_factory(session)
             service.update_job_status(job_id, status, result_payload)
 
         if status in NOTIFY_STATUSES:
