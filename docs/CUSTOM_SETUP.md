@@ -35,7 +35,7 @@ The project no longer ships GPU/ROCm SDNext containers. For NVIDIA or AMD (ROCm)
     LORA_HOST_DIR=/path/to/sdnext/models/Lora
     ```
 
-    The `api` service maps `host.docker.internal` to the host gateway, so this works on Linux as well as Docker Desktop. Leave `SDNEXT_BASE_URL` empty to run without generation.
+    The `api` and `worker` services map `host.docker.internal` to the host gateway, so this works on Linux as well as Docker Desktop. The worker is the service that calls SDNext to generate images. Leave `SDNEXT_BASE_URL` empty to run without generation.
 
 3.  **Start the stack**:
 

@@ -47,7 +47,8 @@ make demo-reset  # delete only the lora-demo containers and volumes
 The [single Compose configuration](docker-compose.dev.yml) also supports the
 full development stack. Copy `.env.docker.example` to `.env.docker`, configure
 an external SDNext if needed, then run `make dev`. The API uses port 8000 and
-Vite uses 5173. `make dev-down` retains data; `make dev-clean` deletes development
+Vite uses 5173; an RQ worker runs the queued generations and saves images to
+`./outputs`. `make dev-down` retains data; `make dev-clean` deletes development
 volumes. `make dev-ml` enables the optional SDNext container profile.
 See [custom SDNext setup](docs/CUSTOM_SETUP.md).
 
