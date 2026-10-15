@@ -47,7 +47,8 @@ async def test_lifespan_preloads_recommendations_in_background(
 
     try:
         await asyncio.wait_for(ctx.__aenter__(), timeout=1.0)
-        assert start_event.wait(timeout=2.0)
+        # Wait off the loop: the preload task needs the loop to reach the executor.
+        assert await asyncio.to_thread(start_event.wait, 2.0)
     finally:
         finish_event.set()
         await ctx.__aexit__(None, None, None)
