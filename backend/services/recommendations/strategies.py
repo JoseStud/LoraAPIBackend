@@ -1,8 +1,12 @@
-"""Recommendation generation strategies."""
+"""Recommendation generation strategies.
+
+Every strategy is synchronous: it queries the database, may load models and
+encodes text, so callers run it off the event loop (the API's plain ``def``
+handlers run in FastAPI's threadpool).
+"""
 
 from __future__ import annotations
 
-import asyncio
 import pickle
 from typing import Any, Dict, List, Optional
 
@@ -15,7 +19,7 @@ from .repository import RecommendationRepository
 from .triggers import TriggerRecommendationEngine
 
 
-async def get_similar_loras(
+def get_similar_loras(
     *,
     target_lora_id: str,
     limit: int,
@@ -31,16 +35,15 @@ async def get_similar_loras(
     if target_lora is None:
         raise ValueError(f"LoRA {target_lora_id} not found")
 
-    await embeddings.ensure_embeddings_exist([target_lora])
+    embeddings.ensure_embeddings_exist([target_lora])
 
     if not getattr(engine, "lora_ids", None):
-        await embeddings.build_similarity_index()
+        embeddings.build_similarity_index()
 
     if not getattr(engine, "lora_ids", None):
         return []
 
-    recommendations = await asyncio.to_thread(
-        engine.get_recommendations,
+    recommendations = engine.get_recommendations(
         target_lora,
         limit * 2,
         weights,
@@ -85,7 +88,7 @@ async def get_similar_loras(
     return filtered_recommendations
 
 
-async def get_recommendations_for_prompt(
+def get_recommendations_for_prompt(
     *,
     prompt: str,
     active_loras: Optional[List[str]],
@@ -100,9 +103,7 @@ async def get_recommendations_for_prompt(
     active_loras = active_loras or []
 
     # Get embeddings for the prompt
-    prompt_embeddings = await asyncio.to_thread(
-        embedder.compute_prompt_embeddings, prompt, device=device
-    )
+    prompt_embeddings = embedder.compute_prompt_embeddings(prompt, device=device)
     prompt_embedding = prompt_embeddings["semantic"]
 
     results = repository.get_active_loras_with_embeddings(exclude_ids=active_loras)
@@ -179,7 +180,7 @@ async def get_recommendations_for_prompt(
     return recommendations[:limit]
 
 
-async def get_recommendations_for_trigger(
+def get_recommendations_for_trigger(
     *,
     trigger_query: str,
     limit: int,

@@ -10,7 +10,6 @@ runtime and resource requirements.
 from __future__ import annotations
 
 import argparse
-import asyncio
 import logging
 import os
 import sys
@@ -45,7 +44,7 @@ def _load_backend_dependencies():
     }
 
 
-async def _recompute_embeddings(*, batch_size: int) -> Dict[str, Any]:
+def _recompute_embeddings(*, batch_size: int) -> Dict[str, Any]:
     """Recompute embeddings for every adapter and rebuild the similarity index."""
     deps = _load_backend_dependencies()
     init_db = deps["init_db"]
@@ -74,15 +73,15 @@ async def _recompute_embeddings(*, batch_size: int) -> Dict[str, Any]:
         recommendation_service = container.recommendations
 
         LOGGER.info("Starting batch embedding recompute (batch size=%s)", batch_size)
-        batch_result = await recommendation_service.embeddings.compute_batch(
+        batch_result = recommendation_service.embeddings.compute_batch(
             adapter_ids,
             force_recompute=True,
             batch_size=batch_size,
         )
 
         LOGGER.info("Rebuilding similarity index with freshly computed embeddings")
-        index_response = (
-            await recommendation_service.embeddings.refresh_similarity_index(force=True)
+        index_response = recommendation_service.embeddings.refresh_similarity_index(
+            force=True
         )
 
         LOGGER.info(
@@ -127,7 +126,7 @@ def main() -> None:
     _configure_logging(args.verbose)
 
     LOGGER.info("Launching full embedding recompute migration")
-    result = asyncio.run(_recompute_embeddings(batch_size=args.batch_size))
+    result = _recompute_embeddings(batch_size=args.batch_size)
 
     LOGGER.info("Embedding recompute summary: %s", result)
 

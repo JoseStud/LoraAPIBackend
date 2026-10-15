@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -22,11 +23,18 @@ from backend.workers.context import WorkerContext
 class _FakeEmbeddings:
     def __init__(self, response=None, error=None):
         self.calls = []
+        self.ran_on_event_loop = []
         self._response = response
         self._error = error
 
-    async def refresh_similarity_index(self, *, force=False):
+    def refresh_similarity_index(self, *, force=False):
         self.calls.append(force)
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            self.ran_on_event_loop.append(False)
+        else:
+            self.ran_on_event_loop.append(True)
         if self._error is not None:
             raise self._error
         return self._response
@@ -81,6 +89,8 @@ def test_rebuild_similarity_index_delegates_to_embedding_coordinator(
         )
 
     assert embeddings.calls == [True]
+    # The session and the refresh run in a worker thread, off the task's loop.
+    assert embeddings.ran_on_event_loop == [False]
     assert result == response.model_dump(mode="json")
     assert result["status"] == "rebuilt"
 

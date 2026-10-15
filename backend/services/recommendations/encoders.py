@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
+from threading import Lock
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Sequence
 
 import numpy as np
@@ -78,6 +79,7 @@ class SentenceTransformerProvider:
             key: None for key in self._model_configs
         }
         self._dimensions: Dict[str, int] = {}
+        self._load_lock = Lock()
 
         self._transformers_available = not force_fallback
         self._SentenceTransformer: Any | None = None
@@ -102,7 +104,10 @@ class SentenceTransformerProvider:
         """Return the model for the provided key, loading it lazily."""
         self._ensure_model_config(model_key)
         if self._models[model_key] is None:
-            self._models[model_key] = self._load_model(model_key)
+            # Concurrent first requests (threadpool) must not load it twice.
+            with self._load_lock:
+                if self._models[model_key] is None:
+                    self._models[model_key] = self._load_model(model_key)
         return self._models[model_key]
 
     def get_dimension(self, model_key: str) -> int:

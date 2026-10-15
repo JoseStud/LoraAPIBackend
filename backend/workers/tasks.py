@@ -1,5 +1,6 @@
 """RQ task entrypoints and the shared worker context."""
 
+import asyncio
 import json
 import logging
 from typing import List, Optional
@@ -7,7 +8,10 @@ from typing import List, Optional
 from rq import get_current_job
 
 from backend.core.database import get_session_context
-from backend.schemas.recommendations import BatchEmbeddingResponse
+from backend.schemas.recommendations import (
+    BatchEmbeddingResponse,
+    IndexRebuildResponse,
+)
 from backend.services.queue import QueueOrchestrator
 from backend.workers.context import AsyncRunner, WorkerContext
 
@@ -127,7 +131,7 @@ async def process_embeddings_batch_async(
     ctx = context or get_worker_context()
     logger = logging.getLogger(__name__)
 
-    try:
+    def compute() -> dict:
         with get_session_context() as sess:
             services = ctx.create_service_container(sess)
             recommendation_service = services.recommendations
@@ -142,20 +146,24 @@ async def process_embeddings_batch_async(
                 len(adapter_ids) if adapter_ids else "all",
             )
 
-            result = await recommendation_service.embeddings.compute_batch(
+            return recommendation_service.embeddings.compute_batch(
                 adapter_ids=adapter_ids,
                 force_recompute=force_recompute,
                 batch_size=batch_size,
             )
 
-            logger.info(
-                "Embedding computation completed: %s processed, %s errors in %.2fs",
-                result["processed_count"],
-                result["error_count"],
-                result["processing_time_seconds"],
-            )
+    try:
+        # The session lives and dies in one worker thread, off the runner's loop.
+        result = await asyncio.to_thread(compute)
 
-            return BatchEmbeddingResponse.model_validate(result).model_dump(mode="json")
+        logger.info(
+            "Embedding computation completed: %s processed, %s errors in %.2fs",
+            result["processed_count"],
+            result["error_count"],
+            result["processing_time_seconds"],
+        )
+
+        return BatchEmbeddingResponse.model_validate(result).model_dump(mode="json")
 
     except Exception as exc:
         logger.error(f"Embedding computation failed: {exc}")
@@ -201,24 +209,27 @@ async def compute_single_embedding_async(
     ctx = context or get_worker_context()
     logger = logging.getLogger(__name__)
 
-    try:
+    def compute() -> bool:
         with get_session_context() as sess:
             services = ctx.create_service_container(sess)
             recommendation_service = services.recommendations
 
             logger.info("Computing embeddings for adapter %s", adapter_id)
 
-            result = await recommendation_service.embeddings.compute_for_lora(
+            return recommendation_service.embeddings.compute_for_lora(
                 adapter_id,
                 force_recompute=force_recompute,
             )
 
-            if result:
-                logger.info("Successfully computed embeddings for %s", adapter_id)
-            else:
-                logger.warning("Failed to compute embeddings for %s", adapter_id)
+    try:
+        result = await asyncio.to_thread(compute)
 
-            return result
+        if result:
+            logger.info("Successfully computed embeddings for %s", adapter_id)
+        else:
+            logger.warning("Failed to compute embeddings for %s", adapter_id)
+
+        return result
 
     except Exception as exc:
         logger.error(f"Single embedding computation failed for {adapter_id}: {exc}")
@@ -261,11 +272,14 @@ async def rebuild_similarity_index_async(
     logger = logging.getLogger(__name__)
     ctx = context or get_worker_context()
 
-    try:
+    def rebuild() -> IndexRebuildResponse:
         with get_session_context() as sess:
             services = ctx.create_service_container(sess)
             embeddings = services.recommendations.embeddings
-            response = await embeddings.refresh_similarity_index(force=force)
+            return embeddings.refresh_similarity_index(force=force)
+
+    try:
+        response = await asyncio.to_thread(rebuild)
     except Exception:
         logger.exception("Similarity index rebuild failed")
         raise

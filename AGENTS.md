@@ -182,6 +182,9 @@ Read these before changing the matching subsystem:
   `strategies.py` directly; shared model instances live on
   `RecommendationModelRegistry` (`model_registry.py`). Long-running work (embedding computation, index rebuilds) is enqueued
   through `services.recommendation_jobs`, never run in the request.
+  Both services and the strategies are synchronous (database, model loading,
+  encoding): call them from plain `def` handlers or through
+  `asyncio.to_thread`, as the worker tasks in `backend/workers/tasks.py` do.
 
 ### Frontend orchestration map
 

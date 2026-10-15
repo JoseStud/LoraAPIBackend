@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import pickle
 import time
@@ -24,8 +23,9 @@ logger = logging.getLogger(__name__)
 class EmbeddingService:
     """Single entry point for GPU detection, model loading and embedding work.
 
-    Heavy compute (feature extraction, index building) runs in a worker thread
-    through ``asyncio.to_thread``; ML libraries are only imported lazily.
+    Computation and index methods are synchronous (database, model loading,
+    encoding and file I/O), so async callers run them through
+    ``asyncio.to_thread``; ML libraries are only imported lazily.
     """
 
     def __init__(
@@ -98,7 +98,7 @@ class EmbeddingService:
     # ------------------------------------------------------------------
     # Embedding computation
     # ------------------------------------------------------------------
-    async def compute_for_lora(
+    def compute_for_lora(
         self,
         adapter_id: str,
         *,
@@ -118,10 +118,7 @@ class EmbeddingService:
         extractor = self._model_registry.get_feature_extractor()
 
         try:
-            features = await asyncio.to_thread(
-                extractor.extract_advanced_features,
-                adapter,
-            )
+            features = extractor.extract_advanced_features(adapter)
         except Exception as exc:  # pragma: no cover - propagate context
             raise RuntimeError(
                 f"Failed to extract features for {adapter_id}: {exc}",
@@ -136,7 +133,7 @@ class EmbeddingService:
 
         return True
 
-    async def compute_batch(
+    def compute_batch(
         self,
         adapter_ids: Optional[Sequence[str]] = None,
         *,
@@ -165,7 +162,7 @@ class EmbeddingService:
         for start in range(0, len(adapters), batch_size):
             for adapter in adapters[start : start + batch_size]:
                 try:
-                    await self.compute_for_lora(
+                    self.compute_for_lora(
                         adapter.id,
                         force_recompute=force_recompute,
                     )
@@ -190,7 +187,7 @@ class EmbeddingService:
             "completed_at": datetime.now(timezone.utc),
         }
 
-    async def ensure_embeddings_exist(self, adapters: Sequence[Adapter]) -> None:
+    def ensure_embeddings_exist(self, adapters: Sequence[Adapter]) -> None:
         """Compute embeddings for any of ``adapters`` that lack them."""
         adapter_ids = [adapter.id for adapter in adapters]
         existing_ids = self._repository.list_existing_embedding_ids(adapter_ids)
@@ -199,21 +196,21 @@ class EmbeddingService:
         ]
 
         if missing_ids:
-            await self.compute_batch(missing_ids)
+            self.compute_batch(missing_ids)
 
     # ------------------------------------------------------------------
     # Similarity index
     # ------------------------------------------------------------------
-    async def build_similarity_index(self) -> None:
+    def build_similarity_index(self) -> None:
         """Build the in-memory similarity index for active adapters."""
         adapters = self._repository.list_active_adapters_with_embeddings()
         if not adapters:
             return
 
         engine = self._model_registry.get_recommendation_engine()
-        await asyncio.to_thread(engine.build_similarity_index, adapters)
+        engine.build_similarity_index(adapters)
 
-    async def refresh_similarity_index(
+    def refresh_similarity_index(
         self,
         *,
         force: bool = False,
@@ -237,7 +234,7 @@ class EmbeddingService:
 
         start_time = self._clock()
 
-        await self.build_similarity_index()
+        self.build_similarity_index()
 
         indexed_items = len(getattr(engine, "lora_ids", []) or [])
         index_size = 0
