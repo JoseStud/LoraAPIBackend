@@ -78,9 +78,9 @@ class RecommendationModelBootstrap:
         try:
             import torch
 
+            # ``torch.cuda`` also reports ROCm (HIP) devices. A ROCm build of
+            # torch without a usable GPU must not count as GPU-capable.
             if torch.cuda.is_available():
-                return True
-            if getattr(torch.version, "hip", None):
                 return True
             if torch.backends.mps.is_available():
                 return True

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Iterator, Optional
@@ -33,8 +34,16 @@ from .storage import StorageService
 from .system import SystemService
 from .websocket import WebSocketService
 
-_builder_var: ContextVar[ServiceContainerBuilder] = ContextVar(
-    "service_container_builder"
+# The default builder is shared by the whole process. FastAPI runs each request
+# (and each sync dependency) in a copied ``contextvars`` context, so a value set
+# lazily inside a request never reaches the next one; keeping the default in a
+# ContextVar created a new builder, queue orchestrator and GPU probe per request.
+_default_builder: Optional[ServiceContainerBuilder] = None
+_default_builder_lock = threading.Lock()
+
+# Holds only an explicit override installed by ``service_container_builder_scope``.
+_builder_var: ContextVar[Optional[ServiceContainerBuilder]] = ContextVar(
+    "service_container_builder", default=None
 )
 
 
@@ -42,24 +51,40 @@ def _create_default_builder() -> ServiceContainerBuilder:
     return ServiceContainerBuilder()
 
 
+def _get_default_builder() -> ServiceContainerBuilder:
+    global _default_builder
+
+    builder = _default_builder
+    if builder is None:
+        with _default_builder_lock:
+            builder = _default_builder
+            if builder is None:
+                builder = _create_default_builder()
+                _default_builder = builder
+    return builder
+
+
 def get_service_container_builder() -> ServiceContainerBuilder:
-    """Return the current service container builder for this context."""
-    try:
-        return _builder_var.get()
-    except LookupError:
-        builder = _create_default_builder()
-        _builder_var.set(builder)
-        return builder
+    """Return the scoped override if one is active, else the process-wide builder."""
+    override = _builder_var.get()
+    if override is not None:
+        return override
+    return _get_default_builder()
 
 
 @contextmanager
 def service_container_builder_scope(
     builder: Optional[ServiceContainerBuilder] = None,
 ) -> Iterator[ServiceContainerBuilder]:
-    """Provide a scoped service container builder override."""
-    token = _builder_var.set(builder or _create_default_builder())
+    """Override the service container builder for the current context.
+
+    Intended for tests and scripts. Without ``builder`` a fresh, isolated
+    builder is used. The previous builder is restored on exit.
+    """
+    scoped = builder or _create_default_builder()
+    token = _builder_var.set(scoped)
     try:
-        yield _builder_var.get()
+        yield scoped
     finally:
         _builder_var.reset(token)
 
