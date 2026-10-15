@@ -12,7 +12,7 @@ import contract from '../../../fixtures/generation_websocket_contract.json';
 import { createGenerationWebSocketManager } from '@/features/generation/services/websocketManager';
 import { parseGenerationSocketMessage } from '@/features/generation/services/websocketMessages';
 import { createQueueModule } from '@/features/generation/stores/orchestrator/queueModule';
-import { createAdapterHandlers } from '@/features/generation/stores/orchestrator/adapterHandlers';
+import { createAdapterHandlers } from '@/features/generation/stores/orchestrator/transportModule';
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];

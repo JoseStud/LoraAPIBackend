@@ -1,6 +1,6 @@
 import type { Ref } from 'vue';
 
-import type { GenerationNotificationAdapter } from './useGenerationTransport';
+import type { GenerationNotificationAdapter } from '../types/transport';
 import type { GenerationQueueClient } from '../services/queueClient';
 import type { GenerationWebSocketManager } from '../services/websocketManager';
 import type { GenerationRequestPayload, GenerationStartResponse, SystemStatusState } from '@/types';

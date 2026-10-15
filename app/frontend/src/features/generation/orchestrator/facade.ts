@@ -8,7 +8,7 @@ import {
   useGenerationOrchestratorManagerStore,
   type GenerationOrchestratorManagerStore,
 } from '../stores/orchestratorManagerStore';
-import type { GenerationNotificationAdapter } from '../composables/useGenerationTransport';
+import type { GenerationNotificationAdapter } from '../types/transport';
 
 import type { GenerationJob, GenerationResult, SystemStatusState } from '@/types';
 import type { DeepReadonly } from '@/utils/freezeDeep';

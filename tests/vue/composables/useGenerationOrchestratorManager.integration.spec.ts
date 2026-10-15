@@ -2,11 +2,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createPinia, setActivePinia, defineStore } from 'pinia';
 import { computed, nextTick, ref } from 'vue';
 
-vi.mock('@/features/generation/composables/createGenerationTransportAdapter', () => ({
+vi.mock('@/features/generation/stores/orchestrator/transportAdapter', () => ({
   createGenerationTransportAdapter: vi.fn(),
 }));
 
-import { createGenerationTransportAdapter } from '@/features/generation/composables/createGenerationTransportAdapter';
+import { createGenerationTransportAdapter } from '@/features/generation/stores/orchestrator/transportAdapter';
 import { createUseGenerationOrchestratorManager } from '@/features/generation/composables/useGenerationOrchestratorManager';
 import { HISTORY_LIMIT_WHEN_SHOWING } from '@/features/generation/composables/useGenerationOrchestratorManager';
 import { useGenerationOrchestratorStore, DEFAULT_HISTORY_LIMIT } from '@/features/generation/stores/useGenerationOrchestratorStore';

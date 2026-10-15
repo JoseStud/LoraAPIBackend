@@ -1,7 +1,24 @@
-/** @internal */
+/**
+ * @internal
+ *
+ * Transport side of the orchestrator store:
+ * - `createTransportModule` holds the active transport adapter and its connection, retry, pause and
+ *   error telemetry;
+ * - `createTransportActions` implements the store's data-loading and queue commands on top of it;
+ * - `createAdapterHandlers` routes the adapter's callbacks into the queue, results and
+ *   system-status modules.
+ *
+ * None of these start timers, watchers or listeners; the adapter (`transportAdapter.ts`) does that
+ * only when the store's lifecycle methods tell it to.
+ */
 import { computed, readonly, ref } from 'vue';
 
-import type { GenerationTransportAdapter } from '../../composables/createGenerationTransportAdapter';
+import type { GenerationTransportAdapter } from './transportAdapter';
+import type { QueueModule } from './queueModule';
+import type { ResultsModule } from './resultsModule';
+import type { SystemStatusModule } from './systemStatusModule';
+import type { GenerationRequestPayload, GenerationStartResponse } from '@/types';
+import { normalizeJobStatus } from '@/utils/status';
 import type {
   GenerationTransportError,
   GenerationTransportMetricsSnapshot,
@@ -285,3 +302,180 @@ export const createTransportModule = () => {
 };
 
 export type TransportModule = ReturnType<typeof createTransportModule>;
+
+export interface TransportActionDependencies {
+  queue: QueueModule;
+  results: ResultsModule;
+  transport: TransportModule;
+}
+
+export const createTransportActions = ({
+  queue,
+  results,
+  transport,
+}: TransportActionDependencies) => {
+  const ensureTransport = () => transport.ensureTransport();
+
+  const loadSystemStatusData = async (): Promise<void> => {
+    await transport.withTransport((instance) => instance.refreshSystemStatus());
+  };
+
+  const loadActiveJobsData = async (): Promise<void> => {
+    await transport.withTransport((instance) => instance.refreshActiveJobs());
+  };
+
+  const loadRecentResults = async (notifySuccess = false): Promise<void> => {
+    await transport.withTransport((instance) =>
+      instance.refreshRecentResults(results.historyLimit.value, notifySuccess),
+    );
+  };
+
+  const refreshAllData = async (): Promise<void> => {
+    await transport.withTransport((instance) =>
+      instance.refreshAll(results.historyLimit.value),
+    );
+  };
+
+  const handleBackendUrlChange = async (): Promise<void> => {
+    transport.reconnect();
+    await refreshAllData();
+  };
+
+  const reconnect = (): void => {
+    transport.reconnect();
+  };
+
+  const startGeneration = async (
+    payload: GenerationRequestPayload,
+  ): Promise<GenerationStartResponse> => {
+    const adapter = ensureTransport();
+    const response = await adapter.startGeneration(payload);
+
+    if (response.job_id) {
+      const createdAt = new Date().toISOString();
+      queue.enqueueJob({
+        id: response.job_id,
+        uiId: response.job_id,
+        backendId: response.job_id,
+        prompt: payload.prompt,
+        status: normalizeJobStatus(response.status),
+        progress: response.progress ?? 0,
+        startTime: createdAt,
+        created_at: createdAt,
+        width: payload.width,
+        height: payload.height,
+        steps: payload.steps,
+        total_steps: payload.steps,
+        cfg_scale: payload.cfg_scale,
+        seed: payload.seed,
+      });
+    }
+
+    return response;
+  };
+
+  const cancelJob = async (jobId: string): Promise<void> => {
+    const adapter = ensureTransport();
+    const normalizedId = typeof jobId === 'string' ? jobId : String(jobId);
+    const job = queue.getJobByIdentifier(normalizedId);
+    const backendJobId = job?.backendId ?? normalizedId;
+
+    await adapter.cancelJob(backendJobId);
+    queue.removeJob(backendJobId);
+  };
+
+  const clearQueue = async (): Promise<void> => {
+    const cancellableJobs = queue.getCancellableJobs();
+    if (cancellableJobs.length === 0) {
+      return;
+    }
+
+    await Promise.allSettled(cancellableJobs.map((job) => cancelJob(job.backendId)));
+  };
+
+  const deleteResult = async (resultId: string | number): Promise<void> => {
+    const adapter = ensureTransport();
+    await adapter.deleteResult(resultId);
+    results.removeResult(resultId);
+  };
+
+  return {
+    loadSystemStatusData,
+    loadActiveJobsData,
+    loadRecentResults,
+    refreshAllData,
+    handleBackendUrlChange,
+    reconnect,
+    startGeneration,
+    cancelJob,
+    clearQueue,
+    deleteResult,
+  };
+};
+
+export type TransportActions = ReturnType<typeof createTransportActions>;
+
+export interface AdapterHandlerDependencies {
+  queue: Pick<
+    QueueModule,
+    | 'ingestQueue'
+    | 'jobsByBackendId'
+    | 'handleProgressMessage'
+    | 'handleCompletionMessage'
+    | 'handleErrorMessage'
+  >;
+  results: Pick<ResultsModule, 'setResults'>;
+  systemStatus: Pick<SystemStatusModule, 'applySystemStatusPayload' | 'setConnectionState'>;
+  /**
+   * Called with the backend ids of jobs whose results are now available: on a
+   * WebSocket completion, or when a job leaves the active-jobs feed.
+   */
+  onJobsFinished?: (jobIds: string[]) => void;
+}
+
+export interface AdapterHandlers {
+  onSystemStatus: SystemStatusModule['applySystemStatusPayload'];
+  onQueueUpdate: QueueModule['ingestQueue'];
+  onProgress: QueueModule['handleProgressMessage'];
+  onComplete: QueueModule['handleCompletionMessage'];
+  onError: QueueModule['handleErrorMessage'];
+  onRecentResults: ResultsModule['setResults'];
+  onConnectionChange: SystemStatusModule['setConnectionState'];
+}
+
+export const createAdapterHandlers = ({
+  queue,
+  results,
+  systemStatus,
+  onJobsFinished,
+}: AdapterHandlerDependencies): AdapterHandlers => {
+  // The active-jobs feed drops a job once it completes or fails, which is the
+  // signal (without WebSocket completion events) that its result is available.
+  const handleQueueUpdate: AdapterHandlers['onQueueUpdate'] = (list) => {
+    const before = [...queue.jobsByBackendId.value.keys()];
+    queue.ingestQueue(list);
+    const after = queue.jobsByBackendId.value;
+    const finished = before.filter((id) => !after.has(id));
+    if (finished.length > 0) {
+      onJobsFinished?.(finished);
+    }
+  };
+
+  // The completion message carries no prompt or image settings, so the stored
+  // result is fetched instead. Removing the job here also means the feed check
+  // above will not report it a second time.
+  const handleCompletion: AdapterHandlers['onComplete'] = (message) => {
+    queue.handleCompletionMessage(message);
+    onJobsFinished?.([String(message.job_id)]);
+  };
+
+  return {
+    onSystemStatus: systemStatus.applySystemStatusPayload,
+    onQueueUpdate: handleQueueUpdate,
+    onProgress: queue.handleProgressMessage,
+    onComplete: handleCompletion,
+    onError: queue.handleErrorMessage,
+    onRecentResults: results.setResults,
+    onConnectionChange: systemStatus.setConnectionState,
+  };
+};

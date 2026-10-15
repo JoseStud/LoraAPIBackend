@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 
-vi.mock('@/features/generation/composables/createGenerationTransportAdapter', () => ({
+vi.mock('@/features/generation/stores/orchestrator/transportAdapter', () => ({
   createGenerationTransportAdapter: vi.fn(),
 }));
 
-import { createGenerationTransportAdapter } from '@/features/generation/composables/createGenerationTransportAdapter';
+import { createGenerationTransportAdapter } from '@/features/generation/stores/orchestrator/transportAdapter';
 import {
   useGenerationOrchestratorStore,
   DEFAULT_HISTORY_LIMIT,

@@ -1,3 +1,11 @@
+import type { NotificationType } from '@/types';
+
+/** How the transport reports user-facing notices and debug output to the consumer that owns it. */
+export interface GenerationNotificationAdapter {
+  notify(message: string, type?: NotificationType): void;
+  debug?: (...args: unknown[]) => void;
+}
+
 export type GenerationTransportPhase =
   | 'idle'
   | 'connecting'
