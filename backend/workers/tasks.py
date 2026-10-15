@@ -306,47 +306,28 @@ def rebuild_similarity_index(
         context: Optional worker context providing dependency factories
 
     Returns:
-        Rebuild results
+        The :class:`~backend.schemas.recommendations.IndexRebuildResponse`
+        produced by the recommendation service, as a dict.
 
     """
     logger = logging.getLogger(__name__)
+    ctx = context or get_worker_context()
 
     try:
-        ctx = context or get_worker_context()
-
         with get_session_context() as sess:
-            from sqlmodel import select
-
-            from backend.models import Adapter
-
             services = ctx.create_service_container(sess)
-            recommendation_service = services.recommendations
-            gpu_enabled = recommendation_service.gpu_enabled
-
-            # Get all active adapters
-            stmt = select(Adapter).where(Adapter.active)
-            adapters = list(sess.exec(stmt))
-
-            logger.info(f"Rebuilding similarity index for {len(adapters)} adapters")
-
-            # This would rebuild the similarity index
-            # For now, just return success
-            result = {
-                "status": "success",
-                "adapters_processed": len(adapters),
-                "index_type": "similarity",
-                "gpu_enabled": gpu_enabled,
-            }
-
-            logger.info(
-                f"Similarity index rebuilt successfully for {len(adapters)} adapters"
-            )
-
-            return result
-
-    except Exception as exc:
-        logger.error(f"Similarity index rebuild failed: {exc}")
+            embeddings = services.recommendations.embeddings
+            response = ctx.run_async(embeddings.refresh_similarity_index(force=force))
+    except Exception:
+        logger.exception("Similarity index rebuild failed")
         raise
+
+    logger.info(
+        "Similarity index rebuild finished: status=%s items=%s",
+        response.status,
+        response.indexed_items,
+    )
+    return response.model_dump()
 
 
 if __name__ == "__main__":
