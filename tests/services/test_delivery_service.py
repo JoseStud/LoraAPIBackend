@@ -6,6 +6,10 @@ from datetime import datetime, timezone
 import pytest
 
 from backend.delivery.base import DeliveryRegistry
+from backend.services import (
+    get_service_container_builder,
+    service_container_builder_scope,
+)
 from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import (
     DeliveryJobMapper,
@@ -158,6 +162,65 @@ class TestDeliveryService:
         assert refreshed.status == "succeeded"
         result = service.get_job_result(refreshed)
         assert result == {"status": "ok", "result": True}
+
+    def test_process_delivery_job_uses_injected_service_factory(
+        self, db_session, monkeypatch
+    ):
+        """The runner reads and updates job state through its service factory."""
+        service = DeliveryService(DeliveryJobRepository(db_session))
+        job = service.create_job("p", "cli", {})
+        self._override_session(monkeypatch, db_session)
+
+        sessions = []
+
+        def factory(session):
+            sessions.append(session)
+            return DeliveryService(DeliveryJobRepository(session))
+
+        async def fake_execute(prompt, mode, params):
+            return {"status": "ok"}
+
+        runner = DeliveryRunner(DeliveryRegistry(), delivery_service_factory=factory)
+        monkeypatch.setattr(runner, "_execute_delivery_backend", fake_execute)
+
+        runner.process_delivery_job(job.id)
+
+        # One service for loading the job, one for writing the final status.
+        assert len(sessions) == 2
+        db_session.expire_all()
+        assert service.get_job(job.id).status == "succeeded"
+
+    def test_process_delivery_job_defaults_to_service_container(
+        self, db_session, monkeypatch
+    ):
+        """Without a factory the runner builds its service via the container."""
+        service = DeliveryService(DeliveryJobRepository(db_session))
+        job = service.create_job("p", "cli", {})
+        self._override_session(monkeypatch, db_session)
+
+        built_for = []
+
+        def recording_repository(session):
+            built_for.append(session)
+            return DeliveryJobRepository(session)
+
+        builder = get_service_container_builder().with_overrides(
+            delivery_repository_factory=recording_repository,
+            recommendation_gpu_detector=lambda: False,
+        )
+
+        async def fake_execute(prompt, mode, params):
+            return {"status": "ok"}
+
+        runner = self._make_runner()
+        monkeypatch.setattr(runner, "_execute_delivery_backend", fake_execute)
+
+        with service_container_builder_scope(builder):
+            runner.process_delivery_job(job.id)
+
+        assert len(built_for) == 2
+        db_session.expire_all()
+        assert service.get_job(job.id).status == "succeeded"
 
     def test_process_delivery_job_failure_sets_retry(self, db_session, monkeypatch):
         """Failures with retries left set the job to retrying."""

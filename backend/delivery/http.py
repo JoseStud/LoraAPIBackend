@@ -1,11 +1,14 @@
 """HTTP delivery implementation."""
 
 import asyncio
+import logging
 from typing import Any, Dict
 
 import aiohttp
 
 from .base import DeliveryBackend
+
+logger = logging.getLogger(__name__)
 
 
 class HTTPDeliveryBackend(DeliveryBackend):
@@ -56,8 +59,9 @@ class HTTPDeliveryBackend(DeliveryBackend):
                 "status": "error",
                 "detail": f"Request timeout after {self.timeout}s",
             }
-        except Exception as exc:
-            return {"status": "error", "detail": str(exc)}
+        except Exception:
+            logger.exception("HTTP delivery to %s failed", url)
+            return {"status": "error", "detail": "HTTP delivery request failed"}
 
     def get_backend_name(self) -> str:
         """Return backend name."""

@@ -7,7 +7,7 @@ from typing import Dict
 import structlog
 from fastapi import HTTPException
 
-from backend.delivery import get_generation_backend
+from backend.delivery import get_delivery_registry, get_generation_backend
 from backend.schemas import (
     ComposeRequest,
     GenerationMode,
@@ -72,9 +72,7 @@ async def _execute_generation_request(
 
 def list_generation_backends() -> Dict[str, bool]:
     """List available generation backends and their status."""
-    from backend.delivery.base import delivery_registry
-
-    backends_info = delivery_registry.list_available_backends()
+    backends_info = get_delivery_registry().list_available_backends()
     return backends_info.get("generation", {})
 
 

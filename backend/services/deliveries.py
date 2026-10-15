@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
-from fastapi import BackgroundTasks
-
 from backend.models import DeliveryJob
 
 from .delivery_repository import DeliveryJobRepository
@@ -13,7 +11,7 @@ from .delivery_results import DeliveryResultManager, ResultArchive, ResultDownlo
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
     from .generation import GenerationCoordinator
-    from .queue import QueueOrchestrator
+    from .queue import QueueOrchestrator, TaskScheduler
     from .storage import StorageService
 
 
@@ -63,7 +61,7 @@ class DeliveryService:
         prompt: str,
         mode: str,
         params: Optional[Dict[str, Any]] = None,
-        background_tasks: Optional[BackgroundTasks] = None,
+        background_tasks: Optional[TaskScheduler] = None,
         **enqueue_kwargs: Any,
     ) -> DeliveryJob:
         """Create a delivery job and enqueue it for processing."""
@@ -75,7 +73,7 @@ class DeliveryService:
         self,
         job_id: str,
         *,
-        background_tasks: Optional[BackgroundTasks] = None,
+        background_tasks: Optional[TaskScheduler] = None,
         **enqueue_kwargs: Any,
     ) -> None:
         """Enqueue an existing job using the configured queue orchestrator."""

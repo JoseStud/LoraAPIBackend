@@ -87,7 +87,10 @@ Read these before changing the matching subsystem:
   under `/v1`. Its lifespan runs `init_db()` (Alembic migrations), preloads the
   recommendation models in the background, and runs the optional startup
   importer (`IMPORT_ON_STARTUP`). Delivery and generation backends (SDNext
-  included) are registered when `backend.delivery` is imported, not at startup.
+  included) are registered by `ensure_delivery_system()` (`backend/delivery`),
+  which the lifespan and `WorkerContext.build_default` call; importing the
+  package registers nothing. Reach the registry through
+  `get_delivery_registry()`, which runs the same idempotent registration.
   Add endpoints through the routers, not ad hoc routes.
 - **Service container**: all service wiring goes through
   `ServiceContainerBuilder` (`backend/services/service_container_builder.py`).
@@ -101,7 +104,8 @@ Read these before changing the matching subsystem:
 - **Queue orchestration**: `QueueOrchestrator` (`backend/services/queue.py`)
   picks Redis/RQ when available and falls back to `BackgroundTaskQueueBackend`.
   Enqueue through `QueueOrchestrator.enqueue_delivery()` so the fallback keeps
-  working.
+  working. Services take a `TaskScheduler` (the protocol in `queue.py`), not
+  FastAPI's `BackgroundTasks`; routers pass `BackgroundTasks`, which fits it.
 - **Configuration**: runtime settings live only in `backend/core/config.py`, so
   startup validation and the frontend `/frontend/settings` payload stay
   consistent.

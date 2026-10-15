@@ -25,6 +25,7 @@ from backend.core.config import settings
 from backend.core.database import init_db
 from backend.core.logging import setup_logging
 from backend.core.security import get_api_key
+from backend.delivery import ensure_delivery_system
 from backend.services.recommendations import RecommendationService
 
 
@@ -34,6 +35,7 @@ async def lifespan(app: FastAPI):
     # Initialize logging and DB at startup
     setup_logging()
     init_db()
+    ensure_delivery_system()
     startup_tasks = []
     recommendation_logger = logging.getLogger("lora.recommendations.startup")
 

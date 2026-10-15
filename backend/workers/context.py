@@ -8,8 +8,12 @@ from typing import Any, Callable, Coroutine, Optional, TypeVar
 
 from sqlmodel import Session
 
-from backend.delivery.base import delivery_registry
-from backend.services import ServiceRegistry, get_service_container_builder
+from backend.delivery import ensure_delivery_system, get_delivery_registry
+from backend.services import (
+    DeliveryService,
+    ServiceRegistry,
+    get_service_container_builder,
+)
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.queue import (
@@ -69,7 +73,10 @@ class WorkerContext:
             primary if isinstance(primary, RedisQueueBackend) else None
         )
         self.queue_orchestrator = queue_orchestrator
-        self.delivery_runner = delivery_runner or DeliveryRunner(delivery_registry)
+        self.delivery_runner = delivery_runner or DeliveryRunner(
+            get_delivery_registry(),
+            delivery_service_factory=self._build_delivery_service,
+        )
         self.recommendation_gpu_available = (
             recommendation_gpu_available
             if recommendation_gpu_available is not None
@@ -85,7 +92,12 @@ class WorkerContext:
         async_runner: Optional[AsyncRunner] = None,
         recommendation_gpu_available: Optional[bool] = None,
     ) -> "WorkerContext":
-        """Create a context using the shared queue backend factory."""
+        """Create a context using the shared queue backend factory.
+
+        Registers the built-in delivery backends first, so a worker process
+        starts with the same registry the API process sets up in its lifespan.
+        """
+        ensure_delivery_system()
         return cls(
             queue_orchestrator=queue_orchestrator or create_queue_orchestrator(),
             recommendation_gpu_available=recommendation_gpu_available,
@@ -105,6 +117,10 @@ class WorkerContext:
             except Exception:  # pragma: no cover - defensive fallback
                 return None
         return None
+
+    def _build_delivery_service(self, db_session: Session) -> DeliveryService:
+        """Return the delivery service from this context's service container."""
+        return self.create_service_container(db_session).deliveries
 
     def create_service_container(self, db_session: Session) -> ServiceRegistry:
         """Instantiate a service container sharing this context's dependencies."""

@@ -135,7 +135,3 @@ class DeliveryRegistry:
                 for name, backend in self._generation_backends.items()
             },
         }
-
-
-# Global registry instance
-delivery_registry = DeliveryRegistry()

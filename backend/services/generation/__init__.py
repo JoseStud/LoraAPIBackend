@@ -2,9 +2,7 @@
 
 from typing import Any, Dict, List, Optional
 
-from fastapi import BackgroundTasks
-
-from backend.delivery import get_generation_backend
+from backend.delivery import get_delivery_registry, get_generation_backend
 from backend.models import DeliveryJob
 from backend.schemas import (
     GenerationStarted,
@@ -12,6 +10,7 @@ from backend.schemas import (
     SDNextGenerationResult,
 )
 from backend.services.deliveries import DeliveryService
+from backend.services.queue import TaskScheduler
 from backend.services.websocket import WebSocketService
 
 from .statuses import normalize_status
@@ -109,9 +108,7 @@ class GenerationService:
             Dict mapping backend names to availability status
 
         """
-        from backend.delivery.base import delivery_registry
-
-        backends_info = delivery_registry.list_available_backends()
+        backends_info = get_delivery_registry().list_available_backends()
         return backends_info.get("generation", {})
 
     async def validate_generation_params(
@@ -198,7 +195,7 @@ class GenerationCoordinator:
         mode: str = "deferred",
         save_images: bool = True,
         return_format: str = "base64",
-        background_tasks: Optional[BackgroundTasks] = None,
+        background_tasks: Optional[TaskScheduler] = None,
         client_ref: Optional[str] = None,
         **enqueue_kwargs: Any,
     ) -> DeliveryJob:
