@@ -1,14 +1,7 @@
 import { generationPollingConfig } from '../config/polling';
 import { resolveBackendUrl } from './generationService';
-import { ensureArray } from './validation';
-import type {
-  GenerationCompleteMessage,
-  GenerationErrorMessage,
-  GenerationJob,
-  GenerationProgressMessage,
-  GenerationSystemStatusMessage,
-  WebSocketMessage,
-} from '@/types';
+import { GENERATION_SOCKET_SUBSCRIPTION, parseGenerationSocketMessage } from './websocketMessages';
+import type { GenerationComplete, GenerationErrorMessage, ProgressUpdate } from '@/types';
 import type {
   GenerationTransportError,
   GenerationWebSocketErrorDetails,
@@ -55,11 +48,9 @@ const resolveWebSocketUrl = (backendUrl?: string | null): string => {
 export interface GenerationWebSocketManagerOptions {
   getBackendUrl: () => string | null | undefined;
   logger?: (...args: unknown[]) => void;
-  onProgress?: (message: GenerationProgressMessage) => void;
-  onComplete?: (message: GenerationCompleteMessage) => void;
+  onProgress?: (message: ProgressUpdate) => void;
+  onComplete?: (message: GenerationComplete) => void;
   onError?: (message: GenerationErrorMessage) => void;
-  onQueueUpdate?: (jobs: unknown) => void;
-  onSystemStatus?: (message: GenerationSystemStatusMessage) => void;
   onConnectionChange?: (connected: boolean, snapshot?: GenerationWebSocketStateSnapshot) => void;
   onStateChange?: (snapshot: GenerationWebSocketStateSnapshot) => void;
   onTransportError?: (error: GenerationTransportError) => void;
@@ -197,46 +188,43 @@ export const createGenerationWebSocketManager = (
     }, computedDelay);
   };
 
-  const handleQueueUpdate = (jobs: unknown): void => {
-    const jobList = ensureArray<Partial<GenerationJob>>(jobs);
-    options.onQueueUpdate?.(jobList);
-  };
-
   const handleWebSocketMessage = (event: MessageEvent): void => {
+    let payload: unknown;
     try {
-      const payload = JSON.parse(event.data as string) as WebSocketMessage;
-      if (!payload || typeof payload !== 'object') {
-        logDebug('Received invalid WebSocket message:', payload);
-        return;
-      }
-
-      switch (payload.type) {
-        case 'generation_progress':
-          options.onProgress?.(payload as GenerationProgressMessage);
-          break;
-        case 'generation_complete':
-          options.onComplete?.(payload as GenerationCompleteMessage);
-          break;
-        case 'generation_error':
-          options.onError?.(payload as GenerationErrorMessage);
-          break;
-        case 'queue_update':
-          handleQueueUpdate((payload as { jobs?: unknown }).jobs);
-          break;
-        case 'system_status':
-          options.onSystemStatus?.(payload as GenerationSystemStatusMessage);
-          break;
-        case 'connected':
-          // handshake acknowledgement from the server; nothing to update
-          break;
-        case 'generation_started':
-          logDebug('Generation job started', (payload as { job_id?: string }).job_id);
-          break;
-        default:
-          logDebug('Unknown WebSocket message type:', (payload as { type?: string }).type);
-      }
+      payload = JSON.parse(event.data as string);
     } catch (error) {
       console.error('Failed to parse WebSocket message:', error);
+      return;
+    }
+
+    const parsed = parseGenerationSocketMessage(payload);
+    switch (parsed.kind) {
+      case 'progress':
+        options.onProgress?.(parsed.message);
+        break;
+      case 'complete':
+        options.onComplete?.(parsed.message);
+        break;
+      case 'error':
+        options.onError?.(parsed.message);
+        break;
+      case 'ignored':
+        logDebug('WebSocket message:', parsed.type);
+        break;
+      case 'unknown':
+        logDebug('Unknown WebSocket message type:', parsed.type);
+        break;
+      case 'invalid':
+        logDebug('Received invalid WebSocket message:', parsed.type, parsed.reason);
+        break;
+    }
+  };
+
+  const subscribe = (socket: WebSocket): void => {
+    try {
+      socket.send(JSON.stringify(GENERATION_SOCKET_SUBSCRIPTION));
+    } catch (error) {
+      console.error('Failed to subscribe to generation updates:', error);
     }
   };
 
@@ -255,10 +243,12 @@ export const createGenerationWebSocketManager = (
         websocket.close();
       }
 
-      websocket = new WebSocket(url);
+      const socket = new WebSocket(url);
+      websocket = socket;
       clearReconnectTimer();
 
       websocket.onopen = () => {
+        subscribe(socket);
         const now = Date.now();
         lastConnectedAt = now;
         const snapshot = emitState('connect:success', {

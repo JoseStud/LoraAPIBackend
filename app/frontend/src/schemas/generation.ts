@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import type { GenerationJobStatus } from '@/types/generation';
-import type { GenerationRequestPayload, GenerationResult } from '@/types';
+import type { GenerationRequestPayload, GenerationResult, ProgressUpdate } from '@/types';
 import { normalizeJobStatus } from '@/utils/status';
 
 import { JsonObjectSchema } from './json';
@@ -152,4 +152,49 @@ export const GenerationRequestPayloadSchema: z.ZodType<GenerationRequestPayload>
 /** Response from `POST /generation/queue-generation`. */
 export const DeliveryCreateResponseSchema = z.object({
   delivery_id: z.string().min(1),
+});
+
+// Progress WebSocket (`/ws/progress`). Every message is a `WebSocketMessage`
+// envelope (backend/schemas/common.py) whose payload sits in `data`.
+
+export const GenerationSocketEnvelopeSchema = z.object({
+  type: z.string(),
+  timestamp: z.string(),
+  data: JsonObjectSchema,
+});
+
+const NullableFiniteNumber = z.number().finite().nullish();
+
+/** `data` of a `progress_update` message (`ProgressUpdate`). */
+export const ProgressUpdateSchema = z
+  .object({
+    job_id: RequiredIdSchema,
+    progress: z.number().finite(),
+    status: z.string(),
+    current_step: NullableFiniteNumber,
+    total_steps: NullableFiniteNumber,
+    eta_seconds: NullableFiniteNumber,
+    preview_image: NullableString,
+    error_message: NullableString,
+  })
+  .transform((value): ProgressUpdate => ({
+    ...value,
+    status: normalizeJobStatus(value.status),
+  }));
+
+/** `data` of a `generation_complete` message (`GenerationComplete`). */
+export const GenerationCompletePayloadSchema = z.object({
+  job_id: RequiredIdSchema,
+  status: z.string(),
+  images: z.array(z.string()).nullish(),
+  error_message: NullableString,
+  total_duration: NullableFiniteNumber,
+  generation_info: JsonObjectSchema.nullish(),
+});
+
+/** `data` of a `generation_started` message (`GenerationStarted`). */
+export const GenerationStartedPayloadSchema = z.object({
+  job_id: RequiredIdSchema,
+  params: JsonObjectSchema,
+  estimated_duration: NullableFiniteNumber,
 });

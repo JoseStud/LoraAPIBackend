@@ -3,9 +3,8 @@ import type { GenerationQueueClient } from '../services/queueClient';
 import type { GenerationWebSocketManager } from '../services/websocketManager';
 import type { GenerationJobInput } from '../stores/useGenerationOrchestratorStore';
 import type {
-  GenerationCompleteMessage,
+  GenerationComplete,
   GenerationErrorMessage,
-  GenerationProgressMessage,
   GenerationResult,
   ProgressUpdate,
   SystemStatusPayload,
@@ -38,8 +37,8 @@ export interface GenerationTransportOptions {
 export interface GenerationTransportCallbacks {
   onSystemStatus?: (payload: SystemStatusPayload | Partial<SystemStatusState>) => void;
   onQueueUpdate?: (jobs: GenerationJobInput[]) => void;
-  onProgress?: (message: GenerationProgressMessage | ProgressUpdate) => void;
-  onComplete?: (message: GenerationCompleteMessage) => GenerationResult | void;
+  onProgress?: (message: ProgressUpdate) => void;
+  onComplete?: (message: GenerationComplete) => void;
   onError?: (message: GenerationErrorMessage) => void;
   onRecentResults?: (results: GenerationResult[]) => void;
   onConnectionChange?: (connected: boolean, snapshot?: GenerationWebSocketStateSnapshot) => void;
@@ -109,20 +108,13 @@ export const useGenerationTransport = (
         callbacks.onProgress?.(message);
       },
       onComplete: (message) => {
-        const result = callbacks.onComplete?.(message);
+        callbacks.onComplete?.(message);
         callbacks.onNotify?.('Generation completed successfully', 'success');
-        return result;
       },
       onError: (message) => {
         callbacks.onError?.(message);
         const errorMessage = extractGenerationErrorMessage(message);
         callbacks.onNotify?.(`Generation failed: ${errorMessage}`, 'error');
-      },
-      onQueueUpdate: (jobs) => {
-        callbacks.onQueueUpdate?.(jobs);
-      },
-      onSystemStatus: (payload) => {
-        callbacks.onSystemStatus?.(payload);
       },
       onConnectionChange: (connected, snapshot) => {
         callbacks.onConnectionChange?.(connected, snapshot);

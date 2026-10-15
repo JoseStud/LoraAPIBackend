@@ -12,18 +12,15 @@ describe('adapterHandlers', () => {
       handleErrorMessage: vi.fn(),
     } as any;
 
-    const results = {
-      setResults: vi.fn(),
-      addResult: vi.fn(),
-      createResultFromCompletion: vi.fn().mockReturnValue({ id: 'result-1' }),
-    } as any;
+    const results = { setResults: vi.fn() } as any;
 
     const systemStatus = {
       applySystemStatusPayload: vi.fn(),
       setConnectionState: vi.fn(),
     } as any;
 
-    const handlers = createAdapterHandlers({ queue, results, systemStatus });
+    const onJobsFinished = vi.fn();
+    const handlers = createAdapterHandlers({ queue, results, systemStatus, onJobsFinished });
 
     handlers.onQueueUpdate([{ id: 'job' }] as any);
     expect(queue.ingestQueue).toHaveBeenCalled();
@@ -31,10 +28,9 @@ describe('adapterHandlers', () => {
     handlers.onProgress({ job_id: 'job' } as any);
     expect(queue.handleProgressMessage).toHaveBeenCalled();
 
-    const result = handlers.onComplete({ job_id: 'job' } as any);
+    handlers.onComplete({ job_id: 'job', status: 'completed' });
     expect(queue.handleCompletionMessage).toHaveBeenCalled();
-    expect(results.addResult).toHaveBeenCalledWith({ id: 'result-1' });
-    expect(result).toEqual({ id: 'result-1' });
+    expect(onJobsFinished).toHaveBeenCalledWith(['job']);
 
     handlers.onError({ job_id: 'job' } as any);
     expect(queue.handleErrorMessage).toHaveBeenCalled();

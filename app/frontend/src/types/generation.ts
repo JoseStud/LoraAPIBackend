@@ -6,7 +6,6 @@ import type { GeneratedNormalizedJobStatus } from '@/constants/generated/jobStat
 
 import type { BackendSchemas } from './generated';
 import type { JsonObject } from './json';
-import type { SystemStatusPayload } from './system';
 
 type Schemas = BackendSchemas;
 type GenerationJobStatusSchema = Schemas['GenerationJobStatus'];
@@ -215,51 +214,30 @@ export interface GenerationComplete {
   generation_info?: JsonObject | null;
 }
 
-export interface GenerationProgressMessage extends ProgressUpdate {
-  type: 'generation_progress';
+/**
+ * Envelope wrapping every message on the progress socket
+ * (``WebSocketMessage`` in backend/schemas/common.py). The typed payloads above
+ * travel in ``data``; see features/generation/services/websocketMessages.ts.
+ */
+export interface GenerationSocketEnvelope {
+  type: string;
+  timestamp: string;
+  data: JsonObject;
 }
 
-export interface GenerationCompleteMessage extends GenerationComplete {
-  type: 'generation_complete';
-  result_id?: string | number;
-  prompt?: string;
-  image_url?: string | null;
-  width?: number;
-  height?: number;
-  steps?: number;
-  cfg_scale?: number;
-  seed?: number | null;
-  negative_prompt?: string | null;
-  created_at?: string;
+/**
+ * Subscription request (``WebSocketSubscription`` in backend/schemas/common.py).
+ * ``job_ids: null`` subscribes the connection to every job.
+ */
+export interface GenerationSocketSubscription {
+  type: 'subscribe';
+  job_ids: string[] | null;
+  include_previews: boolean;
 }
 
+/** A failed job, derived from a ``generation_complete`` message with status "failed". */
 export interface GenerationErrorMessage {
-  type: 'generation_error';
   job_id: string;
   error: string;
   status?: string;
-  [key: string]: unknown;
 }
-
-export interface GenerationQueueUpdateMessage {
-  type: 'queue_update';
-  jobs?: Partial<GenerationJob>[];
-  [key: string]: unknown;
-}
-
-export interface GenerationSystemStatusMessage extends SystemStatusPayload {
-  type: 'system_status';
-}
-
-export interface GenerationStartedMessage extends GenerationStarted {
-  type: 'generation_started';
-}
-
-export type WebSocketMessage =
-  | GenerationProgressMessage
-  | GenerationCompleteMessage
-  | GenerationErrorMessage
-  | GenerationQueueUpdateMessage
-  | GenerationSystemStatusMessage
-  | GenerationStartedMessage
-  | { type?: string; [key: string]: unknown };

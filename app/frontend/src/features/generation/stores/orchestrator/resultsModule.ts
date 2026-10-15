@@ -2,7 +2,7 @@
 import { computed, readonly, ref } from 'vue';
 
 import { GenerationResultSchema } from '@/schemas';
-import type { GenerationCompleteMessage, GenerationResult } from '@/types';
+import type { GenerationResult } from '@/types';
 
 export const MAX_RESULTS = 200;
 export const DEFAULT_HISTORY_LIMIT = 10;
@@ -59,26 +59,6 @@ export const createResultsModule = () => {
     historyLimit.value = HISTORY_LIMIT_DEFAULT;
   };
 
-  const createResultFromCompletion = (message: GenerationCompleteMessage): GenerationResult => {
-    const createdAt = message.created_at ?? new Date().toISOString();
-    const imageUrl = message.image_url ?? (Array.isArray(message.images) ? message.images[0] ?? null : null);
-
-    return parseResult({
-      id: message.result_id ?? message.job_id,
-      job_id: message.job_id,
-      result_id: message.result_id,
-      prompt: message.prompt,
-      negative_prompt: message.negative_prompt,
-      image_url: imageUrl,
-      width: message.width,
-      height: message.height,
-      steps: message.steps,
-      cfg_scale: message.cfg_scale,
-      seed: message.seed ?? null,
-      created_at: createdAt,
-    });
-  };
-
   return {
     results: resultsState,
     historyLimit: historyLimitState,
@@ -88,7 +68,6 @@ export const createResultsModule = () => {
     removeResult,
     setHistoryLimit,
     resetResults,
-    createResultFromCompletion,
   };
 };
 

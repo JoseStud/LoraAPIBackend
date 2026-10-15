@@ -32,25 +32,4 @@ describe('resultsModule', () => {
     expect(results.results.value).toHaveLength(MAX_RESULTS);
   });
 
-  it('creates result payloads from completion messages', () => {
-    const results = createResultsModule();
-    const now = new Date().toISOString();
-
-    const completion = {
-      job_id: 'job-1',
-      result_id: 'result-1',
-      prompt: 'hello',
-      created_at: now,
-      width: 512,
-      height: 512,
-      steps: 30,
-      cfg_scale: 7,
-      images: ['image-url'],
-    } as any;
-
-    const normalized = results.createResultFromCompletion(completion);
-    expect(normalized.image_url).toBe('image-url');
-    expect(normalized.created_at).toBe(now);
-    expect(normalized.id).toBe('result-1');
-  });
 });

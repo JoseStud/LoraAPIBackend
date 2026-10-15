@@ -104,7 +104,7 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
     const resumeTransport = async (
       payload: GenerationTransportResumePayload,
     ): Promise<void> => {
-      await transportModule.resumeTransport(resultsPublic.historyLimit.value, payload);
+      await transportModule.resumeTransport(results.historyLimit.value, payload);
     };
 
     const destroy = (): void => {
@@ -122,7 +122,6 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
       },
     });
 
-    const { createResultFromCompletion: _ignored, ...resultsPublic } = results;
     const transportMetrics = transportModule.metrics as ComputedRef<GenerationTransportMetricsSnapshot>;
     const transportPaused = transportModule.paused;
     const transportPauseReasons = transportModule.pauseReasons;
@@ -138,7 +137,7 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
       () => queue.sortedActiveJobs.value as ImmutableJobs,
     );
     const recentResults = computed(
-      () => resultsPublic.recentResults.value as ImmutableResults,
+      () => results.recentResults.value as ImmutableResults,
     );
     const systemStatus = computed(
       () => systemStatusModule.systemStatus.value as ImmutableSystemStatus,
@@ -169,7 +168,7 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
         onSystemStatus: adapterHandlers.onSystemStatus,
         onQueueUpdate: adapterHandlers.onQueueUpdate,
         onProgress: adapterHandlers.onProgress,
-        onComplete: (message) => adapterHandlers.onComplete(message),
+        onComplete: adapterHandlers.onComplete,
         onError: adapterHandlers.onError,
         onRecentResults: adapterHandlers.onRecentResults,
         onConnectionChange: (connected) => {
@@ -190,12 +189,12 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
 
       transportModule.setTransport(adapter);
 
-      resultsPublic.setHistoryLimit(options.historyLimit);
+      results.setHistoryLimit(options.historyLimit);
       systemStatusModule.setQueueManagerActive(true);
 
       try {
         isActive.value = true;
-        await adapter.initialize(resultsPublic.historyLimit.value);
+        await adapter.initialize(results.historyLimit.value);
       } catch (error) {
         cleanup();
         throw error;
@@ -204,7 +203,7 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
 
     return {
       ...queue,
-      ...resultsPublic,
+      ...results,
       ...systemStatusModule,
       jobs,
       jobsByUiId,

@@ -4,9 +4,8 @@ import type { GenerationQueueClient } from '../services/queueClient';
 import type { GenerationWebSocketManager } from '../services/websocketManager';
 import type { GenerationJobInput } from '../stores/useGenerationOrchestratorStore';
 import type {
-  GenerationCompleteMessage,
+  GenerationComplete,
   GenerationErrorMessage,
-  GenerationProgressMessage,
   GenerationResult,
   ProgressUpdate,
   SystemStatusPayload,
@@ -28,8 +27,8 @@ export interface GenerationTransportAdapterOptions {
   websocketManager?: GenerationWebSocketManager;
   onSystemStatus: (payload: SystemStatusPayload | Partial<SystemStatusState>) => void;
   onQueueUpdate: (jobs: GenerationJobInput[]) => void;
-  onProgress: (message: GenerationProgressMessage | ProgressUpdate) => void;
-  onComplete: (message: GenerationCompleteMessage) => GenerationResult | void;
+  onProgress: (message: ProgressUpdate) => void;
+  onComplete: (message: GenerationComplete) => void;
   onError: (message: GenerationErrorMessage) => void;
   onRecentResults: (results: GenerationResult[]) => void;
   onConnectionChange: (connected: boolean, snapshot?: GenerationWebSocketStateSnapshot) => void;
@@ -82,7 +81,9 @@ export const createGenerationTransportAdapter = (
       onProgress: (message) => {
         options.onProgress(message);
       },
-      onComplete: (message) => options.onComplete(message),
+      onComplete: (message) => {
+        options.onComplete(message);
+      },
       onError: (message) => {
         options.onError(message);
       },
