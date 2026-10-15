@@ -9,7 +9,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, List, Optional
 
-from backend.utils.images import make_output_reference, resolve_output_dir
+from backend.utils.images import (
+    make_output_reference,
+    parse_output_reference,
+    resolve_output_dir,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +33,34 @@ def stored_return_format(*, save_images: bool, return_format: str) -> str:
     if return_format == "base64" and not save_images:
         return "base64"
     return REFERENCE_FORMAT
+
+
+def remove_stored_images(
+    images: Iterable[object], output_dir: Optional[str] = None
+) -> List[str]:
+    """Delete the files behind the output references in ``images``.
+
+    Values that are not output references are ignored, as are references that
+    resolve outside the output directory. Returns the removed paths.
+    """
+    root = resolve_output_dir(output_dir).resolve()
+    removed: List[str] = []
+    for value in images:
+        if not isinstance(value, str):
+            continue
+        relative = parse_output_reference(value)
+        if relative is None:
+            continue
+        path = (root / relative).resolve()
+        if not path.is_relative_to(root):
+            continue
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            logger.warning("Could not remove generated image %s", path)
+            continue
+        removed.append(str(path))
+    return removed
 
 
 class ImageStorage:

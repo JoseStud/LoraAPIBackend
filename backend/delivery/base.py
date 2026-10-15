@@ -66,6 +66,10 @@ class GenerationBackend(ABC):
         """Check if this backend is available and configured."""
         pass
 
+    async def interrupt(self) -> bool:
+        """Stop the generation in progress; ``False`` when not supported."""
+        return False
+
 
 class DeliveryRegistry:
     """Registry for delivery and generation backends."""

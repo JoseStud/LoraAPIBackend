@@ -66,8 +66,11 @@ service runs without the wrapper in `app/main.py`). Routes are implemented under
   the frontend. Here and in `/jobs/active`, `result.images` holds
   browser-loadable sources (the result image route or a `data:` URI), never the
   stored references.
-- `POST /v1/generation/jobs/{job_id}/cancel` – Cancel a queued job when the
-  backend supports it.
+- `POST /v1/generation/jobs/{job_id}/cancel` – Cancel a pending, retrying or
+  running job (400 once it has finished). Cancelling a running job also
+  interrupts SDNext, whose interrupt stops whatever it is rendering; the runner
+  then keeps the `cancelled` status, deletes the images it saved and sends no
+  webhook.
 - `GET /v1/generation/results` – List recent generation results. `image_url`
   and `thumbnail_url` are browser-loadable: the result image route for images
   saved to disk, a `data:` URI for results stored as base64 (older rows, or

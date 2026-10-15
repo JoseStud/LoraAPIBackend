@@ -44,6 +44,19 @@ def isolated_service_container_builder():
             reset_service_container_builder(builder)
 
 
+@pytest.fixture(autouse=True)
+def no_lifespan_job_recovery(monkeypatch):
+    """Keep the lifespan's job recovery away from the configured database.
+
+    Tests that enter the real lifespan would otherwise fail and requeue jobs in
+    the developer's database. ``tests/services/test_job_recovery.py`` drives
+    :class:`JobRecovery` directly.
+    """
+    from backend.services.job_recovery import JobRecovery
+
+    monkeypatch.setattr(JobRecovery, "start", lambda self: None)
+
+
 @pytest.fixture(name="mock_storage")
 def mock_storage_fixture(monkeypatch) -> MagicMock:
     """Mock storage adapter fixture that patches storage functions.

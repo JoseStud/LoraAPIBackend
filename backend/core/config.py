@@ -75,6 +75,14 @@ class Settings(BaseSettings):
     JOB_WEBHOOK_TOKEN_HEADER: str = "X-LoRA-Manager-Token"
     JOB_WEBHOOK_TIMEOUT: float = Field(default=5.0, gt=0)
 
+    # A job still "running" after this many seconds has lost its runner (worker
+    # killed, API restarted mid-job) and is failed by the API's job recovery.
+    # RQ also kills the job after this long. Unset derives it from the SDNext
+    # timeouts plus a margin.
+    JOB_RUNNING_TIMEOUT_SECONDS: Optional[int] = Field(default=None, gt=0)
+    # How often the API looks for such jobs; 0 checks only at startup.
+    JOB_RECOVERY_INTERVAL_SECONDS: int = Field(default=60, ge=0)
+
     # Generation polling intervals (milliseconds)
     GENERATION_QUEUE_POLL_INTERVAL_MS: int = Field(default=2_000, gt=0)
     GENERATION_WEBSOCKET_RETRY_INTERVAL_MS: int = Field(default=3_000, gt=0)
@@ -130,6 +138,13 @@ class Settings(BaseSettings):
             )
 
         return self
+
+    @property
+    def job_running_timeout_seconds(self) -> int:
+        """Return how long a job may run before it is treated as interrupted."""
+        if self.JOB_RUNNING_TIMEOUT_SECONDS is not None:
+            return self.JOB_RUNNING_TIMEOUT_SECONDS
+        return self.SDNEXT_TIMEOUT + self.SDNEXT_PRE_GENERATE_TIMEOUT + 120
 
     @property
     def get_backend_url(self) -> str:

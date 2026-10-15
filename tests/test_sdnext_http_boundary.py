@@ -80,3 +80,18 @@ async def test_sdnext_string_info_is_supported():
     result = await backend.generate_image("prompt", {})
     assert result.status == "completed"
     assert result.generation_info == {"seed": 42}
+
+
+@pytest.mark.anyio
+async def test_interrupt_posts_without_reading_json():
+    response = ResponseContext(status=200, data=None)
+    client = AsyncMock()
+    client.is_configured = lambda: True
+    client.request.return_value = response
+    session = SDNextSession(client)
+
+    result = await session.interrupt()
+
+    assert result.ok is True
+    method, path = client.request.call_args.args[:2]
+    assert (method, path) == ("POST", "/sdapi/v1/interrupt")

@@ -288,3 +288,28 @@ def test_orchestrator_logs_redis_outage_warning(capsys, monkeypatch) -> None:
     assert "reason=primary_error" in out
     assert f"error_type={RedisConnectionError.__name__}" in out
     assert "redis unavailable" in out
+
+
+def test_redis_backend_applies_job_timeout(monkeypatch) -> None:
+    """Jobs get the configured RQ timeout unless the caller sets one."""
+    backend = RedisQueueBackend("redis://localhost:6379/0", job_timeout=900)
+    queue = MagicMock()
+    monkeypatch.setattr(backend, "_get_queue", lambda: queue)
+
+    backend.enqueue_delivery("job-a")
+    backend.enqueue_delivery("job-b", job_timeout=30)
+
+    first, second = queue.enqueue.call_args_list
+    assert first.kwargs["job_timeout"] == 900
+    assert second.kwargs["job_timeout"] == 30
+
+
+def test_orchestrator_reports_durable_queue() -> None:
+    """Only a primary (Redis) backend makes the queue durable."""
+    in_process = QueueOrchestrator(
+        fallback_backend=MagicMock(spec=QueueBackend), redis_url_factory=lambda: None
+    )
+    assert in_process.has_durable_queue() is False
+
+    durable = QueueOrchestrator(primary_backend=MagicMock(spec=QueueBackend))
+    assert durable.has_durable_queue() is True

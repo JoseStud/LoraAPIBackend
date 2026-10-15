@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Set
 
 from sqlmodel import Session
 
 from backend.core.database import get_session_context
 from backend.delivery.base import DeliveryRegistry
-from backend.delivery.storage import stored_return_format
+from backend.delivery.storage import remove_stored_images, stored_return_format
 from backend.schemas import SDNextGenerationParams
 from backend.services.job_webhooks import NOTIFY_STATUSES, JobWebhookNotifier
 
@@ -57,6 +57,9 @@ class DeliveryRunner:
         self._delivery_service_factory = (
             delivery_service_factory or _container_delivery_service
         )
+        # Tasks scheduled on an already running loop; held so they are not
+        # garbage collected before they finish.
+        self._pending_tasks: Set[asyncio.Task[None]] = set()
 
     def process_delivery_job(
         self,
@@ -64,8 +67,14 @@ class DeliveryRunner:
         retries_left: Optional[int] = None,
         *,
         raise_on_error: bool = False,
-    ) -> None:
-        """Process a delivery job, mirroring the previous synchronous helper."""
+    ) -> Optional[asyncio.Task[None]]:
+        """Process a delivery job.
+
+        Without a running event loop (an RQ worker, or a FastAPI background
+        task in the threadpool) the job runs to completion before this
+        returns. On a running loop it is scheduled as a task, which is
+        returned.
+        """
 
         async def runner() -> None:
             await self._process_delivery_job_async(
@@ -78,14 +87,17 @@ class DeliveryRunner:
             loop = asyncio.get_running_loop()
         except RuntimeError:
             asyncio.run(runner())
-        else:  # pragma: no cover - defensive branch
-            task = loop.create_task(runner())
-            if raise_on_error:
-                raise RuntimeError(
-                    "Cannot raise errors when scheduling delivery processing on an"
-                    " active event loop",
-                )
-            return task
+            return None
+
+        if raise_on_error:
+            raise RuntimeError(
+                "Cannot raise errors when scheduling delivery processing on an"
+                " active event loop",
+            )
+        task = loop.create_task(runner())
+        self._pending_tasks.add(task)
+        task.add_done_callback(self._pending_tasks.discard)
+        return task
 
     async def _process_delivery_job_async(
         self,
@@ -104,11 +116,16 @@ class DeliveryRunner:
 
         with get_session_context() as session:
             service = self._delivery_service_factory(session)
-            job = service.get_job(job_id)
+            job = service.claim_job(job_id)
             if job is None:
+                existing = service.get_job(job_id)
+                if existing is not None:
+                    # Cancelled, already finished, or taken by another runner.
+                    logger.info(
+                        "Delivery %s skipped: status is %s", job_id, existing.status
+                    )
                 return
 
-            service.update_job_status(job_id, "running")
             prompt = job.prompt
             mode = job.mode
             params = service.get_job_params(job)
@@ -130,7 +147,16 @@ class DeliveryRunner:
 
         with get_session_context() as session:
             service = self._delivery_service_factory(session)
-            service.update_job_status(job_id, status, result_payload)
+            finished = service.finish_job(job_id, status, result_payload)
+
+        if finished is None:
+            # The job was cancelled (or failed by recovery) while it ran; its
+            # stored status stands and nothing references the new images.
+            images = result_payload.get("images")
+            if isinstance(images, list):
+                remove_stored_images(images)
+            logger.info("Delivery %s finished after it stopped running", job_id)
+            return
 
         if status in NOTIFY_STATUSES:
             await self._notify_finished(job_id, status, prompt, params, result_payload)

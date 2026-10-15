@@ -237,3 +237,35 @@ async def test_empty_image_list_reports_an_aborted_job() -> None:
 
     assert result.status == "failed"
     assert "returned no images" in (result.error_message or "")
+
+
+class InterruptSession(FakeSDNextSession):
+    def __init__(self, *, ok: bool = True, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.interrupts = 0
+        self._ok = ok
+
+    async def interrupt(self) -> SDNextResponse:
+        self.interrupts += 1
+        return SDNextResponse(ok=self._ok, status=200 if self._ok else 500)
+
+
+@pytest.mark.anyio("asyncio")
+async def test_interrupt_forwards_to_sdnext() -> None:
+    session = InterruptSession()
+    backend = SDNextGenerationBackend(session=session, storage=FakeImageStorage())
+
+    assert await backend.interrupt() is True
+    assert session.interrupts == 1
+
+
+@pytest.mark.anyio("asyncio")
+async def test_interrupt_reports_failure_and_skips_unconfigured() -> None:
+    failing = InterruptSession(ok=False)
+    backend = SDNextGenerationBackend(session=failing, storage=FakeImageStorage())
+    assert await backend.interrupt() is False
+
+    unconfigured = InterruptSession(configured=False)
+    backend = SDNextGenerationBackend(session=unconfigured, storage=FakeImageStorage())
+    assert await backend.interrupt() is False
+    assert unconfigured.interrupts == 0

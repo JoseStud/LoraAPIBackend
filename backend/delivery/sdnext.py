@@ -210,6 +210,17 @@ class SDNextGenerationBackend(GenerationBackend):
             progress=progress,
         )
 
+    async def interrupt(self) -> bool:
+        """Stop SDNext's current generation.
+
+        SDNext runs one generation at a time and its interrupt is
+        process-global, so this stops whatever it is rendering right now.
+        """
+        if not self.is_available():
+            return False
+        response = await self._session.interrupt()
+        return response.ok
+
     def get_backend_name(self) -> str:
         """Return backend name."""
         return "sdnext"

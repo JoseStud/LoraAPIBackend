@@ -27,6 +27,7 @@ from backend.core.database import init_db
 from backend.core.logging import setup_logging
 from backend.core.security import get_api_key
 from backend.delivery import ensure_delivery_system
+from backend.services.job_recovery import JobRecovery
 from backend.services.recommendations import RecommendationService
 
 
@@ -37,6 +38,8 @@ async def lifespan(app: FastAPI):
     setup_logging()
     init_db()
     ensure_delivery_system()
+    job_recovery = JobRecovery.from_settings()
+    job_recovery.start()
     startup_tasks = []
     recommendation_logger = logging.getLogger("lora.recommendations.startup")
 
@@ -106,6 +109,7 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        await job_recovery.stop()
         # On shutdown, ensure all background tasks are completed or cancelled
         lifespan_logger = logging.getLogger("lora.lifespan")
         for task in startup_tasks:

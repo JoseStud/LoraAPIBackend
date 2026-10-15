@@ -73,4 +73,4 @@ async def cancel_generation_job(
     services: ServiceRegistry = Depends(get_services),
 ):
     """Cancel an active generation job."""
-    return controller.cancel_job(services=services, job_id=job_id)
+    return await controller.cancel_job(services=services, job_id=job_id)
