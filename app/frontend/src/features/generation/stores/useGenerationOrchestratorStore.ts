@@ -2,19 +2,21 @@
 import { computed, readonly, ref, type ComputedRef } from 'vue';
 import { defineStore } from 'pinia';
 
-import { createGenerationTransportAdapter } from '../composables/createGenerationTransportAdapter';
 import type { GenerationQueueClient } from '../services/queueClient';
 import type { GenerationWebSocketManager } from '../services/websocketManager';
-import type { GenerationNotificationAdapter } from '../composables/useGenerationTransport';
 import { acquireSystemStatusController } from './systemStatusController';
 import { createQueueModule } from './orchestrator/queueModule';
 import { createResultsModule } from './orchestrator/resultsModule';
 import { createSystemStatusModule } from './orchestrator/systemStatusModule';
-import { createTransportModule } from './orchestrator/transportModule';
-import { createAdapterHandlers } from './orchestrator/adapterHandlers';
-import { createTransportActions } from './orchestrator/transportActions';
+import { createGenerationTransportAdapter } from './orchestrator/transportAdapter';
+import {
+  createAdapterHandlers,
+  createTransportActions,
+  createTransportModule,
+} from './orchestrator/transportModule';
 import type { GenerationJob, GenerationResult, SystemStatusState } from '@/types';
 import type {
+  GenerationNotificationAdapter,
   GenerationTransportMetricsSnapshot,
   GenerationTransportPausePayload,
   GenerationTransportResumePayload,

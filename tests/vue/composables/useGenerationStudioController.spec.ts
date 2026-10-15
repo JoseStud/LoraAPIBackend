@@ -79,7 +79,7 @@ vi.mock('@/features/generation/services/generationService', () => servicesMock)
 
 const toGenerationRequestPayload = servicesMock.toGenerationRequestPayload
 
-import { useGenerationStudioController } from '@/features/generation/controller/useGenerationStudioController'
+import { useGenerationStudioController } from '@/features/generation/composables/useGenerationStudioController'
 import type { GenerationFormState } from '@/types'
 import type { QueueItemView } from '@/features/generation/orchestrator'
 

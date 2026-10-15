@@ -7,7 +7,7 @@ import { useBackendClient, type BackendHttpClient } from '@/services/shared/http
 import { fetchSystemStatus } from '@/services/system/systemService';
 import { resolveBackendBaseUrl } from '@/utils/backend';
 import { generationPollingConfig } from '../config/polling';
-import { useGenerationConnectionStore } from './connection';
+import { useGenerationOrchestratorStore } from './useGenerationOrchestratorStore';
 
 export interface SystemStatusController {
   readonly isPolling: ComputedRef<boolean>;
@@ -57,7 +57,7 @@ const createBackendClientResolver = (
 const createController = (
   resolveBackendClient: () => BackendHttpClient,
 ): SystemStatusController => {
-  const connectionStore = useGenerationConnectionStore();
+  const connectionStore = useGenerationOrchestratorStore();
   const { systemStatusReady } = storeToRefs(connectionStore);
   const pollHandle = ref<ReturnType<typeof setInterval> | null>(null);
   const inFlight = ref<Promise<void> | null>(null);

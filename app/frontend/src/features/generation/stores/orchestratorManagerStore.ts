@@ -27,7 +27,6 @@ import {
 
 import type { GenerationRequestPayload, GenerationStartResponse } from '@/types';
 
-import type { GenerationNotificationAdapter } from '../composables/useGenerationTransport';
 import type {
   GenerationOrchestratorAcquireOptions,
   GenerationOrchestratorAutoSyncOptions,
@@ -35,6 +34,7 @@ import type {
 } from '../composables/useGenerationOrchestratorManager.types';
 import type { GenerationJobView } from '../orchestrator/facade';
 import type {
+  GenerationNotificationAdapter,
   GenerationTransportPausePayload,
   GenerationTransportPauseReason,
   GenerationTransportResumePayload,

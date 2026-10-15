@@ -1,38 +1,38 @@
 # Generation Architecture Acceptance Criteria Cross-check
 
-This checklist confirms that the post-refactor generation stack satisfies the review criteria. Each section links to the implementation that enforces the requirement.
+This checklist confirms that the post-refactor generation stack satisfies the review criteria. Each section names the module that enforces the requirement. Paths are relative to `app/frontend/src/features/generation/` unless they start with `app/` or `tests/`; the module map itself is in ADR 007 (`docs/architecture/adr-generation-orchestrator-thin-facade.md`, "Amendment 2026-10-15").
 
 ## Orchestrator Façade
 
-- The orchestrator store is a thin façade composed of queue, results, system-status, and transport modules. It exports readonly state and explicit lifecycle/data-loading methods with no internal watchers.【F:app/frontend/src/features/generation/stores/useGenerationOrchestratorStore.ts†L1-L210】
-- Manager-owned watchers (`showHistory`, backend URL) live in `useGenerationOrchestratorManager`, not inside the store. The orchestrator exposes methods such as `handleBackendUrlChange` that the manager calls explicitly.【F:app/frontend/src/features/generation/composables/useGenerationOrchestratorManager.ts†L94-L206】
-- Store logic is partitioned into helper modules (queue/results/system status/transport) that keep the façade near the 200-line target; orchestration logic itself stays within a single `defineStore` body while helpers encapsulate complex behaviour.【F:app/frontend/src/features/generation/stores/orchestrator/queueModule.ts†L1-L132】【F:app/frontend/src/features/generation/stores/orchestrator/transportModule.ts†L1-L129】
+- The orchestrator store is a thin façade composed of queue, results, system-status, and transport modules. It exports readonly state and explicit lifecycle/data-loading methods with no internal watchers (`stores/useGenerationOrchestratorStore.ts`).
+- Manager-owned watchers (`showHistory`, backend URL) and the visibility/online/offline listeners live in the manager store, `stores/orchestratorManagerStore.ts`, not inside the orchestrator store. `composables/useGenerationOrchestratorManager.ts` is a thin per-call wrapper over it. The orchestrator exposes methods such as `handleBackendUrlChange` that the manager store calls explicitly.
+- Store logic is partitioned into helper modules that keep the façade near the 200-line target: `stores/orchestrator/queueModule.ts`, `resultsModule.ts`, `systemStatusModule.ts` and `transportModule.ts` (transport state, `createTransportActions`, `createAdapterHandlers`). Orchestration logic itself stays within a single `defineStore` body.
 
 ## Unified Networking
 
-- `httpClient` centralises fetch handling, retries, logging hooks, and parsing strategies. The shared HTTP entry (`services/shared/http`) and `useApi` consume it to provide consistent error handling for all requests.【F:app/frontend/src/services/httpClient.ts†L1-L188】【F:app/frontend/src/services/shared/http/index.ts†L1-L163】【F:app/frontend/src/composables/shared/useApi.ts†L1-L128】
-- Generation services (`generationService`, queue client, websocket manager) depend on the shared API client or transport adapter rather than bespoke fetch utilities.【F:app/frontend/src/features/generation/services/generationService.ts†L1-L176】【F:app/frontend/src/features/generation/services/queueClient.ts†L1-L148】
+- `httpClient` centralises fetch handling, retries, logging hooks, and parsing strategies. The shared HTTP entry (`services/shared/http`) and `useApi` consume it to provide consistent error handling for all requests (`app/frontend/src/services/httpClient.ts`, `app/frontend/src/services/shared/http/index.ts`, `app/frontend/src/composables/shared/useApi.ts`).
+- Generation services (`services/generationService.ts`, `services/queueClient.ts`, `services/websocketManager.ts`) depend on the shared API client or the transport adapter rather than bespoke fetch utilities.
 
 ## Clean Module Boundaries
 
-- Feature exports route through `features/generation/public.ts`, avoiding global barrels and keeping private helpers internal.【F:app/frontend/src/features/generation/index.ts†L1-L9】【F:app/frontend/src/features/generation/public.ts†L1-L120】
-- Helper modules live alongside their feature (e.g., orchestrator submodules) and expose typed interfaces consumed by the façade, preventing incidental re-exports.【F:app/frontend/src/features/generation/stores/orchestrator/adapterHandlers.ts†L1-L168】
+- Feature exports route through `public.ts` and `public/widgets.ts`, avoiding global barrels and keeping private helpers internal. The feature has no other barrels.
+- Helper modules live alongside their feature (e.g., `stores/orchestrator/`) and expose typed interfaces consumed by the façade, preventing incidental re-exports.
 
 ## Manager-Owned Effects
 
-- The orchestrator manager owns the lifecycle scope via `effectScope`, registering watchers for history visibility and backend URL changes, and tearing them down when the last consumer releases the orchestrator.【F:app/frontend/src/features/generation/composables/useGenerationOrchestratorManager.ts†L94-L204】
-- Transport adapters implement retry/polling callbacks but require the manager/store to invoke them—no helper starts background work automatically.【F:app/frontend/src/features/generation/composables/createGenerationTransportAdapter.ts†L1-L218】
-- Components consume orchestrator state through the manager-provided binding (`useGenerationOrchestrator`), ensuring subscriptions tie to component lifecycles.【F:app/frontend/src/features/generation/composables/useGenerationOrchestrator.ts†L1-L23】
+- The manager store owns the lifecycle scope via `effectScope`, registering watchers for history visibility and backend URL changes on the first `acquire()` and tearing them down when the last consumer releases the orchestrator, from any call site (`stores/orchestratorManagerStore.ts`).
+- The transport adapter (`stores/orchestrator/transportAdapter.ts`) implements polling, the WebSocket and pause/resume, but starts nothing until the orchestrator store calls `initialize()`/`resume()`; no helper starts background work automatically.
+- Components consume orchestrator state through bindings from `useGenerationOrchestratorManager().acquire(...)` (for example `composables/useGenerationStudioController.ts` and `composables/useJobQueueActions.ts`) or the façade, so subscriptions tie to component lifecycles.
 
 ## Schema-First Consistency
 
-- All generation payloads/results pass through Zod schemas before entering stores, normalising IDs, statuses, and nullable fields.【F:app/frontend/src/schemas/generation.ts†L1-L160】
-- Queue modules rely on schema-parsed jobs/results and normalisation utilities before storing them in reactive state, ensuring store data matches schema outputs.【F:app/frontend/src/features/generation/stores/orchestrator/queueModule.ts†L1-L70】【F:app/frontend/src/features/generation/stores/orchestrator/resultsModule.ts†L1-L156】
+- All generation payloads/results pass through Zod schemas before entering stores, normalising IDs, statuses, and nullable fields (`app/frontend/src/schemas/generation.ts`).
+- Queue modules rely on schema-parsed jobs/results and normalisation utilities before storing them in reactive state, ensuring store data matches schema outputs (`stores/orchestrator/queueModule.ts`, `stores/orchestrator/resultsModule.ts`).
 
 ## Robust Observability & Recovery
 
-- The transport module records connection phases, retry counts, downtime, and last errors, exposing immutable metrics for debugging.【F:app/frontend/src/features/generation/stores/orchestrator/transportModule.ts†L1-L123】
-- Tests exercise transport recovery, orchestrator lifecycle, and error handling to guarantee deterministic behaviour (e.g., reconnect scheduling, metrics reset, initialization idempotence).【F:tests/vue/stores/orchestrator/transportModule.spec.ts†L28-L128】【F:tests/vue/stores/useGenerationOrchestratorStore.spec.ts†L51-L196】
-- Queue client tests confirm HTTP error reporting, ensuring logging metadata is preserved for observability.【F:tests/vue/useGenerationQueueClient.spec.ts†L134-L181】
+- The transport module records connection phases, retry counts, downtime, and last errors, exposing immutable metrics for debugging (`stores/orchestrator/transportModule.ts`).
+- Tests exercise transport recovery, orchestrator lifecycle, and error handling to guarantee deterministic behaviour (e.g., reconnect scheduling, metrics reset, pause/resume, initialization idempotence): `tests/vue/stores/orchestrator/transportModule.spec.ts`, `tests/vue/stores/orchestrator/transportAdapter.spec.ts`, `tests/vue/stores/useGenerationOrchestratorStore.spec.ts`, `tests/vue/composables/useGenerationOrchestratorManager.lifecycle.spec.ts`.
+- Queue client tests confirm HTTP error reporting, ensuring logging metadata is preserved for observability (`tests/vue/useGenerationQueueClient.spec.ts`).
 
 Collectively, these artefacts validate that the refactored architecture remains modular, observable, and resilient, aligning with the review’s expectations.

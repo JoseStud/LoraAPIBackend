@@ -1,13 +1,15 @@
 import { computed, onScopeDispose } from 'vue'
 
 import { useGenerationPersistence } from './useGenerationPersistence'
-import { useGenerationUI } from './useGenerationUI'
-import { useGenerationStudioController } from '../controller/useGenerationStudioController'
+import {
+  createGalleryModalVm,
+  createStudioVm,
+  useGenerationStudioController,
+  useGenerationUI,
+} from './useGenerationStudioController'
 import type { GenerationOrchestratorAutoSyncOptions } from './useGenerationOrchestratorManager'
 import { useGenerationStudioNotifications } from './useGenerationStudioNotifications'
 import { useGenerationFormStore } from '../stores/form'
-import { createStudioVm } from '../vm/createStudioVm'
-import { createGalleryModalVm } from '../vm/createGalleryModalVm'
 import { useAsyncLifecycleTask } from '@/composables/shared'
 import type {
   ReadonlyQueue,

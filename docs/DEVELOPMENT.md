@@ -8,9 +8,11 @@ implementation rather than an aspirational future state.
 
 - **Backend** – A FastAPI application that mounts versioned routers for
   adapters, composition, deliveries, generation, recommendations, analytics,
-  import/export, system status, and WebSocket progress updates. Dependency
-  management flows through `ServiceContainerBuilder`, which assembles domain and
-  infrastructure registries on demand.【F:backend/main.py†L10-L96】【F:backend/services/service_container_builder.py†L1-L200】
+  import/export, system status, and WebSocket progress updates. Routers receive
+  their services from a single `ServiceRegistry` that `ServiceContainerBuilder`
+  builds per request (`backend/main.py`,
+  `backend/services/service_container_builder.py`,
+  `backend/services/service_registry.py`).
 - **Persistence** – SQLModel models back the API. The default configuration
   creates an on-disk SQLite database, but any SQLAlchemy-compatible engine can
   be supplied through `DATABASE_URL`.【F:backend/models/adapters.py†L1-L46】【F:backend/core/database.py†L14-L61】
@@ -40,12 +42,23 @@ backend/
 
 Key concepts:
 
-- `ServiceContainerBuilder` composes `CoreServiceRegistry`,
-  `DomainServiceRegistry`, and `InfrastructureServiceRegistry` objects so each
-  request receives the correct service graph. Use
-  `service_container_builder_scope()` when you need an isolated container for a
-  test or request; it stores the active builder in context-local storage so
-  overrides never leak across async tasks.【F:backend/services/__init__.py†L1-L70】
+- `ServiceRegistry` (`backend/services/service_registry.py`) is the only
+  service container. It holds one database session and exposes every service as
+  a flat, lazily built `cached_property` (`services.adapters`,
+  `services.deliveries`, `services.storage`, ...). Each service is built by a
+  field of the frozen `ServiceFactories` dataclass, whose defaults are the
+  `make_*` functions in `backend/services/providers/`.
+- `ServiceContainerBuilder` (`backend/services/service_container_builder.py`)
+  builds registries. `get_service_container_builder()`
+  (`backend/services/__init__.py`) returns one process-wide builder, so its
+  cached queue orchestrator and GPU check are shared by every request and
+  worker. Routers take `services: ServiceRegistry = Depends(get_services)`
+  (`backend/core/dependencies.py`).
+- In tests, override the `get_services` dependency, or swap factories with
+  `builder.with_overrides(factories=lambda f: replace(f, ...))` inside
+  `service_container_builder_scope()`. The scope stores the builder in
+  context-local storage so overrides never leak across async tasks; it exists
+  only for tests and scripts.
 - WebSockets are handled by `backend/api/v1/websocket.py`, which delegates to
   `WebSocketService` for subscription management and broadcasting.
 - Import/export flows live under `backend/services/archive`, exposing
@@ -72,18 +85,25 @@ app/frontend/
 ```
 
 Feature packages encapsulate their stores and orchestration logic so consumers import
-from the feature barrel (for example, `@/features/generation/orchestrator`). Composables such as
+from the feature's public surface (for example, `@/features/generation/public`). Composables such as
 `useJobQueue`, `useGenerationStudio`, and `useImportExport` reuse backend endpoints, while views
-stitch together feature components to deliver the dashboard and admin experience.【F:app/frontend/src/features/generation/composables/useJobQueue.ts†L1-L46】【F:app/frontend/src/features/generation/composables/useGenerationStudio.ts†L1-L118】【F:app/frontend/src/views/DashboardView.vue†L1-L49】
+stitch together feature components to deliver the dashboard and admin experience
+(`app/frontend/src/features/generation/composables/useJobQueueActions.ts`,
+`app/frontend/src/features/generation/composables/useGenerationStudio.ts`,
+`app/frontend/src/views/DashboardView.vue`).
 
 ### Generation orchestrator architecture
 
 The generation feature exposes queue, history, and transport state through a dedicated façade and
-manager pair. `useGenerationOrchestratorManager()` provisions a single orchestrator instance,
-attaches watchers for backend URL changes and history toggles, and tears everything down when the
-last consumer releases the binding. Downstream code accesses read-only queue/results snapshots and
-command helpers via `useGenerationOrchestratorFacade()`, which adds telemetry such as
-`pendingActionsCount` and `lastCommandError` for UI feedback.【F:app/frontend/src/features/generation/composables/useGenerationOrchestratorManager.ts†L1-L223】【F:app/frontend/src/features/generation/orchestrator/facade.ts†L1-L212】
+manager pair. `useGenerationOrchestratorManager()` is a thin wrapper over one Pinia store,
+`orchestratorManagerStore`, which provisions a single orchestrator instance, attaches watchers for
+backend URL changes and history toggles, and tears everything down when the last consumer releases
+the binding. Downstream code accesses read-only queue/results snapshots and command helpers via
+`useGenerationOrchestratorFacade()`, which adds telemetry such as `pendingActionsCount` and
+`lastCommandError` for UI feedback (`app/frontend/src/features/generation/stores/orchestratorManagerStore.ts`,
+`app/frontend/src/features/generation/composables/useGenerationOrchestratorManager.ts`,
+`app/frontend/src/features/generation/orchestrator/facade.ts`). ADR 007
+(`docs/architecture/adr-generation-orchestrator-thin-facade.md`) has the full module map.
 
 ### Frontend API client conventions
 
