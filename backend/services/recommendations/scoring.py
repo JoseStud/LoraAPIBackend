@@ -3,19 +3,12 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional, Protocol, Sequence
+from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
 
 
-class ScoreCalculatorProtocol(Protocol):
-    """Minimal protocol for numeric feature calculation helpers."""
-
-    def compute(self, lora: Any) -> Dict[str, Any]:  # pragma: no cover - interface
-        """Return the derived numeric metrics for the provided LoRA object."""
-
-
-class ScoreCalculator(ScoreCalculatorProtocol):
+class ScoreCalculator:
     """Calculate derived metrics from LoRA metadata and statistics."""
 
     _COMMON_TAG_CATEGORIES = [
@@ -180,6 +173,3 @@ class ScoreCalculator(ScoreCalculatorProtocol):
         if "2." in version_lower:
             return 0.7
         return 0.8
-
-
-__all__ = ["ScoreCalculator", "ScoreCalculatorProtocol"]

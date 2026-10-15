@@ -132,7 +132,7 @@ def test_lifespan_ensures_delivery_system(monkeypatch):
     monkeypatch.setattr(main_module, "init_db", lambda: None)
     monkeypatch.setattr(main_module, "setup_logging", lambda: None)
     monkeypatch.setattr(
-        main_module.RecommendationService, "preload_models", lambda *a, **k: None
+        main_module.EmbeddingService, "preload_models", lambda *a, **k: None
     )
     monkeypatch.setattr(main_module.settings, "IMPORT_ON_STARTUP", False)
 

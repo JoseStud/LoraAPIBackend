@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from backend.services.recommendations.components.embedder import (
+from backend.services.recommendations.features import (
     LoRASemanticEmbedder,
 )
 

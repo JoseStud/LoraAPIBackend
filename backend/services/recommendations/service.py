@@ -3,73 +3,99 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Sequence
+import time
+from contextlib import contextmanager
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Dict, Iterator, List, Optional, Sequence
 
+from backend.models import RecommendationFeedback, UserPreference
 from backend.schemas.recommendations import (
     EmbeddingStatus,
-    IndexRebuildResponse,
     RecommendationItem,
     RecommendationStats,
+    UserFeedbackRequest,
+    UserPreferenceRequest,
 )
 
-from .config import RecommendationConfig
-from .embedding_coordinator import EmbeddingCoordinator
-from .feedback_manager import FeedbackManager
-from .stats_reporter import StatsReporter
-from .use_cases import (
-    PromptRecommendationUseCase,
-    SimilarLoraUseCase,
-    TriggerRecommendationUseCase,
-)
+from . import strategies
+from .embeddings import EmbeddingService
+from .model_registry import RecommendationModelRegistry
+from .repository import RecommendationRepository
+
+# Default weights tuned against the post-description embedding mix.
+DEFAULT_WEIGHTS: Dict[str, float] = {
+    "semantic": 0.5,
+    "artistic": 0.35,
+    "technical": 0.15,
+}
+
+
+@dataclass
+class QueryMetrics:
+    """Aggregate recommendation query timings."""
+
+    total_queries: int = 0
+    total_query_time_ms: float = 0.0
+
+    def record_query(self, elapsed_ms: float) -> None:
+        """Record a completed recommendation query."""
+        self.total_queries += 1
+        self.total_query_time_ms += elapsed_ms
+
+    @property
+    def average_query_time(self) -> float:
+        """Return the average query duration in milliseconds."""
+        if self.total_queries == 0:
+            return 0.0
+        return self.total_query_time_ms / self.total_queries
 
 
 class RecommendationService:
-    """Slim facade that orchestrates recommendation workflows."""
+    """Serve recommendation queries, statistics, feedback and preferences."""
 
     def __init__(
         self,
         *,
-        embedding_coordinator: EmbeddingCoordinator,
-        feedback_manager: FeedbackManager,
-        stats_reporter: StatsReporter,
-        similar_lora_use_case: SimilarLoraUseCase,
-        prompt_recommendation_use_case: PromptRecommendationUseCase,
-        trigger_recommendation_use_case: TriggerRecommendationUseCase,
-        config: RecommendationConfig,
+        repository: RecommendationRepository,
+        embeddings: EmbeddingService,
+        model_registry: RecommendationModelRegistry,
+        metrics: Optional[QueryMetrics] = None,
         logger: Optional[logging.Logger] = None,
     ) -> None:
-        """Initialise the service facade with its core collaborators."""
+        """Bind the service to its repository, embeddings and shared models."""
+        self._repository = repository
+        self._embeddings = embeddings
+        self._model_registry = model_registry
+        self._metrics = metrics or QueryMetrics()
         self._logger = logger or logging.getLogger(__name__)
 
-        self._embedding_coordinator = embedding_coordinator
-        self._feedback_manager = feedback_manager
-        self._stats_reporter = stats_reporter
-        self._similar_lora_use_case = similar_lora_use_case
-        self._prompt_recommendation_use_case = prompt_recommendation_use_case
-        self._trigger_recommendation_use_case = trigger_recommendation_use_case
-        self._config = config
+    @property
+    def embeddings(self) -> EmbeddingService:
+        """Expose embedding workflows and runtime environment helpers."""
+        return self._embeddings
+
+    @property
+    def gpu_enabled(self) -> bool:
+        """Return whether GPU acceleration is enabled."""
+        return self._embeddings.gpu_enabled
+
+    @property
+    def device(self) -> str:
+        """Return the configured device for embeddings."""
+        return self._embeddings.device
 
     # ------------------------------------------------------------------
-    # Static helpers delegating to the embedding coordinator bootstrap
+    # Recommendation queries
     # ------------------------------------------------------------------
-    @staticmethod
-    def is_gpu_available() -> bool:
-        """Detect GPU availability across CUDA, ROCm, and MPS runtimes."""
-        return EmbeddingCoordinator.is_gpu_available()
+    @contextmanager
+    def _timed_query(self) -> Iterator[None]:
+        start = time.perf_counter()
+        try:
+            yield
+        finally:
+            self._metrics.record_query((time.perf_counter() - start) * 1000)
 
-    @classmethod
-    def preload_models(cls, gpu_enabled: Optional[bool] = None) -> None:
-        """Eagerly load heavy shared models so the first request is fast."""
-        EmbeddingCoordinator.preload_models(gpu_enabled=gpu_enabled)
-
-    @staticmethod
-    def models_loaded() -> bool:
-        """Return whether required models have already been loaded."""
-        return EmbeddingCoordinator.models_loaded()
-
-    # ------------------------------------------------------------------
-    # Recommendation workflows
-    # ------------------------------------------------------------------
     async def similar_loras(
         self,
         *,
@@ -80,13 +106,17 @@ class RecommendationService:
         weights: Optional[Dict[str, float]] = None,
     ) -> List[RecommendationItem]:
         """Return LoRAs similar to the target adapter."""
-        return await self._similar_lora_use_case.execute(
-            target_lora_id=target_lora_id,
-            limit=limit,
-            similarity_threshold=similarity_threshold,
-            diversify_results=diversify_results,
-            weights=weights,
-        )
+        with self._timed_query():
+            return await strategies.get_similar_loras(
+                target_lora_id=target_lora_id,
+                limit=limit,
+                similarity_threshold=similarity_threshold,
+                diversify_results=diversify_results,
+                weights=weights,
+                repository=self._repository,
+                embeddings=self._embeddings,
+                engine=self._model_registry.get_recommendation_engine(),
+            )
 
     async def recommend_for_prompt(
         self,
@@ -98,14 +128,17 @@ class RecommendationService:
         weights: Optional[Dict[str, float]] = None,
     ) -> List[RecommendationItem]:
         """Return LoRA recommendations that enhance the provided prompt."""
-        final_weights = weights or self._config.default_weights
-        return await self._prompt_recommendation_use_case.execute(
-            prompt=prompt,
-            active_loras=list(active_loras) if active_loras is not None else None,
-            limit=limit,
-            style_preference=style_preference,
-            weights=final_weights,
-        )
+        with self._timed_query():
+            return await strategies.get_recommendations_for_prompt(
+                prompt=prompt,
+                active_loras=list(active_loras) if active_loras else None,
+                limit=limit,
+                style_preference=style_preference,
+                weights=weights or dict(DEFAULT_WEIGHTS),
+                repository=self._repository,
+                embedder=self._model_registry.get_semantic_embedder(),
+                device=self.device,
+            )
 
     async def recommend_for_trigger(
         self,
@@ -114,64 +147,81 @@ class RecommendationService:
         limit: int = 10,
     ) -> List[RecommendationItem]:
         """Return LoRA recommendations that match the provided trigger query."""
-        return await self._trigger_recommendation_use_case.execute(
-            trigger_query=trigger_query,
-            limit=limit,
-        )
+        with self._timed_query():
+            return await strategies.get_recommendations_for_trigger(
+                trigger_query=trigger_query,
+                limit=limit,
+                repository=self._repository,
+                trigger_engine=self._model_registry.get_trigger_engine(),
+                logger=self._logger,
+            )
 
     # ------------------------------------------------------------------
-    # Embedding workflows
-    # ------------------------------------------------------------------
-    async def refresh_indexes(self, *, force: bool = False) -> IndexRebuildResponse:
-        """Refresh the persisted similarity index."""
-        return await self._embedding_coordinator.refresh_similarity_index(force=force)
-
-    # ------------------------------------------------------------------
-    # Reporting helpers
+    # Reporting
     # ------------------------------------------------------------------
     def stats(self) -> RecommendationStats:
         """Return recommendation system statistics."""
-        return self._stats_reporter.build_stats(gpu_enabled=self.gpu_enabled)
+        repository = self._repository
+        total_loras = repository.count_active_adapters()
+        loras_with_embeddings = repository.count_lora_embeddings()
+        embedding_coverage = (
+            loras_with_embeddings / total_loras if total_loras > 0 else 0.0
+        )
+
+        last_index_update = repository.get_last_embedding_update()
+        if last_index_update is None:
+            last_index_update = datetime.now(timezone.utc)
+
+        return RecommendationStats(
+            total_loras=total_loras,
+            loras_with_embeddings=loras_with_embeddings,
+            embedding_coverage=embedding_coverage,
+            avg_recommendation_time_ms=self._metrics.average_query_time,
+            # No recommendation cache exists, so nothing records hits.
+            cache_hit_rate=0.0,
+            total_sessions=repository.count_recommendation_sessions(),
+            user_preferences_count=repository.count_user_preferences(),
+            feedback_count=repository.count_feedback(),
+            model_memory_usage_gb=(
+                self._embeddings.gpu_memory_usage_gb() if self.gpu_enabled else 0.0
+            ),
+            last_index_update=last_index_update,
+        )
 
     def embedding_status(self, adapter_id: str) -> EmbeddingStatus:
-        """Get embedding status for a specific adapter."""
-        return self._stats_reporter.embedding_status(adapter_id)
+        """Return embedding status information for a LoRA adapter."""
+        embedding = self._repository.get_embedding(adapter_id)
+
+        if not embedding:
+            return EmbeddingStatus(
+                adapter_id=adapter_id,
+                has_semantic_embedding=False,
+                has_artistic_embedding=False,
+                has_technical_embedding=False,
+                has_extracted_features=False,
+                needs_recomputation=True,
+            )
+
+        return EmbeddingStatus(
+            adapter_id=adapter_id,
+            has_semantic_embedding=bool(embedding.semantic_embedding),
+            has_artistic_embedding=bool(embedding.artistic_embedding),
+            has_technical_embedding=bool(embedding.technical_embedding),
+            has_extracted_features=bool(embedding.extracted_keywords),
+            last_computed=embedding.last_computed,
+            needs_recomputation=False,
+        )
 
     # ------------------------------------------------------------------
-    # Configuration helpers
+    # Feedback and preferences
     # ------------------------------------------------------------------
-    @property
-    def config(self) -> RecommendationConfig:
-        """Return configuration helpers for cache management."""
-        return self._config
+    def record_feedback(self, feedback: UserFeedbackRequest) -> RecommendationFeedback:
+        """Persist recommendation feedback; raises ``ValueError`` if unknown."""
+        return self._repository.record_feedback(feedback)
 
-    # ------------------------------------------------------------------
-    # Coordinator accessors
-    # ------------------------------------------------------------------
-    @property
-    def embeddings(self) -> EmbeddingCoordinator:
-        """Expose embedding coordination helpers."""
-        return self._embedding_coordinator
-
-    @property
-    def feedback(self) -> FeedbackManager:
-        """Expose feedback and preference management helpers."""
-        return self._feedback_manager
-
-    @property
-    def reporter(self) -> StatsReporter:
-        """Expose statistics reporting helpers."""
-        return self._stats_reporter
-
-    # ------------------------------------------------------------------
-    # Exposed runtime configuration
-    # ------------------------------------------------------------------
-    @property
-    def gpu_enabled(self) -> bool:
-        """Return whether GPU acceleration is enabled."""
-        return self._embedding_coordinator.gpu_enabled
-
-    @property
-    def device(self) -> str:
-        """Return the configured device for embeddings."""
-        return self._embedding_coordinator.device
+    def update_user_preference(
+        self,
+        preference: UserPreferenceRequest,
+    ) -> UserPreference:
+        """Create or update a persisted user preference record."""
+        return self._repository.update_user_preference(preference)

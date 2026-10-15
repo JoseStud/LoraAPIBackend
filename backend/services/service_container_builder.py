@@ -10,7 +10,7 @@ from sqlmodel import Session
 from .analytics_repository import AnalyticsRepository
 from .delivery_repository import DeliveryJobRepository
 from .queue import QueueOrchestrator, create_queue_orchestrator
-from .recommendations import RecommendationService
+from .recommendations import EmbeddingService
 from .service_registry import ServiceFactories, ServiceRegistry
 
 T = TypeVar("T")
@@ -45,7 +45,7 @@ class ServiceContainerBuilder:
         ] = DeliveryJobRepository,
         recommendation_gpu_detector: Callable[
             [], bool
-        ] = RecommendationService.is_gpu_available,
+        ] = EmbeddingService.is_gpu_available,
     ) -> None:
         """Capture override factories and lazily constructed dependencies."""
         self._factories = factories or ServiceFactories()

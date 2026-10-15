@@ -7,9 +7,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from backend.services.recommendations.model_bootstrap import (
-    RecommendationModelBootstrap,
-)
+from backend.services.recommendations import EmbeddingService
+from backend.services.recommendations.encoders import SentenceTransformerProvider
 
 
 def _install_fake_torch(
@@ -34,7 +33,7 @@ def test_rocm_build_without_device_is_not_gpu_available(
 ) -> None:
     _install_fake_torch(monkeypatch, cuda_available=False, hip_version="6.2.41133")
 
-    assert RecommendationModelBootstrap.is_gpu_available() is False
+    assert EmbeddingService.is_gpu_available() is False
 
 
 def test_rocm_build_with_device_is_gpu_available(
@@ -42,13 +41,13 @@ def test_rocm_build_with_device_is_gpu_available(
 ) -> None:
     _install_fake_torch(monkeypatch, cuda_available=True, hip_version="6.2.41133")
 
-    assert RecommendationModelBootstrap.is_gpu_available() is True
+    assert EmbeddingService.is_gpu_available() is True
 
 
 def test_cuda_device_is_gpu_available(monkeypatch: pytest.MonkeyPatch) -> None:
     _install_fake_torch(monkeypatch, cuda_available=True, hip_version=None)
 
-    assert RecommendationModelBootstrap.is_gpu_available() is True
+    assert EmbeddingService.is_gpu_available() is True
 
 
 def test_cpu_only_build_is_not_gpu_available(
@@ -56,7 +55,7 @@ def test_cpu_only_build_is_not_gpu_available(
 ) -> None:
     _install_fake_torch(monkeypatch, cuda_available=False, hip_version=None)
 
-    assert RecommendationModelBootstrap.is_gpu_available() is False
+    assert EmbeddingService.is_gpu_available() is False
 
 
 def _provider_device_for(
@@ -66,10 +65,6 @@ def _provider_device_for(
     hip_version: str | None,
     mps_available: bool = False,
 ) -> str:
-    from backend.services.recommendations.components.sentence_transformer_provider import (  # noqa: E501
-        SentenceTransformerProvider,
-    )
-
     fake_torch = SimpleNamespace(
         cuda=SimpleNamespace(
             is_available=lambda: cuda_available,

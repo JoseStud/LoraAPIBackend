@@ -1,4 +1,4 @@
-"""Shared model registry for recommendation workflows."""
+"""Process-wide recommendation model instances."""
 
 from __future__ import annotations
 
@@ -6,62 +6,48 @@ import logging
 from threading import Lock
 from typing import Optional
 
-from .components import (
-    GPULoRAFeatureExtractor,
-    LoRARecommendationEngine,
-    LoRASemanticEmbedder,
-    TriggerEmbedder,
-    TriggerResolver,
-)
-from .components.interfaces import (
-    FeatureExtractorProtocol,
-    RecommendationEngineProtocol,
-    SemanticEmbedderProtocol,
-)
-from .trigger_engine import TriggerRecommendationEngine, TriggerSearchIndex
+from .encoders import TriggerEmbedder
+from .engine import LoRARecommendationEngine
+from .features import GPULoRAFeatureExtractor, LoRASemanticEmbedder
+from .triggers import TriggerRecommendationEngine, TriggerResolver
 
 
 class RecommendationModelRegistry:
-    """Manage shared recommendation model instances within the process."""
+    """Share recommendation models across every service instance in the process.
+
+    Models live on the class so per-request services reuse them; they are
+    rebuilt only when a registry for a different device asks for them.
+    """
 
     _shared_lock: Lock = Lock()
     _shared_device: Optional[str] = None
-    _shared_semantic_embedder: Optional[SemanticEmbedderProtocol] = None
-    _shared_feature_extractor: Optional[FeatureExtractorProtocol] = None
-    _shared_recommendation_engine: Optional[RecommendationEngineProtocol] = None
+    _shared_semantic_embedder: Optional[LoRASemanticEmbedder] = None
+    _shared_feature_extractor: Optional[GPULoRAFeatureExtractor] = None
+    _shared_recommendation_engine: Optional[LoRARecommendationEngine] = None
     _shared_trigger_embedder: Optional[TriggerEmbedder] = None
     _shared_trigger_resolver: Optional[TriggerResolver] = None
-    _shared_trigger_index: Optional[TriggerSearchIndex] = None
     _shared_trigger_engine: Optional[TriggerRecommendationEngine] = None
-    _shared_logger: logging.Logger = logging.getLogger(__name__)
 
     def __init__(
         self,
         *,
-        device: str,
-        gpu_enabled: bool = False,
+        gpu_enabled: bool,
         logger: Optional[logging.Logger] = None,
     ) -> None:
-        """Initialise registry state for the requested device."""
-        self.device = device
-        self.gpu_enabled = gpu_enabled
+        """Initialise registry state for the GPU or CPU device."""
+        self.gpu_enabled = bool(gpu_enabled)
+        self.device = "cuda" if self.gpu_enabled else "cpu"
         self._logger = logger or logging.getLogger(__name__)
 
-    @classmethod
-    def _ensure_shared_models_for_device(
-        cls,
-        device: str,
-        gpu_enabled: bool,
-        logger: logging.Logger,
-    ) -> None:
+    def _ensure_ready(self) -> None:
+        cls = type(self)
+        logger = self._logger
         with cls._shared_lock:
-            if cls._shared_device != device:
+            if cls._shared_device != self.device:
                 cls._shared_semantic_embedder = None
                 cls._shared_feature_extractor = None
                 cls._shared_recommendation_engine = None
-                cls._shared_device = device
-
-            cls._shared_logger = logger
+                cls._shared_device = self.device
 
             if cls._shared_trigger_resolver is None:
                 cls._shared_trigger_resolver = TriggerResolver()
@@ -71,20 +57,16 @@ class RecommendationModelRegistry:
                     device="cpu", logger=logger
                 )
 
-            if cls._shared_trigger_index is None:
-                cls._shared_trigger_index = TriggerSearchIndex(logger=logger)
-
             if cls._shared_semantic_embedder is None:
-                batch_size = 32 if gpu_enabled else 16
                 cls._shared_semantic_embedder = LoRASemanticEmbedder(
-                    device=device,
-                    batch_size=batch_size,
+                    device=self.device,
+                    batch_size=32 if self.gpu_enabled else 16,
                     logger=logger,
                 )
 
             if cls._shared_feature_extractor is None:
                 cls._shared_feature_extractor = GPULoRAFeatureExtractor(
-                    device=device,
+                    device=self.device,
                     semantic_embedder=cls._shared_semantic_embedder,
                     logger=logger,
                     trigger_resolver=cls._shared_trigger_resolver,
@@ -94,7 +76,7 @@ class RecommendationModelRegistry:
             if cls._shared_recommendation_engine is None:
                 cls._shared_recommendation_engine = LoRARecommendationEngine(
                     cls._shared_feature_extractor,
-                    device=device,
+                    device=self.device,
                     logger=logger,
                 )
 
@@ -102,30 +84,26 @@ class RecommendationModelRegistry:
                 cls._shared_trigger_engine = TriggerRecommendationEngine(
                     resolver=cls._shared_trigger_resolver,
                     embedder=cls._shared_trigger_embedder,
-                    index=cls._shared_trigger_index,
                     logger=logger,
                 )
 
-    def _ensure_ready(self) -> None:
-        type(self)._ensure_shared_models_for_device(
-            self.device,
-            self.gpu_enabled,
-            self._logger,
-        )
+    def preload(self) -> None:
+        """Load every shared model for this registry's device."""
+        self._ensure_ready()
 
-    def get_semantic_embedder(self) -> SemanticEmbedderProtocol:
+    def get_semantic_embedder(self) -> LoRASemanticEmbedder:
         """Return the shared semantic embedder instance."""
         self._ensure_ready()
         assert type(self)._shared_semantic_embedder is not None
         return type(self)._shared_semantic_embedder
 
-    def get_feature_extractor(self) -> FeatureExtractorProtocol:
+    def get_feature_extractor(self) -> GPULoRAFeatureExtractor:
         """Return the shared feature extractor instance."""
         self._ensure_ready()
         assert type(self)._shared_feature_extractor is not None
         return type(self)._shared_feature_extractor
 
-    def get_recommendation_engine(self) -> RecommendationEngineProtocol:
+    def get_recommendation_engine(self) -> LoRARecommendationEngine:
         """Return the shared recommendation engine instance."""
         self._ensure_ready()
         assert type(self)._shared_recommendation_engine is not None
@@ -136,18 +114,6 @@ class RecommendationModelRegistry:
         self._ensure_ready()
         assert type(self)._shared_trigger_engine is not None
         return type(self)._shared_trigger_engine
-
-    @classmethod
-    def preload_models(
-        cls,
-        *,
-        device: str,
-        gpu_enabled: bool,
-        logger: Optional[logging.Logger] = None,
-    ) -> None:
-        """Eagerly load shared models for the provided device."""
-        effective_logger = logger or cls._shared_logger
-        cls._ensure_shared_models_for_device(device, gpu_enabled, effective_logger)
 
     @classmethod
     def models_loaded(cls) -> bool:

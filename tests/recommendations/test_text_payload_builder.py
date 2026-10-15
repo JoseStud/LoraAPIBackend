@@ -6,7 +6,7 @@ import dataclasses
 
 import pytest
 
-from backend.services.recommendations.components.text_payload_builder import (
+from backend.services.recommendations.features import (
     MultiModalTextPayloadBuilder,
 )
 

@@ -7,13 +7,11 @@ from typing import Any, Dict, Iterable, List
 
 import numpy as np
 
-from backend.services.recommendations.components.feature_extractor import (
+from backend.services.recommendations.features import (
     GPULoRAFeatureExtractor,
-)
-from backend.services.recommendations.components.text_payload_builder import (
     MultiModalTextPayloadBuilder,
 )
-from backend.services.recommendations.components.trigger_processing import (
+from backend.services.recommendations.triggers import (
     TriggerCandidate,
     TriggerResolution,
 )

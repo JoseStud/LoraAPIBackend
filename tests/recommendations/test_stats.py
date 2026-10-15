@@ -1,7 +1,7 @@
-"""Tests for recommendation metrics reporting."""
+"""Tests for recommendation statistics and embedding status."""
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock
+from unittest.mock import patch
 
 from backend.models import (
     Adapter,
@@ -12,35 +12,32 @@ from backend.models import (
 )
 from backend.schemas.recommendations import RecommendationStats
 from backend.services.recommendations import (
-    RecommendationMetricsTracker,
-    StatsReporter,
+    EmbeddingService,
+    QueryMetrics,
+    RecommendationModelRegistry,
+    RecommendationService,
 )
 
 
-class TestStatsReporter:
-    """Verify stats reporter interactions."""
+def _service(repository, *, gpu_enabled=False, metrics=None):
+    registry = RecommendationModelRegistry(gpu_enabled=gpu_enabled)
+    return RecommendationService(
+        repository=repository,
+        embeddings=EmbeddingService(repository, registry),
+        model_registry=registry,
+        metrics=metrics,
+    )
 
-    def test_build_stats_uses_tracker(self):
-        metrics_tracker = MagicMock()
-        repository = MagicMock()
-        reporter = StatsReporter(metrics_tracker=metrics_tracker, repository=repository)
 
-        reporter.build_stats(gpu_enabled=True)
-        metrics_tracker.build_stats.assert_called_once_with(
-            repository,
-            gpu_enabled=True,
-        )
+class TestEmbeddingStatus:
+    """Verify embedding status reporting."""
 
     def test_embedding_status_handles_missing(self, repository):
-        reporter = StatsReporter(
-            metrics_tracker=MagicMock(),
-            repository=repository,
-        )
-
-        status = reporter.embedding_status("unknown")
+        status = _service(repository).embedding_status("unknown")
 
         assert status.adapter_id == "unknown"
         assert status.needs_recomputation is True
+        assert status.has_semantic_embedding is False
 
     def test_embedding_status_for_existing_record(
         self,
@@ -58,19 +55,14 @@ class TestStatsReporter:
         )
         db_session.commit()
 
-        reporter = StatsReporter(
-            metrics_tracker=MagicMock(),
-            repository=repository,
-        )
-
-        status = reporter.embedding_status(sample_adapter.id)
+        status = _service(repository).embedding_status(sample_adapter.id)
 
         assert status.needs_recomputation is False
         assert status.has_semantic_embedding is True
 
 
-class TestRecommendationMetricsTracker:
-    """Ensure stats aggregation relies on the tracker."""
+class TestRecommendationStats:
+    """Ensure stats combine repository counts, query timings and GPU memory."""
 
     def test_build_stats_uses_repository_counts(self, repository, db_session):
         now = datetime.now(timezone.utc)
@@ -112,14 +104,31 @@ class TestRecommendationMetricsTracker:
         )
         db_session.commit()
 
-        tracker = RecommendationMetricsTracker(memory_probe=lambda: 1.25)
-        tracker.record_query(10.0)
-        tracker.record_cache_hit()
+        metrics = QueryMetrics()
+        metrics.record_query(10.0)
+        service = _service(repository, gpu_enabled=True, metrics=metrics)
 
-        stats = tracker.build_stats(repository, gpu_enabled=True)
+        with patch.object(EmbeddingService, "gpu_memory_usage_gb", return_value=1.25):
+            stats = service.stats()
 
         assert isinstance(stats, RecommendationStats)
         assert stats.total_loras == 1
         assert stats.loras_with_embeddings == 1
-        assert stats.cache_hit_rate == 1.0
+        assert stats.embedding_coverage == 1.0
+        assert stats.user_preferences_count == 1
+        assert stats.total_sessions == 1
+        assert stats.feedback_count == 1
+        assert stats.avg_recommendation_time_ms == 10.0
+        assert stats.cache_hit_rate == 0.0
         assert stats.model_memory_usage_gb == 1.25
+
+    def test_memory_probe_skipped_without_gpu(self, repository):
+        service = _service(repository, gpu_enabled=False)
+
+        with patch.object(EmbeddingService, "gpu_memory_usage_gb") as probe:
+            stats = service.stats()
+
+        probe.assert_not_called()
+        assert stats.model_memory_usage_gb == 0.0
+        assert stats.total_loras == 0
+        assert stats.embedding_coverage == 0.0

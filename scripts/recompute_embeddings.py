@@ -81,7 +81,9 @@ async def _recompute_embeddings(*, batch_size: int) -> Dict[str, Any]:
         )
 
         LOGGER.info("Rebuilding similarity index with freshly computed embeddings")
-        index_response = await recommendation_service.refresh_indexes(force=True)
+        index_response = (
+            await recommendation_service.embeddings.refresh_similarity_index(force=True)
+        )
 
         LOGGER.info(
             "Similarity index rebuild finished with status '%s' (indexed %s items)",
