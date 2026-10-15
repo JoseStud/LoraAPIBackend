@@ -19,7 +19,6 @@ from backend.services import ServiceRegistry
 from ..presenters.jobs import build_active_job
 
 ACTIVE_JOB_STATUSES = frozenset({"pending", "running", "retrying"})
-CANCELLABLE_STATUSES = frozenset({"pending", "running"})
 
 __all__ = [
     "schedule_generation_job",
@@ -104,25 +103,19 @@ def get_job_wrapper(
     return DeliveryWrapper(delivery=delivery_read)
 
 
-def cancel_job(
+async def cancel_job(
     *,
     services: ServiceRegistry,
     job_id: str,
 ) -> GenerationCancelResponse:
     """Cancel an active generation job."""
-    job = services.deliveries.get_job(job_id)
-    if job is None:
+    if services.deliveries.get_job(job_id) is None:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    if job.status not in CANCELLABLE_STATUSES:
+    if not await services.generation_coordinator.cancel_job(job_id):
         raise HTTPException(
             status_code=400, detail="Job cannot be cancelled in its current state"
         )
-
-    services.deliveries.update_job_status(
-        job_id, "cancelled", result={"status": "cancelled"}
-    )
-    services.websocket.stop_job_monitoring(job_id)
 
     return GenerationCancelResponse(
         status="cancelled", message="Generation job cancelled"

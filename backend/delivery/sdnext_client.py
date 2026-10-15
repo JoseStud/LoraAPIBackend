@@ -73,10 +73,16 @@ class SDNextSession:
         """Fetch progress information from the SDNext API."""
         return await self._request("GET", "/sdapi/v1/progress")
 
+    async def interrupt(self) -> SDNextResponse:
+        """Ask SDNext to stop the generation it is currently running."""
+        return await self._request("POST", "/sdapi/v1/interrupt", expect_json=False)
+
     async def _request(
         self,
         method: str,
         path: str,
+        *,
+        expect_json: bool = True,
         **kwargs: Any,
     ) -> SDNextResponse:
         if not self._http_client.is_configured():
@@ -93,6 +99,8 @@ class SDNextSession:
                     return SDNextResponse(
                         False, status, error=f"SDNext returned HTTP {status}"
                     )
+                if not expect_json:
+                    return SDNextResponse(True, status)
                 data = await response.json()
                 if not isinstance(data, dict):
                     return SDNextResponse(

@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from backend.models import DeliveryJob
 
-from .delivery_repository import DeliveryJobRepository
+from .delivery_repository import (
+    CLAIMABLE_STATUSES,
+    DeliveryJobRepository,
+)
 from .delivery_results import DeliveryResultManager, ResultArchive, ResultDownload
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
@@ -142,6 +146,60 @@ class DeliveryService:
             result=result,
             error=error,
         )
+
+    def claim_job(self, job_id: str) -> Optional[DeliveryJob]:
+        """Mark a pending or retrying job as running.
+
+        Returns ``None`` when the job is missing or not waiting to run, for
+        example because it was cancelled or another runner already took it.
+        """
+        return self._repository.transition_job_status(
+            job_id, "running", from_statuses=CLAIMABLE_STATUSES
+        )
+
+    def finish_job(
+        self, job_id: str, status: str, result: Optional[Dict[str, Any]] = None
+    ) -> Optional[DeliveryJob]:
+        """Record the outcome of a running job.
+
+        Returns ``None`` when the job is no longer running (it was cancelled or
+        failed by recovery while it ran); its stored status is then kept.
+        """
+        return self._repository.transition_job_status(
+            job_id, status, from_statuses=("running",), result=result
+        )
+
+    def cancel_job(self, job_id: str) -> Optional[str]:
+        """Cancel an active job and return the status it had, or ``None``."""
+        for previous in ("running", "pending", "retrying"):
+            cancelled = self._repository.transition_job_status(
+                job_id,
+                "cancelled",
+                from_statuses=(previous,),
+                result={"status": "cancelled"},
+            )
+            if cancelled is not None:
+                return previous
+        return None
+
+    def fail_running_jobs(
+        self, *, older_than: timedelta, result: Dict[str, Any]
+    ) -> List[DeliveryJob]:
+        """Fail jobs that have been running for longer than ``older_than``."""
+        cutoff = self._repository.mapper.now() - older_than
+        failed: List[DeliveryJob] = []
+        for job in self._repository.list_jobs_started_before("running", cutoff):
+            updated = self._repository.transition_job_status(
+                job.id, "failed", from_statuses=("running",), result=result
+            )
+            if updated is not None:
+                failed.append(updated)
+        return failed
+
+    def list_claimable_jobs(self, *, limit: int = 1000) -> List[DeliveryJob]:
+        """Return jobs waiting to run, oldest first."""
+        jobs = self._repository.list_jobs_by_statuses(CLAIMABLE_STATUSES, limit=limit)
+        return sorted(jobs, key=lambda job: job.created_at)
 
     def get_job_params(self, job: DeliveryJob) -> Dict[str, Any]:
         """Parse and return job parameters as dict."""

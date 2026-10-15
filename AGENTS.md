@@ -115,6 +115,22 @@ Read these before changing the matching subsystem:
   Enqueue through `QueueOrchestrator.enqueue_delivery()` so the fallback keeps
   working. Services take a `TaskScheduler` (the protocol in `queue.py`), not
   FastAPI's `BackgroundTasks`; routers pass `BackgroundTasks`, which fits it.
+- **Job status transitions**: a delivery job moves `pending`/`retrying` →
+  `running` → `succeeded`/`failed`/`retrying`, or to `cancelled` from any
+  active status. Change status through `DeliveryService.claim_job`,
+  `finish_job` and `cancel_job`, which are conditional single-statement
+  updates (`DeliveryJobRepository.transition_job_status`), so a runner and a
+  cancel request cannot both win; don't write `status` with
+  `update_job_status` from the runner or the API. A runner that cannot claim a
+  job skips it, which makes re-enqueueing safe. Cancelling a running job goes
+  through `GenerationCoordinator.cancel_job`, which also interrupts the
+  backend.
+- **Job recovery**: `JobRecovery` (`backend/services/job_recovery.py`), started
+  by the lifespan, fails jobs `running` longer than
+  `JOB_RUNNING_TIMEOUT_SECONDS` (also the RQ job timeout) at startup and every
+  `JOB_RECOVERY_INTERVAL_SECONDS`. Without Redis it fails every running job at
+  startup and requeues the waiting ones, which lived only in the old process.
+  Tests stub `JobRecovery.start` (autouse fixture in `tests/conftest.py`).
 - **Configuration**: runtime settings live only in `backend/core/config.py`, so
   startup validation and the frontend `/frontend/settings` payload stay
   consistent.

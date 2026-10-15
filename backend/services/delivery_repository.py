@@ -6,12 +6,17 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
-from sqlalchemy import Integer, func
+from sqlalchemy import Integer, func, update
 from sqlmodel import Session, select
 
 from backend.models import DeliveryJob
 
 _ACTIVE_STATUSES = {"pending", "running", "retrying"}
+
+CLAIMABLE_STATUSES = frozenset({"pending", "retrying"})
+"""Statuses a runner may move to ``running`` when it picks a job up."""
+
+_FINISHED_STATUSES = {"succeeded", "failed", "cancelled"}
 
 
 class DeliveryJobMapper:
@@ -78,8 +83,25 @@ class DeliveryJobMapper:
         now = self._now()
         if status == "running" and job.started_at is None:
             job.started_at = now
-        elif status in {"succeeded", "failed", "cancelled"} and job.finished_at is None:
+        elif status in _FINISHED_STATUSES and job.finished_at is None:
             job.finished_at = now
+
+    def status_column_values(self, status: str) -> Dict[str, Any]:
+        """Return the column values for ``status`` as a SQL ``UPDATE`` sets them.
+
+        Mirrors :meth:`apply_status`: a timestamp that is already set is kept.
+        """
+        values: Dict[str, Any] = {"status": status}
+        now = self._now()
+        if status == "running":
+            values["started_at"] = func.coalesce(DeliveryJob.started_at, now)
+        elif status in _FINISHED_STATUSES:
+            values["finished_at"] = func.coalesce(DeliveryJob.finished_at, now)
+        return values
+
+    def now(self) -> datetime:
+        """Return the current timestamp as stored on jobs."""
+        return self._now()
 
     def normalize_rating(self, rating: Optional[int]) -> Optional[int]:
         """Validate and normalize user-provided rating values."""
@@ -414,6 +436,54 @@ class DeliveryJobRepository:
         self._session.commit()
         self._session.refresh(job)
         return job
+
+    def transition_job_status(
+        self,
+        job_id: str,
+        status: str,
+        *,
+        from_statuses: Sequence[str],
+        result: Optional[Dict[str, Any]] = None,
+        error: Optional[str] = None,
+    ) -> Optional[DeliveryJob]:
+        """Move ``job_id`` to ``status`` only while its status is in ``from_statuses``.
+
+        The check and the write are one ``UPDATE``, so a runner and a cancel
+        request racing on the same job cannot both win. Returns the updated job,
+        or ``None`` when the job is missing or in another status.
+        """
+        values = self._mapper.status_column_values(status)
+        serialized_result = self._mapper.serialize_result(result, error)
+        if serialized_result is not None:
+            values["result"] = serialized_result
+
+        statement = (
+            update(DeliveryJob)
+            .where(DeliveryJob.id == job_id)
+            .where(DeliveryJob.status.in_(tuple(from_statuses)))
+            .values(**values)
+            .execution_options(synchronize_session=False)
+        )
+        outcome = self._session.execute(statement)
+        self._session.commit()
+        if outcome.rowcount != 1:
+            return None
+
+        job = self.get_job(job_id)
+        if job is not None:
+            self._session.refresh(job)
+        return job
+
+    def list_jobs_started_before(
+        self, status: str, cutoff: datetime
+    ) -> List[DeliveryJob]:
+        """Return jobs in ``status`` whose ``started_at`` is older than ``cutoff``."""
+        query = (
+            select(DeliveryJob)
+            .where(DeliveryJob.status == status)
+            .where(DeliveryJob.started_at < cutoff)
+        )
+        return list(self._session.exec(query).all())
 
     def get_job_params(self, job: DeliveryJob) -> Dict[str, Any]:
         """Decode the serialized parameter payload for ``job``."""

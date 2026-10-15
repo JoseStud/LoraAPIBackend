@@ -101,6 +101,14 @@ class GenerationService:
         backend_result = await backend.check_progress(job_id)
         return self._with_normalized_status(backend_result)
 
+    async def interrupt(self, backend_name: str = "sdnext") -> bool:
+        """Stop the generation ``backend_name`` is running, if it can."""
+        try:
+            backend = get_generation_backend(backend_name)
+        except ValueError:
+            return False
+        return await backend.interrupt()
+
     async def list_available_backends(self) -> Dict[str, bool]:
         """List available generation backends and their status.
 
@@ -279,6 +287,23 @@ class GenerationCoordinator:
             "rating_updated_at": job.rating_updated_at,
             "favorite_updated_at": job.favorite_updated_at,
         }
+
+    async def cancel_job(self, job_id: str) -> bool:
+        """Cancel an active job; ``False`` when it is not active.
+
+        A running job's generation is interrupted too. The runner then finds
+        the job cancelled and discards whatever the backend returns.
+        """
+        previous_status = self._deliveries.cancel_job(job_id)
+        if previous_status is None:
+            return False
+
+        self._websocket.stop_job_monitoring(job_id)
+        if previous_status == "running":
+            job = self._deliveries.get_job(job_id)
+            backend_name = job.mode if job is not None else "sdnext"
+            await self._generation_service.interrupt(backend_name)
+        return True
 
     async def broadcast_job_started(
         self,

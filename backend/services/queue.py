@@ -50,6 +50,7 @@ class RedisQueueBackend(QueueBackend):
         redis_url: str,
         queue_name: str = "default",
         task_name: str = "backend.workers.tasks.process_delivery",
+        job_timeout: Optional[int] = None,
     ) -> None:
         """Initialise the Redis queue backend.
 
@@ -57,11 +58,14 @@ class RedisQueueBackend(QueueBackend):
             redis_url: Connection URL used to talk to Redis.
             queue_name: Name of the queue to enqueue delivery jobs into.
             task_name: Fully qualified task path executed by workers.
+            job_timeout: Seconds RQ lets a job run before killing it; ``None``
+                keeps RQ's default.
 
         """
         self.redis_url = redis_url
         self.queue_name = queue_name
         self.task_name = task_name
+        self.job_timeout = job_timeout
         self._queue = None
 
     def _get_queue(self):
@@ -150,6 +154,8 @@ class RedisQueueBackend(QueueBackend):
         **enqueue_kwargs: Any,
     ) -> Any:
         """Enqueue ``job_id`` on the configured Redis queue."""
+        if self.job_timeout is not None:
+            enqueue_kwargs.setdefault("job_timeout", self.job_timeout)
         queue = self._get_queue()
         try:
             return queue.enqueue(self.task_name, job_id, **enqueue_kwargs)
@@ -293,6 +299,14 @@ class QueueOrchestrator:
                 raise last_error from fallback_exc
             raise
 
+    def has_durable_queue(self) -> bool:
+        """Return whether jobs go to a queue that outlives this process.
+
+        Without one, jobs run in-process and a restart loses every job that
+        was waiting or running.
+        """
+        return self._ensure_primary_backend() is not None
+
     def get_delivery_runner(self) -> DeliveryRunner:
         """Return (and lazily construct) the DeliveryRunner used by the fallback."""
         if self._delivery_runner is None:
@@ -313,7 +327,9 @@ class QueueOrchestrator:
 
         redis_url = self._redis_url_factory()
         if redis_url:
-            self._primary_backend = RedisQueueBackend(redis_url)
+            self._primary_backend = RedisQueueBackend(
+                redis_url, job_timeout=settings.job_running_timeout_seconds
+            )
 
         return self._primary_backend
 
