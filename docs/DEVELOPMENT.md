@@ -98,9 +98,10 @@ The generation feature exposes queue, history, and transport state through a ded
 manager pair. `useGenerationOrchestratorManager()` is a thin wrapper over one Pinia store,
 `orchestratorManagerStore`, which provisions a single orchestrator instance, attaches watchers for
 backend URL changes and history toggles, and tears everything down when the last consumer releases
-the binding. Downstream code accesses read-only queue/results snapshots and command helpers via
-`useGenerationOrchestratorFacade()`, which adds telemetry such as `pendingActionsCount` and
-`lastCommandError` for UI feedback (`app/frontend/src/features/generation/stores/orchestratorManagerStore.ts`,
+the binding. Bindings are the only lifecycle API and carry every command; dashboard widgets get
+one from `useGenerationWidgetBinding()`. Code that only reads queue/results/status snapshots uses
+`useGenerationOrchestratorFacade()`, a read-only view with no lifecycle
+(`app/frontend/src/features/generation/stores/orchestratorManagerStore.ts`,
 `app/frontend/src/features/generation/composables/useGenerationOrchestratorManager.ts`,
 `app/frontend/src/features/generation/orchestrator/facade.ts`). ADR 007
 (`docs/architecture/adr-generation-orchestrator-thin-facade.md`) has the full module map.

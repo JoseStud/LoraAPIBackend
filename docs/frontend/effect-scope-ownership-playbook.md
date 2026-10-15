@@ -28,6 +28,6 @@ This guide describes where reactive side-effects (watchers, timers, event handle
 ## Import boundaries
 
 - Generation stores are **internal-only**. Import `useGenerationOrchestratorFacade()` (or manager bindings) when a feature needs queue/results state or commands. Direct `@/features/generation/stores/**` imports are lint errors outside the generation feature tree, and the stores are marked `@internal` to reinforce the boundary.【F:app/frontend/src/features/generation/orchestrator/facade.ts†L1-L213】【F:.eslintrc.cjs†L1-L123】
-- When a view needs to trigger queue actions, call façade commands (`cancelJob`, `refreshHistory`, `setHistoryLimit`) instead of mutating Pinia stores. Command telemetry provides duration/error logging, while `pendingActionsCount` enables UI spinners without leaking implementation details.【F:app/frontend/src/features/generation/orchestrator/facade.ts†L94-L210】
+- The façade is read-only and has no lifecycle. When a view needs the orchestrator running or wants to trigger queue actions (`cancelJob`, `removeJob`, `refreshResults`, `setHistoryLimit`), it acquires a binding with `useGenerationOrchestratorManager().acquire(...)` and releases it from its own cleanup; dashboard widgets use `useGenerationWidgetBinding(label)`, which does both. Never mutate the Pinia stores.【F:app/frontend/src/features/generation/composables/useGenerationWidgetBinding.ts】
 
 Following these rules keeps effects predictable, prevents leaks, and ensures future refactors remain straightforward.

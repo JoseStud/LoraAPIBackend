@@ -5,16 +5,17 @@ import type { GenerationJobView, ReadonlyQueue } from '@/features/generation/orc
 
 const sortedActiveJobs = ref<ReadonlyQueue>(Object.freeze([] as GenerationJobView[]));
 const queueManagerActive = ref(false);
-const ensureInitialized = vi.fn().mockResolvedValue(undefined);
-const releaseIfLastConsumer = vi.fn();
+const widgetBinding = vi.hoisted(() => vi.fn());
 
 vi.mock('@/features/generation/orchestrator', () => ({
   useGenerationOrchestratorFacade: () => ({
     sortedActiveJobs,
     queueManagerActive,
-    ensureInitialized,
-    releaseIfLastConsumer,
   }),
+}));
+
+vi.mock('@/features/generation/composables/useGenerationWidgetBinding', () => ({
+  useGenerationWidgetBinding: widgetBinding,
 }));
 
 describe('useJobQueue', () => {
@@ -30,8 +31,7 @@ describe('useJobQueue', () => {
       }) as GenerationJobView,
     ]) as ReadonlyQueue;
     queueManagerActive.value = false;
-    ensureInitialized.mockClear();
-    releaseIfLastConsumer.mockClear();
+    widgetBinding.mockClear();
   });
 
   it('mirrors the orchestrator manager job list', async () => {
@@ -55,6 +55,12 @@ describe('useJobQueue', () => {
     expect(queue.jobs.value).toEqual([
       expect.objectContaining({ id: 'job-2', status: 'queued', progress: 0 }),
     ]);
+  });
+
+  it('holds an orchestrator binding while mounted', async () => {
+    const { useJobQueue } = await import('@/features/generation/composables/useJobQueueActions');
+    useJobQueue();
+    expect(widgetBinding).toHaveBeenCalledWith('JobQueue');
   });
 
   it('exposes the orchestrator queue manager state', async () => {

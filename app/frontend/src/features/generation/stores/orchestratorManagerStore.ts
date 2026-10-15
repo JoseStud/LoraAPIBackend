@@ -142,7 +142,6 @@ export const useGenerationOrchestratorManagerStore = defineStore('generation-orc
   const initializationPromise = shallowRef<Promise<void> | null>(null);
   const isInitialized = ref(false);
   const consumers = shallowRef(new Map<symbol, GenerationOrchestratorConsumer>());
-  const readOnlyConsumers = shallowRef(new Set<symbol>());
   const historyVisibilityRefs = shallowRef(new Map<symbol, Readonly<Ref<boolean>>>());
 
   const historyLimit = computed<number>(() => {
@@ -172,8 +171,7 @@ export const useGenerationOrchestratorManagerStore = defineStore('generation-orc
     return orchestrator.value;
   };
 
-  const hasActiveConsumers = (): boolean =>
-    consumers.value.size > 0 || readOnlyConsumers.value.size > 0;
+  const hasActiveConsumers = (): boolean => consumers.value.size > 0;
 
   const hasHistoryAutoSync = (): boolean => {
     for (const consumer of consumers.value.values()) {
@@ -217,14 +215,6 @@ export const useGenerationOrchestratorManagerStore = defineStore('generation-orc
       next.delete(consumerId);
       historyVisibilityRefs.value = next;
     }
-  };
-
-  const registerReadOnlyConsumer = (consumerId: symbol): void => {
-    readOnlyConsumers.value.add(consumerId);
-  };
-
-  const unregisterReadOnlyConsumer = (consumerId: symbol): void => {
-    readOnlyConsumers.value.delete(consumerId);
   };
 
   const applyEnvironmentPauseState = (
@@ -390,7 +380,6 @@ export const useGenerationOrchestratorManagerStore = defineStore('generation-orc
     initializationPromise.value = null;
     isInitialized.value = false;
     orchestrator.value = null;
-    readOnlyConsumers.value.clear();
   };
 
   const ensureInitialized = async (
@@ -510,6 +499,12 @@ export const useGenerationOrchestratorManagerStore = defineStore('generation-orc
       startGeneration: (payload: GenerationRequestPayload): Promise<GenerationStartResponse> =>
         getOrchestrator().startGeneration(payload),
       cancelJob: wrapCommand((jobId: string) => getOrchestrator().cancelJob(jobId)),
+      removeJob: (jobId: string) => {
+        getOrchestrator().removeJob(jobId);
+      },
+      clearCompletedJobs: () => {
+        getOrchestrator().clearCompletedJobs();
+      },
       clearQueue: wrapCommand(() => getOrchestrator().clearQueue()),
       deleteResult: wrapCommand((resultId: string | number) =>
         getOrchestrator().deleteResult(resultId),
@@ -531,13 +526,9 @@ export const useGenerationOrchestratorManagerStore = defineStore('generation-orc
     initializationPromise,
     isInitialized,
     consumers,
-    readOnlyConsumers,
     historyLimit,
     acquire,
-    ensureOrchestrator,
     destroyOrchestrator,
-    registerReadOnlyConsumer,
-    unregisterReadOnlyConsumer,
     hasActiveConsumers,
   };
 });

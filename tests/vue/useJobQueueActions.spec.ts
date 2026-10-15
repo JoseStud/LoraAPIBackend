@@ -14,9 +14,6 @@ const generationFacade = {
   activeJobs: computed(() => activeJobs.value),
   sortedActiveJobs: computed(() => activeJobs.value),
   queueManagerActive,
-  cancelJob: vi.fn(async (jobId: string) => cancelJobImpl(jobId)),
-  clearCompletedJobs: vi.fn(),
-  removeJob: vi.fn(),
 };
 
 const notificationMocks = vi.hoisted(() => ({
@@ -91,7 +88,9 @@ const createBindingMock = (): GenerationOrchestratorBinding => {
     loadActiveJobsData: vi.fn(),
     loadRecentResultsData: vi.fn(),
     startGeneration: vi.fn(),
-    cancelJob: vi.fn(),
+    cancelJob: vi.fn(async (jobId: string) => cancelJobImpl(jobId)),
+    removeJob: vi.fn(),
+    clearCompletedJobs: vi.fn(),
     clearQueue: vi.fn(),
     deleteResult: vi.fn(),
     refreshResults: vi.fn(),
@@ -135,9 +134,6 @@ describe('useJobQueueActions', () => {
     notificationMocks.showToastInfo.mockClear();
     notificationMocks.showToastSuccess.mockClear();
     notificationMocks.notify.mockClear();
-    generationFacade.cancelJob.mockClear();
-    generationFacade.clearCompletedJobs.mockClear();
-    generationFacade.removeJob.mockClear();
   });
 
   it('cancels a job via the orchestrator binding', async () => {
@@ -151,16 +147,16 @@ describe('useJobQueueActions', () => {
           status: 'processing',
         }) as GenerationJobView,
       ];
-      cancelJobImpl = async (jobId) => {
+      cancelJobImpl = async (backendId) => {
         activeJobs.value = activeJobs.value.filter(
-          (item) => item.id !== jobId,
+          (item) => item.backendId !== backendId,
         );
       };
 
       const result = await actions.cancelJob('job-1');
 
       expect(result).toBe(true);
-      expect(generationFacade.cancelJob).toHaveBeenCalledWith('job-1');
+      expect(orchestratorMocks.binding.cancelJob).toHaveBeenCalledWith('backend-1');
       expect(activeJobs.value).toHaveLength(0);
     });
   });
@@ -196,5 +192,18 @@ describe('useJobQueueActions', () => {
       expect(notificationMocks.showToast).toHaveBeenCalledWith('Failed to cancel job', 'error');
       expect(activeJobs.value).toHaveLength(1);
     });
+  });
+
+  it('removes and clears jobs through the binding', async () => {
+    await withActions(async (actions) => {
+      actions.removeJob(' job-9 ');
+      actions.clearCompletedJobs();
+
+      expect(orchestratorMocks.binding.removeJob).toHaveBeenCalledWith('job-9');
+      expect(orchestratorMocks.binding.clearCompletedJobs).toHaveBeenCalledTimes(1);
+      expect(orchestratorMocks.manager!.acquire).toHaveBeenCalledTimes(1);
+    });
+
+    expect(orchestratorMocks.binding.release).toHaveBeenCalledTimes(1);
   });
 });

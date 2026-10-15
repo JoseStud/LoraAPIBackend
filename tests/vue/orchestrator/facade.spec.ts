@@ -1,147 +1,43 @@
 import { describe, expect, it, vi } from 'vitest';
-import { computed } from 'vue';
 
-import {
-  createGenerationFacade,
-  type GenerationHistoryRefreshOptions,
-  type GenerationManager,
-  type GenerationHistoryLimit,
-  type ImmutableGenerationJob,
-  type ImmutableGenerationResult,
-} from '@/features/generation/orchestrator';
-import type { DeepReadonly } from '@/utils/freezeDeep';
-import type { SystemStatusState } from '@/types';
-import type {
-  GenerationTransportError,
-  GenerationTransportMetricsSnapshot,
-  GenerationTransportPhase,
-  GenerationWebSocketStateSnapshot,
-} from '@/features/generation/types/transport';
+vi.mock('@/features/generation/stores/orchestrator/transportAdapter', () => ({
+  createGenerationTransportAdapter: vi.fn(),
+}));
 
-const systemStatus: DeepReadonly<SystemStatusState> = Object.freeze({
-  gpu_available: false,
-  queue_length: 0,
-  status: 'unknown',
-  gpu_status: 'Unknown',
-  memory_used: 0,
-  memory_total: 0,
-});
+import { createGenerationTransportAdapter } from '@/features/generation/stores/orchestrator/transportAdapter';
+import { useGenerationOrchestratorFacade } from '@/features/generation/orchestrator';
+import { useGenerationOrchestratorManagerStore } from '@/features/generation/stores/orchestratorManagerStore';
+import { useGenerationOrchestratorStore } from '@/features/generation/stores/useGenerationOrchestratorStore';
 
-const transportMetrics: GenerationTransportMetricsSnapshot = {
-  phase: 'idle',
-  reconnectAttempt: 0,
-  consecutiveFailures: 0,
-  nextRetryDelayMs: null,
-  lastConnectedAt: null,
-  lastDisconnectedAt: null,
-  downtimeMs: null,
-  totalDowntimeMs: 0,
-  lastError: null,
-  lastEvent: null,
-};
+describe('useGenerationOrchestratorFacade', () => {
+  it('mirrors the orchestrator store from every call site', () => {
+    const store = useGenerationOrchestratorStore();
+    const first = useGenerationOrchestratorFacade();
+    const second = useGenerationOrchestratorFacade();
 
-const createManagerStub = () => {
-  const cancelJob = vi.fn(async (_jobId: string) => {});
-  const removeJob = vi.fn((_jobId: string | number) => {});
-  const cancelJobByBackendId = vi.fn(async (_jobId: string) => {});
-  const removeJobLocal = vi.fn((_jobId: string) => {});
-  const refreshHistory = vi.fn(async (_options?: GenerationHistoryRefreshOptions) => {});
-  const setHistoryLimit = vi.fn((_limit: GenerationHistoryLimit) => {});
-  const reconnect = vi.fn(() => {});
+    store.enqueueJob({ id: 'job-1', status: 'processing', progress: 10 } as any);
+    store.setResults([{ id: 'result-1', created_at: new Date().toISOString() } as any]);
 
-  const manager: GenerationManager = {
-    jobs: computed<readonly ImmutableGenerationJob[]>(() => []),
-    activeJobs: computed<readonly ImmutableGenerationJob[]>(() => []),
-    sortedActiveJobs: computed<readonly ImmutableGenerationJob[]>(() => []),
-    hasActiveJobs: computed(() => false),
-    recentResults: computed<readonly ImmutableGenerationResult[]>(() => []),
-    historyLimit: computed<GenerationHistoryLimit>(() => 10),
-    systemStatus: computed(() => systemStatus),
-    systemStatusReady: computed(() => true),
-    systemStatusLastUpdated: computed(() => null),
-    systemStatusApiAvailable: computed(() => true),
-    queueManagerActive: computed(() => true),
-    isActive: computed(() => true),
-    isConnected: computed(() => true),
-    pollIntervalMs: computed(() => 1_000),
-    transportMetrics: computed(() => transportMetrics),
-    transportPhase: computed<GenerationTransportPhase>(() => transportMetrics.phase),
-    transportReconnectAttempt: computed(() => transportMetrics.reconnectAttempt),
-    transportConsecutiveFailures: computed(() => transportMetrics.consecutiveFailures),
-    transportNextRetryDelayMs: computed(() => transportMetrics.nextRetryDelayMs),
-    transportLastConnectedAt: computed(() => transportMetrics.lastConnectedAt),
-    transportLastDisconnectedAt: computed(() => transportMetrics.lastDisconnectedAt),
-    transportDowntimeMs: computed(() => transportMetrics.downtimeMs),
-    transportTotalDowntimeMs: computed(() => transportMetrics.totalDowntimeMs),
-    lastError: computed<GenerationTransportError | null>(() => transportMetrics.lastError),
-    lastSnapshot: computed<GenerationWebSocketStateSnapshot | null>(
-      () => transportMetrics.lastEvent,
-    ),
-    cancelJob,
-    cancelJobByBackendId,
-    removeJob,
-    removeJobLocal,
-    refreshHistory,
-    reconnect,
-    setHistoryLimit,
-  };
-
-  return {
-    manager,
-    cancelJob,
-    cancelJobByBackendId,
-    removeJob,
-    removeJobLocal,
-    refreshHistory,
-    reconnect,
-    setHistoryLimit,
-  };
-};
-
-describe('createGenerationFacade', () => {
-  it('forwards cancelJob to the manager', async () => {
-    const { manager, cancelJob } = createManagerStub();
-    const facade = createGenerationFacade({ manager });
-
-    await facade.cancelJob('job-1');
-
-    expect(cancelJob).toHaveBeenCalledWith('job-1');
+    for (const facade of [first, second]) {
+      expect(facade.queue.value.map((job) => job.id)).toEqual(['job-1']);
+      expect(facade.activeJobs.value.map((job) => job.id)).toEqual(['job-1']);
+      expect(facade.hasActiveJobs.value).toBe(true);
+      expect(facade.results.value.map((result) => result.id)).toEqual(['result-1']);
+    }
   });
 
-  it('forwards removeJob to the manager', () => {
-    const { manager, removeJob } = createManagerStub();
-    const facade = createGenerationFacade({ manager });
+  it('has no lifecycle: reading it registers no consumer and starts no transport', () => {
+    const managerStore = useGenerationOrchestratorManagerStore();
+    const facade = useGenerationOrchestratorFacade();
 
-    facade.removeJob(42);
+    void facade.queue.value;
+    void facade.systemStatus.value;
+    void facade.transportPauseReasons.value;
 
-    expect(removeJob).toHaveBeenCalledWith(42);
-  });
-
-  it('forwards refreshHistory options to the manager', async () => {
-    const { manager, refreshHistory } = createManagerStub();
-    const facade = createGenerationFacade({ manager });
-    const options: GenerationHistoryRefreshOptions = { notifySuccess: true };
-
-    await facade.refreshHistory(options);
-
-    expect(refreshHistory).toHaveBeenCalledWith(options);
-  });
-
-  it('forwards reconnect to the manager', () => {
-    const { manager, reconnect } = createManagerStub();
-    const facade = createGenerationFacade({ manager });
-
-    facade.reconnect();
-
-    expect(reconnect).toHaveBeenCalledTimes(1);
-  });
-
-  it('forwards setHistoryLimit to the manager', () => {
-    const { manager, setHistoryLimit } = createManagerStub();
-    const facade = createGenerationFacade({ manager });
-
-    facade.setHistoryLimit(25);
-
-    expect(setHistoryLimit).toHaveBeenCalledWith(25);
+    expect(managerStore.consumers.size).toBe(0);
+    expect(managerStore.orchestrator).toBeNull();
+    expect(createGenerationTransportAdapter).not.toHaveBeenCalled();
+    expect('ensureInitialized' in facade).toBe(false);
+    expect('cancelJob' in facade).toBe(false);
   });
 });
