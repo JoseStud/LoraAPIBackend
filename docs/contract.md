@@ -66,8 +66,11 @@ service runs without the wrapper in `app/main.py`). Routes are implemented under
   the frontend.
 - `POST /v1/generation/jobs/{job_id}/cancel` – Cancel a queued job when the
   backend supports it.
-- `GET /v1/generation/results` – List recent generation results, including image
-  payloads or file paths.
+- `GET /v1/generation/results` – List recent generation results. `image_url`
+  and `thumbnail_url` are browser-loadable: the result image route for images
+  saved to disk, a `data:` URI for results stored as base64 (older rows, or
+  jobs queued with `save_images=false` and `return_format=base64`), or an
+  `http(s)` URL; `null` when there is nothing to show.
 - `POST /v1/generation/results/export` – Stream a ZIP archive containing
   selected generation results.
 - `DELETE /v1/generation/results/bulk-delete` – Remove multiple generation
@@ -76,7 +79,17 @@ service runs without the wrapper in `app/main.py`). Routes are implemented under
   its associated artifacts.
 - `GET /v1/generation/results/{result_id}/download` – Stream the primary asset
   for a stored result.
+- `GET /v1/generation/results/{job_id}/images/{index}` – Serve image `index` of
+  a stored result as a file, or 404. Mounted **without** the API key (see the
+  README "Security model") so `<img>` tags can load it; it only serves files
+  inside `SDNEXT_OUTPUT_DIR`.
 - `GET /v1/generation/progress/{job_id}` – Poll SDNext progress directly.
+
+Queued jobs store each image saved to disk as a file reference,
+`output://<path relative to SDNEXT_OUTPUT_DIR>`, in `result.images`, never as
+base64; `return_format` only shapes the response of immediate requests
+(`/generate`, `/compose-and-generate`). The WebSocket `generation_complete`
+message carries the same browser-loadable sources as `image_url`.
 
 ### Recommendations (`/v1/recommendations`)
 
