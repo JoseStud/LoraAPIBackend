@@ -3,6 +3,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.util.in_process_jobs import InProcessJobGate
+
 
 def test_compose_returns_warnings_when_no_active_adapters(client: TestClient):
     """Compose should surface validation warnings from the composition service."""
@@ -15,6 +17,7 @@ def test_compose_returns_warnings_when_no_active_adapters(client: TestClient):
 
 def test_compose_sdnext_delivery(
     client: TestClient,
+    in_process_jobs: InProcessJobGate,
     create_active_adapter,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -71,6 +74,8 @@ def test_compose_sdnext_delivery(
     assert delivery_info.get("id")
     assert delivery_info.get("status") == "pending"
 
+    # Without Redis the job runs on the in-process job runner's thread.
+    in_process_jobs.run_queued_jobs()
     assert captured
     assert captured["mode"] == "sdnext"
 

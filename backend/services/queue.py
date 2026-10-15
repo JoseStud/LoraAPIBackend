@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-import asyncio
 from abc import ABC, abstractmethod
+from concurrent.futures import Future
 from typing import Any, Callable, Optional, Protocol, Tuple, Type
 
 import structlog
 
 from backend.core.config import settings
 from backend.delivery import get_delivery_registry
+from backend.services.in_process_jobs import (
+    InProcessJobRunner,
+    get_in_process_job_runner,
+)
 from backend.workers.delivery_runner import DeliveryRunner
 
 logger = structlog.get_logger(__name__)
@@ -171,38 +175,30 @@ class RedisQueueBackend(QueueBackend):
 
 
 class BackgroundTaskQueueBackend(QueueBackend):
-    """Queue implementation that executes jobs in-process via a TaskScheduler."""
+    """Queue implementation that runs jobs in this process, one at a time.
 
-    def __init__(self, runner: Callable[[str], Any]) -> None:
+    Jobs go to the process-wide :class:`InProcessJobRunner`, which runs them
+    in order on its own thread and event loop, so in-process jobs never
+    overlap on SDNext and every request and recovery pass shares one queue.
+    """
+
+    def __init__(
+        self,
+        runner: Callable[[str], Any],
+        *,
+        job_runner: Optional[InProcessJobRunner] = None,
+    ) -> None:
         """Create a background task queue backend.
 
         Args:
-            runner: Callable invoked with the delivery job identifier.
+            runner: Callable invoked with the delivery job identifier on the
+                job runner's event loop; an awaitable it returns is awaited.
+            job_runner: Runner that executes the jobs; defaults to the
+                process-wide one.
 
         """
         self._runner = runner
-
-    @staticmethod
-    async def _consume_coroutine(coro):
-        return await coro
-
-    def _execute(self, job_id: str) -> None:
-        result = self._runner(job_id)
-        if asyncio.iscoroutine(result):
-            try:
-                loop = asyncio.get_running_loop()
-            except RuntimeError:
-                try:
-                    from anyio import from_thread
-
-                    from_thread.run(self._consume_coroutine, result)
-                    return
-                except RuntimeError:
-                    import anyio
-
-                    anyio.run(self._consume_coroutine, result)
-                    return
-            loop.create_task(result)
+        self._job_runner = job_runner
 
     def enqueue_delivery(
         self,
@@ -210,12 +206,15 @@ class BackgroundTaskQueueBackend(QueueBackend):
         *,
         background_tasks: Optional[TaskScheduler] = None,
         **enqueue_kwargs: Any,
-    ) -> None:
-        """Schedule ``job_id`` for in-process execution."""
-        if background_tasks is not None:
-            background_tasks.add_task(self._execute, job_id)
-        else:
-            self._execute(job_id)
+    ) -> "Future[None]":
+        """Queue ``job_id`` behind the in-process jobs already queued.
+
+        ``background_tasks`` is accepted for the :class:`QueueBackend`
+        protocol but not used: request-scoped tasks would let jobs overlap.
+        The returned future completes when the job has run.
+        """
+        job_runner = self._job_runner or get_in_process_job_runner()
+        return job_runner.submit(self._runner, job_id)
 
 
 class QueueOrchestrator:

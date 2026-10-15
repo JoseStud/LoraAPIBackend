@@ -324,19 +324,15 @@ def test_recover_in_process_restart_fails_running_and_requeues(db_session):
     first = service.create_job("first", "cli", {})
     second = service.create_job("second", "cli", {})
     service.update_job_status(second.id, "retrying")
-    scheduler = object()
 
-    report = recover_jobs(
-        service,
-        at_startup=True,
-        running_timeout=timedelta(hours=1),
-        scheduler=scheduler,
-    )
+    report = recover_jobs(service, at_startup=True, running_timeout=timedelta(hours=1))
 
     assert [job.job_id for job in report.failed] == [running.id]
     assert report.failed[0].params == {"k": 1}
     assert report.requeued == [first.id, second.id]
-    assert queue.enqueued == [(first.id, scheduler), (second.id, scheduler)]
+    # Requeued jobs go through the orchestrator's fallback (the in-process job
+    # runner), never a separate scheduler.
+    assert queue.enqueued == [(first.id, None), (second.id, None)]
     db_session.expire_all()
     assert service.get_job(running.id).status == "failed"
 

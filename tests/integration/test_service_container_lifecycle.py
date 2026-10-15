@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Optional
 
@@ -10,12 +9,14 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from backend.services import get_service_container_builder
 from backend.services.analytics_repository import AnalyticsRepository
 from backend.services.delivery_repository import DeliveryJobRepository
+from backend.services.in_process_jobs import InProcessJobRunner
 from backend.services.queue import (
     BackgroundTaskQueueBackend,
     QueueBackend,
     QueueOrchestrator,
 )
 from backend.services.service_container_builder import ServiceContainerBuilder
+from tests.util.in_process_jobs import drain_in_process_jobs
 from tests.util.service_container import reset_service_container_builder
 
 
@@ -117,24 +118,18 @@ class _FailingRedisBackend(QueueBackend):
         raise RedisConnectionError("redis connection lost")
 
 
-def _run_background_tasks(tasks: Iterable[Any]) -> None:
-    async def runner() -> None:
-        for task in tasks:
-            await task()
-
-    asyncio.run(runner())
-
-
 def test_queue_fallback_recovers_from_redis_errors(db_session) -> None:
-    """Queue orchestrator should fallback asynchronously and survive resets."""
+    """Queue orchestrator should fall back to in-process jobs and survive resets."""
     scheduled_jobs: list[str] = []
+    job_runner = InProcessJobRunner()
 
     def orchestrator_factory() -> QueueOrchestrator:
         call_log: list[str] = []
         orchestrator = QueueOrchestrator(
             primary_backend=_FailingRedisBackend(call_log),
             fallback_backend=BackgroundTaskQueueBackend(
-                lambda job_id: scheduled_jobs.append(job_id)
+                lambda job_id: scheduled_jobs.append(job_id),
+                job_runner=job_runner,
             ),
         )
         orchestrator._test_call_log = call_log  # type: ignore[attr-defined]
@@ -145,41 +140,43 @@ def test_queue_fallback_recovers_from_redis_errors(db_session) -> None:
         recommendation_gpu_detector=lambda: False,
     )
 
-    # First build - primary fails and fallback schedules work.
-    registry_one = builder.build(
-        db_session,
-        analytics_repository=AnalyticsRepository(db_session),
-        delivery_repository=DeliveryJobRepository(db_session),
-    )
-    deliveries_one = registry_one.deliveries
-    background_tasks_one = BackgroundTasks()
-    deliveries_one.enqueue_job("job-1", background_tasks=background_tasks_one)
+    try:
+        # First build - primary fails and the fallback runs the job.
+        registry_one = builder.build(
+            db_session,
+            analytics_repository=AnalyticsRepository(db_session),
+            delivery_repository=DeliveryJobRepository(db_session),
+        )
+        deliveries_one = registry_one.deliveries
+        background_tasks_one = BackgroundTasks()
+        deliveries_one.enqueue_job("job-1", background_tasks=background_tasks_one)
 
-    orchestrator_one = deliveries_one.queue_orchestrator
-    call_log_one = orchestrator_one._test_call_log
-    assert call_log_one == ["job-1"]
-    assert len(background_tasks_one.tasks) == 1
-    _run_background_tasks(background_tasks_one.tasks)
-    assert scheduled_jobs == ["job-1"]
+        orchestrator_one = deliveries_one.queue_orchestrator
+        call_log_one = orchestrator_one._test_call_log
+        assert call_log_one == ["job-1"]
+        # Request-scoped tasks would let in-process jobs overlap.
+        assert background_tasks_one.tasks == []
+        drain_in_process_jobs(job_runner)
+        assert scheduled_jobs == ["job-1"]
 
-    # Reset caches to simulate an application reload.
-    reset_service_container_builder(builder)
+        # Reset caches to simulate an application reload.
+        reset_service_container_builder(builder)
 
-    registry_two = builder.build(
-        db_session,
-        analytics_repository=AnalyticsRepository(db_session),
-        delivery_repository=DeliveryJobRepository(db_session),
-    )
-    deliveries_two = registry_two.deliveries
-    orchestrator_two = deliveries_two.queue_orchestrator
+        registry_two = builder.build(
+            db_session,
+            analytics_repository=AnalyticsRepository(db_session),
+            delivery_repository=DeliveryJobRepository(db_session),
+        )
+        deliveries_two = registry_two.deliveries
+        orchestrator_two = deliveries_two.queue_orchestrator
 
-    assert orchestrator_two is not orchestrator_one
-    call_log_two = orchestrator_two._test_call_log
-    assert call_log_two == []
+        assert orchestrator_two is not orchestrator_one
+        call_log_two = orchestrator_two._test_call_log
+        assert call_log_two == []
 
-    background_tasks_two = BackgroundTasks()
-    deliveries_two.enqueue_job("job-2", background_tasks=background_tasks_two)
-    assert call_log_two == ["job-2"]
-    assert len(background_tasks_two.tasks) == 1
-    _run_background_tasks(background_tasks_two.tasks)
-    assert scheduled_jobs == ["job-1", "job-2"]
+        deliveries_two.enqueue_job("job-2", background_tasks=BackgroundTasks())
+        assert call_log_two == ["job-2"]
+        drain_in_process_jobs(job_runner)
+        assert scheduled_jobs == ["job-1", "job-2"]
+    finally:
+        job_runner.stop()

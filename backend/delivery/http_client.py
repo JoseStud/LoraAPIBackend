@@ -3,13 +3,24 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Optional
+import logging
+import threading
+from typing import Any, Callable, Dict, Iterable, Optional
 
 import aiohttp
 
+logger = logging.getLogger(__name__)
+
 
 class DeliveryHTTPClient:
-    """Helper for managing HTTP sessions to external delivery services."""
+    """Helper for managing HTTP sessions to external delivery services.
+
+    An :class:`aiohttp.ClientSession` belongs to the event loop it was created
+    on, while one client is shared by the API's loop (progress polling,
+    interrupts), the in-process job runner's loop and successive
+    ``asyncio.run`` calls in an RQ worker. The client therefore keeps one
+    session per event loop and drops sessions whose loop has closed.
+    """
 
     def __init__(
         self,
@@ -27,7 +38,8 @@ class DeliveryHTTPClient:
         self._auth = None
         if username and password:
             self._auth = aiohttp.BasicAuth(username, password)
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._sessions: Dict[asyncio.AbstractEventLoop, aiohttp.ClientSession] = {}
+        self._sessions_lock = threading.Lock()
 
     @property
     def timeout(self) -> int:
@@ -39,11 +51,40 @@ class DeliveryHTTPClient:
         return self._base_url is not None
 
     async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create the underlying :class:`aiohttp.ClientSession`."""
-        if self._session is None or self._session.closed:
-            timeout = aiohttp.ClientTimeout(total=self._timeout)
-            self._session = aiohttp.ClientSession(timeout=timeout, auth=self._auth)
-        return self._session
+        """Get or create the :class:`aiohttp.ClientSession` for the running loop."""
+        loop = asyncio.get_running_loop()
+        with self._sessions_lock:
+            stale = self._pop_sessions(lambda other: other.is_closed())
+            session = self._sessions.get(loop)
+            if session is None or session.closed:
+                timeout = aiohttp.ClientTimeout(total=self._timeout)
+                session = aiohttp.ClientSession(timeout=timeout, auth=self._auth)
+                self._sessions[loop] = session
+        await self._close_sessions(stale.values())
+        return session
+
+    def _pop_sessions(
+        self, predicate: Callable[[asyncio.AbstractEventLoop], bool]
+    ) -> Dict[asyncio.AbstractEventLoop, aiohttp.ClientSession]:
+        """Remove and return the sessions whose loop matches ``predicate``.
+
+        The caller holds ``_sessions_lock``.
+        """
+        loops = [loop for loop in self._sessions if predicate(loop)]
+        return {loop: self._sessions.pop(loop) for loop in loops}
+
+    @staticmethod
+    async def _close_sessions(sessions: Iterable[aiohttp.ClientSession]) -> None:
+        """Close sessions owned by the running loop or by a closed loop.
+
+        Once a session's loop has closed its connections can no longer be shut
+        down, so closing it only marks it closed, which is safe from any loop.
+        """
+        for session in sessions:
+            try:
+                await session.close()
+            except Exception:  # pragma: no cover - defensive guard
+                logger.debug("Closing a stale HTTP session failed", exc_info=True)
 
     def _build_url(self, path: str) -> str:
         if path.startswith("http://") or path.startswith("https://"):
@@ -80,10 +121,23 @@ class DeliveryHTTPClient:
             return False
 
     async def close(self) -> None:
-        """Close the underlying HTTP session."""
-        if self._session and not self._session.closed:
-            await self._session.close()
-            self._session = None
+        """Close the session of the running loop and those of closed loops.
+
+        A session that belongs to another running loop is closed on that loop
+        without waiting for it; one whose loop is idle is kept for that loop.
+        """
+        loop = asyncio.get_running_loop()
+        with self._sessions_lock:
+            closable = self._pop_sessions(
+                lambda other: other is loop or other.is_closed()
+            )
+            elsewhere = self._pop_sessions(lambda other: other.is_running())
+        await self._close_sessions(closable.values())
+        for other, session in elsewhere.items():
+            try:
+                asyncio.run_coroutine_threadsafe(session.close(), other)
+            except RuntimeError:  # pragma: no cover - loop closed meanwhile
+                pass
 
     async def __aenter__(self) -> "DeliveryHTTPClient":
         """Open the HTTP session when entering the async context."""
