@@ -92,13 +92,22 @@ Read these before changing the matching subsystem:
   package registers nothing. Reach the registry through
   `get_delivery_registry()`, which runs the same idempotent registration.
   Add endpoints through the routers, not ad hoc routes.
-- **Service container**: all service wiring goes through
-  `ServiceContainerBuilder` (`backend/services/service_container_builder.py`).
+- **Service container**: `ServiceRegistry`
+  (`backend/services/service_registry.py`) is the only container. It holds one
+  database session and exposes every service as a flat, lazily built
+  `cached_property` (`services.adapters`, `services.deliveries`,
+  `services.storage`, ...). Each service is built by a field of the frozen
+  `ServiceFactories` dataclass, whose defaults are the `make_*` functions in
+  `backend/services/providers/`. Registries come from `ServiceContainerBuilder`
+  (`backend/services/service_container_builder.py`);
   `get_service_container_builder()` (`backend/services/__init__.py`) returns
   one process-wide builder, so its cached queue orchestrator and GPU check are
-  shared by every request and worker. `service_container_builder_scope()`
-  exists only to install an override for the current context (tests,
-  scripts). Get services from the builder instead of instantiating them
+  shared by every request and worker. Routers take
+  `services: ServiceRegistry = Depends(get_services)`
+  (`backend/core/dependencies.py`); tests override `get_services` or swap
+  factories with `builder.with_overrides(factories=lambda f: replace(f, ...))`
+  inside `service_container_builder_scope()`, which exists only for tests and
+  scripts. Get services from a built registry instead of instantiating them
   directly; direct instantiation skips the locking and cache invalidation that
   protect long-running workers.
 - **Queue orchestration**: `QueueOrchestrator` (`backend/services/queue.py`)
