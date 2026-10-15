@@ -17,7 +17,7 @@
       <button class="block w-full" type="button" @click="handleView">
         <img
           v-if="result.image_url"
-          :src="result.image_url"
+          :src="resolveBackendAssetUrl(result.image_url) ?? undefined"
           :alt="result.prompt ?? 'Generated image'"
           class="w-full h-32 object-cover"
         >
@@ -49,6 +49,7 @@
 import { computed } from 'vue';
 
 import type { GenerationHistoryResult } from '@/types';
+import { resolveBackendAssetUrl } from '@/utils/backend';
 
 const props = withDefaults(
   defineProps<{

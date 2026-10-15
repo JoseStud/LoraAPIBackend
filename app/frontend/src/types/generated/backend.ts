@@ -490,6 +490,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/generation/results/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Generation Result Stats
+         * @description Return totals for finished results (count, average rating, favourites).
+         */
+        get: operations["get_generation_result_stats_v1_generation_results_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/generation/results/bulk-delete": {
         parameters: {
             query?: never;
@@ -579,15 +599,16 @@ export interface paths {
         };
         /**
          * Get Similar Loras
-         * @description Get LoRAs similar to the specified LoRA. The recommendation engine ignores adapter description text; the field is preserved strictly for presentation.
+         * @description Get LoRAs similar to the specified LoRA.
          *
          *     Args:
          *         lora_id: ID of the target LoRA
          *         limit: Maximum number of recommendations to return
          *         similarity_threshold: Minimum similarity score (0.0 to 1.0)
          *         diversify_results: Whether to diversify results by different criteria
-         *         weights: Custom weights for similarity components
-         *             (semantic, artistic, technical)
+         *         weight_semantic: Weight for semantic similarity
+         *         weight_artistic: Weight for artistic similarity
+         *         weight_technical: Weight for technical similarity
          *         services: Domain service container that provides recommendation logic
          *
          *     Returns:
@@ -613,7 +634,7 @@ export interface paths {
         put?: never;
         /**
          * Get Recommendations For Prompt
-         * @description Get LoRA recommendations that would enhance a given prompt. Adapter descriptions are ignored during embedding and ranking and remain available only for client display.
+         * @description Get LoRA recommendations that would enhance a given prompt.
          *
          *     Args:
          *         request: Prompt recommendation request with prompt text and preferences
@@ -623,6 +644,26 @@ export interface paths {
          *         List of LoRA recommendations optimized for the given prompt
          */
         post: operations["get_recommendations_for_prompt_v1_recommendations_for_prompt_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/recommendations/by-trigger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Recommendations For Trigger
+         * @description Get LoRA recommendations that align with trigger phrases.
+         */
+        get: operations["get_recommendations_for_trigger_v1_recommendations_by_trigger_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1041,6 +1082,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/generation/results/{job_id}/images/{index}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Result Image
+         * @description Return image ``index`` of a generation result as a file.
+         */
+        get: operations["get_result_image_v1_generation_results__job_id__images__index__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -1053,6 +1114,26 @@ export interface paths {
          * @description Return a simple health status used by tests and readiness checks.
          */
         get: operations["health_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/frontend/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Frontend Settings
+         * @description Expose runtime configuration for the Vue SPA.
+         */
+        get: operations["frontend_settings_v1_frontend_settings_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2094,6 +2175,8 @@ export interface components {
             target_lora_id?: string | null;
             /** Prompt */
             prompt?: string | null;
+            /** Trigger Query */
+            trigger_query?: string | null;
             /** Recommendations */
             recommendations: components["schemas"]["RecommendationItem"][];
             /** Total Candidates */
@@ -2986,6 +3069,8 @@ export interface operations {
                 mode?: string;
                 save_images?: boolean;
                 return_format?: string;
+                /** @description Opaque caller tag echoed back in the job-finished webhook. */
+                client_ref?: string | null;
             };
             header?: never;
             path?: never;
@@ -3142,6 +3227,26 @@ export interface operations {
             };
         };
     };
+    get_generation_result_stats_v1_generation_results_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
     bulk_delete_generation_results_v1_generation_results_bulk_delete_delete: {
         parameters: {
             query?: never;
@@ -3274,6 +3379,9 @@ export interface operations {
                 limit?: number;
                 similarity_threshold?: number;
                 diversify_results?: boolean;
+                weight_semantic?: number;
+                weight_artistic?: number;
+                weight_technical?: number;
             };
             header?: never;
             path: {
@@ -3281,13 +3389,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    [key: string]: number;
-                } | null;
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -3321,6 +3423,38 @@ export interface operations {
                 "application/json": components["schemas"]["PromptRecommendationRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_recommendations_for_trigger_v1_recommendations_by_trigger_get: {
+        parameters: {
+            query: {
+                trigger_query: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -3839,7 +3973,66 @@ export interface operations {
             };
         };
     };
+    get_result_image_v1_generation_results__job_id__images__index__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+                index: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": unknown;
+                };
+            };
+            /** @description No such job, image or file. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    frontend_settings_v1_frontend_settings_get: {
         parameters: {
             query?: never;
             header?: never;

@@ -10,7 +10,7 @@
         />
 
         <img
-          :src="result.thumbnail_url ?? result.image_url ?? ''"
+          :src="resolveBackendAssetUrl(result.thumbnail_url ?? result.image_url) ?? ''"
           :alt="result.prompt ?? 'Generated image'"
           class="w-16 h-16 object-cover rounded cursor-pointer"
           @click="$emit('view')"
@@ -87,6 +87,7 @@
 
 <script setup lang="ts">
 import type { GenerationHistoryResult } from '@/types';
+import { resolveBackendAssetUrl } from '@/utils/backend';
 
 defineProps<{
   result: GenerationHistoryResult;

@@ -101,6 +101,48 @@ export const resolveBackendUrl = (
   return joinBackendPath(base, path);
 };
 
+const PASSTHROUGH_ASSET_URL = /^(?:[a-z][a-z\d+.-]*:|\/\/)/i;
+const ABSOLUTE_HTTP_URL = /^https?:\/\//i;
+
+/**
+ * Turn a URL the backend hands to the browser (such as a result `image_url`)
+ * into one an `<img>` can load.
+ *
+ * The backend writes paths under the API root (`/api/v1/...`); those are
+ * re-rooted on the configured backend URL rather than the page origin, so a
+ * frontend served from another host still reaches the backend. `data:`,
+ * `blob:` and absolute URLs pass through unchanged.
+ */
+export const resolveBackendAssetUrl = (
+  value: string | null | undefined,
+  baseOverride?: string | null,
+  settingsStore?: SettingsStore | null,
+): string | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (PASSTHROUGH_ASSET_URL.test(trimmed) || !trimmed.startsWith('/')) {
+    return trimmed;
+  }
+
+  const base = resolveBackendBaseUrl(baseOverride, settingsStore);
+  if (trimmed === DEFAULT_BACKEND_BASE || trimmed.startsWith(`${DEFAULT_BACKEND_BASE}/`)) {
+    return joinBackendPath(base, trimmed.slice(DEFAULT_BACKEND_BASE.length));
+  }
+
+  if (ABSOLUTE_HTTP_URL.test(base)) {
+    return `${new URL(base).origin}${trimmed}`;
+  }
+
+  return trimmed;
+};
+
 export const useBackendBase = (
   baseOverride?: MaybeRefOrGetter<string | null>,
 ): ComputedRef<string> => {
@@ -161,6 +203,7 @@ export const backendUtils = {
   withSameOrigin,
   resolveBackendBaseUrl,
   resolveBackendUrl,
+  resolveBackendAssetUrl,
   useBackendBase,
   useBackendUrl,
   createBackendUrlGetter,

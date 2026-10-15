@@ -122,7 +122,7 @@
         <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
           <img
             v-if="selectedResult?.image_url"
-            :src="selectedResult.image_url"
+            :src="resolveBackendAssetUrl(selectedResult.image_url) ?? undefined"
             :alt="selectedResult?.prompt ?? 'Generated image'"
             class="w-full"
           >
@@ -162,6 +162,7 @@ import type {
   ResultItemView,
 } from '@/features/generation/orchestrator'
 import type { DeepReadonly } from '@/utils/freezeDeep'
+import { resolveBackendAssetUrl } from '@/utils/backend'
 
 const props = defineProps<{
   isConnected: boolean
