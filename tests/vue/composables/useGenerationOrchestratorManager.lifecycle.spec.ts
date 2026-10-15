@@ -139,6 +139,85 @@ describe('useGenerationOrchestratorManager lifecycle', () => {
     retrying.release();
   });
 
+  it('re-initializes a fresh orchestrator when the last consumer released during startup', async () => {
+    const { orchestratorStore, useManager } = setup();
+    const managerStore = useGenerationOrchestratorManagerStore();
+
+    let resolveFirst!: () => void;
+    orchestratorStore.initialize.mockImplementationOnce(
+      () => new Promise<void>((resolve) => { resolveFirst = resolve; }),
+    );
+    let resolveSecond!: () => void;
+    orchestratorStore.initialize.mockImplementationOnce(
+      () => new Promise<void>((resolve) => { resolveSecond = resolve; }),
+    );
+
+    const callSiteA = useManager();
+    const bindingA = callSiteA.acquire({ notify: vi.fn() });
+    const firstAttempt = bindingA.initialize();
+
+    // The last consumer leaves while initialize() is still pending (e.g. a fast route change).
+    bindingA.release();
+    expect(orchestratorStore.destroy).toHaveBeenCalledTimes(1);
+
+    resolveFirst();
+    await expect(firstAttempt).resolves.toBeUndefined();
+    expect(managerStore.isInitialized).toBe(false);
+    expect(managerStore.initializationPromise).toBeNull();
+
+    orchestratorStore.resumeTransport.mockClear();
+
+    const callSiteB = useManager();
+    const bindingB = callSiteB.acquire({ notify: vi.fn() });
+    const secondAttempt = bindingB.initialize();
+
+    expect(orchestratorStore.initialize).toHaveBeenCalledTimes(2);
+    expect(managerStore.isInitialized).toBe(false);
+
+    resolveSecond();
+    await secondAttempt;
+    expect(managerStore.isInitialized).toBe(true);
+    // Only B's attempt syncs the environment.
+    expect(orchestratorStore.resumeTransport).toHaveBeenCalledTimes(1);
+
+    bindingB.release();
+  });
+
+  it('rejects a superseded failed attempt without touching the current state', async () => {
+    const { orchestratorStore, useManager } = setup();
+    const managerStore = useGenerationOrchestratorManagerStore();
+
+    let rejectFirst!: (error: Error) => void;
+    orchestratorStore.initialize.mockImplementationOnce(
+      () => new Promise<void>((_resolve, reject) => { rejectFirst = reject; }),
+    );
+    let resolveSecond!: () => void;
+    orchestratorStore.initialize.mockImplementationOnce(
+      () => new Promise<void>((resolve) => { resolveSecond = resolve; }),
+    );
+
+    const bindingA = useManager().acquire({ notify: vi.fn() });
+    const firstAttempt = bindingA.initialize();
+    bindingA.release();
+
+    const bindingB = useManager().acquire({ notify: vi.fn() });
+    const secondAttempt = bindingB.initialize();
+    expect(orchestratorStore.initialize).toHaveBeenCalledTimes(2);
+
+    resolveSecond();
+    await secondAttempt;
+    expect(managerStore.isInitialized).toBe(true);
+    expect(managerStore.initializationPromise).toBeNull();
+
+    // The stale attempt still rejects for its caller but must not reset the live state.
+    const error = new Error('stale startup failed');
+    rejectFirst(error);
+    await expect(firstAttempt).rejects.toThrow(error);
+    expect(managerStore.isInitialized).toBe(true);
+
+    bindingB.release();
+  });
+
   it('handles one backend URL change exactly once across call sites', async () => {
     const { orchestratorStore, backendUrl, useManager } = setup();
 

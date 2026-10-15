@@ -161,6 +161,8 @@ export const useGenerationOrchestratorManagerStore = defineStore('generation-orc
   let activeOrchestratorStore: GenerationOrchestratorStore | null = null;
   let lastEnvironmentKey = '';
   let lastPauseActive = false;
+  // Bumped by every teardown, so work from an attempt that started before it is recognised as stale.
+  let lifecycleEpoch = 0;
 
   const ensureOrchestrator = (factory: () => GenerationOrchestratorStore): GenerationOrchestratorStore => {
     if (!orchestrator.value) {
@@ -378,6 +380,7 @@ export const useGenerationOrchestratorManagerStore = defineStore('generation-orc
   };
 
   const destroyOrchestrator = (): void => {
+    lifecycleEpoch += 1;
     stopEffects();
 
     if (orchestrator.value) {
@@ -398,6 +401,8 @@ export const useGenerationOrchestratorManagerStore = defineStore('generation-orc
       return;
     }
 
+    const epoch = lifecycleEpoch;
+
     if (!initializationPromise.value) {
       const orchestratorInstance = ensureOrchestrator(() => orchestratorStore);
 
@@ -412,11 +417,18 @@ export const useGenerationOrchestratorManagerStore = defineStore('generation-orc
           queueClient: initializeOptions.queueClient,
           websocketManager: initializeOptions.websocketManager,
         })
+        // Only the current attempt may change shared state. If the orchestrator was destroyed (or
+        // another attempt replaced this one) while initialize() was pending, the caller still sees
+        // this attempt settle, but a fresh orchestrator must not be marked initialized by it.
         .then(() => {
-          isInitialized.value = true;
+          if (initializationPromise.value === promise) {
+            isInitialized.value = true;
+          }
         })
         .catch((error: unknown) => {
-          isInitialized.value = false;
+          if (initializationPromise.value === promise) {
+            isInitialized.value = false;
+          }
           throw error;
         })
         .finally(() => {
@@ -429,7 +441,10 @@ export const useGenerationOrchestratorManagerStore = defineStore('generation-orc
     }
 
     await initializationPromise.value;
-    applyEnvironmentPauseState('environment:sync', { force: true });
+
+    if (epoch === lifecycleEpoch) {
+      applyEnvironmentPauseState('environment:sync', { force: true });
+    }
   };
 
   const acquire = (
