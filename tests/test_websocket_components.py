@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from typing import List
@@ -290,6 +291,50 @@ async def test_monitor_skips_ticks_without_persisted_state() -> None:
 
     assert updates == []
     assert client.calls == []
+
+
+@pytest.mark.anyio
+async def test_monitor_loads_persisted_state_off_the_event_loop() -> None:
+    loop_thread = threading.get_ident()
+
+    class _ThreadRecordingRepository(_FixedStateRepository):
+        def __init__(self) -> None:
+            super().__init__(_persisted("succeeded"))
+            self.threads: List[int] = []
+
+        def get_job_state(self, job_id: str) -> PersistedJobState | None:
+            self.threads.append(threading.get_ident())
+            return super().get_job_state(job_id)
+
+    repository = _ThreadRecordingRepository()
+    _, completions = await _run_monitor(repository, _GlobalProgressClient(progress=0.0))
+
+    assert len(completions) == 1
+    assert repository.threads
+    assert loop_thread not in repository.threads
+
+
+@pytest.mark.anyio
+async def test_monitor_skips_tick_when_state_load_fails() -> None:
+    class _FailingOnceRepository(_FixedStateRepository):
+        def __init__(self) -> None:
+            super().__init__(_persisted("succeeded"))
+            self.calls = 0
+
+        def get_job_state(self, job_id: str) -> PersistedJobState | None:
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("database unavailable")
+            return super().get_job_state(job_id)
+
+    repository = _FailingOnceRepository()
+    updates, completions = await _run_monitor(
+        repository, _GlobalProgressClient(progress=0.0)
+    )
+
+    assert repository.calls == 2
+    assert len(updates) == 1
+    assert len(completions) == 1
 
 
 @pytest.mark.anyio

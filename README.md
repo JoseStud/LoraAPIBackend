@@ -87,6 +87,10 @@ WebSocket progress remains experimental. The demonstration covers queued
 text-to-image generation and does not validate those other workflows, image
 quality, GPU throughput, multi-user isolation or crash recovery during inference.
 
+Run the API as a single uvicorn process (no `--workers`, no replicas): WebSocket
+connections and job progress monitors live in that process's memory, so another
+process would never see them. RQ workers are separate processes and can scale.
+
 ## Security model
 
 This is a **single-user tool for a trusted local network**. It has no user
