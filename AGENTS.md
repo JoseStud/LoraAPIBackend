@@ -151,9 +151,13 @@ Read these before changing the matching subsystem:
   instead of adding polling to components. Polling intervals come from
   `features/generation/config/polling.ts`. `/system/status` has one poller per
   backend, `features/generation/stores/systemStatusController.ts`, shared by
-  the Studio transport and the dashboard status card; it pauses itself while
-  the page is hidden or offline, and the transport's status refresh goes
-  through it. The progress socket's message
+  the Studio transport and the dashboard status card, and the transport's
+  status refresh goes through it. Every other interval poller (the status
+  controller, admin metrics, analytics auto-refresh) runs on
+  `composables/shared/usePolling.ts`, which pauses the timer while the page is
+  hidden or offline and runs once on resume; its listeners exist only between
+  `start()` and `stop()`, so the owner must stop it. Build new pollers on it
+  rather than on a bare `setInterval`. The progress socket's message
   shapes are pinned by `tests/fixtures/generation_websocket_contract.json`,
   checked from both sides (`tests/test_websocket_contract.py` and
   `websocketContract.spec.ts`); regenerate it with `UPDATE_WS_CONTRACT=1`

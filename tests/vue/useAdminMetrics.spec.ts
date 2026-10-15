@@ -23,6 +23,8 @@ import {
   fetchDashboardStats,
 } from '@/services/system/systemService';
 
+import { createPageEnvironment } from '../mocks/pageEnvironment';
+
 const fetchDashboardStatsMock = vi.mocked(fetchDashboardStats);
 const deriveMetricsFromDashboardMock = vi.mocked(deriveMetricsFromDashboard);
 const emptyMetricsSnapshotMock = vi.mocked(emptyMetricsSnapshot);
@@ -134,5 +136,56 @@ describe('useAdminMetrics composable', () => {
     vi.advanceTimersByTime(2_000);
     await flushAsync();
     expect(refreshSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('pauses the shared loop while hidden or offline and refreshes once on resume', async () => {
+    const environment = createPageEnvironment();
+    environment.install();
+    const addListener = vi.spyOn(document, 'addEventListener');
+    const removeListener = vi.spyOn(document, 'removeEventListener');
+
+    const first = mount(createHarness(1_000));
+    const second = mount(createHarness(1_000));
+    await flushAsync();
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    expect(addListener.mock.calls.filter(([type]) => type === 'visibilitychange')).toHaveLength(1);
+
+    environment.setHidden(true);
+    vi.advanceTimersByTime(5_000);
+    await flushAsync();
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+
+    environment.setHidden(false);
+    await flushAsync();
+    expect(refreshSpy).toHaveBeenCalledTimes(2);
+
+    environment.setOnline(false);
+    vi.advanceTimersByTime(5_000);
+    await flushAsync();
+    expect(refreshSpy).toHaveBeenCalledTimes(2);
+
+    environment.setOnline(true);
+    await flushAsync();
+    expect(refreshSpy).toHaveBeenCalledTimes(3);
+
+    vi.advanceTimersByTime(1_000);
+    await flushAsync();
+    expect(refreshSpy).toHaveBeenCalledTimes(4);
+
+    first.unmount();
+    expect(removeListener.mock.calls.filter(([type]) => type === 'visibilitychange')).toHaveLength(0);
+
+    second.unmount();
+    expect(removeListener.mock.calls.filter(([type]) => type === 'visibilitychange')).toHaveLength(1);
+
+    environment.setHidden(true);
+    environment.setHidden(false);
+    vi.advanceTimersByTime(5_000);
+    await flushAsync();
+    expect(refreshSpy).toHaveBeenCalledTimes(4);
+
+    addListener.mockRestore();
+    removeListener.mockRestore();
+    environment.restore();
   });
 });
