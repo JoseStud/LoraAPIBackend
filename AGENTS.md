@@ -138,10 +138,15 @@ Read these before changing the matching subsystem:
   visibility/online/offline listeners. Effects start on the first `acquire()`
   and stop when the last consumer releases, from any call site. Acquire
   bindings with `useGenerationOrchestratorManager().acquire(...)`; never create
-  orchestrator instances inside components.
-- **Transport**: queue polling, WebSocket updates and store syncing are wired in
-  `features/generation/composables/useGenerationTransport.ts` and
-  `createGenerationTransportAdapter.ts`, with state in
+  orchestrator instances inside components. The Studio's binding and view
+  state live in `features/generation/composables/useGenerationStudioController.ts`,
+  composed by `useGenerationStudio.ts`; dashboard widgets must not import them.
+  ADR 007's 2026-10-15 amendment has the full module map.
+- **Transport**: queue polling and WebSocket updates are wired in
+  `features/generation/stores/orchestrator/transportAdapter.ts` (HTTP through
+  `composables/useGenerationQueueClient.ts`, the socket through
+  `services/websocketManager.ts`). Transport state, the store's transport
+  commands and the routing of adapter callbacks into the store live in
   `features/generation/stores/orchestrator/transportModule.ts`. Extend those
   instead of adding polling to components. Polling intervals come from
   `features/generation/config/polling.ts`. The progress socket's message
@@ -151,9 +156,12 @@ Read these before changing the matching subsystem:
   only for a deliberate backend change, then fix
   `services/websocketMessages.ts`.
 - **Shared state**: `features/generation/stores/useGenerationOrchestratorStore.ts`
-  holds jobs, results (capped by the history limit) and system status;
-  `useJobQueue` only mirrors the manager's sorted queue. Snapshots are frozen
-  with `freezeDeep` and throw on mutation in every build.
+  holds jobs, results (capped by the history limit) and system status, in
+  `stores/orchestrator/queueModule.ts`, `resultsModule.ts` and
+  `systemStatusModule.ts`; `useJobQueue`
+  (`features/generation/composables/useJobQueueActions.ts`) only mirrors the
+  manager's sorted queue. Snapshots are frozen with `freezeDeep` and throw on
+  mutation in every build.
 - **Adapter catalog**: `features/lora/stores/adapterCatalog.ts` caches adapter
   summaries for the gallery and recommendations; read it through
   `useAdapterSummaries` / `useLoraSummaries`.

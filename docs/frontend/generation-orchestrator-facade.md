@@ -14,7 +14,9 @@ import { useGenerationOrchestratorFacade } from '@/features/generation/orchestra
 import type { GenerationOrchestratorFacade } from '@/features/generation/orchestrator';
 ```
 
-The `@/features/generation/orchestrator` barrel exports both the factory and the façade type.
+`@/features/generation/orchestrator` is a path alias (Vite, Vitest and `tsconfig.json`) for
+`orchestrator/facade.ts`, which exports both the factory and the façade type. Code outside the
+feature imports `useGenerationOrchestratorFacade` from `@/features/generation/public`.
 It wires together the orchestrator store, the manager store, and the shared notification
 adapter so that every consumer interacts with a single, shared orchestrator instance.
 
@@ -62,12 +64,13 @@ logs start/success/error events and updates the telemetry selectors listed above
 
 ## Lifecycle guarantees
 
-The façade acquires access to the orchestrator through `useGenerationOrchestratorManagerStore`,
-which tracks active consumers and orchestrates initialization/cleanup. Tests and downstream
+The façade acquires access to the orchestrator through `useGenerationOrchestratorManagerStore`
+(`stores/orchestratorManagerStore.ts`), which tracks active consumers and orchestrates
+initialization/cleanup. Tests and downstream
 features must never instantiate the orchestrator store directly—doing so bypasses the shared
 transport binding and reintroduces the duplicate polling issues the refactor eliminated.
 
 When extending the façade, add new selectors or commands to `facade.ts` rather than exporting
 additional helpers from the Pinia stores. This keeps the public surface narrow while allowing
-the underlying modules (`queueModule`, `resultsModule`, `systemStatusModule`, `transportModule`)
-to evolve without breaking consumers.
+the underlying modules (`queueModule`, `resultsModule`, `systemStatusModule`, `transportModule`
+and the `transportAdapter`, all in `stores/orchestrator/`) to evolve without breaking consumers.

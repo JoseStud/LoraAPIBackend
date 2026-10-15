@@ -6,10 +6,12 @@ The generation orchestrator store (`useGenerationOrchestratorStore`) lives in
 façade over specialised queue, results, system-status, and transport modules, exposing immutable
 state snapshots and explicit lifecycle hooks while delegating heavy lifting to helper modules.
 
-Recent frontend architecture changes introduced a dedicated manager store that ensures the
-orchestrator is instantiated exactly once and that all long-lived watchers reside outside the
-store. Always acquire the orchestrator through `useGenerationOrchestratorManager()` so the shared
-transport bindings and teardown logic remain intact.
+A dedicated manager store (`stores/orchestratorManagerStore.ts`) ensures the orchestrator is
+instantiated exactly once and that all long-lived watchers and environment listeners reside
+outside the store. Always acquire the orchestrator through `useGenerationOrchestratorManager()`
+(a thin per-call wrapper over that store) so the shared transport bindings and teardown logic
+remain intact. The full module map is in ADR 007
+(`docs/architecture/adr-generation-orchestrator-thin-facade.md`).
 
 ## Reactive State (Read-Only Snapshots)
 All reactive state is exposed as immutable snapshots via `freezeDeep`. Consumers receive frozen
@@ -60,16 +62,27 @@ All updates flow through explicit actions listed below.
 
 ## Helper Module Responsibilities
 
+All helpers live in `stores/orchestrator/`.
+
 - **Queue module (`queueModule.ts`)** – Normalises incoming jobs, tracks optimistic entries, and
   exposes lookup helpers (`getJobByIdentifier`, `isJobCancellable`, `clearCompletedJobs`).
 - **Results module (`resultsModule.ts`)** – Maintains the recent results cache, enforces history
   limits, and converts backend payloads into immutable result objects.
 - **System status module (`systemStatusModule.ts`)** – Tracks backend connectivity, exposes
   `queueManagerActive`, and publishes polling cadence updates consumed by the transport module.
-- **Transport module (`transportModule.ts`)** – Records connection snapshots, metrics, retry
-  counters, and last-seen errors while storing the active transport adapter instance.
-- **Adapter handlers (`adapterHandlers.ts`)** – Bridge transport callbacks into the queue/results
-  modules so WebSocket and polling responses remain type-safe.
+- **Transport module (`transportModule.ts`)** – Three factories the store composes:
+  - `createTransportModule` records connection snapshots, metrics, retry counters, pause state and
+    last-seen errors while storing the active transport adapter instance;
+  - `createTransportActions` implements the data-loading and queue commands (`loadRecentResults`,
+    `startGeneration`, `cancelJob`, ...) against that adapter;
+  - `createAdapterHandlers` bridges transport callbacks into the queue/results/system-status
+    modules so WebSocket and polling responses remain type-safe, and reports finished jobs so the
+    store can refresh results.
+- **Transport adapter (`transportAdapter.ts`)** – `createGenerationTransportAdapter` combines HTTP
+  polling (`composables/useGenerationQueueClient.ts`, intervals from `config/polling.ts`) and the
+  progress WebSocket (`services/websocketManager.ts`) behind one object with `initialize`,
+  `pause`, `resume` and `clear`. Creating it starts nothing; the store's lifecycle methods start
+  and stop it.
 
 ## Behavioural Guarantees
 
