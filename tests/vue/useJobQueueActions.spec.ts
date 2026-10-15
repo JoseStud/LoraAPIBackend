@@ -83,7 +83,6 @@ const createBindingMock = (): GenerationOrchestratorBinding => {
     systemStatus: ref({ status: 'healthy' } as const),
     isConnected: ref(true),
     initialize: vi.fn(),
-    cleanup: vi.fn(),
     loadSystemStatusData: vi.fn(),
     loadActiveJobsData: vi.fn(),
     loadRecentResultsData: vi.fn(),

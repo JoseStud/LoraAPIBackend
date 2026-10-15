@@ -22,7 +22,6 @@ const orchestratorBindingMocks = vi.hoisted(() => {
     systemStatus: ref({ status: 'healthy' }),
     isConnected: ref(true),
     initialize: vi.fn().mockResolvedValue(undefined),
-    cleanup: vi.fn(),
     loadSystemStatusData: vi.fn(),
     loadActiveJobsData: vi.fn(),
     loadRecentResultsData: vi.fn(),

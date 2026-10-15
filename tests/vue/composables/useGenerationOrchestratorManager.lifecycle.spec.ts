@@ -4,7 +4,7 @@
  * queue, prompt composer, etc. do) against the real manager store and a mocked orchestrator store.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 
 import {
   createUseGenerationOrchestratorManager,
@@ -16,6 +16,8 @@ import {
   type GenerationOrchestratorStore,
 } from '@/features/generation/stores/useGenerationOrchestratorStore';
 import type { useBackendUrl } from '@/utils/backend';
+import type { GenerationJobView } from '@/features/generation/orchestrator';
+import type { GenerationRequestPayload } from '@/types';
 
 const ENVIRONMENT_EVENTS = ['visibilitychange', 'online', 'offline'] as const;
 
@@ -31,7 +33,16 @@ const createOrchestratorStoreMock = () => ({
   transportPauseSince: ref<number | null>(null),
   initialize: vi.fn().mockResolvedValue(undefined),
   setHistoryLimit: vi.fn(),
+  loadSystemStatusData: vi.fn().mockResolvedValue(undefined),
+  loadActiveJobsData: vi.fn().mockResolvedValue(undefined),
   loadRecentResults: vi.fn().mockResolvedValue(undefined),
+  startGeneration: vi.fn().mockResolvedValue({}),
+  cancelJob: vi.fn().mockResolvedValue(undefined),
+  removeJob: vi.fn(),
+  clearCompletedJobs: vi.fn(),
+  clearQueue: vi.fn().mockResolvedValue(undefined),
+  deleteResult: vi.fn().mockResolvedValue(undefined),
+  isJobCancellable: vi.fn().mockReturnValue(true),
   handleBackendUrlChange: vi.fn().mockResolvedValue(undefined),
   pauseTransport: vi.fn(),
   resumeTransport: vi.fn().mockResolvedValue(undefined),
@@ -118,6 +129,120 @@ describe('useGenerationOrchestratorManager lifecycle', () => {
     expect(managerStore.isInitialized).toBe(false);
     expect(managerStore.orchestrator).toBeNull();
     expect(managerStore.consumers.size).toBe(0);
+  });
+
+  it('notifies watchers of the consumer set as call sites acquire and release', () => {
+    const { useManager } = setup();
+    const managerStore = useGenerationOrchestratorManagerStore();
+    const consumerCount = computed(() => managerStore.consumers.size);
+    const seen: number[] = [];
+    const stop = watch(consumerCount, (size) => seen.push(size), { flush: 'sync' });
+
+    expect(consumerCount.value).toBe(0);
+
+    const bindingA = useManager().acquire({ notify: vi.fn() });
+    const bindingB = useManager().acquire({ notify: vi.fn() });
+    expect(consumerCount.value).toBe(2);
+
+    bindingA.release();
+    expect(consumerCount.value).toBe(1);
+
+    // A repeated release changes nothing.
+    bindingA.release();
+    bindingB.release();
+    expect(consumerCount.value).toBe(0);
+    expect(seen).toEqual([1, 2, 1, 0]);
+
+    stop();
+  });
+
+  it('keeps a released binding inert while another call site still holds the orchestrator', async () => {
+    const { orchestratorStore, useManager } = setup();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const released = useManager().acquire({ notify: vi.fn() });
+    const live = useManager().acquire({ notify: vi.fn() });
+    await Promise.all([released.initialize(), live.initialize()]);
+
+    released.release();
+
+    await expect(released.startGeneration({} as GenerationRequestPayload)).rejects.toThrow(
+      /binding was released; cannot run startGeneration\(\)/,
+    );
+    await expect(released.cancelJob('job-1')).rejects.toThrow(/released/);
+    released.removeJob('job-1');
+    expect(released.canCancelJob({} as GenerationJobView)).toBe(false);
+
+    expect(orchestratorStore.startGeneration).not.toHaveBeenCalled();
+    expect(orchestratorStore.cancelJob).not.toHaveBeenCalled();
+    expect(orchestratorStore.removeJob).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('removeJob() ignored'));
+
+    // The other call site's binding is unaffected.
+    await live.cancelJob('job-1');
+    expect(orchestratorStore.cancelJob).toHaveBeenCalledWith('job-1');
+    expect(live.canCancelJob({} as GenerationJobView)).toBe(true);
+
+    live.release();
+  });
+
+  it('does not resurrect the orchestrator through a binding released by the last consumer', async () => {
+    const { orchestratorStore, useManager } = setup();
+    const managerStore = useGenerationOrchestratorManagerStore();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const bindingA = useManager().acquire({ notify: vi.fn() });
+    const bindingB = useManager().acquire({ notify: vi.fn() });
+    await Promise.all([bindingA.initialize(), bindingB.initialize()]);
+
+    bindingA.release();
+    bindingB.release();
+    expect(managerStore.orchestrator).toBeNull();
+    expect(orchestratorStore.destroy).toHaveBeenCalledTimes(1);
+
+    const asyncCommands = [
+      () => bindingA.initialize(),
+      () => bindingA.loadSystemStatusData(),
+      () => bindingA.loadActiveJobsData(),
+      () => bindingB.loadRecentResultsData(),
+      () => bindingB.startGeneration({} as GenerationRequestPayload),
+      () => bindingB.cancelJob('job-1'),
+      () => bindingA.clearQueue(),
+      () => bindingA.deleteResult('result-1'),
+      () => bindingB.refreshResults(true),
+      () => bindingB.handleBackendUrlChange(),
+    ];
+    for (const command of asyncCommands) {
+      await expect(command()).rejects.toThrow(/Generation orchestrator binding was released/);
+    }
+
+    bindingA.removeJob('job-1');
+    bindingA.clearCompletedJobs();
+    bindingB.setHistoryLimit(10);
+    expect(bindingB.canCancelJob({} as GenerationJobView)).toBe(false);
+
+    expect(managerStore.orchestrator).toBeNull();
+    expect(managerStore.isInitialized).toBe(false);
+    expect(orchestratorStore.initialize).toHaveBeenCalledTimes(1);
+    expect(orchestratorStore.loadRecentResults).not.toHaveBeenCalled();
+    expect(orchestratorStore.removeJob).not.toHaveBeenCalled();
+    expect(orchestratorStore.clearCompletedJobs).not.toHaveBeenCalled();
+    expect(orchestratorStore.setHistoryLimit).not.toHaveBeenCalled();
+    // No effects were restarted behind the manager's back.
+    ENVIRONMENT_EVENTS.forEach((event) => {
+      expect(added(event)).toHaveLength(1);
+    });
+
+    // Releasing again stays a no-op, and a fresh acquire still works normally.
+    bindingA.release();
+    bindingB.release();
+    expect(orchestratorStore.destroy).toHaveBeenCalledTimes(1);
+
+    const bindingC = useManager().acquire({ notify: vi.fn() });
+    await bindingC.initialize();
+    expect(managerStore.isInitialized).toBe(true);
+    expect(orchestratorStore.initialize).toHaveBeenCalledTimes(2);
+    bindingC.release();
   });
 
   it('retries initialization when setup fails and a new consumer subscribes', async () => {
