@@ -88,6 +88,27 @@ def test_claim_job_only_from_waiting_statuses(db_session):
     assert service.claim_job("missing") is None
 
 
+def test_claim_from_retrying_restarts_started_at(db_session):
+    """Recovery measures a retried attempt from its own start."""
+    service = _service(db_session)
+    job = service.create_job("p", "cli", {})
+    first = service.claim_job(job.id).started_at
+    service.finish_job(job.id, "retrying", {"error": "x", "retries_left": 1})
+    stored = service.get_job(job.id)
+    stored.started_at = first - timedelta(hours=2)
+    db_session.add(stored)
+    db_session.commit()
+
+    retried = service.claim_job(job.id)
+
+    assert retried.status == "running"
+    assert retried.started_at >= first
+    failed = service.fail_running_jobs(
+        older_than=timedelta(hours=1), result=INTERRUPTED_RESULT
+    )
+    assert failed == []
+
+
 def test_finish_job_keeps_cancelled_status(db_session):
     service = _service(db_session)
     job = service.create_job("p", "cli", {})

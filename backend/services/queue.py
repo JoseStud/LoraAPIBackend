@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from concurrent.futures import Future
-from typing import Any, Callable, Optional, Protocol, Tuple, Type
+from typing import Any, Callable, List, Optional, Protocol, Sequence, Tuple, Type
 
 import structlog
 
@@ -47,7 +47,15 @@ class QueueBackend(ABC):
 
 
 class RedisQueueBackend(QueueBackend):
-    """Redis-backed queue implementation using RQ."""
+    """Redis-backed queue implementation using RQ.
+
+    Jobs are retried by RQ when the task raises, ``max_retries`` times. Each
+    attempt reads its remaining retries from the RQ job and the runner marks
+    the delivery ``retrying`` (or ``failed`` on the last attempt), so the next
+    attempt can claim it again. A retry of a job that was cancelled meanwhile,
+    or that a timed-out attempt left ``running``, cannot claim it and does
+    nothing.
+    """
 
     def __init__(
         self,
@@ -55,6 +63,8 @@ class RedisQueueBackend(QueueBackend):
         queue_name: str = "default",
         task_name: str = "backend.workers.tasks.process_delivery",
         job_timeout: Optional[int] = None,
+        max_retries: int = 0,
+        retry_intervals: Optional[Sequence[int]] = None,
     ) -> None:
         """Initialise the Redis queue backend.
 
@@ -64,12 +74,21 @@ class RedisQueueBackend(QueueBackend):
             task_name: Fully qualified task path executed by workers.
             job_timeout: Seconds RQ lets a job run before killing it; ``None``
                 keeps RQ's default.
+            max_retries: How often RQ retries a job whose task raised; 0
+                disables retries.
+            retry_intervals: Seconds to wait before each retry; RQ reuses the
+                first one when there are fewer intervals than retries. Delays
+                above 0 need a worker started with ``--with-scheduler``.
 
         """
+        if max_retries < 0:
+            raise ValueError("max_retries must not be negative")
         self.redis_url = redis_url
         self.queue_name = queue_name
         self.task_name = task_name
         self.job_timeout = job_timeout
+        self.max_retries = max_retries
+        self.retry_intervals: List[int] = list(retry_intervals or [])
         self._queue = None
 
     def _get_queue(self):
@@ -118,6 +137,18 @@ class RedisQueueBackend(QueueBackend):
         """Public helper to reset the cached Redis queue instance."""
         self._reset_queue()
 
+    def _build_retry(self) -> Any:
+        """Return the RQ ``Retry`` policy for new jobs, or ``None`` for none."""
+        if self.max_retries <= 0:
+            return None
+        try:
+            from rq import Retry
+        except ModuleNotFoundError as exc:  # pragma: no cover - optional dependency
+            raise RuntimeError(
+                "Redis queue backend requires the optional 'rq' package.",
+            ) from exc
+        return Retry(max=self.max_retries, interval=self.retry_intervals or 0)
+
     def _is_connection_error(self, exc: Exception) -> bool:
         """Return ``True`` when ``exc`` represents a Redis connection failure."""
         error_types: list[Type[BaseException]] = []
@@ -157,9 +188,15 @@ class RedisQueueBackend(QueueBackend):
         background_tasks: Optional[TaskScheduler] = None,
         **enqueue_kwargs: Any,
     ) -> Any:
-        """Enqueue ``job_id`` on the configured Redis queue."""
+        """Enqueue ``job_id`` on the configured Redis queue.
+
+        The backend's job timeout and retry policy apply unless the caller
+        passes ``job_timeout`` or ``retry`` (``retry=None`` disables retries).
+        """
         if self.job_timeout is not None:
             enqueue_kwargs.setdefault("job_timeout", self.job_timeout)
+        if "retry" not in enqueue_kwargs:
+            enqueue_kwargs["retry"] = self._build_retry()
         queue = self._get_queue()
         try:
             return queue.enqueue(self.task_name, job_id, **enqueue_kwargs)
@@ -180,6 +217,8 @@ class BackgroundTaskQueueBackend(QueueBackend):
     Jobs go to the process-wide :class:`InProcessJobRunner`, which runs them
     in order on its own thread and event loop, so in-process jobs never
     overlap on SDNext and every request and recovery pass shares one queue.
+    Each job runs once: there is no retry, so a job whose runner raises is
+    marked ``failed``.
     """
 
     def __init__(
@@ -327,7 +366,10 @@ class QueueOrchestrator:
         redis_url = self._redis_url_factory()
         if redis_url:
             self._primary_backend = RedisQueueBackend(
-                redis_url, job_timeout=settings.job_running_timeout_seconds
+                redis_url,
+                job_timeout=settings.job_running_timeout_seconds,
+                max_retries=settings.DELIVERY_MAX_RETRIES,
+                retry_intervals=settings.delivery_retry_intervals,
             )
 
         return self._primary_backend
