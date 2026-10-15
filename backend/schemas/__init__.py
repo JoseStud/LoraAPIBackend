@@ -60,11 +60,13 @@ from .import_export import (
 from .recommendations import (
     BatchEmbeddingRequest,
     BatchEmbeddingResponse,
+    EmbeddingComputeResponse,
     EmbeddingStatus,
     IndexRebuildResponse,
     PromptRecommendationRequest,
     RecommendationFeedbackRead,
     RecommendationItem,
+    RecommendationJobRead,
     RecommendationRequest,
     RecommendationResponse,
     RecommendationStats,
@@ -137,7 +139,9 @@ __all__ = [
     "EmbeddingStatus",
     "BatchEmbeddingRequest",
     "BatchEmbeddingResponse",
+    "EmbeddingComputeResponse",
     "IndexRebuildResponse",
+    "RecommendationJobRead",
     # Common
     "WebSocketMessage",
     "WebSocketSubscription",

@@ -22,7 +22,8 @@ service runs without the wrapper in `app/main.py`). Routes are implemented under
 
 - **Database** – Defaults to SQLite; configure `DATABASE_URL` for other engines.
 - **Redis** – Optional primary queue backend. When absent the orchestrator falls
-  back to FastAPI background tasks.
+  back to an in-process runner that executes jobs one at a time on its own
+  thread and event loop.
 - **SDNext** – Required for real image generation. Without it the generation
   endpoints return validation payloads or failed status objects.
 - **Recommendation ML stack** – Optional packages listed in
@@ -103,22 +104,50 @@ message carries the same browser-loadable sources as `image_url`.
 - `POST /v1/recommendations/for-prompt` – Suggest adapters that complement a
   prompt.
 - `GET /v1/recommendations/stats` – Summarise embedding status and usage.
-- `POST /v1/recommendations/embeddings/compute` – Compute embeddings for one or
-  more adapters (requires ML stack).
+- `POST /v1/recommendations/embeddings/compute` – Queue embedding computation
+  for the listed adapters, or every active adapter with `compute_all` (requires
+  ML stack). Returns `202` with a recommendation job.
 - `GET /v1/recommendations/embeddings/{lora_id}` – Inspect the embedding status
   for an adapter.
-- `POST /v1/recommendations/embeddings/{lora_id}/compute` – Compute embeddings
-  for a specific adapter, optionally forcing recomputation.
+- `POST /v1/recommendations/embeddings/{lora_id}/compute` – Queue embedding
+  computation for a specific adapter, optionally forcing recomputation.
+  Returns `202` with a recommendation job, or `404` for an unknown adapter.
 - `POST /v1/recommendations/feedback` – Persist explicit user feedback for
   recommendation quality tuning.
 - `POST /v1/recommendations/preferences` – Store user preference profiles that
   influence future recommendations.
-- `POST /v1/recommendations/index/rebuild` – Refresh similarity indexes used by
-  the recommendation engine.
+- `POST /v1/recommendations/index/rebuild` – Queue a refresh of the similarity
+  index used by the recommendation engine. Returns `202` with a recommendation
+  job.
+- `GET /v1/recommendations/jobs/{job_id}` – Poll a recommendation job; `404`
+  for an unknown or expired id.
 - `GET /v1/recommendations/health` – Summarise runtime health checks and
   readiness for the recommendation subsystem.
 - Feedback and preference persistence requires the optional feedback storage
   configured in `RecommendationService`.
+
+Embedding computation and index rebuilds can take minutes, so those three
+endpoints only enqueue the work. Each returns a `RecommendationJobRead`:
+
+```jsonc
+{
+  "job_id": "3f0c…",            // 32 hex characters
+  "kind": "embeddings_batch",   // or "embedding", "index_rebuild"
+  "status": "queued",           // "queued" | "running" | "succeeded" | "failed"
+  "created_at": "…", "started_at": null, "finished_at": null,
+  "result": null,
+  "error": null
+}
+```
+
+Once `status` is `succeeded`, `result` holds what the endpoint used to return
+directly: a `BatchEmbeddingResponse` (`embeddings_batch`), an
+`EmbeddingComputeResponse` (`{"status": "success", "message": …}`, `embedding`)
+or an `IndexRebuildResponse` (`index_rebuild`). A `failed` job carries a generic
+`error` message; the details are only logged on the server. With Redis the jobs
+run on the RQ worker (same queue as deliveries); without it they run in the API
+process, one at a time behind generation jobs, and their status is kept in
+memory, so it is lost on restart. Finished jobs can be polled for 24 hours.
 
 > **Note:** Recommendation endpoints ignore the `lora.description` field when
 > constructing embeddings or scores. The description remains available in API

@@ -138,9 +138,11 @@ This multi-factor approach ensures that the recommendations are not just similar
 
 The recommendation engine is exposed through a set of REST API endpoints in `backend/api/v1/recommendations.py`.
 
--   **`POST /v1/recommendations/embeddings/compute`**: Computes and caches embeddings for a list of LoRAs.
+-   **`POST /v1/recommendations/embeddings/compute`**: Queues embedding computation for a list of LoRAs (or all active ones) and returns `202` with a job id.
+-   **`POST /v1/recommendations/embeddings/{lora_id}/compute`** and **`POST /v1/recommendations/index/rebuild`**: Queue embedding computation for one LoRA and a similarity index rebuild, the same way.
+-   **`GET /v1/recommendations/jobs/{job_id}`**: Reports a queued job's status and, once it has succeeded, the result the endpoint used to return directly.
 -   **`GET /v1/recommendations/similar/{lora_id}`**: Gets a list of similar LoRAs for a given LoRA.
--   **`POST /v1/recommendations/prompt`**: Recommends LoRAs based on a user-provided text prompt.
+-   **`POST /v1/recommendations/for-prompt`**: Recommends LoRAs based on a user-provided text prompt.
 
 ---
 

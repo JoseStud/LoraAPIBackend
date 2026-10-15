@@ -18,7 +18,9 @@ from .generation import (
     make_generation_service,
 )
 from .recommendations import (
+    RecommendationJobServiceFactory,
     RecommendationServiceFactory,
+    make_recommendation_job_service,
     make_recommendation_service,
 )
 from .storage import (
@@ -42,6 +44,7 @@ __all__ = [
     "DeliveryServiceFactory",
     "GenerationCoordinatorFactory",
     "GenerationServiceFactory",
+    "RecommendationJobServiceFactory",
     "RecommendationServiceFactory",
     "StorageServiceFactory",
     "SystemServiceFactory",
@@ -54,6 +57,7 @@ __all__ = [
     "make_delivery_service",
     "make_generation_coordinator",
     "make_generation_service",
+    "make_recommendation_job_service",
     "make_recommendation_service",
     "make_storage_service",
     "make_system_service",

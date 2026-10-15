@@ -7,6 +7,7 @@ from typing import List, Optional
 from rq import get_current_job
 
 from backend.core.database import get_session_context
+from backend.schemas.recommendations import BatchEmbeddingResponse
 from backend.services.queue import QueueOrchestrator
 from backend.workers.context import AsyncRunner, WorkerContext
 
@@ -119,7 +120,8 @@ async def process_embeddings_batch_async(
         context: Optional worker context providing dependency factories
 
     Returns:
-        Processing results
+        Processing results as a JSON-safe
+        :class:`~backend.schemas.recommendations.BatchEmbeddingResponse` dict.
 
     """
     ctx = context or get_worker_context()
@@ -153,7 +155,7 @@ async def process_embeddings_batch_async(
                 result["processing_time_seconds"],
             )
 
-            return result
+            return BatchEmbeddingResponse.model_validate(result).model_dump(mode="json")
 
     except Exception as exc:
         logger.error(f"Embedding computation failed: {exc}")
@@ -240,7 +242,7 @@ def compute_single_embedding(
     )
 
 
-def rebuild_similarity_index(
+async def rebuild_similarity_index_async(
     force: bool = False,
     *,
     context: Optional[WorkerContext] = None,
@@ -253,7 +255,7 @@ def rebuild_similarity_index(
 
     Returns:
         The :class:`~backend.schemas.recommendations.IndexRebuildResponse`
-        produced by the recommendation service, as a dict.
+        produced by the recommendation service, as a JSON-safe dict.
 
     """
     logger = logging.getLogger(__name__)
@@ -263,7 +265,7 @@ def rebuild_similarity_index(
         with get_session_context() as sess:
             services = ctx.create_service_container(sess)
             embeddings = services.recommendations.embeddings
-            response = ctx.run_async(embeddings.refresh_similarity_index(force=force))
+            response = await embeddings.refresh_similarity_index(force=force)
     except Exception:
         logger.exception("Similarity index rebuild failed")
         raise
@@ -273,7 +275,17 @@ def rebuild_similarity_index(
         response.status,
         response.indexed_items,
     )
-    return response.model_dump()
+    return response.model_dump(mode="json")
+
+
+def rebuild_similarity_index(
+    force: bool = False,
+    *,
+    context: Optional[WorkerContext] = None,
+) -> dict:
+    """Run :func:`rebuild_similarity_index_async` synchronously."""
+    ctx = context or get_worker_context()
+    return ctx.run_async(rebuild_similarity_index_async(force=force, context=ctx))
 
 
 if __name__ == "__main__":
