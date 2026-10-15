@@ -8,7 +8,7 @@ import pytest
 
 from backend.models import Adapter
 from backend.services.recommendations import (
-    RecommendationModelBootstrap,
+    EmbeddingService,
     RecommendationRepository,
 )
 
@@ -17,7 +17,7 @@ from backend.services.recommendations import (
 def force_cpu_mode():
     """Ensure recommendation tests run with GPU detection disabled."""
     with patch.object(
-        RecommendationModelBootstrap,
+        EmbeddingService,
         "is_gpu_available",
         return_value=False,
     ):

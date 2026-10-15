@@ -22,7 +22,7 @@ from backend.services.queue import (
     RedisQueueBackend,
     create_queue_orchestrator,
 )
-from backend.services.recommendations import RecommendationService
+from backend.services.recommendations import EmbeddingService
 from backend.workers.delivery_runner import DeliveryRunner
 
 T = TypeVar("T")
@@ -80,7 +80,7 @@ class WorkerContext:
         self.recommendation_gpu_available = (
             recommendation_gpu_available
             if recommendation_gpu_available is not None
-            else RecommendationService.is_gpu_available()
+            else EmbeddingService.is_gpu_available()
         )
         self._async_runner = async_runner or _default_async_runner
 

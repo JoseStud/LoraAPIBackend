@@ -173,10 +173,14 @@ Read these before changing the matching subsystem:
   loads them from the keyless `GET /v1/generation/results/{job_id}/images/{index}`
   (`backend/api/v1/generation/images.py`), which only serves files inside the
   output directory.
-- **Recommendations**: GPU detection and embedding workflows go through
-  `EmbeddingCoordinator`
-  (`backend/services/recommendations/embedding_coordinator.py`).
-  Long-running work (embedding computation, index rebuilds) is enqueued
+- **Recommendations**: GPU detection, model preloading and embedding
+  workflows (per-adapter and batch computation, the similarity index) go
+  through `EmbeddingService`
+  (`backend/services/recommendations/embeddings.py`), reached from a request
+  as `services.recommendations.embeddings`. `RecommendationService`
+  (`service.py`) serves queries, stats and feedback and calls the functions in
+  `strategies.py` directly; shared model instances live on
+  `RecommendationModelRegistry` (`model_registry.py`). Long-running work (embedding computation, index rebuilds) is enqueued
   through `services.recommendation_jobs`, never run in the request.
 
 ### Frontend orchestration map

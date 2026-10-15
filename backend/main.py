@@ -29,7 +29,7 @@ from backend.core.security import get_api_key
 from backend.delivery import ensure_delivery_system
 from backend.services.in_process_jobs import get_in_process_job_runner
 from backend.services.job_recovery import JobRecovery
-from backend.services.recommendations import RecommendationService
+from backend.services.recommendations import EmbeddingService
 
 
 @asynccontextmanager
@@ -47,7 +47,7 @@ async def lifespan(app: FastAPI):
     async def _preload_recommendations() -> None:
         loop = asyncio.get_running_loop()
         try:
-            await loop.run_in_executor(None, RecommendationService.preload_models)
+            await loop.run_in_executor(None, EmbeddingService.preload_models)
         except Exception:  # pragma: no cover - defensive guard against startup failures
             recommendation_logger.exception(
                 "Recommendation model preload failed; falling back to "

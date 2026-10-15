@@ -8,10 +8,8 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
-from .interfaces import RecommendationEngineProtocol
 
-
-class LoRARecommendationEngine(RecommendationEngineProtocol):
+class LoRARecommendationEngine:
     """High-performance similarity matching using optimized algorithms."""
 
     def __init__(
@@ -303,50 +301,3 @@ class LoRARecommendationEngine(RecommendationEngineProtocol):
             return 0.0
         except Exception:
             return 0.0
-
-    def update_index_incremental(self, new_loras: Sequence[Any]) -> None:
-        """Append ``new_loras`` to the in-memory similarity index."""
-        if not new_loras:
-            return
-
-        self._logger.info("Adding %s new LoRAs to index", len(new_loras))
-
-        new_embeddings = (
-            self.feature_extractor.semantic_embedder.batch_encode_collection(
-                new_loras,
-            )
-        )
-
-        new_semantic = self._normalize_embeddings(
-            new_embeddings["semantic"].astype("float32"),
-        )
-        new_artistic = self._normalize_embeddings(
-            new_embeddings["artistic"].astype("float32"),
-        )
-        new_technical = self._normalize_embeddings(
-            new_embeddings["technical"].astype("float32"),
-        )
-
-        if self.semantic_embeddings is not None:
-            self.semantic_embeddings = np.vstack([
-                self.semantic_embeddings,
-                new_semantic,
-            ])
-            self.artistic_embeddings = np.vstack([
-                self.artistic_embeddings,
-                new_artistic,
-            ])
-            self.technical_embeddings = np.vstack([
-                self.technical_embeddings,
-                new_technical,
-            ])
-        else:
-            self.semantic_embeddings = new_semantic
-            self.artistic_embeddings = new_artistic
-            self.technical_embeddings = new_technical
-
-        for lora in new_loras:
-            self.lora_ids.append(lora.id)
-            self.loras_dict[lora.id] = lora
-
-        self._logger.info("Added %s new LoRAs to index", len(new_loras))

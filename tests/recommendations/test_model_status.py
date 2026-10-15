@@ -1,13 +1,13 @@
 """Tests for recommendation model status helpers."""
 
-from backend.services.recommendations import RecommendationService
+from backend.services.recommendations import EmbeddingService
 
 
 class TestRecommendationModelStatus:
     """Verify model loading status helpers."""
 
     def test_models_loaded_false_when_registry_empty(self, model_registry):
-        assert RecommendationService.models_loaded() is False
+        assert EmbeddingService.models_loaded() is False
 
     def test_models_loaded_true_when_registry_populated(
         self,
@@ -30,4 +30,4 @@ class TestRecommendationModelStatus:
             object(),
         )
 
-        assert RecommendationService.models_loaded() is True
+        assert EmbeddingService.models_loaded() is True

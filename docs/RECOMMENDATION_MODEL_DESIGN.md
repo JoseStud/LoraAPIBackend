@@ -6,14 +6,14 @@ This document outlines the architecture for an intelligent LoRA recommendation s
 
 The system uses a multi-stage, GPU-accelerated pipeline to generate, analyze, and compare LoRA embeddings, providing fast and accurate recommendations.
 
-> **Reality check:** The live codebase only implements a subset of this plan. The `RecommendationService` stubs out many of these steps and requires manual model setup; production performance numbers listed here are design targets rather than measured results.【F:backend/services/recommendations/service.py†L1-L119】
+> **Reality check:** The live codebase only implements a subset of this plan. The `RecommendationService` stubs out many of these steps and requires manual model setup; production performance numbers listed here are design targets rather than measured results.【F:backend/services/recommendations/service.py†L1-L227】
 
 > **2025 production update:** The recommendation runtime no longer consumes
 > `lora.description` when preparing embeddings or calculating scores. The
 > field is retained strictly for UI presentation. Weighting across the
 > semantic, artistic, and technical embeddings has also been re-tuned to
 > **0.5 / 0.35 / 0.15** respectively to reflect the post-description feature
-> mix.【F:backend/services/recommendations/config.py†L12-L17】
+> mix.【F:backend/services/recommendations/service.py†L26-L31】
 
 ---
 
@@ -48,7 +48,7 @@ To capture different aspects of a LoRA, we use a multi-modal embedding approach.
 These models are chosen for their high performance and reasonable VRAM footprint (manageable on an 8GB consumer GPU).
 
 ```python
-# From: backend/services/recommendations/components/embedder.py
+# From: backend/services/recommendations/features.py
 
 class LoRASemanticEmbedder:
     def __init__(self, device='cuda', batch_size=32):
@@ -80,7 +80,7 @@ class LoRASemanticEmbedder:
 Once embeddings are generated, they are normalized and stored in a set of `numpy` arrays, which act as our similarity search index. For a given LoRA, we find similar items by computing the dot product between its embeddings and the embeddings of all other LoRAs in the collection.
 
 ```python
-# From: backend/services/recommendations/components/engine.py
+# From: backend/services/recommendations/engine.py
 
 class LoRARecommendationEngine:
     def build_similarity_index(self, loras: List):
@@ -112,7 +112,7 @@ Simple similarity is not enough. The final recommendation score is a weighted co
 -   **Recency Boost**: A small bonus for newer LoRAs.
 
 ```python
-# From: backend/services/recommendations/components/engine.py
+# From: backend/services/recommendations/engine.py
 
 # Combine similarities using weights
 combined_similarities = (

@@ -21,7 +21,7 @@ implementation rather than an aspirational future state.
   to delivery backends.【F:backend/services/queue.py†L15-L129】
 - **External services** – SDNext powers image generation, and the recommendation
   system loads optional ML dependencies for embedding workflows. Both degrade
-  gracefully when unavailable but return limited results.【F:backend/delivery/sdnext.py†L17-L138】【F:backend/services/recommendations/embedding_coordinator.py†L18-L102】
+  gracefully when unavailable but return limited results.【F:backend/delivery/sdnext.py†L17-L138】【F:backend/services/recommendations/embeddings.py†L24-L96】
 - **Frontend** – A Vue 3 SPA with route-based views, Pinia stores, and
   composables. Modules under `app/frontend/src/components` and
   `app/frontend/src/composables` mirror the backend features, and a service

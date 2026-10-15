@@ -320,7 +320,7 @@ def submit_recommendation_feedback(
     """
     try:
         recommendation_service = services.recommendations
-        record = recommendation_service.feedback.record_feedback(feedback)
+        record = recommendation_service.record_feedback(feedback)
         return RecommendationFeedbackRead.from_orm(record)
 
     except ValueError as exc:
@@ -351,9 +351,7 @@ def update_user_preferences(
     """
     try:
         recommendation_service = services.recommendations
-        preference_record = recommendation_service.feedback.update_user_preference(
-            preference
-        )
+        preference_record = recommendation_service.update_user_preference(preference)
         return UserPreferenceRead.from_orm(preference_record)
 
     except Exception as exc:
@@ -439,7 +437,7 @@ def get_recommendation_health(
         health_status = {
             "status": "healthy",
             "checks": {
-                "models_loaded": recommendation_service.models_loaded(),
+                "models_loaded": recommendation_service.embeddings.models_loaded(),
                 "embeddings_coverage": stats.embedding_coverage > 0.5,
                 "performance_acceptable": stats.avg_recommendation_time_ms < 5000,
                 "memory_usage_ok": stats.model_memory_usage_gb < 7.5,  # For 8GB VRAM

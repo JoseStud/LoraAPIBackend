@@ -16,7 +16,7 @@ from backend.core.config import settings
 from backend.core.gpu import detect_gpu, get_gpu_memory_info
 from backend.delivery.sdnext_client import SDNextSession
 from backend.models import Adapter
-from backend.services.recommendations import RecommendationService
+from backend.services.recommendations import EmbeddingService
 
 if TYPE_CHECKING:  # pragma: no cover
     from sqlmodel import Session
@@ -283,8 +283,8 @@ class SystemService:
 
     def _gather_recommendation_status(self) -> Dict[str, Any]:
         """Return recommendation subsystem runtime details."""
-        models_loaded = RecommendationService.models_loaded()
-        gpu_available = RecommendationService.is_gpu_available()
+        models_loaded = EmbeddingService.models_loaded()
+        gpu_available = EmbeddingService.is_gpu_available()
         return {
             "models_loaded": models_loaded,
             "gpu_available": gpu_available,

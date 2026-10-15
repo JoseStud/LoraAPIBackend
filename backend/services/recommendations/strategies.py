@@ -10,9 +10,9 @@ import numpy as np
 
 from backend.schemas.recommendations import RecommendationItem
 
-from .embedding_manager import EmbeddingManager
+from .embeddings import EmbeddingService
 from .repository import RecommendationRepository
-from .trigger_engine import TriggerRecommendationEngine
+from .triggers import TriggerRecommendationEngine
 
 
 async def get_similar_loras(
@@ -23,7 +23,7 @@ async def get_similar_loras(
     diversify_results: bool,
     weights: Optional[Dict[str, float]],
     repository: RecommendationRepository,
-    embedding_manager: EmbeddingManager,
+    embeddings: EmbeddingService,
     engine,
 ) -> List[RecommendationItem]:
     """Return LoRAs similar to the target LoRA."""
@@ -31,10 +31,10 @@ async def get_similar_loras(
     if target_lora is None:
         raise ValueError(f"LoRA {target_lora_id} not found")
 
-    await embedding_manager.ensure_embeddings_exist([target_lora])
+    await embeddings.ensure_embeddings_exist([target_lora])
 
     if not getattr(engine, "lora_ids", None):
-        await embedding_manager.build_similarity_index()
+        await embeddings.build_similarity_index()
 
     if not getattr(engine, "lora_ids", None):
         return []

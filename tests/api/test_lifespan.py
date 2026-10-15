@@ -37,7 +37,7 @@ async def test_lifespan_preloads_recommendations_in_background(
         finish_event.wait(timeout=5)
 
     monkeypatch.setattr(
-        backend_main.RecommendationService,
+        backend_main.EmbeddingService,
         "preload_models",
         _slow_preload,
     )
@@ -77,7 +77,7 @@ async def test_lifespan_logs_recommendation_preload_failure(
         raise RuntimeError("preload failed")
 
     monkeypatch.setattr(
-        backend_main.RecommendationService,
+        backend_main.EmbeddingService,
         "preload_models",
         _failing_preload,
     )

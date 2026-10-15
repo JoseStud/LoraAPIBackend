@@ -1,7 +1,8 @@
 from dataclasses import replace
 from types import SimpleNamespace
-from unittest.mock import ANY, MagicMock
+from unittest.mock import MagicMock
 
+from backend.models import LoRAEmbedding
 from backend.services import get_service_container_builder
 from backend.services.adapters.service import AdapterService
 from backend.services.analytics import AnalyticsService
@@ -27,13 +28,7 @@ from backend.services.providers.storage import (
 from backend.services.providers.system import make_system_service
 from backend.services.providers.websocket import make_websocket_service
 from backend.services.queue import QueueOrchestrator
-from backend.services.recommendations import (
-    EmbeddingStack,
-    PersistenceComponents,
-    RecommendationService,
-    RecommendationServiceBuilder,
-    UseCaseBundle,
-)
+from backend.services.recommendations import EmbeddingService, RecommendationService
 from backend.services.storage import StorageService
 from backend.services.system import SystemService
 from backend.services.websocket import WebSocketService
@@ -152,123 +147,18 @@ def test_make_analytics_service_respects_injected_builder():
     assert service.insight_generator is insight_generator
 
 
-def test_make_recommendation_service_uses_custom_components():
+def test_make_recommendation_service_binds_session_and_gpu_flag():
     session = MagicMock()
-    bootstrap = MagicMock()
-    bootstrap.device = "cpu"
-    bootstrap.gpu_enabled = False
-    model_registry = MagicMock()
-    bootstrap.get_model_registry.return_value = model_registry
 
-    embedding_repository = MagicMock()
-    embedding_manager = MagicMock()
-    repository = MagicMock()
-    persistence_manager = MagicMock()
-    persistence_service = MagicMock()
-    metrics_tracker = MagicMock()
-    config = MagicMock()
-    similar_use_case = MagicMock()
-    prompt_use_case = MagicMock()
-    embedding_coordinator = MagicMock()
-    feedback_manager = MagicMock()
-    stats_reporter = MagicMock()
-    builder = MagicMock(spec=RecommendationServiceBuilder)
-    builder.with_components.return_value = builder
-    built_service = MagicMock()
-    builder.build.return_value = built_service
+    service = make_recommendation_service(session, gpu_available=False)
 
-    service = make_recommendation_service(
-        session,
-        gpu_available=True,
-        model_bootstrap=bootstrap,
-        embedding_repository=embedding_repository,
-        embedding_manager=embedding_manager,
-        repository=repository,
-        persistence_manager=persistence_manager,
-        persistence_service=persistence_service,
-        metrics_tracker=metrics_tracker,
-        config=config,
-        similar_use_case=similar_use_case,
-        prompt_use_case=prompt_use_case,
-        embedding_coordinator=embedding_coordinator,
-        feedback_manager=feedback_manager,
-        stats_reporter=stats_reporter,
-        builder=builder,
-    )
+    assert isinstance(service, RecommendationService)
+    assert isinstance(service.embeddings, EmbeddingService)
+    assert service.device == "cpu"
+    assert service.gpu_enabled is False
 
-    builder.with_components.assert_called_once_with(
-        embedding_coordinator=embedding_coordinator,
-        feedback_manager=feedback_manager,
-        stats_reporter=stats_reporter,
-        similar_lora_use_case=similar_use_case,
-        prompt_recommendation_use_case=prompt_use_case,
-        trigger_recommendation_use_case=ANY,
-        config=config,
-    )
-    builder.build.assert_called_once_with()
-    assert service is built_service
-
-
-def test_make_recommendation_service_accepts_prebuilt_bundles():
-    session = MagicMock()
-    bootstrap = MagicMock()
-    bootstrap.device = "cpu"
-    bootstrap.gpu_enabled = False
-    model_registry = MagicMock()
-    bootstrap.get_model_registry.return_value = model_registry
-
-    repository = MagicMock()
-    embedding_stack = EmbeddingStack(
-        repository=MagicMock(),
-        manager=MagicMock(),
-    )
-    persistence_components = PersistenceComponents(
-        manager=MagicMock(),
-        service=MagicMock(),
-        config=MagicMock(),
-    )
-    use_case_bundle = UseCaseBundle(
-        similar_lora=MagicMock(),
-        prompt_recommendation=MagicMock(),
-        trigger_recommendation=MagicMock(),
-    )
-
-    embedding_coordinator = MagicMock()
-    feedback_manager = MagicMock()
-    stats_reporter = MagicMock()
-    metrics_tracker = MagicMock()
-
-    builder = MagicMock(spec=RecommendationServiceBuilder)
-    builder.with_components.return_value = builder
-    built_service = MagicMock()
-    builder.build.return_value = built_service
-
-    service = make_recommendation_service(
-        session,
-        gpu_available=True,
-        model_bootstrap=bootstrap,
-        repository=repository,
-        embedding_stack=embedding_stack,
-        persistence_components=persistence_components,
-        use_case_bundle=use_case_bundle,
-        metrics_tracker=metrics_tracker,
-        embedding_coordinator=embedding_coordinator,
-        feedback_manager=feedback_manager,
-        stats_reporter=stats_reporter,
-        builder=builder,
-    )
-
-    builder.with_components.assert_called_once_with(
-        embedding_coordinator=embedding_coordinator,
-        feedback_manager=feedback_manager,
-        stats_reporter=stats_reporter,
-        similar_lora_use_case=use_case_bundle.similar_lora,
-        prompt_recommendation_use_case=use_case_bundle.prompt_recommendation,
-        trigger_recommendation_use_case=use_case_bundle.trigger_recommendation,
-        config=persistence_components.config,
-    )
-    builder.build.assert_called_once_with()
-    assert service is built_service
+    service.embedding_status("adapter-1")
+    session.get.assert_called_once_with(LoRAEmbedding, "adapter-1")
 
 
 def test_service_container_uses_custom_providers(db_session):
