@@ -118,6 +118,11 @@ Read these before changing the matching subsystem:
 - **Configuration**: runtime settings live only in `backend/core/config.py`, so
   startup validation and the frontend `/frontend/settings` payload stay
   consistent.
+- **Result images**: job results store saved images as `output://` file
+  references (relative to `SDNEXT_OUTPUT_DIR`), never base64; the browser
+  loads them from the keyless `GET /v1/generation/results/{job_id}/images/{index}`
+  (`backend/api/v1/generation/images.py`), which only serves files inside the
+  output directory.
 - **Recommendations**: GPU detection and embedding workflows go through
   `EmbeddingCoordinator`
   (`backend/services/recommendations/embedding_coordinator.py`).

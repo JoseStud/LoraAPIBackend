@@ -8,8 +8,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from backend.models import DeliveryJob
+from backend.utils.images import parse_output_reference, resolve_output_dir
 
 from ..delivery_repository import DeliveryJobRepository
+from ..storage import is_path_within
 from .models import ResultAsset
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
@@ -58,6 +60,26 @@ class ResultAssetResolver:
             params=params_payload,
         )
         return params_payload, result_payload, assets
+
+    def resolve_image(
+        self,
+        job: DeliveryJob,
+        index: int,
+        storage: "StorageService",
+        *,
+        coordinator: Optional["GenerationCoordinator"] = None,
+    ) -> Optional[ResultAsset]:
+        """Resolve entry ``index`` of the job's stored ``images`` list."""
+        params_payload, result_payload = self._load_payloads(job, coordinator)
+        images = result_payload.get("images")
+        if not isinstance(images, list) or not 0 <= index < len(images):
+            return None
+        return self._resolve_asset_value(
+            images[index],
+            storage,
+            default_filename=f"{job.id}-{index:03d}.png",
+            return_format=self._resolve_return_format(job, params_payload),
+        )
 
     def remove(
         self,
@@ -112,7 +134,7 @@ class ResultAssetResolver:
         seen_paths: set[str] = set()
 
         params = params or {}
-        return_format = self._resolve_return_format(params)
+        return_format = self._resolve_return_format(job, params)
 
         images = result_payload.get("images")
         if isinstance(images, list):
@@ -188,6 +210,12 @@ class ResultAssetResolver:
         if candidate.startswith("data:"):
             return self._decode_data_uri(candidate, default_filename, fallback_mime)
 
+        relative_path = parse_output_reference(candidate)
+        if relative_path is not None:
+            return self._build_reference_asset(
+                relative_path, default_filename, fallback_mime, storage
+            )
+
         normalized_format = (return_format or "").lower()
         path_candidate: Optional[str] = None
 
@@ -225,6 +253,26 @@ class ResultAssetResolver:
             content_type=mime or fallback_mime,
             data=binary,
             size=len(binary),
+        )
+
+    def _build_reference_asset(
+        self,
+        relative_path: str,
+        default_filename: str,
+        fallback_mime: str,
+        storage: "StorageService",
+    ) -> Optional[ResultAsset]:
+        """Resolve an output reference to a file inside the output directory.
+
+        A reference that escapes the directory (``..``, an absolute path, a
+        symlink pointing elsewhere) resolves to nothing.
+        """
+        output_dir = resolve_output_dir()
+        path = output_dir / relative_path
+        if not is_path_within(path, output_dir):
+            return None
+        return self._build_file_asset(
+            str(path), default_filename, fallback_mime, storage
         )
 
     def _build_file_asset(
@@ -282,11 +330,20 @@ class ResultAssetResolver:
             return dict(value)
         return {}
 
-    @staticmethod
-    def _resolve_return_format(params: Dict[str, Any]) -> Optional[str]:
-        maybe_format = params.get("return_format") if isinstance(params, dict) else None
-        if isinstance(maybe_format, str):
-            return maybe_format.lower()
+    def _resolve_return_format(
+        self, job: DeliveryJob, params: Dict[str, Any]
+    ) -> Optional[str]:
+        """Return the job's ``return_format``.
+
+        Coordinator-serialized params only hold the generation parameters, so
+        fall back to the stored delivery params, which record the format.
+        """
+        for candidate in (params, self._repository.get_job_params(job)):
+            maybe_format = (
+                candidate.get("return_format") if isinstance(candidate, dict) else None
+            )
+            if isinstance(maybe_format, str):
+                return maybe_format.lower()
         return None
 
 

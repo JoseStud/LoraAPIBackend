@@ -91,7 +91,10 @@ quality, GPU throughput, multi-user isolation or crash recovery during inference
 This is a **single-user tool for a trusted local network**. It has no user
 accounts. The optional `X-API-Key` value is returned by the unauthenticated
 `/frontend/settings` endpoint so the frontend can use it; it is not an access
-control. Some system endpoints and the progress WebSocket do not check it.
+control. Some system endpoints, the progress WebSocket and the result image
+route (`GET /api/v1/generation/results/{job_id}/images/{index}`, which `<img>`
+tags load without headers) do not check it. The image route only serves files
+inside `SDNEXT_OUTPUT_DIR`.
 Unexpected errors return generic client messages and details go to server logs.
 
 Do not expose the backend directly to the internet. Remote use requires a VPN

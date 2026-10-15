@@ -5,7 +5,7 @@
 
       <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full" @click.stop>
         <div v-if="result">
-          <img :src="result.image_url ?? ''"
+          <img :src="resolveBackendAssetUrl(result.image_url) ?? ''"
                :alt="result.prompt ?? 'Generated image'"
                class="w-full max-h-96 object-contain">
           <div class="p-6">
@@ -48,6 +48,7 @@
 
 <script setup lang="ts">
 import type { GenerationHistoryResult } from '@/types';
+import { resolveBackendAssetUrl } from '@/utils/backend';
 
 const props = defineProps<{
   visible: boolean;

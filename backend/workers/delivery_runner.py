@@ -10,6 +10,7 @@ from sqlmodel import Session
 
 from backend.core.database import get_session_context
 from backend.delivery.base import DeliveryRegistry
+from backend.delivery.storage import stored_return_format
 from backend.schemas import SDNextGenerationParams
 from backend.services.job_webhooks import NOTIFY_STATUSES, JobWebhookNotifier
 
@@ -194,11 +195,19 @@ class DeliveryRunner:
             gen_params_dict["prompt"] = prompt
 
             gen_params = SDNextGenerationParams(**gen_params_dict)
+            save_images = bool(params_dict.get("save_images", True))
+            return_format = params_dict.get("return_format", "base64")
+            # The result is stored on the job row rather than returned to a
+            # caller, so saved images come back as file references, never as
+            # base64 (``return_format`` only shapes immediate responses).
             full_params = {
                 "generation_params": gen_params.model_dump(),
                 "mode": params_dict.get("mode", "immediate"),
-                "save_images": params_dict.get("save_images", True),
-                "return_format": params_dict.get("return_format", "base64"),
+                "save_images": save_images,
+                "return_format": stored_return_format(
+                    save_images=save_images,
+                    return_format=return_format,
+                ),
             }
             if backend_name:
                 full_params["backend"] = backend_name

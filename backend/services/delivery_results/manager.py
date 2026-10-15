@@ -50,6 +50,17 @@ class DeliveryResultManager:
         """Collect assets referenced by ``job``'s persisted payloads."""
         return self._assets.collect(job, storage, coordinator=coordinator)
 
+    def resolve_image_asset(
+        self,
+        job: DeliveryJob,
+        index: int,
+        storage: "StorageService",
+        *,
+        coordinator: Optional["GenerationCoordinator"] = None,
+    ) -> Optional[ResultAsset]:
+        """Resolve image ``index`` of ``job``'s stored result."""
+        return self._assets.resolve_image(job, index, storage, coordinator=coordinator)
+
     def remove_assets(
         self,
         job: DeliveryJob,

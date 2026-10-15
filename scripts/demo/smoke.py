@@ -80,11 +80,26 @@ def wait_for(job_id, status):
     raise AssertionError(f"Job {job_id} did not reach {status} within 30 seconds")
 
 
+def fetch_image(source):
+    """Load an image source from a job result: a route URL or a data URI.
+
+    Route URLs are fetched without the API key, as a browser ``<img>`` would.
+    """
+    if source.startswith("data:"):
+        return base64.b64decode(source.split(",", 1)[1], validate=True)
+    assert source.startswith("/api/"), f"Unexpected image source: {source[:80]!r}"
+    with urllib.request.urlopen(API + source, timeout=8) as response:
+        assert response.status == 200
+        assert response.headers.get_content_type() == "image/png"
+        return response.read()
+
+
 def verify_image(data):
     """Decode PNG chunks, CRCs and pixels; also verify shared filesystem storage."""
     result = data["result"]
     assert result["generation_info"]["simulated"] is True
-    png = base64.b64decode(result["images"][0], validate=True)
+    assert "output://" not in json.dumps(data), "Stored image reference leaked"
+    png = fetch_image(result["images"][0])
     assert png[:8] == b"\x89PNG\r\n\x1a\n"
     offset, compressed = 8, b""
     while offset < len(png):

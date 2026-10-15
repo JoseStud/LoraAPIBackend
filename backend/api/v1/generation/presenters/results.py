@@ -16,12 +16,12 @@ from backend.utils.images import to_browser_image_src
 __all__ = ["build_result"]
 
 
-def _extract_image_url(result_payload: Dict[str, Any]) -> Optional[str]:
+def _extract_image_url(job_id: str, result_payload: Dict[str, Any]) -> Optional[str]:
     images = result_payload.get("images")
     if isinstance(images, list) and images:
         first_image = images[0]
         if isinstance(first_image, str):
-            return to_browser_image_src(first_image)
+            return to_browser_image_src(first_image, job_id=job_id, index=0)
     return None
 
 
@@ -49,9 +49,14 @@ def build_result(
     params = serialized.get("params") or {}
     result_payload = serialized.get("result") or {}
 
+    # A thumbnail is not one of the indexed ``images``, so a stored file
+    # reference has no route and yields ``None``; clients fall back to
+    # ``image_url``.
     thumbnail_url = result_payload.get("thumbnail_url")
     thumbnail_url = (
-        to_browser_image_src(thumbnail_url) if isinstance(thumbnail_url, str) else None
+        to_browser_image_src(thumbnail_url, job_id=job.id, index=None)
+        if isinstance(thumbnail_url, str)
+        else None
     )
 
     return GenerationResultSummary(
@@ -60,7 +65,7 @@ def build_result(
         prompt=params.get("prompt") or job.prompt,
         negative_prompt=params.get("negative_prompt"),
         status=normalize_generation_status(job.status),
-        image_url=_extract_image_url(result_payload),
+        image_url=_extract_image_url(job.id, result_payload),
         thumbnail_url=thumbnail_url,
         width=params.get("width"),
         height=params.get("height"),

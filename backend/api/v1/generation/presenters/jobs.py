@@ -2,14 +2,35 @@
 
 from __future__ import annotations
 
+from typing import Any, Dict
+
 from backend.models import DeliveryJob
 from backend.schemas import GenerationJobStatus
 from backend.services.generation import (
     GenerationCoordinator,
     normalize_generation_status,
 )
+from backend.utils.images import to_browser_image_src
 
 __all__ = ["build_active_job"]
+
+
+def _with_browser_images(job_id: str, result: Dict[str, Any]) -> Dict[str, Any]:
+    """Return ``result`` with ``images`` turned into browser-loadable sources.
+
+    Stored file references become the result image route and legacy base64
+    becomes a data URI. Entries with no loadable source are dropped rather
+    than exposing internal values.
+    """
+    images = result.get("images")
+    if not isinstance(images, list):
+        return result
+    sources = (
+        to_browser_image_src(image, job_id=job_id, index=index)
+        for index, image in enumerate(images)
+        if isinstance(image, str)
+    )
+    return {**result, "images": [src for src in sources if src]}
 
 
 def build_active_job(
@@ -33,5 +54,5 @@ def build_active_job(
         created_at=job.created_at,
         startTime=job.started_at or job.created_at,
         finished_at=job.finished_at,
-        result=result_payload or None,
+        result=_with_browser_images(job.id, result_payload) or None,
     )
