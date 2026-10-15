@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { usePolling } from '@/composables/shared/usePolling';
 
+import { createPageEnvironment } from '../mocks/pageEnvironment';
+
 describe('usePolling composable', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -79,5 +81,143 @@ describe('usePolling composable', () => {
     expect(firstStopped).toBe(true);
     expect(polling.isActive.value).toBe(false);
     expect(polling.subscriberCount.value).toBe(0);
+  });
+
+  describe('page environment', () => {
+    const environment = createPageEnvironment();
+
+    beforeEach(() => {
+      environment.install();
+    });
+
+    afterEach(() => {
+      environment.restore();
+      vi.restoreAllMocks();
+    });
+
+    it('pauses while hidden and runs once on resume', () => {
+      const callback = vi.fn();
+      const polling = usePolling(callback, { interval: 1_000, minInterval: 100 });
+      polling.subscribe();
+
+      environment.setHidden(true);
+      expect(polling.isActive.value).toBe(false);
+      expect(polling.isPaused.value).toBe(true);
+
+      vi.advanceTimersByTime(5_000);
+      expect(callback).not.toHaveBeenCalled();
+
+      environment.setHidden(false);
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(polling.isActive.value).toBe(true);
+      expect(polling.isPaused.value).toBe(false);
+
+      vi.advanceTimersByTime(1_000);
+      expect(callback).toHaveBeenCalledTimes(2);
+
+      polling.unsubscribe();
+    });
+
+    it('pauses while offline and stays paused until both online and visible', () => {
+      const callback = vi.fn();
+      const polling = usePolling(callback, { interval: 1_000, minInterval: 100 });
+      polling.start();
+
+      environment.setOnline(false);
+      environment.setHidden(true);
+      environment.setOnline(true);
+      vi.advanceTimersByTime(3_000);
+      expect(callback).not.toHaveBeenCalled();
+      expect(polling.isActive.value).toBe(false);
+
+      environment.setHidden(false);
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(polling.isActive.value).toBe(true);
+
+      polling.stop();
+    });
+
+    it('does not start the timer when started while hidden', () => {
+      environment.setHidden(true);
+      const callback = vi.fn();
+      const polling = usePolling(callback, { interval: 1_000, minInterval: 100 });
+
+      polling.subscribe();
+      expect(polling.isActive.value).toBe(false);
+      vi.advanceTimersByTime(3_000);
+      expect(callback).not.toHaveBeenCalled();
+
+      environment.setHidden(false);
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(polling.isActive.value).toBe(true);
+
+      polling.unsubscribe();
+    });
+
+    it('attaches one set of listeners for every subscriber and removes it after the last', () => {
+      const addDocument = vi.spyOn(document, 'addEventListener');
+      const removeDocument = vi.spyOn(document, 'removeEventListener');
+      const addWindow = vi.spyOn(window, 'addEventListener');
+      const removeWindow = vi.spyOn(window, 'removeEventListener');
+      const callback = vi.fn();
+      const polling = usePolling(callback, { interval: 1_000, minInterval: 100 });
+
+      polling.subscribe();
+      polling.subscribe();
+      polling.start();
+
+      expect(addDocument).toHaveBeenCalledTimes(1);
+      expect(addDocument).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
+      expect(addWindow.mock.calls.map(([type]) => type)).toEqual(['online', 'offline']);
+
+      polling.unsubscribe();
+      expect(removeDocument).not.toHaveBeenCalled();
+
+      polling.unsubscribe();
+      expect(removeDocument).toHaveBeenCalledTimes(1);
+      expect(removeWindow.mock.calls.map(([type]) => type)).toEqual(['online', 'offline']);
+
+      environment.setHidden(true);
+      environment.setHidden(false);
+      expect(callback).not.toHaveBeenCalled();
+      expect(polling.isActive.value).toBe(false);
+    });
+
+    it('keeps the hidden interval change for the resumed timer', () => {
+      const callback = vi.fn();
+      const polling = usePolling(callback, { interval: 1_000, minInterval: 100 });
+      polling.subscribe();
+
+      environment.setHidden(true);
+      polling.setInterval(2_000);
+      expect(polling.isActive.value).toBe(false);
+
+      environment.setHidden(false);
+      expect(callback).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(1_000);
+      expect(callback).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(1_000);
+      expect(callback).toHaveBeenCalledTimes(2);
+
+      polling.unsubscribe();
+    });
+
+    it('keeps running while hidden when pauseWhenHidden is false', () => {
+      const callback = vi.fn();
+      const polling = usePolling(callback, {
+        interval: 1_000,
+        minInterval: 100,
+        pauseWhenHidden: false,
+      });
+      polling.start();
+
+      environment.setHidden(true);
+      vi.advanceTimersByTime(1_000);
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(polling.isPaused.value).toBe(false);
+
+      polling.stop();
+    });
   });
 });

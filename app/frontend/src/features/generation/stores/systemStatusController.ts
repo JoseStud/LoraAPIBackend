@@ -1,8 +1,8 @@
 /** @internal */
-import { computed, ref, type ComputedRef } from 'vue';
+import { ref, type ComputedRef } from 'vue';
 import { storeToRefs } from 'pinia';
 
-import { ApiError } from '@/composables/shared';
+import { ApiError, usePolling } from '@/composables/shared';
 import { SystemStatusPayloadSchema } from '@/schemas';
 import { useBackendClient, type BackendHttpClient } from '@/services/shared/http';
 import { fetchSystemStatus } from '@/services/system/systemService';
@@ -59,38 +59,20 @@ const createBackendClientResolver = (
 interface ControllerEntry {
   controller: SystemStatusController;
   consumers: number;
-  /** Pauses the poll timer while the page is hidden or offline; `start()` still records intent. */
-  setEnvironmentPaused: (paused: boolean) => void;
-  detachEnvironment: (() => void) | null;
 }
 
-const isEnvironmentPaused = (): boolean => {
-  const hidden = typeof document !== 'undefined' && document.hidden === true;
-  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
-  return hidden || offline;
-};
-
-const createController = (
-  resolveBackendClient: () => BackendHttpClient,
-): Omit<ControllerEntry, 'consumers' | 'detachEnvironment'> => {
+const createController = (resolveBackendClient: () => BackendHttpClient): SystemStatusController => {
   const connectionStore = useGenerationOrchestratorStore();
   const { systemStatusReady } = storeToRefs(connectionStore);
-  const pollHandle = ref<ReturnType<typeof setInterval> | null>(null);
   const inFlight = ref<Promise<void> | null>(null);
-  // `wantsPolling` is what consumers asked for; the timer only runs while the environment allows it.
-  let wantsPolling = false;
-  let environmentPaused = false;
-
-  const clearTimer = (): void => {
-    if (pollHandle.value) {
-      clearInterval(pollHandle.value);
-      pollHandle.value = null;
-    }
-  };
+  // usePolling pauses the timer while the page is hidden or offline and refreshes once on resume.
+  const polling = usePolling(() => refresh(), {
+    interval: generationPollingConfig.systemStatusMs,
+    minInterval: 1,
+  });
 
   const stop = (): void => {
-    wantsPolling = false;
-    clearTimer();
+    polling.stop();
   };
 
   const refresh = async (): Promise<void> => {
@@ -138,37 +120,9 @@ const createController = (
     await run;
   };
 
-  const startTimer = (): void => {
-    if (pollHandle.value || environmentPaused) {
-      return;
-    }
-
-    pollHandle.value = setInterval(() => {
-      void refresh();
-    }, generationPollingConfig.systemStatusMs);
-  };
-
   const start = (): void => {
-    wantsPolling = true;
-    startTimer();
-  };
-
-  const setEnvironmentPaused = (paused: boolean): void => {
-    if (paused === environmentPaused) {
-      return;
-    }
-
-    environmentPaused = paused;
-
-    if (paused) {
-      clearTimer();
-      return;
-    }
-
-    if (wantsPolling) {
-      startTimer();
-      void refresh();
-    }
+    polling.setInterval(generationPollingConfig.systemStatusMs);
+    polling.start();
   };
 
   const ensureHydrated = async (): Promise<void> => {
@@ -179,39 +133,12 @@ const createController = (
     start();
   };
 
-  const isPolling = computed(() => pollHandle.value != null);
-
   return {
-    controller: {
-      isPolling,
-      ensureHydrated,
-      refresh,
-      start,
-      stop,
-    },
-    setEnvironmentPaused,
-  };
-};
-
-/** Follows `visibilitychange`/`online`/`offline` while the entry has consumers. */
-const attachEnvironment = (entry: ControllerEntry): (() => void) => {
-  if (typeof window === 'undefined' || typeof document === 'undefined') {
-    return () => {};
-  }
-
-  const apply = (): void => {
-    entry.setEnvironmentPaused(isEnvironmentPaused());
-  };
-
-  document.addEventListener('visibilitychange', apply);
-  window.addEventListener('online', apply);
-  window.addEventListener('offline', apply);
-  apply();
-
-  return () => {
-    document.removeEventListener('visibilitychange', apply);
-    window.removeEventListener('online', apply);
-    window.removeEventListener('offline', apply);
+    isPolling: polling.isActive,
+    ensureHydrated,
+    refresh,
+    start,
+    stop,
   };
 };
 
@@ -255,9 +182,8 @@ const resolveEntry = (options?: AcquireSystemStatusControllerOptions): [string, 
   }
 
   const entry: ControllerEntry = {
-    ...createController(createBackendClientResolver(options)),
+    controller: createController(createBackendClientResolver(options)),
     consumers: 0,
-    detachEnvironment: null,
   };
 
   controllerRegistry.set(key, entry);
@@ -276,7 +202,6 @@ export const acquireSystemStatusController = (
   entry.consumers += 1;
 
   if (entry.consumers === 1) {
-    entry.detachEnvironment = attachEnvironment(entry);
     entry.controller.start();
   }
 
@@ -291,8 +216,6 @@ export const acquireSystemStatusController = (
     entry.consumers = Math.max(0, entry.consumers - 1);
 
     if (entry.consumers === 0) {
-      entry.detachEnvironment?.();
-      entry.detachEnvironment = null;
       entry.controller.stop();
       controllerRegistry.delete(key);
     }

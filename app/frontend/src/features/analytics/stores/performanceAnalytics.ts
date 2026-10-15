@@ -1,7 +1,7 @@
 import { computed, onScopeDispose, ref, watch } from 'vue';
 import { defineStore } from 'pinia';
 
-import { useAsyncResource } from '@/composables/shared';
+import { useAsyncResource, usePolling } from '@/composables/shared';
 import { useBackendClient } from '@/services/shared/http';
 import { fetchTopAdapters } from '@/features/lora/public';
 import { exportAnalyticsReport, fetchPerformanceAnalytics } from '../services/analyticsService';
@@ -16,6 +16,8 @@ import type {
   TopLoraPerformance,
 } from '@/types';
 import type { AnalyticsExportOptions, AnalyticsExportResult } from '@/types';
+
+const AUTO_REFRESH_INTERVAL_MS = 30_000;
 
 const DEFAULT_KPIS: PerformanceKpiSummary = {
   total_generations: 0,
@@ -205,33 +207,22 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
     await analyticsResource.ensureLoaded(timeRange.value);
   };
 
-  let refreshInterval: ReturnType<typeof setInterval> | null = null;
-
-  const stopAutoRefresh = () => {
-    if (refreshInterval) {
-      clearInterval(refreshInterval);
-      refreshInterval = null;
-    }
-  };
-
-  const startAutoRefresh = () => {
-    stopAutoRefresh();
-    refreshInterval = setInterval(() => {
-      void loadAllData();
-    }, 30_000);
-  };
+  const autoRefreshPolling = usePolling(loadAllData, {
+    interval: AUTO_REFRESH_INTERVAL_MS,
+    minInterval: AUTO_REFRESH_INTERVAL_MS,
+  });
 
   const stopAutoRefreshWatcher = watch(autoRefresh, (enabled) => {
     if (enabled) {
       void ensureLoaded();
-      startAutoRefresh();
+      autoRefreshPolling.start();
     } else {
-      stopAutoRefresh();
+      autoRefreshPolling.stop();
     }
   });
 
   onScopeDispose(() => {
-    stopAutoRefresh();
+    autoRefreshPolling.stop();
     stopAutoRefreshWatcher();
   });
 
@@ -250,7 +241,7 @@ export const usePerformanceAnalyticsStore = defineStore('performanceAnalytics', 
   };
 
   const cleanup = (): void => {
-    stopAutoRefresh();
+    autoRefreshPolling.stop();
     autoRefresh.value = false;
   };
 

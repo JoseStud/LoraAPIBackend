@@ -5,7 +5,10 @@ import * as backendClient from '@/services/shared/http';
 import * as backendRefreshService from '@/services/system/backendRefresh';
 import * as analyticsService from '@/features/analytics/services/analyticsService';
 import * as loraPublic from '@/features/lora/public';
+import { usePerformanceAnalytics } from '@/features/analytics/public';
 import { usePerformanceAnalyticsStore } from '@/features/analytics/stores/performanceAnalytics';
+
+import { createPageEnvironment } from '../../mocks/pageEnvironment';
 
 const backendRefreshCallbacks: Array<() => void> = [];
 
@@ -157,6 +160,65 @@ describe('performanceAnalytics store', () => {
     expect(clearIntervalSpy).toHaveBeenCalledTimes(1);
 
     clearIntervalSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('pauses auto refresh while hidden or offline and reloads once on resume', async () => {
+    vi.useFakeTimers();
+    // Let each load settle so the resource's in-flight dedupe does not swallow the next one.
+    const settle = async () => {
+      for (let i = 0; i < 10; i += 1) {
+        await Promise.resolve();
+      }
+    };
+    const environment = createPageEnvironment();
+    environment.install();
+    const removeListener = vi.spyOn(document, 'removeEventListener');
+
+    const page = usePerformanceAnalytics();
+    const toolbar = usePerformanceAnalytics();
+
+    await page.ensureLoaded();
+    page.toggleAutoRefresh(true);
+    toolbar.toggleAutoRefresh(true);
+    await settle();
+    fetchPerformanceAnalyticsSpy.mockClear();
+
+    environment.setHidden(true);
+    vi.advanceTimersByTime(90_000);
+    await settle();
+    expect(fetchPerformanceAnalyticsSpy).not.toHaveBeenCalled();
+
+    environment.setHidden(false);
+    await settle();
+    expect(fetchPerformanceAnalyticsSpy).toHaveBeenCalledTimes(1);
+
+    environment.setOnline(false);
+    vi.advanceTimersByTime(90_000);
+    await settle();
+    expect(fetchPerformanceAnalyticsSpy).toHaveBeenCalledTimes(1);
+
+    environment.setOnline(true);
+    await settle();
+    expect(fetchPerformanceAnalyticsSpy).toHaveBeenCalledTimes(2);
+
+    vi.advanceTimersByTime(30_000);
+    await settle();
+    expect(fetchPerformanceAnalyticsSpy).toHaveBeenCalledTimes(3);
+
+    toolbar.cleanup();
+    await settle();
+    expect(page.autoRefresh.value).toBe(false);
+    expect(removeListener).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
+
+    environment.setHidden(true);
+    environment.setHidden(false);
+    vi.advanceTimersByTime(60_000);
+    await settle();
+    expect(fetchPerformanceAnalyticsSpy).toHaveBeenCalledTimes(3);
+
+    removeListener.mockRestore();
+    environment.restore();
     vi.useRealTimers();
   });
 });

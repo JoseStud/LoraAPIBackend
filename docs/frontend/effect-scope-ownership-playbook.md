@@ -12,7 +12,7 @@ This guide describes where reactive side-effects (watchers, timers, event handle
 
 ## Pattern checklist
 
-- Need an interval or retry loop? Add it to a manager/composable that exposes `initialize`/`cleanup`, and register it inside an `effectScope` so `stop()` handles disposal.
+- Need an interval or retry loop? Add it to a manager/composable that exposes `initialize`/`cleanup`, and register it inside an `effectScope` so `stop()` handles disposal. Build polling intervals on `usePolling` (`app/frontend/src/composables/shared/usePolling.ts`): it pauses while the page is hidden or offline, runs once on resume, and attaches its `visibilitychange`/`online`/`offline` listeners only between `start()` and `stop()`. The owner calls `stop()` (or releases every `subscribe()`) from its own cleanup; `usePolling` does not register `onScopeDispose` itself, because shared controllers such as the admin-metrics poller outlive the component that first created them.
 - Need to respond to backend configuration changes? Depend on `useSettingsStore()` and use watchers created inside an owned effect scope, as the manager store's `activate()` does, instead of a standalone emitter.【F:app/frontend/src/features/generation/stores/orchestratorManagerStore.ts†L349-L378】
 - Need to monitor transport metrics? Access the readonly observability fields on the orchestrator store instead of subscribing to the WebSocket directly.【F:app/frontend/src/features/generation/stores/useGenerationOrchestratorStore.ts†L132-L210】
 - Need to observe queue updates? Call orchestrator methods such as `loadActiveJobsData` or rely on manager-provided refs; never call `setInterval(fetchQueue)` inside a view.【F:app/frontend/src/features/generation/composables/useGenerationOrchestratorManager.ts†L36-L69】
