@@ -1,26 +1,10 @@
-"""Background worker helpers for enqueueing and processing jobs."""
+"""RQ task entrypoints and the shared worker context."""
 
 import json
 import logging
-from dataclasses import dataclass
 from typing import List, Optional
 
 from rq import get_current_job
-
-try:
-    from rq.retry import Retry
-except Exception:
-    try:
-        from rq import Retry  # type: ignore
-    except Exception:
-
-        @dataclass
-        class Retry:  # type: ignore
-            """Fallback Retry dataclass used when RQ's Retry is unavailable."""
-
-            max: int = 0
-            interval: list | None = None
-
 
 from backend.core.database import get_session_context
 from backend.services.queue import QueueOrchestrator
@@ -72,47 +56,15 @@ def reset_worker_context() -> None:
     _worker_context = None
 
 
-def enqueue_delivery(
-    prompt: str,
-    mode: str,
-    params: dict,
-    max_retries: int = 3,
-    *,
-    context: Optional[WorkerContext] = None,
-):
-    """Create a DeliveryJob and enqueue it with exponential backoff retry intervals.
-
-    max_retries is the number of retry attempts (not counting the first try).
-    """
-    # Create delivery job using the service layer
-    ctx = context or get_worker_context()
-
-    with get_session_context() as sess:
-        services = ctx.create_service_container(sess)
-        dj = services.deliveries.create_job(prompt, mode, params)
-
-    intervals = [2**i for i in range(max_retries)] if max_retries > 0 else []
-    retry = Retry(max=max_retries, interval=intervals) if max_retries > 0 else None
-    job = ctx.queue_backend.enqueue_delivery(dj.id, retry=retry)
-    logger.info(
-        json.dumps(
-            {
-                "event": "enqueued",
-                "delivery_id": dj.id,
-                "job_id": job.id,
-                "retries": max_retries,
-                "intervals": intervals,
-            },
-        ),
-    )
-    return dj.id
-
-
 def process_delivery(delivery_id: str, *, context: Optional[WorkerContext] = None):
-    """Worker entrypoint.
+    """Worker entrypoint for jobs enqueued by :class:`RedisQueueBackend`.
 
-    Updates the DeliveryJob status/result. Exceptions are re-raised so RQ
-    can perform retries according to the configured policy.
+    Runs the delivery once and re-raises its error, so RQ retries it under
+    the policy the backend enqueued it with (``DELIVERY_MAX_RETRIES``). The
+    runner leaves the job ``retrying`` while RQ has retries left and
+    ``failed`` on the last attempt; an attempt that cannot claim the job
+    (cancelled, finished, or still ``running`` after a timed-out attempt)
+    does nothing.
     """
     logger.info(json.dumps({"event": "start", "delivery_id": delivery_id}))
 
@@ -125,25 +77,19 @@ def process_delivery(delivery_id: str, *, context: Optional[WorkerContext] = Non
             return
 
     try:
-        try:
-            job = get_current_job()
-            retries_left = getattr(job, "retries_left", None)
-        except Exception:  # pragma: no cover - defensive branch
-            retries_left = None
+        # Retries RQ still makes after this attempt; ``None`` outside RQ.
+        retries_left = getattr(get_current_job(), "retries_left", None)
+    except Exception:  # pragma: no cover - defensive branch
+        retries_left = None
 
+    try:
         ctx.delivery_runner.process_delivery_job(
             delivery_id,
             retries_left=retries_left,
             raise_on_error=True,
         )
-        logger.info(json.dumps({"event": "succeeded", "delivery_id": delivery_id}))
+        logger.info(json.dumps({"event": "finished", "delivery_id": delivery_id}))
     except Exception as exc:
-        try:
-            job = get_current_job()
-            retries_left = getattr(job, "retries_left", None)
-        except Exception:  # pragma: no cover - defensive branch
-            retries_left = None
-
         logger.error(
             json.dumps(
                 {
@@ -331,4 +277,7 @@ def rebuild_similarity_index(
 
 
 if __name__ == "__main__":
-    print("Queue ready. Use rq worker --url $REDIS_URL default to run workers.")
+    print(
+        "Queue ready. Run workers with: "
+        "rq worker --with-scheduler --url $REDIS_URL default"
+    )

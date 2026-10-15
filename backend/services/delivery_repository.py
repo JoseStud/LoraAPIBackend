@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
-from sqlalchemy import Integer, func, update
+from sqlalchemy import Integer, case, func, update
 from sqlmodel import Session, select
 
 from backend.models import DeliveryJob
@@ -79,9 +79,10 @@ class DeliveryJobMapper:
 
     def apply_status(self, job: DeliveryJob, status: str) -> None:
         """Update job status and lifecycle timestamps."""
+        previous = job.status
         job.status = status
         now = self._now()
-        if status == "running" and job.started_at is None:
+        if status == "running" and (job.started_at is None or previous == "retrying"):
             job.started_at = now
         elif status in _FINISHED_STATUSES and job.finished_at is None:
             job.finished_at = now
@@ -89,12 +90,17 @@ class DeliveryJobMapper:
     def status_column_values(self, status: str) -> Dict[str, Any]:
         """Return the column values for ``status`` as a SQL ``UPDATE`` sets them.
 
-        Mirrors :meth:`apply_status`: a timestamp that is already set is kept.
+        Mirrors :meth:`apply_status`: a timestamp that is already set is kept,
+        except that a retry (``retrying`` → ``running``) restarts
+        ``started_at``, which job recovery measures the running time from.
         """
         values: Dict[str, Any] = {"status": status}
         now = self._now()
         if status == "running":
-            values["started_at"] = func.coalesce(DeliveryJob.started_at, now)
+            values["started_at"] = case(
+                (DeliveryJob.status == "retrying", now),
+                else_=func.coalesce(DeliveryJob.started_at, now),
+            )
         elif status in _FINISHED_STATUSES:
             values["finished_at"] = func.coalesce(DeliveryJob.finished_at, now)
         return values

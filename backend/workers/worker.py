@@ -3,8 +3,9 @@
 Usage:
   REDIS_URL=redis://localhost:6379/0 python run_worker.py
 
-This script simply prints instructions — prefer running:
-  rq worker --url $REDIS_URL default
+This script simply prints instructions — prefer running (the scheduler
+releases delayed job retries):
+  rq worker --with-scheduler --url $REDIS_URL default
 """
 
 if __name__ == "__main__":
@@ -12,5 +13,5 @@ if __name__ == "__main__":
 
     url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     print("Run a worker with:")
-    print("   rq worker --url $REDIS_URL default")
+    print("   rq worker --with-scheduler --url $REDIS_URL default")
     print(f"Detected REDIS_URL={url}")

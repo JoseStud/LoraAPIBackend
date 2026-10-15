@@ -34,6 +34,15 @@ def _container_delivery_service(session: Session) -> DeliveryService:
     return get_service_container_builder().build(session).deliveries
 
 
+def _is_job_timeout(exc: BaseException) -> bool:
+    """Return whether ``exc`` is RQ's job timeout firing inside the job."""
+    try:
+        from rq.timeouts import JobTimeoutException
+    except ModuleNotFoundError:  # pragma: no cover - optional dependency
+        return False
+    return isinstance(exc, JobTimeoutException)
+
+
 class DeliveryRunner:
     """Coordinate delivery job execution using registered backends."""
 
@@ -105,7 +114,14 @@ class DeliveryRunner:
         retries_left: Optional[int] = None,
         raise_on_error: bool = False,
     ) -> None:
-        """Load delivery state and execute the selected backend."""
+        """Load delivery state and execute the selected backend.
+
+        ``retries_left`` is how many more attempts the queue makes if this one
+        raises (RQ's ``Job.retries_left``, which RQ decrements only when it
+        schedules the retry); ``None`` means the queue does not retry. When
+        the backend raises and retries are left the job is left ``retrying``
+        for the next attempt to claim, otherwise it is ``failed``.
+        """
         prompt: str
         mode: str
         params: Dict[str, Any]
@@ -134,14 +150,24 @@ class DeliveryRunner:
             status = (
                 "succeeded" if self._is_successful_result(result_payload) else "failed"
             )
-        except Exception as exc:  # pragma: no cover - defensive branch
+        except Exception as exc:
             error = exc
             logger.exception("Delivery %s failed", job_id)
-            result_payload = {"error": "Delivery processing failed"}
-            if retries_left is not None and retries_left > 0:
-                result_payload["retries_left"] = retries_left
+            if _is_job_timeout(exc):
+                # The backend may still be busy with this job; another
+                # attempt would pile onto it, so a timeout is final.
+                result_payload = {"error": "Delivery timed out"}
+                status = "failed"
+            elif retries_left is not None and retries_left > 0:
+                # RQ runs the task again; that attempt claims the job back
+                # from ``retrying`` unless it was cancelled meanwhile.
+                result_payload = {
+                    "error": "Delivery processing failed",
+                    "retries_left": retries_left,
+                }
                 status = "retrying"
             else:
+                result_payload = {"error": "Delivery processing failed"}
                 status = "failed"
 
         with get_session_context() as session:

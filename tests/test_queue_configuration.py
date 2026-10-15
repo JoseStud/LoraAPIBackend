@@ -290,6 +290,70 @@ def test_redis_backend_applies_job_timeout(monkeypatch) -> None:
     assert second.kwargs["job_timeout"] == 30
 
 
+def test_redis_backend_applies_retry_policy(monkeypatch) -> None:
+    """Jobs get the configured RQ retry policy unless the caller sets one."""
+    backend = RedisQueueBackend(
+        "redis://localhost:6379/0", max_retries=2, retry_intervals=[10, 20]
+    )
+    queue = MagicMock()
+    monkeypatch.setattr(backend, "_get_queue", lambda: queue)
+
+    backend.enqueue_delivery("job-a")
+    backend.enqueue_delivery("job-b", retry=None)
+
+    first, second = queue.enqueue.call_args_list
+    retry = first.kwargs["retry"]
+    assert (retry.max, retry.intervals) == (2, [10, 20])
+    assert second.kwargs["retry"] is None
+
+
+def test_redis_backend_without_retries(monkeypatch) -> None:
+    """``max_retries=0`` enqueues jobs without a retry policy."""
+    backend = RedisQueueBackend("redis://localhost:6379/0", max_retries=0)
+    queue = MagicMock()
+    monkeypatch.setattr(backend, "_get_queue", lambda: queue)
+
+    backend.enqueue_delivery("job-a")
+
+    assert queue.enqueue.call_args.kwargs["retry"] is None
+
+
+def test_orchestrator_configures_retries_from_settings(monkeypatch) -> None:
+    """The Redis backend takes its retry policy from the settings."""
+    monkeypatch.setattr(settings, "DELIVERY_MAX_RETRIES", 3)
+    monkeypatch.setattr(settings, "DELIVERY_RETRY_INTERVAL_SECONDS", 5)
+    orchestrator = QueueOrchestrator(
+        redis_url_factory=lambda: "redis://localhost:6379/0"
+    )
+
+    primary, _ = orchestrator.get_backends()
+
+    assert isinstance(primary, RedisQueueBackend)
+    assert primary.max_retries == 3
+    assert primary.retry_intervals == [5, 10, 20]
+    assert primary.job_timeout == settings.job_running_timeout_seconds
+
+
+def test_in_process_backend_ignores_retry_policy() -> None:
+    """The in-process fallback runs a job once, whatever the caller asks."""
+    attempts: list[str] = []
+
+    def runner(job_id: str) -> None:
+        attempts.append(job_id)
+        raise ConnectionError("down")
+
+    job_runner = InProcessJobRunner()
+    backend = BackgroundTaskQueueBackend(runner, job_runner=job_runner)
+    try:
+        future = backend.enqueue_delivery("job-1", retry=object())
+        assert isinstance(future.exception(timeout=5), ConnectionError)
+        # A second job proves the first is not queued again.
+        backend.enqueue_delivery("job-2").exception(timeout=5)
+    finally:
+        job_runner.stop()
+    assert attempts == ["job-1", "job-2"]
+
+
 def test_orchestrator_reports_durable_queue() -> None:
     """Only a primary (Redis) backend makes the queue durable."""
     in_process = QueueOrchestrator(

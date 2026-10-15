@@ -80,6 +80,7 @@ services:
 
   # Runs queued generation jobs. With REDIS_URL set the API only enqueues them,
   # so without this service every job stays pending. Restarts on backend edits.
+  # The scheduler releases delayed retries (DELIVERY_RETRY_INTERVAL_SECONDS).
   worker:
     image: lora-dev-backend:local
     container_name: lora-dev-worker
@@ -87,7 +88,7 @@ services:
       - watchfiles
       - --filter
       - python
-      - rq worker --url ${REDIS_URL:-redis://redis:6379/0} default
+      - rq worker --with-scheduler --url ${REDIS_URL:-redis://redis:6379/0} default
       - backend
     volumes:
       - ./backend:/app/backend
@@ -219,7 +220,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment: *demo-environment
-    command: ["rq", "worker", "--url", "redis://demo-redis:6379/0", "default"]
+    command: ["rq", "worker", "--with-scheduler", "--url", "redis://demo-redis:6379/0", "default"]
     volumes:
       - demo_outputs:/app/outputs
     depends_on:

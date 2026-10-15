@@ -82,6 +82,13 @@ class Settings(BaseSettings):
     JOB_RUNNING_TIMEOUT_SECONDS: Optional[int] = Field(default=None, gt=0)
     # How often the API looks for such jobs; 0 checks only at startup.
     JOB_RECOVERY_INTERVAL_SECONDS: int = Field(default=60, ge=0)
+    # RQ retries of a queued job whose runner raised (network error, crash);
+    # a generation SDNext reports as failed is not retried. Retry n waits
+    # DELIVERY_RETRY_INTERVAL_SECONDS * 2**(n-1); an interval above 0 needs
+    # the worker's scheduler (`rq worker --with-scheduler`). 0 retries
+    # disables retrying. In-process jobs (no Redis) are never retried.
+    DELIVERY_MAX_RETRIES: int = Field(default=2, ge=0)
+    DELIVERY_RETRY_INTERVAL_SECONDS: int = Field(default=10, ge=0)
 
     # Generation polling intervals (milliseconds)
     GENERATION_QUEUE_POLL_INTERVAL_MS: int = Field(default=2_000, gt=0)
@@ -145,6 +152,12 @@ class Settings(BaseSettings):
         if self.JOB_RUNNING_TIMEOUT_SECONDS is not None:
             return self.JOB_RUNNING_TIMEOUT_SECONDS
         return self.SDNEXT_TIMEOUT + self.SDNEXT_PRE_GENERATE_TIMEOUT + 120
+
+    @property
+    def delivery_retry_intervals(self) -> List[int]:
+        """Return the delay in seconds before each RQ retry of a delivery job."""
+        base = self.DELIVERY_RETRY_INTERVAL_SECONDS
+        return [base * 2**attempt for attempt in range(self.DELIVERY_MAX_RETRIES)]
 
     @property
     def get_backend_url(self) -> str:

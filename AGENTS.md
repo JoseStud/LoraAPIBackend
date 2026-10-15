@@ -136,7 +136,11 @@ Read these before changing the matching subsystem:
   `asyncio.run`. The lifespan stops the runner on shutdown. Services take a
   `TaskScheduler` (the protocol in `queue.py`), not FastAPI's `BackgroundTasks`;
   routers pass `BackgroundTasks`, which fits it, but the in-process fallback
-  ignores it. `DeliveryHTTPClient` keeps one aiohttp session per event loop, so
+  ignores it. `RedisQueueBackend` enqueues every job with an RQ `Retry` built
+  from `DELIVERY_MAX_RETRIES` and `DELIVERY_RETRY_INTERVAL_SECONDS`
+  (exponential delays, so workers run `rq worker --with-scheduler`); the
+  in-process fallback runs each job once. Don't build a separate retry policy
+  at call sites. `DeliveryHTTPClient` keeps one aiohttp session per event loop, so
   the shared SDNext client works from the API loop, the runner loop and RQ
   workers alike.
 - **Job status transitions**: a delivery job moves `pending`/`retrying` →
@@ -148,7 +152,12 @@ Read these before changing the matching subsystem:
   `update_job_status` from the runner or the API. A runner that cannot claim a
   job skips it, which makes re-enqueueing safe. Cancelling a running job goes
   through `GenerationCoordinator.cancel_job`, which also interrupts the
-  backend.
+  backend. `retrying` means an RQ retry is pending: the runner sets it when
+  the backend raises and RQ's `retries_left` (the retries after this attempt)
+  is above 0, otherwise `failed`; an RQ job timeout is always `failed`.
+  Claiming from `retrying` restarts `started_at`. A retry of a job that was
+  cancelled, or that a killed attempt left `running`, skips it; job recovery
+  fails the latter.
 - **Job recovery**: `JobRecovery` (`backend/services/job_recovery.py`), started
   by the lifespan, fails jobs `running` longer than
   `JOB_RUNNING_TIMEOUT_SECONDS` (also the RQ job timeout) at startup and every
