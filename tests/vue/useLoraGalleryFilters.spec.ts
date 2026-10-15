@@ -76,4 +76,30 @@ describe('useLoraGalleryFilters library filters', () => {
     filters.clearFilters();
     expect(filters.selectedFacets.value).toEqual({});
   });
+
+  it('counts facet values within the other active filters', () => {
+    const search = ref('');
+    const filters = useLoraGalleryFilters(loras, search);
+
+    filters.selectedSeries.value = 'Naruto';
+    const hair = filters.facetOptions.value['hair-color'];
+    // every catalog value stays listed, in catalog order, with in-context counts
+    expect(hair).toEqual([
+      { value: 'black', count: 1 },
+      { value: 'blond', count: 1 },
+      { value: 'white/silver', count: 0 },
+    ]);
+
+    // a facet's own selection doesn't shrink its counts; other facets do
+    filters.toggleFacet('hair-color', 'black');
+    expect(filters.facetOptions.value['hair-color'].map((o) => o.count)).toEqual([1, 1, 0]);
+    expect(filters.facetOptions.value.outfit).toEqual([
+      { value: 'casual', count: 0 },
+      { value: 'hero suit', count: 0 },
+      { value: 'robe/kimono', count: 1 },
+    ]);
+
+    search.value = 'zoldyck';
+    expect(filters.facetOptions.value.build).toEqual([{ value: 'slim', count: 0 }]);
+  });
 });

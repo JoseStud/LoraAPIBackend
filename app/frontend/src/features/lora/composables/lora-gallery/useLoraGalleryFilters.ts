@@ -50,19 +50,74 @@ export function useLoraGalleryFilters(
     sortedUnique(loras.value.map((lora) => metaFor(lora).series)),
   );
 
-  /** Facet values present in the catalog, most common first. */
+  const matchesSearch = (lora: GalleryLora, query: string): boolean => {
+    const meta = metaFor(lora);
+    return (
+      lora.name.toLowerCase().includes(query)
+      || Boolean(lora.description?.toLowerCase().includes(query))
+      || Boolean(lora.tags?.some((tag: string) => tag.toLowerCase().includes(query)))
+      || meta.triggers.some((trigger) => trigger.toLowerCase().includes(query))
+      || Boolean(meta.series?.toLowerCase().includes(query))
+    );
+  };
+
+  /** LoRAs passing every filter except the appearance facets. */
+  const baseFiltered = computed<GalleryLora[]>(() => {
+    const query = searchTerm.value.toLowerCase();
+    return loras.value.filter((lora) => {
+      if (query && !matchesSearch(lora, query)) {
+        return false;
+      }
+      if (activeOnly.value && !lora.active) {
+        return false;
+      }
+      const meta = metaFor(lora);
+      if (selectedArchetype.value && meta.archetype !== selectedArchetype.value) {
+        return false;
+      }
+      return !selectedSeries.value || meta.series === selectedSeries.value;
+    });
+  });
+
+  // Any selected value within a facet; every facet with a selection.
+  const matchesFacets = (lora: GalleryLora, skip?: FacetKey): boolean =>
+    FACET_KEYS.every((key) => {
+      const wanted = selectedFacets.value[key] ?? [];
+      return (
+        key === skip
+        || wanted.length === 0
+        || (metaFor(lora).facets[key] ?? []).some((value) => wanted.includes(value))
+      );
+    });
+
+  /**
+   * Facet values present in the catalog, most common first. ``count`` is how
+   * many LoRAs the gallery would show if the value were added to the current
+   * filters (other facets' selections apply, this facet's own do not), so a
+   * zero means picking it leads nowhere. Order follows catalog-wide frequency
+   * so chips don't jump around while filtering.
+   */
   const facetOptions = computed(() => {
     const options = {} as Record<FacetKey, FacetOption[]>;
     for (const key of FACET_KEYS) {
-      const counts = new Map<string, number>();
+      const totals = new Map<string, number>();
       for (const lora of loras.value) {
+        for (const value of metaFor(lora).facets[key] ?? []) {
+          totals.set(value, (totals.get(value) ?? 0) + 1);
+        }
+      }
+      const counts = new Map<string, number>();
+      for (const lora of baseFiltered.value) {
+        if (!matchesFacets(lora, key)) {
+          continue;
+        }
         for (const value of metaFor(lora).facets[key] ?? []) {
           counts.set(value, (counts.get(value) ?? 0) + 1);
         }
       }
-      options[key] = Array.from(counts, ([value, count]) => ({ value, count })).sort(
-        (a, b) => b.count - a.count || a.value.localeCompare(b.value),
-      );
+      options[key] = Array.from(totals, ([value, total]) => ({ value, total }))
+        .sort((a, b) => b.total - a.total || a.value.localeCompare(b.value))
+        .map(({ value }) => ({ value, count: counts.get(value) ?? 0 }));
     }
     return options;
   });
@@ -76,55 +131,7 @@ export function useLoraGalleryFilters(
   };
 
   const filteredLoras = computed<GalleryLora[]>(() => {
-    let filtered = [...loras.value];
-
-    if (searchTerm.value) {
-      const query = searchTerm.value.toLowerCase();
-      filtered = filtered.filter((lora: GalleryLora) => {
-        const meta = metaFor(lora);
-        const matchesName = lora.name.toLowerCase().includes(query);
-        const matchesDescription = lora.description
-          ?.toLowerCase()
-          .includes(query);
-        const matchesTags = lora.tags?.some((tag: string) =>
-          tag.toLowerCase().includes(query)
-        );
-        const matchesTriggers = meta.triggers.some((trigger) =>
-          trigger.toLowerCase().includes(query)
-        );
-        const matchesSeries = meta.series?.toLowerCase().includes(query);
-
-        return (
-          matchesName
-          || matchesDescription
-          || Boolean(matchesTags)
-          || matchesTriggers
-          || Boolean(matchesSeries)
-        );
-      });
-    }
-
-    if (activeOnly.value) {
-      filtered = filtered.filter(lora => lora.active);
-    }
-
-    if (selectedArchetype.value) {
-      filtered = filtered.filter((lora) => metaFor(lora).archetype === selectedArchetype.value);
-    }
-
-    if (selectedSeries.value) {
-      filtered = filtered.filter((lora) => metaFor(lora).series === selectedSeries.value);
-    }
-
-    // Any selected value within a facet; every facet with a selection.
-    for (const key of FACET_KEYS) {
-      const wanted = selectedFacets.value[key] ?? [];
-      if (wanted.length > 0) {
-        filtered = filtered.filter((lora) =>
-          (metaFor(lora).facets[key] ?? []).some((value) => wanted.includes(value)),
-        );
-      }
-    }
+    const filtered = baseFiltered.value.filter((lora) => matchesFacets(lora));
 
     filtered.sort((a, b) => {
       switch (sortBy.value) {

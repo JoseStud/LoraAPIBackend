@@ -10,7 +10,14 @@
     </div>
 
     <div class="lora-card-preview-container">
-      <div class="lora-card-preview-aspect">
+      <component
+        :is="bulkMode ? 'div' : 'a'"
+        class="lora-card-preview-aspect"
+        :href="bulkMode ? undefined : card.detailsUrl"
+        :aria-label="bulkMode ? undefined : `View details for ${card.name}`"
+        data-testid="lora-card-preview-link"
+        @click="onDetailsClick"
+      >
         <img
           v-if="card.previewImage"
           :src="card.previewImage"
@@ -25,7 +32,7 @@
                   d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
         </div>
-      </div>
+      </component>
 
       <div class="lora-card-status-badge-container">
         <span :class="['status-badge', isActive ? 'status-active' : 'status-inactive']">
@@ -43,7 +50,12 @@
     <div class="lora-card-content">
       <div class="lora-card-header">
         <h3 class="lora-card-title">
-          {{ card.name }}
+          <a
+            :href="card.detailsUrl"
+            class="lora-card-title-link"
+            data-testid="lora-card-title-link"
+            @click="onDetailsClick"
+          >{{ card.name }}</a>
         </h3>
         <div ref="actionsContainerRef" class="relative">
           <button
@@ -64,7 +76,7 @@
             aria-label="LoRA actions"
           >
             <div class="py-1">
-              <a :href="card.detailsUrl" class="lora-card-menu-item">
+              <a :href="card.detailsUrl" class="lora-card-menu-item" @click="onDetailsClick">
                 View Details
               </a>
               <button @click="handleAction('toggle-active')" class="lora-card-menu-item w-full text-left">
@@ -162,6 +174,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 import type { LoraCardViewModel } from './cardViewModel';
+import { isPlainLeftClick } from '../../utils/links';
 import { formatArchetypeLabel, TRAIT_KEYS } from '../../utils/libraryMeta';
 
 const props = defineProps<{
@@ -180,6 +193,7 @@ const emit = defineEmits<{
   (e: 'delete'): void;
   (e: 'change-weight', value: number): void;
   (e: 'copy-triggers'): void;
+  (e: 'open-details'): void;
 }>();
 
 const triggerText = computed(() => props.card.triggers.join(', '));
@@ -216,6 +230,18 @@ const onWeightInput = (event: Event) => {
   if (!target) return;
   const nextWeight = Number.parseFloat(target.value);
   emit('change-weight', Number.isFinite(nextWeight) ? nextWeight : props.weight);
+};
+
+const onDetailsClick = (event: MouseEvent) => {
+  // The preview is a plain container in bulk mode, not a link.
+  if (!(event.currentTarget instanceof HTMLAnchorElement)) {
+    return;
+  }
+  closeActions();
+  if (isPlainLeftClick(event)) {
+    event.preventDefault();
+    emit('open-details');
+  }
 };
 
 const handleAction = (action: 'toggle-active' | 'recommendations' | 'generate-preview' | 'delete') => {
@@ -256,6 +282,7 @@ onUnmounted(() => {
 }
 
 .lora-card-preview-aspect {
+  display: block;
   aspect-ratio: 4 / 3;
   overflow: hidden;
   border-radius: 0.75rem 0.75rem 0 0;
@@ -339,6 +366,16 @@ onUnmounted(() => {
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.lora-card-title-link {
+  color: inherit;
+}
+
+.lora-card-title-link:hover,
+.lora-card-title-link:focus-visible {
+  color: var(--color-primary-700);
+  text-decoration: underline;
 }
 
 .lora-card-library {

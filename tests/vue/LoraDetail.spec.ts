@@ -20,11 +20,15 @@ vi.mock('@/utils/promptClipboard', () => ({
   copyPromptToClipboard: vi.fn().mockResolvedValue(true),
 }));
 
-const mountDetail = (loraId = 'g1') =>
-  mount(LoraDetail, {
-    props: { loraId },
-    global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } },
-  });
+const router = vi.hoisted(() => ({
+  back: vi.fn(),
+  push: vi.fn().mockResolvedValue(undefined),
+  resolve: vi.fn((to: string) => ({ href: to })),
+}));
+
+vi.mock('vue-router', () => ({ useRouter: () => router }));
+
+const mountDetail = (loraId = 'g1') => mount(LoraDetail, { props: { loraId } });
 
 const gojo = createAdapterFixture({
   id: 'g1',
@@ -55,6 +59,7 @@ const gojo = createAdapterFixture({
 describe('LoraDetail', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.replaceState(null, '');
   });
 
   it('shows the full library record', async () => {
@@ -104,5 +109,33 @@ describe('LoraDetail', () => {
     await flushPromises();
 
     expect(wrapper.find('[data-testid="lora-detail-error"]').text()).toContain('not found');
+  });
+
+  it('goes back to the filtered gallery it came from', async () => {
+    service.fetchById.mockResolvedValue(gojo);
+    window.history.replaceState({ back: '/loras?q=gojo&build=tall' }, '');
+    const wrapper = mountDetail();
+    await flushPromises();
+
+    const back = wrapper.find('[data-testid="lora-detail-back"]');
+    expect(back.attributes('href')).toBe('/loras?q=gojo&build=tall');
+    await back.trigger('click');
+
+    expect(router.back).toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('opens the gallery when the page was reached some other way', async () => {
+    service.fetchById.mockResolvedValue(gojo);
+    window.history.replaceState({ back: '/history' }, '');
+    const wrapper = mountDetail();
+    await flushPromises();
+
+    const back = wrapper.find('[data-testid="lora-detail-back"]');
+    expect(back.attributes('href')).toBe('/loras');
+    await back.trigger('click');
+
+    expect(router.back).not.toHaveBeenCalled();
+    expect(router.push).toHaveBeenCalledWith('/loras');
   });
 });

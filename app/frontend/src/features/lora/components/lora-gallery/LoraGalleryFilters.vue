@@ -19,7 +19,7 @@
         </svg>
       </div>
       <div v-show="searchTerm" class="clear-search-container">
-        <button class="clear-search-btn" @click="clearSearch">
+        <button type="button" class="clear-search-btn" aria-label="Clear search" @click="clearSearch">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -93,7 +93,13 @@
       </div>
     </div>
 
-    <details v-if="visibleFacets.length > 0" class="facet-panel" data-testid="facet-panel" open>
+    <details
+      v-if="visibleFacets.length > 0"
+      class="facet-panel"
+      data-testid="facet-panel"
+      :open="facetPanelOpen"
+      @toggle="onFacetPanelToggle"
+    >
       <summary class="facet-summary">
         Appearance
         <span v-if="selectedCount > 0" class="facet-selected-count">{{ selectedCount }} selected</span>
@@ -108,6 +114,7 @@
             class="facet-chip"
             :class="{ 'facet-chip-selected': isSelected(facet.key, option.value) }"
             :aria-pressed="isSelected(facet.key, option.value)"
+            :disabled="option.count === 0 && !isSelected(facet.key, option.value)"
             :data-facet="`${facet.key}:${option.value}`"
             @click="emit('toggle-facet', facet.key, option.value)"
           >
@@ -121,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 import type { LoraGallerySortOption } from '@/types';
 import type { FacetOption, FacetSelection } from '../../composables/lora-gallery/useLoraGalleryFilters';
@@ -171,6 +178,17 @@ const visibleFacets = computed(() =>
 const selectedCount = computed(() =>
   Object.values(props.selectedFacets).reduce((total, values) => total + (values?.length ?? 0), 0),
 );
+
+// Open on wide screens; on a phone the full panel pushes the LoRAs a screen down.
+const FACET_PANEL_OPEN_QUERY = '(min-width: 768px)';
+const facetPanelOpen = ref(
+  typeof window === 'undefined'
+    || typeof window.matchMedia !== 'function'
+    || window.matchMedia(FACET_PANEL_OPEN_QUERY).matches,
+);
+const onFacetPanelToggle = (event: Event) => {
+  facetPanelOpen.value = (event.target as HTMLDetailsElement).open;
+};
 
 const isSelected = (key: FacetKey, value: string): boolean =>
   (props.selectedFacets[key] ?? []).includes(value);
@@ -353,6 +371,15 @@ const onSortChange = (event: Event) => {
 
 .facet-chip:hover {
   border-color: var(--color-primary-300);
+}
+
+.facet-chip:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.facet-chip:disabled:hover {
+  border-color: var(--color-secondary-200);
 }
 
 .facet-chip:focus-visible {

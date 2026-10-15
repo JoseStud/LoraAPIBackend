@@ -59,14 +59,17 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
+
 import LoraGalleryBulkActions from './LoraGalleryBulkActions.vue';
 import LoraGalleryFilters from './LoraGalleryFilters.vue';
 import LoraGalleryGrid from './LoraGalleryGrid.vue';
 import LoraGalleryHeader from './LoraGalleryHeader.vue';
 import { useLoraGalleryData } from '../../composables/lora-gallery/useLoraGalleryData';
 import { useLoraGalleryFilters } from '../../composables/lora-gallery/useLoraGalleryFilters';
+import { useLoraGalleryRouteSync } from '../../composables/lora-gallery/useLoraGalleryRouteSync';
 import { useLoraGallerySelection } from '../../composables/lora-gallery/useLoraGallerySelection';
-import { useAsyncLifecycleTask, useDialogService, useNotifications, useSyncedQueryParam } from '@/composables/shared';
+import { useAsyncLifecycleTask, useDialogService, useNotifications } from '@/composables/shared';
 import type {
   LoraBulkAction,
   LoraUpdatePayload,
@@ -87,7 +90,7 @@ const {
   removeLora,
 } = useLoraGalleryData();
 
-const searchQuery = useSyncedQueryParam();
+const searchQuery = ref('');
 
 const {
   searchTerm,
@@ -103,6 +106,15 @@ const {
   filteredLoras,
   clearFilters,
 } = useLoraGalleryFilters(loras, searchQuery);
+
+useLoraGalleryRouteSync({
+  searchTerm,
+  activeOnly,
+  selectedArchetype,
+  selectedSeries,
+  sortBy,
+  selectedFacets,
+});
 
 const {
   selectedLoras,

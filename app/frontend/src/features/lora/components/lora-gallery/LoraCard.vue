@@ -14,6 +14,7 @@
       @delete="handleDelete"
       @change-weight="handleWeightChange"
       @copy-triggers="handleCopyTriggers"
+      @open-details="handleOpenDetails"
     />
     <LoraCardList
       v-else
@@ -26,6 +27,7 @@
       @toggle-active="handleToggleActive"
       @change-weight="handleWeightChange"
       @copy-triggers="handleCopyTriggers"
+      @open-details="handleOpenDetails"
     />
   </div>
 </template>
@@ -67,6 +69,7 @@ const {
   qualityScore,
   handleToggleActive,
   handleWeightChange,
+  handleOpenDetails,
   handleRecommendations,
   handleGeneratePreview,
   handleDelete,

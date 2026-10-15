@@ -1,8 +1,13 @@
 <template>
   <div class="lora-detail">
-    <RouterLink to="/loras" class="text-sm font-medium text-blue-600 hover:text-blue-800">
+    <a
+      :href="backHref"
+      class="text-sm font-medium text-blue-600 hover:text-blue-800"
+      data-testid="lora-detail-back"
+      @click="goBack"
+    >
       ← Back to LoRA collection
-    </RouterLink>
+    </a>
 
     <div v-if="isLoading" class="py-12 text-center text-gray-500" data-testid="lora-detail-loading">
       Loading LoRA…
@@ -148,7 +153,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { RouterLink } from 'vue-router';
+import { useRouter } from 'vue-router';
 
 import { fetchAdapterById, toggleLoraActiveState } from '../../services/lora/loraService';
 import { useAdapterCatalogStore } from '../../stores/adapterCatalog';
@@ -160,6 +165,7 @@ import {
   htmlToPlainText,
   TRAIT_KEYS,
 } from '../../utils/libraryMeta';
+import { isPlainLeftClick } from '../../utils/links';
 import { ApiError, useNotifications } from '@/composables/shared';
 import { useBackendClient } from '@/services/shared/http';
 import type { AdapterRead } from '@/types';
@@ -170,7 +176,28 @@ defineOptions({ name: 'LoraDetail' });
 
 const props = defineProps<{ loraId: string }>();
 
+const router = useRouter();
 const backendClient = useBackendClient();
+
+// The gallery page the user came from, filters included, if there is one.
+const readGalleryBack = (): string | null => {
+  const back = (window.history.state as { back?: unknown } | null)?.back;
+  return typeof back === 'string' && /^\/loras(\?|$)/.test(back) ? back : null;
+};
+const backHref = router.resolve(readGalleryBack() ?? '/loras').href;
+
+const goBack = (event: MouseEvent) => {
+  if (!isPlainLeftClick(event)) {
+    return;
+  }
+  event.preventDefault();
+  // Going back restores the gallery entry as it was; otherwise open it fresh.
+  if (readGalleryBack()) {
+    router.back();
+  } else {
+    void router.push('/loras');
+  }
+};
 const catalog = useAdapterCatalogStore();
 const { showSuccess, showError } = useNotifications();
 

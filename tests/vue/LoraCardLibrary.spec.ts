@@ -7,8 +7,10 @@ import { createAdapterFixture } from '../fixtures/adapters';
 const clipboard = vi.hoisted(() => ({ copy: vi.fn() }));
 const notify = vi.hoisted(() => ({ showSuccess: vi.fn(), showError: vi.fn() }));
 
+const router = vi.hoisted(() => ({ push: vi.fn(), resolve: vi.fn() }));
+
 vi.mock('vue-router', () => ({
-  useRouter: () => ({ push: vi.fn(), resolve: vi.fn() }),
+  useRouter: () => router,
 }));
 
 vi.mock('@/utils/promptClipboard', () => ({
@@ -33,6 +35,7 @@ describe('LoraCard library metadata', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clipboard.copy.mockResolvedValue(true);
+    router.push.mockResolvedValue(undefined);
   });
 
   it('shows archetype, series, clean description, triggers and the preview', () => {
@@ -80,5 +83,48 @@ describe('LoraCard library metadata', () => {
     });
 
     expect(wrapper.find('[data-testid="lora-card-triggers"]').exists()).toBe(false);
+  });
+
+  it.each(['grid', 'list'] as const)('opens the detail page in-app from the %s title', async (viewMode) => {
+    const wrapper = mount(LoraCard, { props: { lora: killua, viewMode } });
+    const link = wrapper.find('[data-testid="lora-card-title-link"]');
+
+    expect(link.attributes('href')).toBe('/loras/k1');
+    const click = new MouseEvent('click', { button: 0, bubbles: true, cancelable: true });
+    link.element.dispatchEvent(click);
+
+    expect(click.defaultPrevented).toBe(true);
+    expect(router.push).toHaveBeenCalledWith('/loras/k1');
+  });
+
+  it('leaves modified clicks to the browser (open in new tab)', () => {
+    const wrapper = mount(LoraCard, { props: { lora: killua, viewMode: 'grid' } });
+
+    let leftToBrowser = false;
+    // Record what the card did, then stop jsdom attempting a real navigation.
+    wrapper.element.addEventListener('click', (event) => {
+      leftToBrowser = !event.defaultPrevented;
+      event.preventDefault();
+    });
+    const click = new MouseEvent('click', { button: 0, ctrlKey: true, bubbles: true, cancelable: true });
+    wrapper.find('[data-testid="lora-card-preview-link"]').element.dispatchEvent(click);
+
+    expect(leftToBrowser).toBe(true);
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('opens details from the preview, but not in bulk mode', async () => {
+    const wrapper = mount(LoraCard, { props: { lora: killua, viewMode: 'grid' } });
+    const preview = wrapper.find('[data-testid="lora-card-preview-link"]');
+    expect(preview.element.tagName).toBe('A');
+    await preview.trigger('click');
+    expect(router.push).toHaveBeenCalledWith('/loras/k1');
+
+    router.push.mockClear();
+    await wrapper.setProps({ bulkMode: true });
+    const bulkPreview = wrapper.find('[data-testid="lora-card-preview-link"]');
+    expect(bulkPreview.element.tagName).toBe('DIV');
+    await bulkPreview.trigger('click');
+    expect(router.push).not.toHaveBeenCalled();
   });
 });

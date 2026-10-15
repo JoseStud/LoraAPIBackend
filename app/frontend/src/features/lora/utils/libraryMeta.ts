@@ -189,7 +189,8 @@ export const getLoraLibraryMeta = (lora: LoraLike): LoraLibraryMeta => {
     return !(tagWords.length > 0 && tagWords.every((word) => nameWords.has(word)));
   });
 
-  const trained = (lora.trained_words ?? []).map((word) => word.trim()).filter(Boolean);
+  // Some sidecars put a whole prompt in one trained word ("Mitsuki,short hair,...").
+  const trained = (lora.trained_words ?? []).flatMap((word) => splitTriggers(word));
   const triggers = trained.length > 0 ? trained : splitTriggers(lora.activation_text);
 
   return {

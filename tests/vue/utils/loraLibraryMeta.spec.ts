@@ -35,6 +35,15 @@ describe('getLoraLibraryMeta', () => {
     preview_image_url: 'https://image.civitai.com/k.jpeg',
   };
 
+  it('splits a trained word that holds a whole comma-separated prompt', () => {
+    const meta = getLoraLibraryMeta({
+      name: 'Mitsuki',
+      trained_words: ['Mitsuki,short hair, blue hair,,', 'mitsuki_sage, short hair'],
+    });
+
+    expect(meta.triggers).toEqual(['Mitsuki', 'short hair', 'blue hair', 'mitsuki_sage']);
+  });
+
   it('reads archetype, series, facets and traits from sidecar tags and extra', () => {
     const meta = getLoraLibraryMeta(sidecarLora);
 
