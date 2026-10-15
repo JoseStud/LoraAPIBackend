@@ -10,7 +10,8 @@ current state of the project is whatever `npm run ci:check` says.
 A change is not done until **`npm run ci:check` passes locally** and CI is green
 on the PR. Never merge while `Unified quality checks` or
 `Production build validation` fails. Do not claim a fix works without running
-the checks it touches.
+the checks it touches. A PR that changes an invariant described in this file
+updates this file in the same PR.
 
 `ci:check` (`scripts/ci_check.py`) runs, in order:
 
@@ -83,8 +84,11 @@ Read these before changing the matching subsystem:
 ### Backend contract map
 
 - **Composition and startup**: `backend/main.py` mounts every public router
-  under `/v1` and runs startup work (DB init and migrations, SDNext bootstrap,
-  optional importer). Add endpoints through those routers, not ad hoc routes.
+  under `/v1`. Its lifespan runs `init_db()` (Alembic migrations), preloads the
+  recommendation models in the background, and runs the optional startup
+  importer (`IMPORT_ON_STARTUP`). Delivery and generation backends (SDNext
+  included) are registered when `backend.delivery` is imported, not at startup.
+  Add endpoints through the routers, not ad hoc routes.
 - **Service container**: all service wiring goes through
   `ServiceContainerBuilder` (`backend/services/service_container_builder.py`).
   Use `get_service_container_builder()` / `service_container_builder_scope()`
@@ -151,6 +155,12 @@ Read these before changing the matching subsystem:
   `@/features/history/services/historyService`), not a barrel it no longer uses.
 - Fixtures must satisfy the Zod schemas; `tests/fixtures/adapters.js` builds a
   valid adapter record.
+- A spec named in the regression matrix below must contain real assertions;
+  `it.todo` and skipped tests do not count as a check.
+- Composables that share state through a store must be tested from multiple
+  call sites (separate calls to the composable), not only through multiple
+  `acquire()` calls on one returned instance: per-call watchers and listeners
+  only misbehave in the first case.
 
 ## Cross-PR regression matrix
 
@@ -158,7 +168,7 @@ Run the relevant rows for cross-cutting PRs and note the results in the PR.
 
 | Area | Expectation | How to check |
 | --- | --- | --- |
-| Orchestrator lifecycle | Two consumers share one transport, torn down once when the last releases | `npx vitest run tests/vue/composables/useGenerationOrchestratorManager.lifecycle.spec.ts` |
+| Orchestrator lifecycle | Two consumers share one transport, torn down once when the last releases | `npx vitest run tests/vue/composables/useGenerationOrchestratorManager.spec.ts tests/vue/composables/useGenerationOrchestratorManager.integration.spec.ts` |
 | Visibility / offline | Polling pauses while hidden or offline and resumes without duplicate jobs | DevTools Page Visibility and offline toggles; watch the network tab |
 | Widgets without Studio | Dashboard widgets render without loading the Studio bundle | `npm run check:bundle`; load the dashboard route directly |
 | HTTP errors | 401/403/5xx normalised; only idempotent requests retried; aborted requests never retried | `npx vitest run tests/vue/services/httpClient.spec.ts tests/vue/useApi.spec.ts` |
