@@ -60,7 +60,8 @@ you submit and inspect the same requests without curl.
 2. Checks invalid input (422) and an unknown job (404).
 3. Stops the worker, queues a job and proves it stays queued for two seconds.
    This detects an accidental switch to in-process background execution.
-4. Starts the worker and polls for completion. Decodes the PNG, verifies its
+4. Starts the worker and polls for completion. Fetches the PNG from the image
+   URL in the job result (without the API key, as a browser does), verifies its
    chunk checksums, checks timestamps and confirms identical bytes on shared disk.
 5. Restarts the API and checks that the same result and history remain readable.
 6. Injects HTTP 503, timeout, malformed JSON shape and invalid image data through
