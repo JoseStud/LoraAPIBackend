@@ -5,6 +5,7 @@ import { createPinia, setActivePinia } from 'pinia';
 
 import PerformanceAnalyticsPage from '../../app/frontend/src/views/analytics/PerformanceAnalyticsPage.vue';
 import { useSettingsStore } from '../../app/frontend/src/stores/settings';
+import { createAdapterFixture } from '../fixtures/adapters';
 
 const notificationSpies = vi.hoisted(() => ({
   showSuccess: vi.fn(),
@@ -150,18 +151,18 @@ const analyticsSummary = {
 
 const adapterListResponse = {
   items: [
-    {
+    createAdapterFixture({
       id: 'adapter-1',
       name: 'LoRA Alpha',
       version: '1.0',
       stats: { usage_count: 12, success_rate: 96.5, avg_time: 43.2 },
-    },
-    {
+    }),
+    createAdapterFixture({
       id: 'adapter-2',
       name: 'LoRA Beta',
       version: '1.1',
       stats: { usage_count: 9, success_rate: 94.1, avg_time: 46.7 },
-    },
+    }),
   ],
   total: 2,
   filtered: 2,
@@ -276,6 +277,21 @@ describe('PerformanceAnalyticsPage.vue', () => {
     expect(chartGridProps).toBeDefined();
     expect(chartGridProps.chartData.generationVolume).toEqual(analyticsSummary.chart_data.generation_volume);
     expect(chartGridProps.chartData.performance).toEqual(analyticsSummary.chart_data.performance);
+  });
+
+  it('lists the top LoRAs returned by the adapters endpoint', async () => {
+    wrapper = mountPage();
+
+    await flushPromises();
+    await wrapper.vm.$nextTick();
+
+    // The rows come from the stubbed `/adapters` response, not the dev-mode fallback list.
+    const rows = wrapper.findAll('tbody tr');
+    expect(rows).toHaveLength(adapterListResponse.items.length);
+    expect(rows[0].text()).toContain('LoRA Alpha');
+    expect(rows[0].text()).toContain('12');
+    expect(rows[1].text()).toContain('LoRA Beta');
+    expect(rows[1].text()).toContain('94.1%');
   });
 
   it('passes insights to the insights component and handles apply events', async () => {

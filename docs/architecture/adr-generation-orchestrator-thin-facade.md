@@ -134,6 +134,14 @@ same orchestrator, and teardown depended on two consumer sets agreeing.
 - The binding gained `removeJob` and `clearCompletedJobs`, the two façade commands it lacked.
   `useJobQueueActions` sends all three queue commands through its binding; `cancelJob` takes the
   backend job id.
+- `release()` is the binding's only teardown method (the `cleanup` alias is gone) and is
+  idempotent. A released binding is inert: `initialize()` and the async commands reject with an
+  Error, the sync commands (`removeJob`, `clearCompletedJobs`, `setHistoryLimit`) do nothing and
+  warn in development, and `canCancelJob` returns false. Before this, a command on a released
+  binding re-installed the orchestrator without its watchers or environment listeners. Call sites
+  drop their binding reference when they release it and acquire a fresh one if they need it again.
+- The manager store replaces its `consumers` Map on every change (copy-on-write, like
+  `historyVisibilityRefs`), so anything watching `consumers` is notified.
 
 `tests/vue/composables/useGenerationWidgetBinding.spec.ts` mounts widgets from separate components
 and checks that they share one orchestrator, which is destroyed after the last unmounts and kept

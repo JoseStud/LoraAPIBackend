@@ -203,12 +203,20 @@ export const useGenerationOrchestratorManagerStore = defineStore('generation-orc
     });
   };
 
+  // `consumers` and `historyVisibilityRefs` are shallow refs: replace the Map instead of mutating it,
+  // or nothing that watches them (including readers of the exposed `consumers`) is notified.
   const registerConsumer = (consumer: GenerationOrchestratorConsumer): void => {
-    consumers.value.set(consumer.id, consumer);
+    const next = new Map(consumers.value);
+    next.set(consumer.id, consumer);
+    consumers.value = next;
   };
 
   const unregisterConsumer = (consumerId: symbol): void => {
-    consumers.value.delete(consumerId);
+    if (consumers.value.has(consumerId)) {
+      const next = new Map(consumers.value);
+      next.delete(consumerId);
+      consumers.value = next;
+    }
 
     if (historyVisibilityRefs.value.has(consumerId)) {
       const next = new Map(historyVisibilityRefs.value);
@@ -459,10 +467,29 @@ export const useGenerationOrchestratorManagerStore = defineStore('generation-orc
 
     activate(context);
 
-    const getOrchestrator = (): GenerationOrchestratorStore =>
-      ensureOrchestrator(() => context.orchestratorStore);
-
     let released = false;
+
+    // A released binding is inert. Its commands must not reach `ensureOrchestrator()`, which would
+    // re-install an orchestrator after teardown with no watchers or environment listeners. Async
+    // commands reject; sync commands do nothing (with a dev-mode warning); `release()` is idempotent.
+    const assertNotReleased = (command: string): void => {
+      if (released) {
+        throw new Error(`Generation orchestrator binding was released; cannot run ${command}()`);
+      }
+    };
+
+    const isReleased = (command: string): boolean => {
+      if (released && import.meta.env.DEV) {
+        console.warn(`[GenerationOrchestrator] ${command}() ignored: the binding was released`);
+      }
+      return released;
+    };
+
+    const getOrchestrator = (command: string): GenerationOrchestratorStore => {
+      assertNotReleased(command);
+      return ensureOrchestrator(() => context.orchestratorStore);
+    };
+
     const release = (): void => {
       if (released) {
         return;
@@ -486,37 +513,51 @@ export const useGenerationOrchestratorManagerStore = defineStore('generation-orc
       recentResults,
       systemStatus,
       isConnected,
-      initialize: () =>
-        ensureInitialized(
+      initialize: async () => {
+        assertNotReleased('initialize');
+        return ensureInitialized(
           { queueClient: options.queueClient, websocketManager: options.websocketManager },
           context.orchestratorStore,
-        ),
-      cleanup: release,
-      loadSystemStatusData: () => getOrchestrator().loadSystemStatusData(),
-      loadActiveJobsData: () => getOrchestrator().loadActiveJobsData(),
-      loadRecentResultsData: (notifySuccess = false) =>
-        getOrchestrator().loadRecentResults(notifySuccess),
-      startGeneration: (payload: GenerationRequestPayload): Promise<GenerationStartResponse> =>
-        getOrchestrator().startGeneration(payload),
-      cancelJob: wrapCommand((jobId: string) => getOrchestrator().cancelJob(jobId)),
+        );
+      },
+      loadSystemStatusData: async () =>
+        getOrchestrator('loadSystemStatusData').loadSystemStatusData(),
+      loadActiveJobsData: async () => getOrchestrator('loadActiveJobsData').loadActiveJobsData(),
+      loadRecentResultsData: async (notifySuccess = false) =>
+        getOrchestrator('loadRecentResultsData').loadRecentResults(notifySuccess),
+      startGeneration: async (payload: GenerationRequestPayload): Promise<GenerationStartResponse> =>
+        getOrchestrator('startGeneration').startGeneration(payload),
+      cancelJob: wrapCommand((jobId: string) => getOrchestrator('cancelJob').cancelJob(jobId)),
       removeJob: (jobId: string) => {
-        getOrchestrator().removeJob(jobId);
+        if (isReleased('removeJob')) {
+          return;
+        }
+        getOrchestrator('removeJob').removeJob(jobId);
       },
       clearCompletedJobs: () => {
-        getOrchestrator().clearCompletedJobs();
+        if (isReleased('clearCompletedJobs')) {
+          return;
+        }
+        getOrchestrator('clearCompletedJobs').clearCompletedJobs();
       },
-      clearQueue: wrapCommand(() => getOrchestrator().clearQueue()),
+      clearQueue: wrapCommand(() => getOrchestrator('clearQueue').clearQueue()),
       deleteResult: wrapCommand((resultId: string | number) =>
-        getOrchestrator().deleteResult(resultId),
+        getOrchestrator('deleteResult').deleteResult(resultId),
       ),
       refreshResults: wrapCommand((notifySuccess: boolean | undefined = false) =>
-        getOrchestrator().loadRecentResults(notifySuccess),
+        getOrchestrator('refreshResults').loadRecentResults(notifySuccess),
       ),
       setHistoryLimit: (limit: number) => {
-        getOrchestrator().setHistoryLimit(limit);
+        if (isReleased('setHistoryLimit')) {
+          return;
+        }
+        getOrchestrator('setHistoryLimit').setHistoryLimit(limit);
       },
-      handleBackendUrlChange: () => getOrchestrator().handleBackendUrlChange(),
-      canCancelJob: (job: GenerationJobView) => getOrchestrator().isJobCancellable(job),
+      handleBackendUrlChange: async () =>
+        getOrchestrator('handleBackendUrlChange').handleBackendUrlChange(),
+      // A query, not a command: a released binding can cancel nothing.
+      canCancelJob: (job: GenerationJobView) =>
+        !released && getOrchestrator('canCancelJob').isJobCancellable(job),
       release,
     };
   };

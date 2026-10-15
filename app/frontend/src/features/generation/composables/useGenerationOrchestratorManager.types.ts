@@ -28,7 +28,6 @@ export interface GenerationOrchestratorBinding {
   systemStatus: Ref<DeepReadonly<SystemStatusState>>;
   isConnected: Ref<boolean>;
   initialize: () => Promise<void>;
-  cleanup: () => void;
   loadSystemStatusData: () => Promise<void>;
   loadActiveJobsData: () => Promise<void>;
   loadRecentResultsData: (notifySuccess?: boolean) => Promise<void>;
@@ -44,6 +43,11 @@ export interface GenerationOrchestratorBinding {
   canCancelJob: (job: GenerationJobView) => boolean;
   setHistoryLimit: (limit: number) => void;
   handleBackendUrlChange: () => Promise<void>;
+  /**
+   * Gives up this consumer's hold on the shared orchestrator; the last release tears it down.
+   * Idempotent. Afterwards the binding is inert: async commands (and `initialize`) reject, sync
+   * commands do nothing, and `canCancelJob` returns false.
+   */
   release: () => void;
 }
 

@@ -36,7 +36,10 @@ class PersistedJobState:
 
 
 class JobStateRepository(Protocol):
-    """Protocol for loading persisted job state."""
+    """Protocol for loading persisted job state.
+
+    Implementations are synchronous; the monitor calls them in a worker thread.
+    """
 
     def get_job_state(self, job_id: str) -> Optional[PersistedJobState]:
         """Return persisted state for ``job_id`` if available."""
@@ -180,7 +183,7 @@ class JobProgressMonitor:
                 result.error_message,
             )
 
-        persisted_state = self._safe_load_state(job_id)
+        persisted_state = await self._safe_load_state(job_id)
         if persisted_state is None:
             logger.debug("No persisted state for monitored job", job_id=job_id)
             return None
@@ -215,13 +218,15 @@ class JobProgressMonitor:
             "Generation service does not expose a progress check method",
         )
 
-    def _safe_load_state(self, job_id: str) -> Optional[PersistedJobState]:
+    async def _safe_load_state(self, job_id: str) -> Optional[PersistedJobState]:
         if self._repository is None:
             return None
 
+        # Repositories are synchronous and may query the database, so the load
+        # runs in a worker thread rather than blocking the event loop.
         try:
-            return self._repository.get_job_state(job_id)
-        except Exception as exc:  # pragma: no cover - defensive logging
+            return await asyncio.to_thread(self._repository.get_job_state, job_id)
+        except Exception as exc:
             logger.warning(
                 "Failed to load persisted job state",
                 job_id=job_id,

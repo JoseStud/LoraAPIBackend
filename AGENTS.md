@@ -65,6 +65,10 @@ npm run build
   `REDIS_URL`, so the API only enqueues generation jobs and the `worker`
   service (an RQ worker) runs them; the API and worker share `./outputs` as
   `SDNEXT_OUTPUT_DIR`.
+- **Single API process**: the API runs as one uvicorn process (no `--workers`,
+  no replicas), because the WebSocket `ConnectionManager` and the
+  `JobProgressMonitor` tasks live in module globals
+  (`backend/services/websocket/service.py`); only RQ workers scale out.
 - **Security**: single-user, trusted-LAN tool. The API key is served to the
   browser by `/frontend/settings` and is not an access control (README,
   "Security model"). Don't build features that assume real authentication, and
@@ -166,7 +170,10 @@ Read these before changing the matching subsystem:
   and stop when the last consumer releases, from any call site. Acquire
   bindings with `useGenerationOrchestratorManager().acquire(...)`; never create
   orchestrator instances inside components. A binding is the only lifecycle
-  API and carries every command. `useGenerationOrchestratorFacade()`
+  API and carries every command; `release()` (idempotent) is its only teardown
+  method, after which the binding is inert: async commands and `initialize()`
+  reject, sync commands do nothing, so a stale binding cannot bring the
+  orchestrator back. `useGenerationOrchestratorFacade()`
   (`features/generation/orchestrator/facade.ts`) is a read-only view of the
   store: it registers no consumer and starts nothing. Dashboard widgets that
   need the orchestrator running call `useGenerationWidgetBinding(label)`,
