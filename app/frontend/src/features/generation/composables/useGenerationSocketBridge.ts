@@ -1,15 +1,7 @@
 import { shallowRef } from 'vue';
 
 import { createGenerationWebSocketManager, type GenerationWebSocketManager } from '../services/websocketManager';
-import { ensureArray } from '../services/validation';
-import type { GenerationJobInput } from '../stores/useGenerationOrchestratorStore';
-import type {
-  GenerationCompleteMessage,
-  GenerationErrorMessage,
-  GenerationProgressMessage,
-  SystemStatusPayload,
-  SystemStatusState,
-} from '@/types';
+import type { GenerationComplete, GenerationErrorMessage, ProgressUpdate } from '@/types';
 import type {
   GenerationTransportError,
   GenerationWebSocketStateSnapshot,
@@ -22,11 +14,9 @@ interface SocketBridgeOptions {
 }
 
 interface SocketBridgeCallbacks {
-  onProgress?: (message: GenerationProgressMessage) => void;
-  onComplete?: (message: GenerationCompleteMessage) => void;
+  onProgress?: (message: ProgressUpdate) => void;
+  onComplete?: (message: GenerationComplete) => void;
   onError?: (message: GenerationErrorMessage) => void;
-  onQueueUpdate?: (jobs: GenerationJobInput[]) => void;
-  onSystemStatus?: (payload: SystemStatusPayload | Partial<SystemStatusState>) => void;
   onConnectionChange?: (connected: boolean, snapshot?: GenerationWebSocketStateSnapshot) => void;
   onConnectionStateChange?: (snapshot: GenerationWebSocketStateSnapshot) => void;
   onTransportError?: (error: GenerationTransportError) => void;
@@ -56,12 +46,6 @@ export const useGenerationSocketBridge = (
       },
       onError: (message) => {
         callbacks.onError?.(message);
-      },
-      onQueueUpdate: (jobs) => {
-        callbacks.onQueueUpdate?.(ensureArray<GenerationJobInput>(jobs));
-      },
-      onSystemStatus: (payload) => {
-        callbacks.onSystemStatus?.(payload);
       },
       onConnectionChange: (connected) => {
         callbacks.onConnectionChange?.(connected);

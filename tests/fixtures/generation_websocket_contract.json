@@ -1,0 +1,138 @@
+{
+  "client": {
+    "subscribe": {
+      "include_previews": false,
+      "job_ids": null,
+      "type": "subscribe"
+    }
+  },
+  "server": [
+    {
+      "data": {
+        "connection_id": "conn_1",
+        "message": "Connected to progress monitoring"
+      },
+      "timestamp": "2026-01-01T00:00:00+00:00",
+      "type": "connected"
+    },
+    {
+      "data": {
+        "job_ids": null
+      },
+      "timestamp": "2026-01-01T00:00:00+00:00",
+      "type": "subscription_confirmed"
+    },
+    {
+      "data": {
+        "estimated_duration": null,
+        "job_id": "job-completed",
+        "params": {
+          "batch_size": 1,
+          "cfg_scale": 7.0,
+          "denoising_strength": null,
+          "height": 512,
+          "n_iter": 1,
+          "negative_prompt": null,
+          "prompt": "a lighthouse at dusk",
+          "sampler_name": "DPM++ 2M",
+          "seed": -1,
+          "steps": 20,
+          "width": 512
+        }
+      },
+      "timestamp": "2026-01-01T00:00:00+00:00",
+      "type": "generation_started"
+    },
+    {
+      "data": {
+        "current_step": null,
+        "error_message": null,
+        "eta_seconds": null,
+        "job_id": "job-completed",
+        "preview_image": null,
+        "progress": 0.5,
+        "status": "processing",
+        "total_steps": null
+      },
+      "timestamp": "2026-01-01T00:00:00+00:00",
+      "type": "progress_update"
+    },
+    {
+      "data": {
+        "current_step": null,
+        "error_message": null,
+        "eta_seconds": null,
+        "job_id": "job-completed",
+        "preview_image": null,
+        "progress": 1.0,
+        "status": "completed",
+        "total_steps": null
+      },
+      "timestamp": "2026-01-01T00:00:00+00:00",
+      "type": "progress_update"
+    },
+    {
+      "data": {
+        "error_message": null,
+        "generation_info": {
+          "seed": 1234
+        },
+        "images": [
+          "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg=="
+        ],
+        "job_id": "job-completed",
+        "status": "completed",
+        "total_duration": null
+      },
+      "timestamp": "2026-01-01T00:00:00+00:00",
+      "type": "generation_complete"
+    },
+    {
+      "data": {
+        "estimated_duration": null,
+        "job_id": "job-failed",
+        "params": {
+          "batch_size": 1,
+          "cfg_scale": 7.0,
+          "denoising_strength": null,
+          "height": 512,
+          "n_iter": 1,
+          "negative_prompt": null,
+          "prompt": "a lighthouse at dusk",
+          "sampler_name": "DPM++ 2M",
+          "seed": -1,
+          "steps": 20,
+          "width": 512
+        }
+      },
+      "timestamp": "2026-01-01T00:00:00+00:00",
+      "type": "generation_started"
+    },
+    {
+      "data": {
+        "current_step": null,
+        "error_message": "SD.Next returned no images",
+        "eta_seconds": null,
+        "job_id": "job-failed",
+        "preview_image": null,
+        "progress": 0.0,
+        "status": "failed",
+        "total_steps": null
+      },
+      "timestamp": "2026-01-01T00:00:00+00:00",
+      "type": "progress_update"
+    },
+    {
+      "data": {
+        "error_message": "SD.Next returned no images",
+        "generation_info": null,
+        "images": null,
+        "job_id": "job-failed",
+        "status": "failed",
+        "total_duration": null
+      },
+      "timestamp": "2026-01-01T00:00:00+00:00",
+      "type": "generation_complete"
+    }
+  ]
+}

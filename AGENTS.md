@@ -116,7 +116,12 @@ Read these before changing the matching subsystem:
   `createGenerationTransportAdapter.ts`, with state in
   `features/generation/stores/orchestrator/transportModule.ts`. Extend those
   instead of adding polling to components. Polling intervals come from
-  `features/generation/config/polling.ts`.
+  `features/generation/config/polling.ts`. The progress socket's message
+  shapes are pinned by `tests/fixtures/generation_websocket_contract.json`,
+  checked from both sides (`tests/test_websocket_contract.py` and
+  `websocketContract.spec.ts`); regenerate it with `UPDATE_WS_CONTRACT=1`
+  only for a deliberate backend change, then fix
+  `services/websocketMessages.ts`.
 - **Shared state**: `features/generation/stores/useGenerationOrchestratorStore.ts`
   holds jobs, results (capped by the history limit) and system status;
   `useJobQueue` only mirrors the manager's sorted queue. Snapshots are frozen

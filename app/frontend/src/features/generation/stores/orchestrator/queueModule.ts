@@ -6,10 +6,9 @@ import { normalizeGenerationProgress } from '@/utils/progress';
 import { normalizeJobStatus } from '@/utils/status';
 import type { DeepReadonly } from '@/utils/freezeDeep';
 import type {
-  GenerationCompleteMessage,
+  GenerationComplete,
   GenerationErrorMessage,
   GenerationJob,
-  GenerationProgressMessage,
   ProgressUpdate,
 } from '@/types';
 
@@ -222,15 +221,22 @@ export const createQueueModule = () => {
 
   const getCancellableJobs = (): GenerationJob[] => jobs.value.filter((job) => isJobCancellable(job));
 
-  const handleProgressMessage = (message: GenerationProgressMessage | ProgressUpdate): void => {
+  const handleProgressMessage = (message: ProgressUpdate): void => {
     const backendJobId = normalizeIdentifier(message.job_id);
     if (!backendJobId) {
       return;
     }
 
     const job = getJobByIdentifier(backendJobId);
+    const status = normalizeJobStatus(message.status);
+    // A final progress tick for a job that already left the queue must not
+    // bring it back; the completion message that follows handles it.
+    if (!job && (status === 'completed' || status === 'failed')) {
+      return;
+    }
+
     const updates: Partial<GenerationJob> = {
-      status: normalizeJobStatus(message.status),
+      status,
       progress: normalizeGenerationProgress(message.progress),
       current_step: typeof message.current_step === 'number' ? message.current_step : job?.current_step,
       total_steps: typeof message.total_steps === 'number' ? message.total_steps : job?.total_steps,
@@ -252,7 +258,7 @@ export const createQueueModule = () => {
     updateJob(backendJobId, updates);
   };
 
-  const handleCompletionMessage = (message: GenerationCompleteMessage): void => {
+  const handleCompletionMessage = (message: GenerationComplete): void => {
     const backendJobId = normalizeIdentifier(message.job_id);
     if (!backendJobId) {
       return;

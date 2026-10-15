@@ -2,7 +2,6 @@
 import type { QueueModule } from './queueModule';
 import type { ResultsModule } from './resultsModule';
 import type { SystemStatusModule } from './systemStatusModule';
-import type { GenerationCompleteMessage } from '@/types';
 
 export interface AdapterHandlerDependencies {
   queue: Pick<
@@ -13,9 +12,12 @@ export interface AdapterHandlerDependencies {
     | 'handleCompletionMessage'
     | 'handleErrorMessage'
   >;
-  results: Pick<ResultsModule, 'setResults' | 'addResult' | 'createResultFromCompletion'>;
+  results: Pick<ResultsModule, 'setResults'>;
   systemStatus: Pick<SystemStatusModule, 'applySystemStatusPayload' | 'setConnectionState'>;
-  /** Called with the backend ids of jobs that left the active queue. */
+  /**
+   * Called with the backend ids of jobs whose results are now available: on a
+   * WebSocket completion, or when a job leaves the active-jobs feed.
+   */
   onJobsFinished?: (jobIds: string[]) => void;
 }
 
@@ -23,7 +25,7 @@ export interface AdapterHandlers {
   onSystemStatus: SystemStatusModule['applySystemStatusPayload'];
   onQueueUpdate: QueueModule['ingestQueue'];
   onProgress: QueueModule['handleProgressMessage'];
-  onComplete: (message: GenerationCompleteMessage) => ReturnType<ResultsModule['createResultFromCompletion']>;
+  onComplete: QueueModule['handleCompletionMessage'];
   onError: QueueModule['handleErrorMessage'];
   onRecentResults: ResultsModule['setResults'];
   onConnectionChange: SystemStatusModule['setConnectionState'];
@@ -47,11 +49,12 @@ export const createAdapterHandlers = ({
     }
   };
 
+  // The completion message carries no prompt or image settings, so the stored
+  // result is fetched instead. Removing the job here also means the feed check
+  // above will not report it a second time.
   const handleCompletion: AdapterHandlers['onComplete'] = (message) => {
     queue.handleCompletionMessage(message);
-    const result = results.createResultFromCompletion(message);
-    results.addResult(result);
-    return result;
+    onJobsFinished?.([String(message.job_id)]);
   };
 
   return {
