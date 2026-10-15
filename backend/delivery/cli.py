@@ -1,10 +1,13 @@
 """CLI delivery implementation."""
 
+import logging
 import os
 import tempfile
 from typing import Any, Dict
 
 from .base import DeliveryBackend
+
+logger = logging.getLogger(__name__)
 
 
 class CLIDeliveryBackend(DeliveryBackend):
@@ -15,7 +18,11 @@ class CLIDeliveryBackend(DeliveryBackend):
 
         Args:
             prompt: The composed prompt
-            params: CLI parameters (template, etc.)
+            params: CLI parameters. ``template`` is an optional string in which
+                every literal ``{prompt}`` is replaced by the prompt. It is not a
+                ``str.format`` template: other braces, format specs and
+                attribute lookups such as ``{prompt.__class__}`` are written
+                unchanged.
 
         Returns:
             Dict with delivery result
@@ -29,9 +36,7 @@ class CLIDeliveryBackend(DeliveryBackend):
 
             with os.fdopen(fd, "w") as f:
                 if template:
-                    # Apply template if provided
-                    formatted_prompt = template.format(prompt=prompt)
-                    f.write(formatted_prompt)
+                    f.write(str(template).replace("{prompt}", prompt))
                 else:
                     f.write(prompt)
 
@@ -40,8 +45,9 @@ class CLIDeliveryBackend(DeliveryBackend):
                 "detail": f"Prompt written to {path}",
                 "file_path": path,
             }
-        except Exception as exc:
-            return {"status": "error", "detail": str(exc)}
+        except Exception:
+            logger.exception("CLI delivery failed")
+            return {"status": "error", "detail": "Failed to write prompt file"}
 
     def get_backend_name(self) -> str:
         """Return backend name."""
