@@ -1,6 +1,7 @@
 """GPU detection and configuration utilities."""
 
 import logging
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -30,6 +31,8 @@ def _read_sysfs_int(path: Path) -> Optional[int]:
         return None
 
 
+# Cached: the dashboard polls status every few seconds and pci.ids is ~1.5 MB.
+@lru_cache(maxsize=8)
 def _pci_device_name(vendor_id: str, device_id: str) -> Optional[str]:
     """Look up a marketing name such as "Radeon RX 6600" in the pci.ids database."""
     vendor = vendor_id.removeprefix("0x").lower()

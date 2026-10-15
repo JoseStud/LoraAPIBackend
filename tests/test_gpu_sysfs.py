@@ -40,7 +40,10 @@ def fake_sysfs(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(gpu, "DRM_ROOT", drm)
     monkeypatch.setattr(gpu, "PCI_IDS_PATHS", (pci_ids,))
-    return drm
+    # Names are cached per process; don't reuse one read from the host's pci.ids.
+    gpu._pci_device_name.cache_clear()
+    yield drm
+    gpu._pci_device_name.cache_clear()
 
 
 @pytest.fixture
@@ -86,3 +89,22 @@ def test_reports_cpu_mode_without_a_gpu(tmp_path, monkeypatch, no_torch):
 
     assert gpu.detect_gpu()["available"] is False
     assert gpu.get_gpu_memory_info() is None
+
+
+def test_pci_ids_is_read_once_per_device(fake_sysfs, no_torch, monkeypatch):
+    """Status polls repeat detection; the name lookup must not re-read pci.ids."""
+    reads = []
+    real_read_text = gpu.Path.read_text
+
+    def counting_read_text(self, *args, **kwargs):
+        if self.name == "pci.ids":
+            reads.append(self)
+        return real_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(gpu.Path, "read_text", counting_read_text)
+
+    for _ in range(3):
+        gpu.detect_gpu()
+        gpu.get_gpu_memory_info()
+
+    assert len(reads) == 1
