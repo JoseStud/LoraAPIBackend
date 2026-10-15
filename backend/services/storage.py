@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import List, Optional, Protocol
+from typing import List, Optional, Protocol, Union
 
 
 class StorageBackend(Protocol):
@@ -97,6 +97,23 @@ class LocalFileSystemStorage:
             return []
 
 
+def is_path_within(
+    path: Union[str, os.PathLike],
+    root: Union[str, os.PathLike],
+) -> bool:
+    """Return whether ``path`` resolves to a location inside ``root``.
+
+    Both paths are resolved first (symlinks followed, ``..`` collapsed), so a
+    link or a relative segment cannot escape ``root``.
+    """
+    try:
+        resolved_root = Path(os.path.realpath(root))
+        resolved_path = Path(os.path.realpath(path))
+    except (OSError, ValueError):
+        return False
+    return resolved_path.is_relative_to(resolved_root)
+
+
 class StorageService:
     """Service for managing storage operations."""
 
@@ -109,16 +126,25 @@ class StorageService:
         """
         self.backend = backend
 
-    def validate_file_path(self, path: str) -> bool:
+    def validate_file_path(
+        self,
+        path: str,
+        *,
+        root: Optional[Union[str, os.PathLike]] = None,
+    ) -> bool:
         """Validate that a file path exists and is accessible.
 
         Args:
             path: File path to validate
+            root: When given, the file must also lie inside this directory once
+                symlinks and ``..`` segments in either path are resolved.
 
         Returns:
             True if file is valid
 
         """
+        if root is not None and not is_path_within(path, root):
+            return False
         return self.backend.file_exists(path)
 
     def get_file_info(self, path: str) -> Optional[dict]:

@@ -9,7 +9,26 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, List, Optional
 
+from backend.utils.images import make_output_reference, resolve_output_dir
+
 logger = logging.getLogger(__name__)
+
+REFERENCE_FORMAT = "reference"
+"""Internal ``return_format``: save each image and return its output reference.
+
+Job results are stored in this form so that rows never carry image data.
+"""
+
+
+def stored_return_format(*, save_images: bool, return_format: str) -> str:
+    """Return the ``return_format`` a stored job result should use.
+
+    Every image that ends up on disk is stored as an output reference. Only a
+    caller who asked for base64 without saving keeps the image data itself.
+    """
+    if return_format == "base64" and not save_images:
+        return "base64"
+    return REFERENCE_FORMAT
 
 
 class ImageStorage:
@@ -37,9 +56,7 @@ class FileSystemImageStorage(ImageStorage):
             output_dir: Directory where generated images should be written.
 
         """
-        self._output_dir = (
-            Path(output_dir) if output_dir else Path.cwd() / "generated_images"
-        )
+        self._output_dir = resolve_output_dir(output_dir)
 
     async def persist_images(
         self,
@@ -49,7 +66,12 @@ class FileSystemImageStorage(ImageStorage):
         save_images: bool,
         return_format: str,
     ) -> List[str]:
-        """Persist images to disk and return formatted representations."""
+        """Persist images to disk and return formatted representations.
+
+        ``return_format`` selects what is returned for each image: the base64
+        data, the absolute ``file_path``, a ``file://`` ``url``, or, for
+        :data:`REFERENCE_FORMAT`, an output reference (always saved to disk).
+        """
         processed: List[str] = []
 
         for index, img_b64 in enumerate(images):
@@ -57,7 +79,11 @@ class FileSystemImageStorage(ImageStorage):
                 processed.append(img_b64)
                 continue
 
-            needs_file = save_images or return_format in {"file_path", "url"}
+            needs_file = save_images or return_format in {
+                "file_path",
+                "url",
+                REFERENCE_FORMAT,
+            }
             if not needs_file:
                 processed.append(img_b64)
                 continue
@@ -68,7 +94,10 @@ class FileSystemImageStorage(ImageStorage):
                 logger.exception("Error persisting image %s for job %s", index, job_id)
                 raise
 
-            if return_format == "file_path":
+            if return_format == REFERENCE_FORMAT:
+                relative = Path(file_path).relative_to(self._output_dir)
+                processed.append(make_output_reference(relative.as_posix()))
+            elif return_format == "file_path":
                 processed.append(file_path)
             elif return_format == "url":
                 processed.append(f"file://{file_path}")

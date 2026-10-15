@@ -21,6 +21,7 @@ from backend.api.v1 import (
     system,
     websocket,
 )
+from backend.api.v1.generation import images as generation_images
 from backend.core.config import settings
 from backend.core.database import init_db
 from backend.core.logging import setup_logging
@@ -165,6 +166,8 @@ def create_app() -> FastAPI:
     )
     app.include_router(dashboard.router, prefix="/v1")
     app.include_router(system.router, prefix="/v1")
+    # Keyless: <img> tags cannot send X-API-Key (README, "Security model").
+    app.include_router(generation_images.router, prefix="/v1")
     app.include_router(
         websocket.router, prefix="/v1"
     )  # Canonical WebSocket path -> /api/v1/ws/progress

@@ -352,7 +352,11 @@ class JobProgressMonitor:
 
         if images:
             # Clients render these directly, so send loadable sources only.
-            sources = (to_browser_image_src(i) for i in images if isinstance(i, str))
+            sources = (
+                to_browser_image_src(image, job_id=job_id, index=index)
+                for index, image in enumerate(images)
+                if isinstance(image, str)
+            )
             images = [src for src in sources if src] or None
         else:
             images = None
