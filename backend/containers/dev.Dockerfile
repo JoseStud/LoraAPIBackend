@@ -44,11 +44,11 @@ RUN mkdir -p /app/backend /app/logs /app/cache /app/loras /app/outputs \
 
 USER app
 
-ENV UVICORN_APP=backend.main:app \
+ENV UVICORN_APP=app.main:app \
     UVICORN_PORT=8000 \
     UVICORN_HOST=0.0.0.0
 
-CMD ["uvicorn", "backend.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
 
 # Self-contained CPU-only demo image; no source or user-data bind mounts.
 FROM development AS demo

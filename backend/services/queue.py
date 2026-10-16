@@ -16,9 +16,8 @@ from typing import (
     Type,
 )
 
-import structlog
-
 from backend.core.config import settings
+from backend.core.logging import get_logger
 from backend.delivery import get_delivery_registry
 from backend.services.in_process_jobs import (
     InProcessJobRunner,
@@ -28,7 +27,7 @@ from backend.services.in_process_jobs import (
 if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
     from backend.workers.delivery_runner import DeliveryRunner
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 PrimaryFallbackQueues = Tuple[Optional["QueueBackend"], "QueueBackend"]
 

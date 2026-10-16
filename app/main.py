@@ -1,18 +1,18 @@
-"""LoRA Manager main entry point.
+"""LoRA Manager main entry point (``uvicorn app.main:app``).
 
-Wire the FastAPI backend with the Vue single-page application build.
+The composition root: mounts the backend from ``backend.main.create_app()``
+at ``/api`` and serves the Vue SPA build at ``/``. Every API route, the
+frontend settings included, and the CORS policy belong to the backend app;
+this module adds only the static files and a process liveness ``/health``.
 """
 
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Dict
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 
-from backend.core.config import settings as backend_settings
 from backend.main import create_app as create_backend_app
 
 
@@ -30,48 +30,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-
-def _build_cors_config() -> Dict[str, Any]:
-    """Construct the CORS options from the backend settings."""
-    allow_origins = list(backend_settings.CORS_ORIGINS)
-    allow_credentials = backend_settings.CORS_ALLOW_CREDENTIALS
-    if "*" in allow_origins:
-        allow_credentials = False
-    return {
-        "allow_origins": allow_origins
-        or ["http://localhost:5173", "http://localhost:8000"],
-        "allow_credentials": allow_credentials,
-        "allow_methods": ["*"],
-        "allow_headers": ["*"],
-    }
-
-
-def _normalise_public_api_url(raw_url: str | None) -> str:
-    """Normalise the backend URL exposed to the SPA settings endpoint."""
-    if raw_url is None:
-        return "/api/v1"
-
-    candidate = raw_url.strip()
-    if not candidate:
-        return "/api/v1"
-
-    if candidate.startswith(("http://", "https://")):
-        return candidate.rstrip("/") or "/api/v1"
-
-    if not candidate.startswith("/"):
-        candidate = f"/{candidate}"
-    candidate = candidate.rstrip("/")
-    return candidate or "/api/v1"
-
-
-_cors = _build_cors_config()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors["allow_origins"],
-    allow_credentials=_cors["allow_credentials"],
-    allow_methods=_cors["allow_methods"],
-    allow_headers=_cors["allow_headers"],
-)
 
 # Include backend API routes
 backend_app = create_backend_app()
@@ -117,31 +75,10 @@ SPA_DIST_DIR = (Path(__file__).resolve().parent / "dist").resolve()
 SPA_STATIC_APP = SPAStaticFiles(SPA_DIST_DIR)
 
 
-@app.get("/frontend/settings", tags=["frontend"])
-async def frontend_settings():
-    """Expose runtime configuration for the Vue SPA."""
-    backend_url = _normalise_public_api_url(backend_settings.BACKEND_URL)
-    polling_config = {
-        "queueMs": backend_settings.GENERATION_QUEUE_POLL_INTERVAL_MS,
-        "websocketRetryMs": backend_settings.GENERATION_WEBSOCKET_RETRY_INTERVAL_MS,
-        "systemStatusMs": backend_settings.GENERATION_SYSTEM_STATUS_POLL_INTERVAL_MS,
-    }
-    return {
-        "backendUrl": backend_url,
-        "backendApiKey": backend_settings.API_KEY or None,
-        "generationPolling": polling_config,
-    }
-
-
-# The SPA resolves this through its API base, so serve it under /api/v1 as well.
-backend_app.add_api_route(
-    "/v1/frontend/settings", frontend_settings, methods=["GET"], tags=["frontend"]
-)
-
-
-# Service health endpoint
+# Process liveness for Docker healthchecks and the demo smoke test; the
+# backend's own check is /api/health.
 @app.get("/health")
-async def health_check():
+def health_check():
     """Health check endpoint."""
     return {"status": "ok", "service": "lora-manager"}
 

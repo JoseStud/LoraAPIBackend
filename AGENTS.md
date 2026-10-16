@@ -73,7 +73,9 @@ npm run build
   `.env.docker`). There is no other supported Docker stack. It sets
   `REDIS_URL`, so the API only enqueues generation jobs and the `worker`
   service (an RQ worker) runs them; the API and worker share `./outputs` as
-  `SDNEXT_OUTPUT_DIR`.
+  `SDNEXT_OUTPUT_DIR`. The `api` service runs `app.main:app` like every other
+  entry point, and the `frontend` service mounts the whole repository, since
+  `package.json` and `vite.config.ts` live at its root.
 - **Single API process**: the API runs as one uvicorn process (no `--workers`,
   no replicas), because the WebSocket `ConnectionManager` lives in a module
   global (`backend/services/websocket/service.py`) and the one lifespan-owned
@@ -82,7 +84,7 @@ npm run build
   SDNext renders one job at a time with global progress and interrupt
   endpoints, so a second worker would overlap with the first.
 - **Security**: single-user, trusted-LAN tool. The API key is served to the
-  browser by `/frontend/settings` and is not an access control (README,
+  browser by `/api/v1/frontend/settings` and is not an access control (README,
   "Security model"). Don't build features that assume real authentication, and
   never return exception text to clients.
 
@@ -102,8 +104,11 @@ Read these before changing the matching subsystem:
 
 ### Backend contract map
 
-- **Composition and startup**: `backend/main.py` mounts every public router
-  under `/v1`. Its lifespan runs `init_db()` (Alembic migrations), preloads the
+- **Composition and startup**: `app/main.py` (`uvicorn app.main:app`) is the
+  one composition root: it mounts `create_app()` at `/api` and adds only the
+  SPA files and a liveness `/health`. `backend/main.py` `create_app()` mounts
+  every public router under `/v1` and owns the only CORS middleware and the
+  exception handlers. Its lifespan runs `init_db()` (Alembic migrations), preloads the
   recommendation models in the background, and runs the optional startup
   importer (`IMPORT_ON_STARTUP`). Delivery and generation backends (SDNext
   included) are registered by `ensure_delivery_system()` (`backend/delivery`),
@@ -145,6 +150,12 @@ Read these before changing the matching subsystem:
   sends jobs to Redis/RQ when `REDIS_URL` is set and to
   `BackgroundTaskQueueBackend` only when it is not. Enqueue through
   `QueueOrchestrator.enqueue_delivery()` (or `DeliveryService.enqueue_job`).
+  Only the delivery runner calls a generation backend's `generate_image`:
+  the blocking `POST /v1/generation/generate` and `/compose-and-generate`
+  schedule a job like `/queue-generation` and wait for it with
+  `GenerationCoordinator.wait_for_job` (bounded by
+  `generation_wait_timeout_seconds`, then 504 naming the job), so no render
+  bypasses the queue or lacks a job row.
   With Redis configured a failed enqueue never moves the job in-process, where
   it would run beside the RQ worker and recovery would never requeue it: the
   orchestrator raises `QueueUnavailableError`, `DeliveryService.enqueue_job`
@@ -163,7 +174,11 @@ Read these before changing the matching subsystem:
   in-process fallback runs each job once. Don't build a separate retry policy
   at call sites. `DeliveryHTTPClient` keeps one aiohttp session per event loop, so
   the shared SDNext client works from the API loop, the runner loop and RQ
-  workers alike.
+  workers alike. RQ tasks run each job on a fresh loop on the worker's main
+  thread (RQ's job timeout is a SIGALRM there) through `run_with_fresh_loop`
+  (`backend/delivery`), which closes the sessions the generation backends
+  opened on that loop before it ends; use it rather than a bare `asyncio.run`
+  in worker code.
 - **Job status transitions**: a delivery job moves `pending`/`retrying` →
   `running` → `succeeded`/`failed`/`retrying`, or to `cancelled` from any
   active status. Change status through `DeliveryService.claim_job`,
@@ -212,14 +227,23 @@ Read these before changing the matching subsystem:
   call). Tests stub `JobProgressMonitor.start` (autouse fixture in
   `tests/conftest.py`) and drive `tick()` directly.
 - **Configuration**: runtime settings live only in `backend/core/config.py`, so
-  startup validation and the frontend `/frontend/settings` payload stay
+  startup validation and the frontend settings payload
+  (`GET /v1/frontend/settings`, `backend/api/v1/frontend.py`, keyless) stay
   consistent.
+- **Logging**: backend modules take their logger from
+  `get_logger(__name__)` (`backend/core/logging.py`), a structlog logger
+  over the stdlib logger of that name, so levels, handlers and `caplog` work
+  as usual. Pass `%s` arguments or keyword fields, never hand-built JSON, and
+  don't attach handlers in modules. `setup_logging()` configures the process:
+  the lifespan calls it for the API and `WorkerContext.build_default` for RQ
+  workers.
 - **Generated API types**: `app/frontend/src/types/generated/backend.ts` is
   generated from `backend.main.create_app().openapi()`, exported without a
   server by `scripts/export_openapi.py` (`npm run generate:api-types`). Only
-  routes registered in `create_app()` are part of it; `app/main.py`'s
-  `/frontend/settings` routes are not. A schema change ships with the
-  regenerated file, or `ci:check` fails.
+  routes registered in `create_app()` are part of it, so every API route,
+  `/v1/frontend/settings` included, belongs in a router there, never in
+  `app/main.py`. A schema change ships with the regenerated file, or
+  `ci:check` fails.
 - **Stored job payloads**: `DeliveryJob.params` and `DeliveryJob.result` are
   JSON text, parsed and written only through `DeliveryJobParams` and
   `DeliveryJobResult` (`backend/schemas/delivery_jobs.py`) by
@@ -272,9 +296,11 @@ Read these before changing the matching subsystem:
   ADR 007's 2026-10-15 amendments have the full module map and the
   single-lifecycle decision.
 - **Transport**: queue polling and WebSocket updates are wired in
-  `features/generation/stores/orchestrator/transportAdapter.ts` (HTTP through
-  `composables/useGenerationQueueClient.ts`, the socket through
-  `services/websocketManager.ts`). Transport state, the store's transport
+  `features/generation/stores/orchestrator/transportAdapter.ts`, which owns the
+  active-job poll timer and talks to one typed client,
+  `createGenerationQueueClient` in `services/generationService.ts` (every
+  generation request, Zod-validated there), and to the socket through
+  `services/websocketManager.ts`. Transport state, the store's transport
   commands and the routing of adapter callbacks into the store live in
   `features/generation/stores/orchestrator/transportModule.ts`. Extend those
   instead of adding polling to components. Polling intervals come from
@@ -308,8 +334,15 @@ Read these before changing the matching subsystem:
   bulk-mode props, and call `forceUpdate()` after prop-driven size changes.
 - **HTTP**: all requests go through `services/shared/http` (`performRequest`,
   `requestJson`, `createHttpClient`, ...) or `composables/shared/useApi`. Don't
-  add bespoke `fetch` wrappers. Validate responses with the Zod schemas in
-  `schemas/` and the feature `*Schemas.ts` files before they reach stores.
+  add bespoke `fetch` wrappers. `services/shared/http/createHttpClient.ts` is
+  the only client implementation: it adds the API key header (once, in
+  `prepareInit`), retries only `GET`/`HEAD` on 5xx and network errors (3
+  attempts by default), never retries 4xx or aborted requests, and settles an
+  aborted request as aborted. Callers merge their own headers with
+  `mergeHeaders`, never `buildAuthenticatedHeaders`. Backend-rooted clients
+  and path resolvers live in `services/shared/http/backendClient.ts`. Validate
+  responses with the Zod schemas in `schemas/` and the feature `*Schemas.ts`
+  files before they reach stores.
 - **Feature boundaries**: import other features only through
   `features/<feature>/public`. ESLint and the `ci:check` guardrails enforce
   this; widen a `public.ts` deliberately instead of importing internals.

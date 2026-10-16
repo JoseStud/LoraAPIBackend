@@ -1,13 +1,14 @@
 """CLI delivery implementation."""
 
-import logging
 import os
 import tempfile
 from typing import Any, Dict
 
+from backend.core.logging import get_logger
+
 from .base import DeliveryBackend
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class CLIDeliveryBackend(DeliveryBackend):

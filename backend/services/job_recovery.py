@@ -17,19 +17,19 @@ recovered and new jobs still run one at a time.
 from __future__ import annotations
 
 import asyncio
-import logging
 from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Any, Callable, List, Optional
 
 from backend.core.config import settings
 from backend.core.database import get_session_context
+from backend.core.logging import get_logger
 from backend.schemas.delivery_jobs import DeliveryJobParams, DeliveryJobResult
 
 from .deliveries import DeliveryService
 from .job_webhooks import JobWebhookNotifier
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 INTERRUPTED_RESULT = DeliveryJobResult(
     status="failed",

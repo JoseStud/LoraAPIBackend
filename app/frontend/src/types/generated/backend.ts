@@ -342,7 +342,12 @@ export interface paths {
         put?: never;
         /**
          * Generate Image
-         * @description Generate an image using the specified backend.
+         * @description Queue a generation job and wait for its result.
+         *
+         *     The job runs on the generation queue like ``/queue-generation``; this
+         *     request only waits for it. ``job_id`` in the response is the job's id and
+         *     ``images`` are result image URLs. A failed or cancelled job answers 200
+         *     with ``status`` ``failed`` and its ``error_message``.
          */
         post: operations["generate_image_v1_generation_generate_post"];
         delete?: never;
@@ -360,7 +365,7 @@ export interface paths {
         };
         /**
          * Check Generation Progress
-         * @description Check the progress of a generation job.
+         * @description Report a generation job's status and progress (a 0–1 fraction).
          */
         get: operations["check_generation_progress_v1_generation_progress__job_id__get"];
         put?: never;
@@ -382,7 +387,7 @@ export interface paths {
         put?: never;
         /**
          * Compose And Generate
-         * @description Compose LoRA prompt and immediately generate images.
+         * @description Compose the active adapters into the prompt, then generate as ``/generate``.
          */
         post: operations["compose_and_generate_v1_generation_compose_and_generate_post"];
         delete?: never;
@@ -1093,6 +1098,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/frontend/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Frontend Settings
+         * @description Expose the runtime configuration the SPA bootstraps from.
+         */
+        get: operations["get_frontend_settings_v1_frontend_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/system/status": {
         parameters: {
             query?: never;
@@ -1794,6 +1819,23 @@ export interface components {
             time: string;
         };
         /**
+         * FrontendSettings
+         * @description Configuration served to the SPA by ``GET /v1/frontend/settings``.
+         */
+        FrontendSettings: {
+            /**
+             * Backendurl
+             * @description API base URL the SPA uses: absolute, or a path such as /api/v1.
+             */
+            backendUrl: string;
+            /**
+             * Backendapikey
+             * @description The configured API_KEY, for the X-API-Key header. Served to any caller: it is not an access control (README, Security model).
+             */
+            backendApiKey?: string | null;
+            generationPolling: components["schemas"]["GenerationPollingSettings"];
+        };
+        /**
          * GenerationBulkDeleteRequest
          * @description Request payload for bulk deletion of generation results.
          */
@@ -1876,6 +1918,27 @@ export interface components {
          * @enum {string}
          */
         GenerationMode: "immediate" | "deferred";
+        /**
+         * GenerationPollingSettings
+         * @description Polling intervals for the generation views, in milliseconds.
+         */
+        GenerationPollingSettings: {
+            /**
+             * Queuems
+             * @description Active-job queue polling interval.
+             */
+            queueMs: number;
+            /**
+             * Websocketretryms
+             * @description Delay before reconnecting the socket.
+             */
+            websocketRetryMs: number;
+            /**
+             * Systemstatusms
+             * @description System status polling interval.
+             */
+            systemStatusMs: number;
+        };
         /**
          * GenerationResultFormat
          * @description Accepted result serialization strategies for generation responses.
@@ -3020,9 +3083,6 @@ export interface operations {
         parameters: {
             query?: {
                 backend?: string;
-                mode?: components["schemas"]["GenerationMode"];
-                save_images?: boolean;
-                return_format?: components["schemas"]["GenerationResultFormat"];
             };
             header?: never;
             path?: never;
@@ -3052,13 +3112,25 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description The job queue (Redis) rejected the job. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job did not finish within GENERATION_WAIT_TIMEOUT_SECONDS. It keeps running; the problem detail's `job_id` and `job_url` point at /v1/generation/jobs/{job_id}. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     check_generation_progress_v1_generation_progress__job_id__get: {
         parameters: {
-            query?: {
-                backend?: string;
-            };
+            query?: never;
             header?: never;
             path: {
                 job_id: string;
@@ -3091,9 +3163,6 @@ export interface operations {
         parameters: {
             query?: {
                 backend?: string;
-                mode?: components["schemas"]["GenerationMode"];
-                save_images?: boolean;
-                return_format?: components["schemas"]["GenerationResultFormat"];
             };
             header?: never;
             path?: never;
@@ -3122,6 +3191,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description The job queue (Redis) rejected the job. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job did not finish within GENERATION_WAIT_TIMEOUT_SECONDS. It keeps running; the problem detail's `job_id` and `job_url` point at /v1/generation/jobs/{job_id}. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -4041,6 +4124,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_frontend_settings_v1_frontend_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FrontendSettings"];
                 };
             };
         };

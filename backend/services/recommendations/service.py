@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-import logging
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, Iterator, List, Optional, Sequence
 
+from structlog.stdlib import BoundLogger
+
+from backend.core.logging import get_logger
 from backend.models import RecommendationFeedback, UserPreference
 from backend.schemas.recommendations import (
     EmbeddingStatus,
@@ -65,14 +67,14 @@ class RecommendationService:
         embeddings: EmbeddingService,
         model_registry: RecommendationModelRegistry,
         metrics: Optional[QueryMetrics] = None,
-        logger: Optional[logging.Logger] = None,
+        logger: Optional[BoundLogger] = None,
     ) -> None:
         """Bind the service to its repository, embeddings and shared models."""
         self._repository = repository
         self._embeddings = embeddings
         self._model_registry = model_registry
         self._metrics = metrics or QueryMetrics()
-        self._logger = logger or logging.getLogger(__name__)
+        self._logger = logger or get_logger(__name__)
 
     @property
     def embeddings(self) -> EmbeddingService:

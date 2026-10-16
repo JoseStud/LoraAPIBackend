@@ -2,18 +2,11 @@ import { MaybeRefOrGetter, Ref, getCurrentScope, onScopeDispose, ref, unref } fr
 
 import type { ApiResponseMeta } from '@/types';
 import { ApiError } from '@/types';
-import { buildAuthenticatedHeaders } from '@/utils/httpAuth';
-import { performRequest, type ApiRequestInit } from '@/services/shared/http';
+import { mergeHeaders } from '@/utils/httpAuth';
+import { isAbortError, performRequest, type ApiRequestInit } from '@/services/shared/http';
 
 export type { ApiResponseMeta } from '@/types';
 export { ApiError } from '@/types';
-
-const isAbortError = (error: unknown): boolean => {
-  if (typeof DOMException !== 'undefined' && error instanceof DOMException) {
-    return error.name === 'AbortError';
-  }
-  return error instanceof Error && error.name === 'AbortError';
-};
 
 export function useApi<T = unknown, TError = unknown>(
   url: MaybeRefOrGetter<string>,
@@ -89,7 +82,8 @@ export function useApi<T = unknown, TError = unknown>(
 
     try {
       const signal = init.signal ?? defaultOptions.signal ?? controller.signal;
-      const headers = buildAuthenticatedHeaders(defaultOptions.headers, init.headers);
+      // The shared HTTP client adds the API key; only the caller's headers are merged here.
+      const headers = mergeHeaders(defaultOptions.headers, init.headers);
 
       const requestInit: ApiRequestInit = {
         credentials: 'same-origin',

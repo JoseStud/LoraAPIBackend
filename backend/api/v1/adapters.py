@@ -1,12 +1,12 @@
 """HTTP routes for managing adapters."""
 
-import logging
 from typing import List, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 
 from backend.core.dependencies import get_services
+from backend.core.logging import get_logger
 from backend.schemas import (
     AdapterCreate,
     AdapterListResponse,
@@ -16,7 +16,7 @@ from backend.schemas import (
 from backend.services import ServiceRegistry
 from backend.services.adapters import AdapterIdentityConflict
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 router = APIRouter()
 
 

@@ -10,8 +10,8 @@ jobs. This page is a map; the job machinery has its own page,
 
 | Package | Contents |
 | --- | --- |
-| [`backend/main.py`](../../backend/main.py) | `create_app()`: CORS, router mounting, lifespan, exception handlers. |
-| [`backend/api/v1/`](../../backend/api/v1) | Routers: `adapters`, `analytics`, `compose`, `dashboard`, `deliveries`, `generation/` (package), `import_export`, `recommendations`, `system`, `websocket`. |
+| [`backend/main.py`](../../backend/main.py) | `create_app()`: CORS, router mounting, lifespan, exception handlers. [`app/main.py`](../../app/main.py) mounts it at `/api` and serves the SPA. |
+| [`backend/api/v1/`](../../backend/api/v1) | Routers: `adapters`, `analytics`, `compose`, `dashboard`, `deliveries`, `frontend`, `generation/` (package), `import_export`, `recommendations`, `system`, `websocket`. |
 | [`backend/core/`](../../backend/core) | `config.py` (all settings), `database.py` (engine, sessions), `migrations.py` (runs Alembic), `security.py` (`X-API-Key`), `dependencies.py` (`get_services`), `logging.py` (structlog JSON), `gpu.py`. |
 | [`backend/models/`](../../backend/models) | SQLModel tables; see [Data model](Data-Model.md). |
 | [`backend/schemas/`](../../backend/schemas) | Pydantic request/response models, one module per area. |
@@ -26,13 +26,16 @@ All routers are mounted under `/v1` in `create_app()`. Most carry
 `Depends(get_api_key)`; these do not:
 
 - `dashboard` and `system` (`/v1/dashboard/*`, `/v1/system/status`),
+- `frontend` (`/v1/frontend/settings`), because the SPA reads the key from it
+  before it can send one,
 - the result image route `GET /v1/generation/results/{job_id}/images/{index}`
   ([`generation/images.py`](../../backend/api/v1/generation/images.py)), because
   `<img>` tags cannot send headers,
 - the progress WebSocket `/v1/ws/progress`.
 
 The generation router is a package split by concern: `jobs.py` (queue, list,
-cancel), `live.py` (immediate generation, progress, backends), `results.py`,
+cancel), `live.py` (blocking generation through the queue, per-job progress,
+backends), `results.py`,
 `exports.py` and `images.py`. Route modules stay thin and delegate to
 `controllers/` (call services) and `presenters/` (shape responses).
 
@@ -132,8 +135,8 @@ it never leaks across async tasks. It exists only for tests and scripts.
 | `AdapterService` | `services/adapters/` | CRUD, search, tags, activation/ordinals, bulk actions, statistics. |
 | `ComposeService` | `services/composition.py` | Builds a prompt from the active adapters as `<lora:NAME:weight>` tokens, which SDNext resolves against file names. |
 | `DeliveryService` | `services/deliveries.py` | Job rows: create, schedule, `claim_job` / `finish_job` / `cancel_job`, results, ratings and favourites, archives and downloads. |
-| `GenerationService` | `services/generation/__init__.py` | Talks to a generation backend: generate, progress, interrupt, validate params. |
-| `GenerationCoordinator` | same module | Ties deliveries and generation together: schedule, serialise, cancel (with the backend interrupt). |
+| `GenerationService` | `services/generation/__init__.py` | Talks to a generation backend: progress, interrupt, validate params. Generation itself only runs in the delivery runner. |
+| `GenerationCoordinator` | same module | Ties deliveries and generation together: schedule, wait for a job to finish (blocking routes), serialise, cancel (with the backend interrupt). |
 | `WebSocketService` | `services/websocket/` | Connection manager and subscriptions. Module-global instance. The lifespan-owned `JobProgressMonitor` (same package) broadcasts through its manager; see [Generation pipeline](Generation-Pipeline.md#live-progress-over-websocket). |
 | `SystemService` | `services/system.py` | `/system/status` payload: queue counts, SDNext and importer health, thresholds. |
 | `AnalyticsService` | `services/analytics/` | KPIs, time series and insights from delivery history (via `AnalyticsRepository`). |
@@ -172,12 +175,19 @@ To add a backend, implement the base class in
 
 ## Errors, logging and auth
 
-- `HTTPException` becomes an RFC 7807 problem document (`type`, `title`,
-  `status`).
+- Every `HTTPException`, including Starlette's own (the router's 404 and 405),
+  becomes an RFC 7807 problem document (`type`, `title`, `status`). A string
+  `detail` is the `title`; any other `detail` stays structured in `errors`
+  under the status phrase as the title. The exception's headers (`Allow`,
+  `WWW-Authenticate`) are kept. Request validation errors (422) still use
+  FastAPI's `{"detail": [...]}` body.
 - Any other exception is logged with its traceback by the `lora.api` logger and
   returned as a generic 500. **Never return exception text to clients**; it can
   contain paths, SQL or configuration.
-- Logging is structlog with a JSON renderer (`core/logging.py`).
+- Logging is structlog over stdlib with a JSON renderer (`core/logging.py`).
+  Modules call `get_logger(__name__)` and log with `%s` arguments or keyword
+  fields; `setup_logging()` runs in the lifespan and when an RQ worker builds
+  its `WorkerContext`.
 - `get_api_key` (`core/security.py`) compares `X-API-Key` with `API_KEY` when
   one is set. This is a convenience, not security: the key is served to the
   browser. The tool assumes a single user on a trusted LAN; don't build
@@ -188,7 +198,7 @@ To add a backend, implement the base class in
 Every runtime setting is a field on `Settings` in
 [`backend/core/config.py`](../../backend/core/config.py), read from the
 environment. Don't read `os.environ` elsewhere; startup validation and the
-`/frontend/settings` payload depend on this being the single source. Full list:
+`/v1/frontend/settings` payload depend on this being the single source. Full list:
 [Configuration](Configuration.md).
 
 Next: [Generation pipeline](Generation-Pipeline.md).

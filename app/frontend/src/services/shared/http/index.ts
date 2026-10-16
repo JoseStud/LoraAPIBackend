@@ -1,29 +1,41 @@
 import {
   createHttpClient,
+  isAbortError,
   type ApiRequestInit,
   type ApiRequestResult,
   type ApiResult,
   type BlobResult,
   type CreateHttpClientConfig,
+  type HttpAuthOptions,
   type HttpClient,
+  type HttpRetryContext,
+  type HttpTraceLogEntry,
+  type HttpTraceOptions,
   type RequestTarget,
+  type ResponseParseMode,
+  type RetryOptions,
 } from './createHttpClient';
 import {
   createBackendClient,
   createBackendHttpClient,
+  createBackendPathResolver,
   resolveBackendClient,
   resolveBackendPath,
   useBackendClient,
   type BackendBaseOverride,
   type BackendHttpClient,
   type BackendHttpClientInput,
+  type BackendHttpClientOptions,
+  type BackendPathResolver,
 } from './backendClient';
-import { buildAuthenticatedHeaders } from '@/utils/httpAuth';
+import { mergeHeaders } from '@/utils/httpAuth';
 
 export {
   createHttpClient,
   createBackendHttpClient,
   createBackendClient,
+  createBackendPathResolver,
+  isAbortError,
   resolveBackendClient,
   resolveBackendPath,
   useBackendClient,
@@ -35,11 +47,19 @@ export type {
   ApiResult,
   BlobResult,
   CreateHttpClientConfig,
+  HttpAuthOptions,
   HttpClient,
+  HttpRetryContext,
+  HttpTraceLogEntry,
+  HttpTraceOptions,
   RequestTarget,
+  ResponseParseMode,
+  RetryOptions,
   BackendBaseOverride,
   BackendHttpClient,
   BackendHttpClientInput,
+  BackendHttpClientOptions,
+  BackendPathResolver,
 };
 
 let defaultHttpClient: HttpClient | null = null;
@@ -88,8 +108,9 @@ const resolveRequestTarget = (resolver: RequestTargetResolver): RequestTarget =>
   }
 };
 
+// Auth headers are added by the client itself; this only layers the config and override headers.
 const mergeConfiguredInit = (baseInit: ApiRequestInit = {}, overrideInit: ApiRequestInit = {}): ApiRequestInit => {
-  const headers = buildAuthenticatedHeaders(baseInit.headers, overrideInit.headers);
+  const headers = mergeHeaders(baseInit.headers, overrideInit.headers);
   const credentials = overrideInit.credentials ?? baseInit.credentials;
   const signal = overrideInit.signal ?? baseInit.signal;
   const parseMode = overrideInit.parseMode ?? baseInit.parseMode;

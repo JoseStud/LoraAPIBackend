@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from backend.core.config import settings
+from backend.core.logging import get_logger
 
 from .http_client import DeliveryHTTPClient
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -51,6 +51,10 @@ class SDNextSession:
     async def close(self) -> None:
         """Close the underlying HTTP client."""
         await self._http_client.close()
+
+    async def close_loop_session(self) -> None:
+        """Close the HTTP session owned by the running event loop."""
+        await self._http_client.close_loop_session()
 
     async def health_check(self) -> bool:
         """Perform a health check against the SDNext API."""

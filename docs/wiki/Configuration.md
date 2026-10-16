@@ -6,7 +6,7 @@ Every backend setting is a field on `Settings` in
 [`backend/core/config.py`](../../backend/core/config.py), loaded from
 environment variables (case-insensitive, unknown variables ignored). Add new
 settings there, not as `os.environ` reads elsewhere: startup validation and the
-`/frontend/settings` payload rely on one source.
+`/api/v1/frontend/settings` payload rely on one source.
 
 In Docker, values come from `.env.docker` (or `.env.docker.example`) through
 [`docker-compose.dev.yml`](../../docker-compose.dev.yml).
@@ -18,16 +18,16 @@ In Docker, values come from `.env.docker` (or `.env.docker.example`) through
 | `ENVIRONMENT` | `development` | `development`, `test` or `production`. In `production`, `DATABASE_URL`, `REDIS_URL` and `SDNEXT_BASE_URL` are required and startup fails without them. |
 | `DATABASE_URL` | unset → SQLite `db.sqlite` in the repo root | Any SQLAlchemy URL, e.g. `postgresql+psycopg://user:pw@host:5432/lora`. See [POSTGRES_SETUP.md](../POSTGRES_SETUP.md). |
 | `REDIS_URL` | unset → in-process job runner | Enables the RQ queue. The worker must use the same URL. |
-| `API_KEY` | unset → no check | Value expected in `X-API-Key`. Served to the browser by `/frontend/settings`; not an access control. |
+| `API_KEY` | unset → no check | Value expected in `X-API-Key`. Served to the browser by `/api/v1/frontend/settings`; not an access control. |
 
 ## Backend URL and CORS
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `BACKEND_URL` | unset → `/api/v1` | API base URL the SPA receives from `/frontend/settings`. Absolute URLs are used as-is; paths are normalised to start with `/`. |
+| `BACKEND_URL` | unset → `/api/v1` | API base URL the SPA receives from `/api/v1/frontend/settings`. Absolute URLs are used as-is; paths are normalised to start with `/`. |
 | `BACKEND_HOST`, `BACKEND_PORT` | `0.0.0.0`, `8000` | Only used to build `Settings.get_backend_url` when `BACKEND_URL` is unset. uvicorn's own flags decide where the server listens. |
-| `CORS_ORIGINS` | `localhost`/`127.0.0.1` on ports 5173 and 8000 | JSON list of allowed origins. |
-| `CORS_ALLOW_CREDENTIALS` | `true` | Forced off by `app/main.py` when `CORS_ORIGINS` contains `*`. |
+| `CORS_ORIGINS` | `localhost`/`127.0.0.1` on ports 5173 and 8000 | JSON list of allowed origins. The default admits the Vite dev server. `create_app()` holds the only CORS middleware. |
+| `CORS_ALLOW_CREDENTIALS` | `true` | Forced off by `create_app()` when `CORS_ORIGINS` contains `*`. |
 
 ## SDNext
 
@@ -48,6 +48,7 @@ In Docker, values come from `.env.docker` (or `.env.docker.example`) through
 | --- | --- | --- |
 | `JOB_RUNNING_TIMEOUT_SECONDS` | unset → `SDNEXT_TIMEOUT + SDNEXT_PRE_GENERATE_TIMEOUT + 120` | A job `running` longer than this has lost its runner and is failed by recovery. Also the RQ job timeout. |
 | `JOB_RECOVERY_INTERVAL_SECONDS` | `60` | How often recovery runs; `0` runs it only at startup. |
+| `GENERATION_WAIT_TIMEOUT_SECONDS` | unset → `2 × JOB_RUNNING_TIMEOUT_SECONDS` | How long `POST /generation/generate` and `/compose-and-generate` wait for their queued job before answering 504 with the job id. The job keeps running. |
 | `DELIVERY_MAX_RETRIES` | `2` | RQ retries when the runner raises. `0` disables. In-process jobs never retry. |
 | `DELIVERY_RETRY_INTERVAL_SECONDS` | `10` | Retry *n* waits this × 2^(n-1). Above 0 needs `rq worker --with-scheduler`. |
 
@@ -66,7 +67,7 @@ See [N8N_INTEGRATION.md](../N8N_INTEGRATION.md).
 
 ## Frontend polling
 
-Passed to the SPA through `/frontend/settings` (`generationPolling`).
+Passed to the SPA through `/api/v1/frontend/settings` (`generationPolling`).
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
@@ -110,7 +111,8 @@ Read by Compose or the images, not by `Settings`:
 1. Add a typed field with a default and a comment to `Settings`. Use pydantic
    `Field` constraints (`gt=0`, `ge=0`) instead of validating at use sites.
 2. If production needs it, add it to `REQUIRED_PRODUCTION_SETTINGS`.
-3. If the SPA needs it, add it to `/frontend/settings` in `app/main.py` and to
-   the frontend settings schema.
+3. If the SPA needs it, add it to `FrontendSettings`
+   (`backend/schemas/frontend.py`) and `backend/api/v1/frontend.py`, run
+   `npm run generate:api-types`, and extend the frontend settings schema.
 4. Document it in `.env.docker.example` (commented out if it has a sensible
    default) and in this table.

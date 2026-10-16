@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import re
 import unicodedata
 from collections import Counter, defaultdict
@@ -20,6 +19,9 @@ from typing import (
 )
 
 import numpy as np
+from structlog.stdlib import BoundLogger
+
+from backend.core.logging import get_logger
 
 from .encoders import TriggerEmbedder
 
@@ -194,13 +196,13 @@ class TriggerRecommendationEngine:
         *,
         resolver: TriggerResolver,
         embedder: TriggerEmbedder,
-        logger: Optional[logging.Logger] = None,
+        logger: Optional[BoundLogger] = None,
         max_semantic_candidates: int = 100,
     ) -> None:
         """Store the resolver and embedder used to build and query the index."""
         self._resolver = resolver
         self._embedder = embedder
-        self._logger = logger or logging.getLogger(__name__)
+        self._logger = logger or get_logger(__name__)
         self._max_semantic_candidates = max_semantic_candidates
         self._trigger_to_loras: Dict[str, set[str]] = {}
         self._vector_keys: List[Tuple[str, str]] = []

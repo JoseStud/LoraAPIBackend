@@ -89,13 +89,13 @@ make dev COMPOSE_FILE="docker-compose.dev.yml -f docker-compose.override.yml"
 
 ### Accessing the Services
 
-- **LoRA Backend API**: `http://localhost:8000` (versioned routes under `/v1`)
-- **API Documentation**: `http://localhost:8000/docs`
+- **LoRA Backend API**: `http://localhost:8000` (versioned routes under `/api/v1`)
+- **API Documentation**: `http://localhost:8000/api/docs`
 - **Frontend (Vite)**: `http://localhost:5173`
 - **SD.Next WebUI**: `http://localhost:7860` (the host install from the External SDNext section)
 
 Quick health check once the stack is up:
 
 ```bash
-curl http://localhost:8000/v1/system/status
+curl http://localhost:8000/api/v1/system/status
 ```

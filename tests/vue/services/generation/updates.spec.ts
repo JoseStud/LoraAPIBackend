@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createGenerationQueueClient } from '@/features/generation/services/queueClient';
+import { createGenerationQueueClient } from '@/features/generation/services/generationService';
 import type { BackendHttpClient } from '@/services/shared/http';
 import type { ApiResponseMeta } from '@/types';
 
@@ -48,22 +48,6 @@ describe('createGenerationQueueClient', () => {
 
     expect(jobs).toHaveLength(1);
     expect(jobs[0]).toMatchObject({ id: 'job-1', status: 'processing', progress: 0.5 });
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-
-    warnSpy.mockRestore();
-  });
-
-  it('returns null when the system status payload is invalid', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    requestJson.mockResolvedValueOnce({
-      data: { status: 42 },
-      meta: createMeta(),
-    });
-
-    const client = createClient();
-    const status = await client.fetchSystemStatus();
-
-    expect(status).toBeNull();
     expect(warnSpy).toHaveBeenCalledTimes(1);
 
     warnSpy.mockRestore();

@@ -1,35 +1,37 @@
+/**
+ * The generation feature's HTTP surface: payload builders, URL resolvers and every generation
+ * request, validated with Zod before it is returned. `createGenerationQueueClient` binds these
+ * requests to a backend URL getter; it is the one typed client the orchestrator transport
+ * (`stores/orchestrator/transportAdapter.ts`) talks to. `/system/status` is not here: the
+ * shared `stores/systemStatusController.ts` owns it.
+ */
 import type {
-  CompositionEntry,
   DeliveryCreateResponse,
   GenerationCancelResponse,
-  GenerationDownloadMetadata,
   GenerationFormState,
   GenerationJobStatus,
   GenerationRequestPayload,
+  GenerationResult,
   GenerationStartResponse,
   SDNextGenerationParams,
-  SDNextGenerationResult,
 } from '@/types';
-import { ensureData, getFilenameFromContentDisposition } from '@/services/shared/http';
 import {
   createBackendPathResolver,
+  ensureData,
+  resolveBackendClient as resolveClient,
   resolveBackendPath,
-  resolveClient,
-  withSameOrigin,
-  type BackendClientInput,
-} from '@/services/shared/backendHelpers';
+  type BackendHttpClient,
+  type BackendHttpClientInput,
+} from '@/services/shared/http';
+import { withSameOrigin } from '@/utils/backend';
 import { DeliveryCreateResponseSchema, GenerationRequestPayloadSchema } from '@/schemas';
-import { parseGenerationJobStatuses } from './validation';
+import { parseGenerationJobStatuses, parseGenerationResults } from './validation';
 
 export type GenerationParamOverrides =
   & Pick<SDNextGenerationParams, 'prompt'>
   & Partial<Omit<SDNextGenerationParams, 'prompt'>>;
 
-export type GenerationRequestBody = SDNextGenerationParams & {
-  loras?: CompositionEntry[];
-};
-
-type GenerationClientInput = BackendClientInput;
+type GenerationClientInput = BackendHttpClientInput;
 
 const generationPaths = createBackendPathResolver('generation');
 const generationPath = generationPaths.path;
@@ -39,9 +41,6 @@ export const resolveGenerationBaseUrl = (input?: GenerationClientInput): string 
 
 export const resolveBackendUrl = (path: string, input?: GenerationClientInput): string =>
   resolveBackendPath(path, input);
-
-export const resolveGenerationRoute = (path: string, input?: GenerationClientInput): string =>
-  generationPaths.resolve(path, input);
 
 export const createGenerationParams = (
   overrides: GenerationParamOverrides,
@@ -60,23 +59,7 @@ export const createGenerationParams = (
     denoising_strength: overrides.denoising_strength,
   });
 
-export const requestGeneration = async (
-  payload: GenerationRequestBody,
-  input?: GenerationClientInput,
-): Promise<SDNextGenerationResult | null> => {
-  const backend = resolveClient(input);
-  const normalizedPayload = {
-    ...payload,
-    ...GenerationRequestPayloadSchema.parse(payload),
-  };
-  const { data } = await backend.postJson<SDNextGenerationResult, GenerationRequestBody>(
-    generationPath('generate'),
-    normalizedPayload,
-    withSameOrigin(),
-  );
-  return data ?? null;
-};
-
+/** `GET /generation/jobs/active`; malformed records are logged and dropped. */
 export const fetchActiveGenerationJobs = async (
   input?: GenerationClientInput,
 ): Promise<GenerationJobStatus[]> => {
@@ -86,6 +69,20 @@ export const fetchActiveGenerationJobs = async (
     withSameOrigin(),
   );
   return parseGenerationJobStatuses(result.data, 'active job');
+};
+
+/** `GET /generation/results?limit=…`; malformed records are logged and dropped. */
+export const fetchRecentGenerationResults = async (
+  limit: number,
+  input?: GenerationClientInput,
+): Promise<GenerationResult[]> => {
+  const backend = resolveClient(input);
+  const normalizedLimit = Math.max(1, Number(limit) || 1);
+  const result = await backend.requestJson<unknown>(
+    generationPath(`results?limit=${normalizedLimit}`),
+    withSameOrigin(),
+  );
+  return parseGenerationResults(result.data, 'recent result');
 };
 
 export const toGenerationRequestPayload = (
@@ -145,22 +142,34 @@ export const deleteGenerationResult = async (
   await backend.delete(generationPath(`results/${resultId}`), withSameOrigin());
 };
 
-export const downloadGenerationResult = async (
-  resultId: string | number,
-  fallbackName = `generation-${resultId}`,
-  input?: GenerationClientInput,
-): Promise<GenerationDownloadMetadata> => {
-  const backend = resolveClient(input);
-  const { blob, response } = await backend.requestBlob(
-    generationPath(`results/${resultId}/download`),
-    withSameOrigin({ method: 'GET' }),
-  );
+/** The generation requests the orchestrator transport needs, bound to one backend. */
+export interface GenerationQueueClient {
+  startGeneration(payload: GenerationRequestPayload): Promise<GenerationStartResponse>;
+  cancelJob(jobId: string): Promise<void>;
+  deleteResult(resultId: string | number): Promise<void>;
+  fetchActiveJobs(): Promise<GenerationJobStatus[]>;
+  fetchRecentResults(limit: number): Promise<GenerationResult[]>;
+}
+
+export interface GenerationQueueClientOptions {
+  /** A fixed client; takes precedence over `getBackendUrl`. */
+  client?: BackendHttpClient | null;
+  /** Read on every request, so backend URL changes apply without recreating the client. */
+  getBackendUrl?: () => string | null | undefined;
+}
+
+export const createGenerationQueueClient = (
+  options: GenerationQueueClientOptions = {},
+): GenerationQueueClient => {
+  const backend = (): GenerationClientInput => options.client ?? (options.getBackendUrl?.() || undefined);
+
   return {
-    blob,
-    filename:
-      getFilenameFromContentDisposition(response.headers.get('content-disposition'))
-      ?? `${fallbackName}.png`,
-    contentType: response.headers.get('content-type'),
-    size: blob.size,
+    startGeneration: (payload) => startGeneration(payload, backend()),
+    cancelJob: async (jobId) => {
+      await cancelGenerationJob(jobId, backend());
+    },
+    deleteResult: (resultId) => deleteGenerationResult(resultId, backend()),
+    fetchActiveJobs: () => fetchActiveGenerationJobs(backend()),
+    fetchRecentResults: (limit) => fetchRecentGenerationResults(limit, backend()),
   };
 };

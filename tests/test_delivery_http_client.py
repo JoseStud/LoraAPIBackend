@@ -3,11 +3,21 @@
 from __future__ import annotations
 
 import asyncio
+import gc
 import threading
+import warnings
+from contextlib import contextmanager
 
 import pytest
 
+from backend.delivery.base import DeliveryRegistry, GenerationBackend
 from backend.delivery.http_client import DeliveryHTTPClient
+from backend.delivery.sdnext import SDNextGenerationBackend
+from backend.schemas import SDNextGenerationResult
+from backend.services.deliveries import DeliveryService
+from backend.services.delivery_repository import DeliveryJobRepository
+from backend.workers.context import _default_async_runner
+from backend.workers.delivery_runner import DeliveryRunner
 from tests.util.local_http import serve_json
 
 
@@ -83,3 +93,111 @@ def test_close_ignores_sessions_of_closed_loops(base_url):
     asyncio.run(client.close())
 
     assert client._sessions == {}
+
+
+class _HealthCheckingBackend(GenerationBackend):
+    """Uses the shared client during the job, as the SDNext backend does."""
+
+    def __init__(self, client: DeliveryHTTPClient) -> None:
+        self._client = client
+        self.sessions = []
+
+    async def generate_image(self, prompt, params) -> SDNextGenerationResult:
+        assert await self._client.health_check() is True
+        self.sessions.append(self._client._sessions[asyncio.get_running_loop()])
+        return SDNextGenerationResult(job_id="x", status="completed")
+
+    async def check_progress(self, job_id: str) -> SDNextGenerationResult:
+        return SDNextGenerationResult(job_id=job_id, status="completed")
+
+    def is_available(self) -> bool:
+        return True
+
+
+def _assert_no_unclosed_session_warning(recorded) -> None:
+    gc.collect()
+    messages = [str(warning.message) for warning in recorded]
+    assert not [m for m in messages if "Unclosed" in m], messages
+
+
+def test_worker_jobs_close_the_session_of_their_loop(base_url, db_session, monkeypatch):
+    """Each RQ job runs on its own ``asyncio.run`` loop; the session it opened
+    there is closed before the loop ends instead of being left open, which
+    matters for SimpleWorker and other workers that keep the process alive."""
+    client = DeliveryHTTPClient(base_url, timeout=5)
+    backend = _HealthCheckingBackend(client)
+    registry = DeliveryRegistry()
+    registry.register_generation_backend("sdnext", backend)
+    # The real SDNext backend sharing the client releases the loop's session.
+    registry.register_generation_backend(
+        "sdnext-shared", SDNextGenerationBackend(http_client=client)
+    )
+
+    @contextmanager
+    def session_context():
+        yield db_session
+
+    monkeypatch.setattr(
+        "backend.workers.delivery_runner.get_session_context",
+        lambda: session_context(),
+    )
+    deliveries = DeliveryService(DeliveryJobRepository(db_session))
+    runner = DeliveryRunner(registry, delivery_service_factory=lambda _: deliveries)
+
+    with warnings.catch_warnings(record=True) as recorded:
+        warnings.simplefilter("always")
+        for _ in range(2):
+            job = deliveries.create_job(
+                "prompt", "sdnext", {"generation_params": {"prompt": "prompt"}}
+            )
+            runner.process_delivery_job(job.id, raise_on_error=True)
+            assert deliveries.get_job(job.id).status == "succeeded"
+        _assert_no_unclosed_session_warning(recorded)
+
+    assert len(backend.sessions) == 2
+    assert all(session.closed for session in backend.sessions)
+    assert client._sessions == {}
+
+
+def test_worker_context_runner_closes_loop_sessions(base_url, monkeypatch):
+    """Recommendation tasks get the same per-loop cleanup."""
+    client = DeliveryHTTPClient(base_url, timeout=5)
+    registry = DeliveryRegistry()
+    registry.register_generation_backend(
+        "sdnext", SDNextGenerationBackend(http_client=client)
+    )
+    monkeypatch.setattr("backend.delivery.get_delivery_registry", lambda: registry)
+
+    async def task():
+        assert await client.health_check() is True
+        return client._sessions[asyncio.get_running_loop()]
+
+    with warnings.catch_warnings(record=True) as recorded:
+        warnings.simplefilter("always")
+        session = _default_async_runner(task())
+        _assert_no_unclosed_session_warning(recorded)
+
+    assert session.closed
+    assert client._sessions == {}
+
+
+def test_close_loop_session_leaves_other_live_loops_alone(base_url, background_loop):
+    client = DeliveryHTTPClient(base_url, timeout=5)
+
+    def on_background(coro):
+        return asyncio.run_coroutine_threadsafe(coro, background_loop).result(5)
+
+    async def main():
+        assert on_background(client.health_check()) is True
+        assert await client.health_check() is True
+        own = client._sessions[asyncio.get_running_loop()]
+        other = client._sessions[background_loop]
+
+        await client.close_loop_session()
+
+        assert own.closed
+        assert not other.closed
+        assert list(client._sessions) == [background_loop]
+
+    asyncio.run(main())
+    on_background(client.close())

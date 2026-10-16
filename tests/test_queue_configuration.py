@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import builtins
+import json
 import threading
 import types
 from unittest.mock import MagicMock
@@ -25,6 +26,18 @@ from backend.services.queue import (
 )
 from backend.workers import tasks as worker_tasks
 from backend.workers.tasks import reset_worker_context, set_worker_context
+
+
+def _primary_error(caplog: pytest.LogCaptureFixture) -> dict:
+    """Return the one ``queue_orchestrator.primary_error`` event logged."""
+    events = [
+        json.loads(record.getMessage())
+        for record in caplog.records
+        if record.name == "backend.services.queue"
+    ]
+    errors = [e for e in events if e["event"] == "queue_orchestrator.primary_error"]
+    assert len(errors) == 1, events
+    return errors[0]
 
 
 def test_queue_factory_shared_backend_with_redis(db_session) -> None:
@@ -174,7 +187,7 @@ def test_background_queue_ignores_request_background_tasks() -> None:
     background_tasks.add_task.assert_not_called()
 
 
-def test_orchestrator_raises_when_primary_errors(capsys) -> None:
+def test_orchestrator_raises_when_primary_errors(caplog) -> None:
     """A failing primary queue is reported; the job never runs in-process."""
     executed: list[str] = []
     job_runner = InProcessJobRunner()
@@ -193,16 +206,15 @@ def test_orchestrator_raises_when_primary_errors(capsys) -> None:
     finally:
         job_runner.stop()
 
-    out = capsys.readouterr().out
+    error = _primary_error(caplog)
 
     assert executed == []
     assert isinstance(excinfo.value.__cause__, RuntimeError)
-    assert "queue_orchestrator.primary_error" in out
-    assert "error_type=RuntimeError" in out
-    assert "primary exploded" in out
+    assert error["error_type"] == "RuntimeError"
+    assert error["error"] == "primary exploded"
 
 
-def test_orchestrator_reports_missing_redis_dependency(capsys, monkeypatch) -> None:
+def test_orchestrator_reports_missing_redis_dependency(caplog, monkeypatch) -> None:
     """With REDIS_URL set, missing Redis modules are an error, not a fallback."""
     executed: list[str] = []
     job_runner = InProcessJobRunner()
@@ -227,16 +239,15 @@ def test_orchestrator_reports_missing_redis_dependency(capsys, monkeypatch) -> N
     finally:
         job_runner.stop()
 
-    out = capsys.readouterr().out
+    error = _primary_error(caplog)
 
     assert executed == []
     assert orchestrator.has_durable_queue()
-    assert "queue_orchestrator.primary_error" in out
-    assert "error_type=RuntimeError" in out
-    assert "optional 'redis' package" in out
+    assert error["error_type"] == "RuntimeError"
+    assert "optional 'redis' package" in error["error"]
 
 
-def test_orchestrator_reports_redis_outage(capsys, monkeypatch) -> None:
+def test_orchestrator_reports_redis_outage(caplog, monkeypatch) -> None:
     """A Redis outage is retried once by the backend, then reported."""
     executed: list[str] = []
 
@@ -279,14 +290,13 @@ def test_orchestrator_reports_redis_outage(capsys, monkeypatch) -> None:
     finally:
         job_runner.stop()
 
-    out = capsys.readouterr().out
+    error = _primary_error(caplog)
 
     assert executed == []
     # The backend resets its connection and retries once before giving up.
     assert len(attempts) == 2
-    assert "queue_orchestrator.primary_error" in out
-    assert f"error_type={RedisConnectionError.__name__}" in out
-    assert "redis unavailable" in out
+    assert error["error_type"] == RedisConnectionError.__name__
+    assert error["error"] == "redis unavailable"
 
 
 def test_redis_backend_applies_job_timeout(monkeypatch) -> None:

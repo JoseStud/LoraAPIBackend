@@ -6,14 +6,14 @@ import json
 from datetime import datetime, timezone
 from typing import Optional
 
-import structlog
 from fastapi import WebSocket, WebSocketDisconnect
 
+from backend.core.logging import get_logger
 from backend.schemas import WebSocketMessage, WebSocketSubscription
 
 from .connection_manager import ConnectionManager
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class WebSocketService:

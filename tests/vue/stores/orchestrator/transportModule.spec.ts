@@ -217,7 +217,6 @@ describe('adapterHandlers', () => {
     const results = { setResults: vi.fn() } as any;
 
     const systemStatus = {
-      applySystemStatusPayload: vi.fn(),
       setConnectionState: vi.fn(),
     } as any;
 
@@ -236,9 +235,6 @@ describe('adapterHandlers', () => {
 
     handlers.onError({ job_id: 'job' } as any);
     expect(queue.handleErrorMessage).toHaveBeenCalled();
-
-    handlers.onSystemStatus({ queue_length: 1 } as any);
-    expect(systemStatus.applySystemStatusPayload).toHaveBeenCalled();
 
     handlers.onConnectionChange(true);
     expect(systemStatus.setConnectionState).toHaveBeenCalledWith(true);

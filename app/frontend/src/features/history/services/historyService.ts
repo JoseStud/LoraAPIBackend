@@ -1,10 +1,10 @@
-import { getFilenameFromContentDisposition } from '@/services/shared/http';
-import type { BackendHttpClient } from '@/services/shared/http';
 import {
   createBackendPathResolver,
-  resolveClient,
-  withSameOrigin,
-} from '@/services/shared/backendHelpers';
+  getFilenameFromContentDisposition,
+  resolveBackendClient,
+  type BackendHttpClient,
+} from '@/services/shared/http';
+import { withSameOrigin } from '@/utils/backend';
 
 import type {
   GenerationBulkDeleteRequest,
@@ -128,7 +128,7 @@ export const listResults = async (
   options: ListResultsOptions = {},
   client?: BackendHttpClient | null,
 ): Promise<ListResultsOutput> => {
-  const backend = resolveClient(client);
+  const backend = resolveBackendClient(client);
   const queryString = buildHistoryQuery(query);
   const target = historyPath(`/results${queryString}`);
   const result = await backend.requestJson<GenerationHistoryListPayload>(
@@ -144,7 +144,7 @@ export const fetchResultStats = async (
   options: ListResultsOptions = {},
   client?: BackendHttpClient | null,
 ): Promise<GenerationHistoryStats> => {
-  const backend = resolveClient(client);
+  const backend = resolveBackendClient(client);
   const result = await backend.requestJson<unknown>(
     historyPath('/results/stats'),
     withSameOrigin({ signal: options.signal }),
@@ -157,7 +157,7 @@ export const rateResult = async (
   rating: number,
   client?: BackendHttpClient | null,
 ): Promise<GenerationHistoryResult | null> => {
-  const backend = resolveClient(client);
+  const backend = resolveBackendClient(client);
   const result = await backend.putJson<GenerationHistoryResult | null, GenerationRatingUpdate>(
     historyPath(`/results/${encodeURIComponent(String(resultId))}/rating`),
     { rating },
@@ -171,7 +171,7 @@ export const favoriteResult = async (
   isFavorite: boolean,
   client?: BackendHttpClient | null,
 ): Promise<GenerationHistoryResult | null> => {
-  const backend = resolveClient(client);
+  const backend = resolveBackendClient(client);
   const result = await backend.putJson<GenerationHistoryResult | null, { is_favorite: boolean }>(
     historyPath(`/results/${encodeURIComponent(String(resultId))}/favorite`),
     { is_favorite: isFavorite },
@@ -184,7 +184,7 @@ export const favoriteResults = async (
   payload: GenerationBulkFavoriteRequest,
   client?: BackendHttpClient | null,
 ): Promise<void> => {
-  const backend = resolveClient(client);
+  const backend = resolveBackendClient(client);
   await backend.putJson<unknown, GenerationBulkFavoriteRequest>(
     historyPath('/results/bulk-favorite'),
     payload,
@@ -196,7 +196,7 @@ export const deleteResult = async (
   resultId: GenerationHistoryResult['id'],
   client?: BackendHttpClient | null,
 ): Promise<void> => {
-  const backend = resolveClient(client);
+  const backend = resolveBackendClient(client);
   await backend.delete(historyPath(`/results/${encodeURIComponent(String(resultId))}`), withSameOrigin());
 };
 
@@ -204,7 +204,7 @@ export const deleteResults = async (
   payload: GenerationBulkDeleteRequest,
   client?: BackendHttpClient | null,
 ): Promise<void> => {
-  const backend = resolveClient(client);
+  const backend = resolveBackendClient(client);
   await backend.requestJson<unknown>(historyPath('/results/bulk-delete'), {
     ...withSameOrigin({ method: 'DELETE' }),
     headers: {
@@ -230,7 +230,7 @@ export const exportResults = async (
   payload: GenerationExportRequest,
   client?: BackendHttpClient | null,
 ): Promise<GenerationDownloadMetadata> => {
-  const backend = resolveClient(client);
+  const backend = resolveBackendClient(client);
   const { blob, response } = await backend.requestBlob(
     historyPath('/results/export'),
     withSameOrigin({
@@ -247,7 +247,7 @@ export const downloadResult = async (
   fallbackName = `generation-${resultId}.png`,
   client?: BackendHttpClient | null,
 ): Promise<GenerationDownloadMetadata> => {
-  const backend = resolveClient(client);
+  const backend = resolveBackendClient(client);
   const { blob, response } = await backend.requestBlob(
     historyPath(`/results/${encodeURIComponent(String(resultId))}/download`),
     withSameOrigin({ method: 'GET' }),

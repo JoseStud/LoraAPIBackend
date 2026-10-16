@@ -1,7 +1,7 @@
 import type { Ref } from 'vue';
 
 import type { GenerationNotificationAdapter } from '../types/transport';
-import type { GenerationQueueClient } from '../services/queueClient';
+import type { GenerationQueueClient } from '../services/generationService';
 import type { GenerationWebSocketManager } from '../services/websocketManager';
 import type { GenerationRequestPayload, GenerationStartResponse, SystemStatusState } from '@/types';
 import type { DeepReadonly } from '@/utils/freezeDeep';

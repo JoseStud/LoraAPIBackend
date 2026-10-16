@@ -7,29 +7,35 @@ import {
   type BlobResult,
   type CreateHttpClientConfig,
   type HttpClient,
-  type RequestTarget,
 } from './createHttpClient';
-import { resolveBackendBaseUrl, resolveBackendUrl, useBackendBase } from '@/utils/backend';
+import {
+  createBackendPathBuilder,
+  resolveBackendBaseUrl,
+  useBackendBase,
+  type BackendPathBuilder,
+} from '@/utils/backend';
 
+/** An HTTP client whose base URL is the configured backend API root. */
 export type BackendHttpClient = HttpClient;
 
+/** A client, a backend base URL override, or nothing for the default backend client. */
 export type BackendHttpClientInput = BackendHttpClient | string | null | undefined;
 
+export type BackendBaseOverride =
+  | string
+  | null
+  | undefined
+  | (() => string | null | undefined);
+
 export interface BackendHttpClientOptions extends Omit<CreateHttpClientConfig, 'baseURL'> {
-  baseURL?: string | (() => string | null | undefined);
+  baseURL?: BackendBaseOverride;
 }
 
-const normaliseBaseResolver = (
-  baseURL?: BackendHttpClientOptions['baseURL'],
-): (() => string | null) => {
-  if (typeof baseURL === 'function') {
+const createBaseResolver = (override?: BackendBaseOverride): (() => string) => {
+  if (typeof override === 'function') {
     return () => {
       try {
-        const resolved = baseURL();
-        if (typeof resolved === 'string' && resolved.trim()) {
-          return resolveBackendBaseUrl(resolved);
-        }
-        return resolved ?? resolveBackendBaseUrl();
+        return resolveBackendBaseUrl(override() ?? undefined);
       } catch (error) {
         if (import.meta.env.DEV) {
           console.warn('[http] Failed to resolve backend base override', error);
@@ -39,82 +45,48 @@ const normaliseBaseResolver = (
     };
   }
 
-  if (typeof baseURL === 'string' && baseURL.trim()) {
-    return () => resolveBackendBaseUrl(baseURL);
-  }
-
-  return () => resolveBackendBaseUrl();
-};
-
-export const createBackendHttpClient = (options: BackendHttpClientOptions = {}): BackendHttpClient => {
-  const { baseURL, ...rest } = options;
-  const resolveBase = normaliseBaseResolver(baseURL);
-
-  return createHttpClient({
-    ...rest,
-    baseURL: resolveBase,
-  });
-};
-
-const createClientFromResolver = (resolveBase: () => string): BackendHttpClient => {
-  const httpClient = createBackendHttpClient({ baseURL: resolveBase });
-
-  return {
-    ...httpClient,
-    resolve: (path?: string) => {
-      if (!path) {
-        return resolveBase();
-      }
-      return httpClient.resolve(path);
-    },
-    getJson: async <TPayload>(target: RequestTarget, init: ApiRequestInit = {}) => {
-      const result = await httpClient.requestJson<TPayload>(target, init);
-      return (result.data as TPayload | null) ?? null;
-    },
-  } satisfies BackendHttpClient;
-};
-
-export type BackendBaseOverride =
-  | string
-  | null
-  | undefined
-  | (() => string | null | undefined);
-
-const resolveOverrideBase = (override?: BackendBaseOverride): (() => string) => {
-  if (typeof override === 'function') {
-    return () => resolveBackendBaseUrl(override() ?? undefined);
-  }
-
   return () => resolveBackendBaseUrl(override ?? undefined);
 };
 
-const defaultBackendClient = createClientFromResolver(resolveOverrideBase());
+/** Creates a client that resolves relative paths against the backend base URL on every request. */
+export const createBackendHttpClient = (options: BackendHttpClientOptions = {}): BackendHttpClient => {
+  const { baseURL, ...rest } = options;
+  return createHttpClient({ ...rest, baseURL: createBaseResolver(baseURL) });
+};
 
 export const createBackendClient = (override?: BackendBaseOverride): BackendHttpClient =>
-  createClientFromResolver(resolveOverrideBase(override));
+  createBackendHttpClient({ baseURL: override });
+
+const defaultBackendClient = createBackendClient();
 
 export const resolveBackendClient = (input?: BackendHttpClientInput): BackendHttpClient => {
   if (typeof input === 'string') {
     return createBackendClient(input);
   }
 
-  if (input == null) {
-    return defaultBackendClient;
-  }
-
-  return input;
+  return input ?? defaultBackendClient;
 };
 
 export const useBackendClient = (override?: MaybeRefOrGetter<string | null>): BackendHttpClient => {
   const backendBase = useBackendBase(override);
-  return createClientFromResolver(() => backendBase.value);
+  return createBackendClient(() => backendBase.value);
 };
 
-export const resolveBackendPath = (path: string, client?: BackendHttpClient): string => {
-  if (client) {
-    return client.resolve(path);
-  }
-  return resolveBackendUrl(path);
+export const resolveBackendPath = (path: string, input?: BackendHttpClientInput): string =>
+  resolveBackendClient(input).resolve(path);
+
+export interface BackendPathResolver {
+  path: BackendPathBuilder;
+  resolve: (path?: string, input?: BackendHttpClientInput) => string;
+}
+
+/** Builds paths under `basePath` and resolves them to absolute backend URLs. */
+export const createBackendPathResolver = (basePath: string): BackendPathResolver => {
+  const path = createBackendPathBuilder(basePath);
+  const resolve = (suffix = '', input?: BackendHttpClientInput): string =>
+    resolveBackendPath(path(suffix), input);
+
+  return { path, resolve };
 };
 
 export type { ApiRequestInit, ApiResult, BlobResult };

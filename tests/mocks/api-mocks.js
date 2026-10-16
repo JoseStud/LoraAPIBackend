@@ -252,14 +252,6 @@ const apiMocks = {
         return { success: true };
     },
 
-    'POST /api/generation/generate': () => ({
-        job_id: 'job-1',
-        status: 'queued',
-        images: [],
-        progress: 0,
-        generation_info: null,
-    }),
-
     'POST /api/generation/queue-generation': () => ({
         delivery_id: 'job-1',
     }),
@@ -509,7 +501,7 @@ const apiMocks = {
         version: '2.1.0',
     }),
 
-    'GET /frontend/settings': () => ({
+    'GET /api/v1/frontend/settings': () => ({
         backendUrl: '/api/v1',
         generationPolling: defaultGenerationPolling,
         features: {

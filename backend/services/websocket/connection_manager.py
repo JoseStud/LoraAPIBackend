@@ -7,9 +7,9 @@ import json
 from datetime import datetime, timezone
 from typing import Dict, Set
 
-import structlog
 from fastapi import WebSocket
 
+from backend.core.logging import get_logger
 from backend.schemas import (
     GenerationComplete,
     GenerationStarted,
@@ -18,7 +18,7 @@ from backend.schemas import (
     WebSocketSubscription,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 def _json_default(value):
