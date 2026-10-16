@@ -149,7 +149,6 @@ def _ensure_cancel_job_usage_is_guarded() -> None:
     """Ensure cancelGenerationJob goes through the orchestrator manager surface."""
     allowed_files = {
         Path("app/frontend/src/features/generation/services/generationService.ts"),
-        Path("app/frontend/src/features/generation/services/queueClient.ts"),
     }
 
     matches = _search_repository(

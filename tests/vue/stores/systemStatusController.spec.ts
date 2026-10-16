@@ -93,6 +93,31 @@ describe('acquireSystemStatusController', () => {
     release();
   });
 
+  it('rejects an invalid status payload and marks the status as errored', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    backendClientMocks.useBackendClient.mockReturnValue(createBackendClient('default-'));
+    systemServiceMocks.fetchSystemStatus.mockResolvedValue({ status: 42 });
+
+    const { acquireSystemStatusController } = await import(
+      '@/features/generation/stores/systemStatusController'
+    );
+    const { useGenerationOrchestratorStore } = await import(
+      '@/features/generation/stores/useGenerationOrchestratorStore'
+    );
+
+    const { controller, release } = acquireSystemStatusController();
+    await controller.refresh();
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(useGenerationOrchestratorStore().systemStatus).toMatchObject({
+      status: 'error',
+      gpu_status: 'Unknown',
+    });
+
+    release();
+    warnSpy.mockRestore();
+  });
+
   it('respects an explicit backend client override', async () => {
     const defaultClient = createBackendClient('default-');
     const overrideClient = createBackendClient('override-');

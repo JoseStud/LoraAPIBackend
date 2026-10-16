@@ -283,9 +283,11 @@ Read these before changing the matching subsystem:
   ADR 007's 2026-10-15 amendments have the full module map and the
   single-lifecycle decision.
 - **Transport**: queue polling and WebSocket updates are wired in
-  `features/generation/stores/orchestrator/transportAdapter.ts` (HTTP through
-  `composables/useGenerationQueueClient.ts`, the socket through
-  `services/websocketManager.ts`). Transport state, the store's transport
+  `features/generation/stores/orchestrator/transportAdapter.ts`, which owns the
+  active-job poll timer and talks to one typed client,
+  `createGenerationQueueClient` in `services/generationService.ts` (every
+  generation request, Zod-validated there), and to the socket through
+  `services/websocketManager.ts`. Transport state, the store's transport
   commands and the routing of adapter callbacks into the store live in
   `features/generation/stores/orchestrator/transportModule.ts`. Extend those
   instead of adding polling to components. Polling intervals come from
@@ -319,8 +321,15 @@ Read these before changing the matching subsystem:
   bulk-mode props, and call `forceUpdate()` after prop-driven size changes.
 - **HTTP**: all requests go through `services/shared/http` (`performRequest`,
   `requestJson`, `createHttpClient`, ...) or `composables/shared/useApi`. Don't
-  add bespoke `fetch` wrappers. Validate responses with the Zod schemas in
-  `schemas/` and the feature `*Schemas.ts` files before they reach stores.
+  add bespoke `fetch` wrappers. `services/shared/http/createHttpClient.ts` is
+  the only client implementation: it adds the API key header (once, in
+  `prepareInit`), retries only `GET`/`HEAD` on 5xx and network errors (3
+  attempts by default), never retries 4xx or aborted requests, and settles an
+  aborted request as aborted. Callers merge their own headers with
+  `mergeHeaders`, never `buildAuthenticatedHeaders`. Backend-rooted clients
+  and path resolvers live in `services/shared/http/backendClient.ts`. Validate
+  responses with the Zod schemas in `schemas/` and the feature `*Schemas.ts`
+  files before they reach stores.
 - **Feature boundaries**: import other features only through
   `features/<feature>/public`. ESLint and the `ci:check` guardrails enforce
   this; widen a `public.ts` deliberately instead of importing internals.

@@ -1,5 +1,4 @@
-import { createHttpClient, type HttpClient } from '@/services/shared/http';
-import { createBackendPathResolver } from '@/services/shared/backendHelpers';
+import { createBackendPathResolver, createHttpClient, type HttpClient } from '@/services/shared/http';
 import { resolveBackendBaseUrl } from '@/utils/backend';
 import type { RecommendationResponse } from '@/types';
 

@@ -89,7 +89,7 @@ flowchart TD
     Sys["systemStatusModule<br/>+ systemStatusController"]
     T["transportModule"]
     A["transportAdapter"]
-    HTTP["useGenerationQueueClient<br/>(HTTP polling)"]
+    HTTP["generationService<br/>createGenerationQueueClient (HTTP)"]
     WS["websocketManager<br/>(progress socket)"]
 
     Studio -- "acquire()" --> Manager
@@ -130,8 +130,10 @@ Related contracts: [orchestrator store](../frontend/generation-orchestrator.md),
 
 ### Transport
 
-- `stores/orchestrator/transportAdapter.ts` combines HTTP queue polling and the
-  progress WebSocket behind one object. Creating it starts nothing; it starts in
+- `stores/orchestrator/transportAdapter.ts` combines active-job polling, the HTTP
+  commands and the progress WebSocket behind one object. Its HTTP goes through one
+  typed client, `createGenerationQueueClient` in `services/generationService.ts`,
+  which validates every response. Creating it starts nothing; it starts in
   `initialize()`/`resume()` and stops in `pause()`/`clear()`.
 - `stores/orchestrator/transportModule.ts` holds transport state and commands
   and routes adapter callbacks into the store.
@@ -164,6 +166,16 @@ All requests go through [`services/shared/http`](../../app/frontend/src/services
 They inject the API key and backend URL from the settings store, normalise
 401/403/5xx errors, retry only idempotent requests, and never retry aborted
 ones. Don't add bespoke `fetch` wrappers.
+
+The one client implementation is
+[`services/shared/http/createHttpClient.ts`](../../app/frontend/src/services/shared/http/createHttpClient.ts).
+It adds the `X-API-Key` header exactly once per request, retries `GET`/`HEAD`
+on 5xx responses and network failures (3 attempts by default, exponential
+backoff from 150 ms), never retries 4xx responses or a request whose signal was
+aborted, and wraps network failures in an `ApiError` with status 0.
+[`backendClient.ts`](../../app/frontend/src/services/shared/http/backendClient.ts)
+builds clients rooted at the configured backend URL (`resolveBackendClient`,
+`createBackendPathResolver`).
 
 Validate responses with Zod before they reach a store: shared schemas in
 `schemas/`, feature schemas in `*Schemas.ts` files.
