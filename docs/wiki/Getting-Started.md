@@ -77,7 +77,7 @@ process (see [Generation pipeline](Generation-Pipeline.md#the-in-process-fallbac
 | Entry point | Mounts | Used by |
 | --- | --- | --- |
 | [`backend/main.py`](../../backend/main.py) `create_app()` (also exposed as the factory `backend.main:app`) | API routers under `/v1`, `/health` | Docker `api` service, tests |
-| [`app/main.py`](../../app/main.py) `app` | The backend app at `/api` (so routes are `/api/v1/...`), `/frontend/settings`, `/health`, and a built SPA from the repo-root `dist/` with an `index.html` fallback | Host development, `npm run prod:serve` |
+| [`app/main.py`](../../app/main.py) `app` | The backend app at `/api` (so routes are `/api/v1/...`), `/frontend/settings`, `/health`, and the SPA built into `app/dist/` with an `index.html` fallback | Host development, `npm run prod:serve` |
 
 `/frontend/settings` (also `/api/v1/frontend/settings`) gives the SPA its API
 base URL, API key and polling intervals. Vite proxies `/api` and `/ws` to the

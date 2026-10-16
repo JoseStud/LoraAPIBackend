@@ -10,6 +10,7 @@ from typing import Any, Dict
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException
 
 from backend.core.config import settings as backend_settings
 from backend.main import create_app as create_backend_app
@@ -94,17 +95,25 @@ class SPAStaticFiles(StaticFiles):
             check_dir=False,
         )
 
+    async def check_config(self) -> None:
+        """Answer 404 instead of failing while the SPA has not been built."""
+        if self.directory_path.is_dir():
+            await super().check_config()
+
     async def get_response(self, path, scope):  # type: ignore[override]
         """Return static content or fall back to the SPA index page."""
-        response = await super().get_response(path, scope)
-        if response.status_code == 404:
+        try:
+            return await super().get_response(path, scope)
+        except HTTPException as exc:
+            # Starlette raises (rather than returns) 404 for unknown paths.
             index_path = self.directory_path / "index.html"
-            if index_path.exists():
-                return await super().get_response("index.html", scope)
-        return response
+            if exc.status_code != 404 or not index_path.is_file():
+                raise
+        return await super().get_response("index.html", scope)
 
 
-SPA_DIST_DIR = (Path(__file__).resolve().parent.parent / "dist").resolve()
+# Vite builds into app/dist (root app/frontend, outDir ../dist); see vite.config.ts.
+SPA_DIST_DIR = (Path(__file__).resolve().parent / "dist").resolve()
 SPA_STATIC_APP = SPAStaticFiles(SPA_DIST_DIR)
 
 

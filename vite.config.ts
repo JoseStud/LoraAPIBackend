@@ -4,7 +4,7 @@ import vue from '@vitejs/plugin-vue';
 
 const frontendRoot = fileURLToPath(new URL('./app/frontend', import.meta.url));
 const srcDirectory = fileURLToPath(new URL('./app/frontend/src', import.meta.url));
-const entryFile = fileURLToPath(new URL('./app/frontend/src/main.ts', import.meta.url));
+const entryFile = fileURLToPath(new URL('./app/frontend/index.html', import.meta.url));
 
 const createBundleInspectorPlugin = (): PluginOption => ({
   name: 'bundle-inspector',

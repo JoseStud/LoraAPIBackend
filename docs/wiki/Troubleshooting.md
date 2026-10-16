@@ -74,20 +74,19 @@ Set `HOST_UID`/`HOST_GID` in `.env.docker` if your IDs aren't 1000.
 
 ### The built SPA is not served
 
-`npm run build` writes the bundle to `app/dist/` (Vite's root is
-`app/frontend` with `outDir: '../dist'`), but `app/main.py` serves the SPA from
-`dist/` at the **repository root** (`SPA_DIST_DIR`). After a build,
-`uvicorn app.main:app` or `npm run prod:serve` therefore serves no SPA unless
-the bundle is also at `./dist`.
+`uvicorn app.main:app` and `npm run prod:serve` serve the bundle from
+`app/dist/` (`SPA_DIST_DIR` in `app/main.py`), which is where `npm run build`
+and `npm run prod:build` write it (Vite's root is `app/frontend` with
+`outDir: '../dist'`). `tests/api/test_spa_static.py` fails if the two drift
+apart.
 
-Until the two paths agree, copy or link the build:
-
-```bash
-npm run build && rm -rf dist && cp -r app/dist dist
-```
+If every page returns 404, `app/dist/index.html` doesn't exist: run
+`npm run prod:build` and reload. The server picks up a new build without a
+restart. Any path that isn't a file in `app/dist/` gets `index.html`, so
+client-side routes load on refresh.
 
 During development use the Vite dev server (`npm run dev`), which doesn't
-depend on either path.
+need a build.
 
 ### The SPA can't reach the API
 
