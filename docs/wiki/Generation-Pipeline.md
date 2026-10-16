@@ -58,10 +58,14 @@ Step by step, with the code that does it:
    enqueues it. `params` stores `generation_params`, `backend`, `mode`,
    `save_images`, `return_format` and an optional `client_ref`.
 2. **Enqueue.** `QueueOrchestrator.enqueue_delivery`
-   ([`services/queue.py`](../../backend/services/queue.py)) tries the primary
-   backend (`RedisQueueBackend`, when `REDIS_URL` is set) and falls back to
-   `BackgroundTaskQueueBackend` if Redis is absent or the enqueue raises. Always
-   enqueue through the orchestrator so the fallback keeps working.
+   ([`services/queue.py`](../../backend/services/queue.py)) sends the job to
+   `RedisQueueBackend` when `REDIS_URL` is set, and to
+   `BackgroundTaskQueueBackend` only when it is not. If the Redis enqueue
+   raises, the job is **not** moved in-process, where it would run beside the
+   RQ worker and recovery would never requeue it: the orchestrator raises
+   `QueueUnavailableError`, `DeliveryService.enqueue_job` fails the
+   still-pending job, and the API answers 503. Always enqueue through the
+   orchestrator so both rules hold.
 3. **Monitor.** The handler calls `broadcast_job_started`, which starts a
    `JobProgressMonitor` task in the API process and broadcasts
    `generation_started` to WebSocket subscribers.
@@ -199,11 +203,14 @@ on the same runner, behind generation jobs. See
 
 ## Result images
 
-- Queued jobs never store base64. `FileSystemImageStorage`
+- Saved images are never stored as base64. `FileSystemImageStorage`
   ([`delivery/storage.py`](../../backend/delivery/storage.py)) writes PNGs under
   `SDNEXT_OUTPUT_DIR`, and `result.images` stores `output://<relative path>`
-  references. `return_format` only shapes the response of the immediate
-  endpoints (`/generate`, `/compose-and-generate`).
+  references. For queued jobs `return_format` is otherwise ignored
+  (`stored_return_format`), with one exception: a job queued with
+  `save_images=false` and `return_format=base64` writes no file, so its result
+  keeps the base64 data. For the immediate endpoints (`/generate`,
+  `/compose-and-generate`) `return_format` shapes the response.
 - API responses and WebSocket messages convert references to browser-loadable
   sources (`backend/utils/images.py`): the keyless
   `GET /v1/generation/results/{job_id}/images/{index}` route for files, a

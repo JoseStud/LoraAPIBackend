@@ -35,8 +35,8 @@ Terms as this codebase uses them.
   one.
 
 **Delivery backend**
-: A plug-in that sends a prompt somewhere else (`DeliveryBackend`): `http` or
-  `cli`.
+: A plug-in that sends a prompt somewhere else (`DeliveryBackend`): `http`
+  (POSTs it to a URL) or `cli` (writes it to a temporary file).
 
 **Runner**
 : Whatever executes a job: an RQ worker, or the in-process job runner.
@@ -47,8 +47,10 @@ Terms as this codebase uses them.
   without retries.
 
 **Queue orchestrator**
-: `QueueOrchestrator`, which picks the Redis/RQ backend when available and the
-  in-process fallback otherwise. All enqueueing goes through it.
+: `QueueOrchestrator`, which sends jobs to Redis/RQ when `REDIS_URL` is set and
+  to the in-process fallback only when it is not; a failed Redis enqueue raises
+  `QueueUnavailableError` (503) instead of falling back. All enqueueing goes
+  through it.
 
 **Claim**
 : Moving a job from `pending` or `retrying` to `running` with a conditional
