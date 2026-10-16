@@ -60,12 +60,6 @@ class DeliveryService:
         """Expose the active database session used by the repository."""
         return self._repository.session
 
-    def set_queue_orchestrator(
-        self, orchestrator: Optional["QueueOrchestrator"]
-    ) -> None:
-        """Configure or replace the queue orchestrator."""
-        self._queue_orchestrator = orchestrator
-
     def schedule_job(
         self,
         prompt: str,

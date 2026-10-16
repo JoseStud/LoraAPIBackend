@@ -84,7 +84,8 @@ Terms as this codebase uses them.
   built `cached_property`. Routers receive it through `get_services`.
 
 **ServiceFactories**
-: The frozen dataclass of `make_*` functions that build each service. Tests
+: The frozen dataclass of factories (service classes or `make_*` functions)
+  that build each service. Tests
   replace fields with `builder.with_overrides(...)`.
 
 **Service container builder**

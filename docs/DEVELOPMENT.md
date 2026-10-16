@@ -48,8 +48,10 @@ Key concepts:
   service container. It holds one database session and exposes every service as
   a flat, lazily built `cached_property` (`services.adapters`,
   `services.deliveries`, `services.storage`, ...). Each service is built by a
-  field of the frozen `ServiceFactories` dataclass, whose defaults are the
-  `make_*` functions in `backend/services/providers/`.
+  field of the frozen `ServiceFactories` dataclass in the same file. A default
+  is the service class itself when the registry's arguments map straight onto
+  its constructor, otherwise a `make_*` function (in `service_registry.py`, or
+  in `backend/services/providers/` for generation and WebSocket).
 - `ServiceContainerBuilder` (`backend/services/service_container_builder.py`)
   builds registries. `get_service_container_builder()`
   (`backend/services/__init__.py`) returns one process-wide builder, so its

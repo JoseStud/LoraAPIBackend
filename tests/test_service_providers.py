@@ -1,5 +1,4 @@
 from dataclasses import replace
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from backend.models import LoRAEmbedding
@@ -12,41 +11,31 @@ from backend.services.composition import ComposeService
 from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.generation import GenerationCoordinator, GenerationService
-from backend.services.providers.analytics import make_analytics_service
-from backend.services.providers.archive import make_archive_service
-from backend.services.providers.deliveries import make_delivery_service
 from backend.services.providers.generation import (
     make_compose_service,
     make_generation_coordinator,
     make_generation_service,
 )
-from backend.services.providers.recommendations import make_recommendation_service
-from backend.services.providers.storage import (
-    make_adapter_service,
-    make_storage_service,
-)
-from backend.services.providers.system import make_system_service
 from backend.services.providers.websocket import make_websocket_service
 from backend.services.queue import QueueOrchestrator
 from backend.services.recommendations import EmbeddingService, RecommendationService
+from backend.services.service_registry import (
+    make_adapter_service,
+    make_recommendation_service,
+    make_storage_service,
+    make_system_service,
+)
 from backend.services.storage import StorageService
 from backend.services.system import SystemService
 from backend.services.websocket import WebSocketService
 
 
-class DummyRepository(DeliveryJobRepository):
-    def __init__(self):
-        self.created_jobs = []
-
-    def create_job(self, prompt, mode, params):  # type: ignore[override]
-        job = SimpleNamespace(id="job", prompt=prompt, mode=mode, params=params)
-        self.created_jobs.append(job)
-        return job
-
-
-def test_make_storage_service_uses_provided_backend():
+def test_make_storage_service_uses_configured_backend(monkeypatch):
     backend = MagicMock()
-    service = make_storage_service(backend=backend)
+    monkeypatch.setattr(
+        "backend.services.service_registry.get_storage_backend", lambda: backend
+    )
+    service = make_storage_service()
     assert isinstance(service, StorageService)
     assert service.backend is backend
 
@@ -64,35 +53,6 @@ def test_make_adapter_service_respects_storage_backend():
     assert isinstance(service, AdapterService)
     assert service.db_session is session
     assert service.storage_backend is storage_backend
-
-
-def test_make_archive_service_injects_planner_and_executor():
-    adapter_service = MagicMock()
-    storage_service = MagicMock()
-    planner = MagicMock()
-    executor = MagicMock()
-
-    service = make_archive_service(
-        adapter_service,
-        storage_service,
-        planner=planner,
-        executor=executor,
-    )
-
-    assert isinstance(service, ArchiveService)
-    assert service.planner is planner
-    assert service.executor is executor
-
-
-def test_make_delivery_service_assigns_orchestrator():
-    repository = DummyRepository()
-    orchestrator = MagicMock(spec=QueueOrchestrator)
-
-    service = make_delivery_service(repository, queue_orchestrator=orchestrator)
-
-    assert isinstance(service, DeliveryService)
-    assert service.repository is repository
-    assert service.queue_orchestrator is orchestrator
 
 
 def test_make_compose_service_returns_instance():
@@ -126,25 +86,6 @@ def test_make_system_service_wires_delivery_service():
     system_service = make_system_service(deliveries)
     assert isinstance(system_service, SystemService)
     assert system_service._delivery_service is deliveries
-
-
-def test_make_analytics_service_respects_injected_builder():
-    session = MagicMock()
-    repository = MagicMock()
-    time_series_builder = MagicMock()
-    insight_generator = MagicMock()
-
-    service = make_analytics_service(
-        session,
-        repository=repository,
-        time_series_builder=time_series_builder,
-        insight_generator=insight_generator,
-    )
-
-    assert service.db_session is session
-    assert service.repository is repository
-    assert service.time_series_builder is time_series_builder
-    assert service.insight_generator is insight_generator
 
 
 def test_make_recommendation_service_binds_session_and_gpu_flag():

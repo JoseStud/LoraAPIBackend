@@ -66,7 +66,7 @@ flowchart TD
     B -- "build(session)" --> R["ServiceRegistry"]
     B -. "cached, shared" .-> Q["QueueOrchestrator"]
     B -. "cached, shared" .-> G["GPU available?"]
-    R --> F["ServiceFactories<br/>(frozen dataclass of make_* functions)"]
+    R --> F["ServiceFactories<br/>(frozen dataclass of service classes and make_* functions)"]
     R -->|"cached_property"| S1["services.adapters"]
     R -->|"cached_property"| S2["services.deliveries"]
     R -->|"cached_property"| S3["services.generation_coordinator"]
@@ -81,8 +81,12 @@ flowchart TD
   session, no queue orchestrator) raises when it is first requested, not when
   the registry is built.
 - **Factories**: each property calls one field of the frozen
-  `ServiceFactories` dataclass; the defaults are the `make_*` functions in
-  [`backend/services/providers/`](../../backend/services/providers).
+  `ServiceFactories` dataclass. A default is the service class itself when
+  the registry's arguments map straight onto its constructor, otherwise a
+  `make_*` function in
+  [`service_registry.py`](../../backend/services/service_registry.py) (or in
+  [`backend/services/providers/`](../../backend/services/providers) for
+  generation and WebSocket).
 - **Builder**: [`ServiceContainerBuilder`](../../backend/services/service_container_builder.py)
   builds registries. `get_service_container_builder()`
   ([`backend/services/__init__.py`](../../backend/services/__init__.py)) returns
