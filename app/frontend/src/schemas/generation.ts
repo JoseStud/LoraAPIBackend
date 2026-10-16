@@ -35,6 +35,12 @@ const OptionalJobIdSchema = z
     return String(value);
   });
 
+/**
+ * Progress as the API sends it: a fraction from 0 to 1, where 1 is complete
+ * (see `utils/progress.ts`).
+ */
+const ProgressFractionSchema = z.number().finite().min(0).max(1);
+
 const GenerationJobStatusObject = z
   .object({
     id: RequiredIdSchema,
@@ -42,7 +48,7 @@ const GenerationJobStatusObject = z
     prompt: NullableString,
     name: NullableString,
     status: NormalizedStatusSchema,
-    progress: z.coerce.number().finite().min(0),
+    progress: z.coerce.number().pipe(ProgressFractionSchema),
     message: NullableString,
     error: NullableString,
     params: JsonObjectSchema.nullish(),
@@ -169,7 +175,7 @@ const NullableFiniteNumber = z.number().finite().nullish();
 export const ProgressUpdateSchema = z
   .object({
     job_id: RequiredIdSchema,
-    progress: z.number().finite(),
+    progress: ProgressFractionSchema,
     status: z.string(),
     current_step: NullableFiniteNumber,
     total_steps: NullableFiniteNumber,

@@ -149,7 +149,7 @@ describe('progress WebSocket contract', () => {
     socket.receive(running);
     expect(queue.getJobByIdentifier('job-completed')).toMatchObject({
       status: 'processing',
-      progress: 50,
+      progress: 0.5,
     });
 
     socket.receive(finalTick);

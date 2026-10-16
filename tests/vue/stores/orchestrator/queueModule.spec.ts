@@ -19,7 +19,7 @@ describe('queueModule', () => {
     queue.enqueueJob({ id: 'job-2', status: 'queued', created_at: new Date(Date.now() - 1000).toISOString() } as any);
 
     expect(queue.jobs.value).toHaveLength(2);
-    expect(queue.jobs.value[0]?.progress).toBe(25);
+    expect(queue.jobs.value[0]?.progress).toBe(0.25);
 
     const sorted = queue.sortedActiveJobs.value;
     expect(sorted[0]?.status).toBe('processing');
@@ -32,7 +32,7 @@ describe('queueModule', () => {
     queue.enqueueJob({ id: 'job-1', status: 'queued', progress: 0 } as any);
 
     queue.handleProgressMessage(createProgressMessage());
-    expect(queue.jobs.value[0]?.progress).toBe(50);
+    expect(queue.jobs.value[0]?.progress).toBe(0.5);
     expect(queue.jobs.value[0]?.status).toBe('processing');
 
     queue.handleCompletionMessage({ job_id: 'job-1' } as any);

@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from backend.core.config import settings
 from backend.schemas import SDNextGenerationResult
+from backend.utils.progress import to_progress_fraction
 
 from .base import GenerationBackend
 from .http_client import DeliveryHTTPClient
@@ -199,7 +200,7 @@ class SDNextGenerationBackend(GenerationBackend):
                 error_message=response.error or "Could not check progress",
             )
 
-        progress = response.data.get("progress", 0.0)
+        progress = to_progress_fraction(response.data.get("progress")) or 0.0
         status = "running" if progress < 1.0 else "completed"
         if progress == 0.0:
             status = "pending"

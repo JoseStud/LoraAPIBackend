@@ -13,8 +13,9 @@ from backend.schemas import (
 from backend.services.deliveries import DeliveryService
 from backend.services.queue import TaskScheduler
 from backend.services.websocket import WebSocketService
+from backend.utils.progress import to_progress_fraction
 
-from .statuses import normalize_status
+from .statuses import NormalizedGenerationStatus, normalize_status
 
 
 def normalize_generation_status(status: Optional[str]) -> str:
@@ -256,12 +257,11 @@ class GenerationCoordinator:
         if not isinstance(result_payload, dict):
             result_payload = {}
 
-        progress_value = result_payload.get("progress")
-        progress = 0.0
-        if isinstance(progress_value, (int, float)):
-            progress = float(progress_value)
-            if progress <= 1:
-                progress *= 100
+        # The same rule as the progress WebSocket (``JobProgressMonitor``): a
+        # stored value on the shared scale, and 1.0 once the job completed.
+        progress = to_progress_fraction(result_payload.get("progress")) or 0.0
+        if normalize_status(job.status) is NormalizedGenerationStatus.COMPLETED:
+            progress = 1.0
 
         message: Optional[str] = None
         for key in ("message", "detail"):

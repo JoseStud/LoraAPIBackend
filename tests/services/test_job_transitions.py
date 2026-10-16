@@ -23,6 +23,7 @@ from backend.services.job_recovery import (
 from backend.services.queue import QueueBackend, QueueOrchestrator
 from backend.services.websocket import WebSocketService
 from backend.workers.delivery_runner import DeliveryRunner
+from tests.util.delivery_jobs import set_job_status
 
 
 class RecordingQueue(QueueBackend):
@@ -74,9 +75,9 @@ def test_claim_job_only_from_waiting_statuses(db_session):
     service = _service(db_session)
     pending = service.create_job("p", "cli", {})
     retrying = service.create_job("r", "cli", {})
-    service.update_job_status(retrying.id, "retrying")
+    set_job_status(service, retrying.id, "retrying")
     cancelled = service.create_job("c", "cli", {})
-    service.update_job_status(cancelled.id, "cancelled")
+    set_job_status(service, cancelled.id, "cancelled")
 
     claimed = service.claim_job(pending.id)
     assert claimed is not None and claimed.status == "running"
@@ -138,7 +139,7 @@ def test_finish_job_records_running_outcome(db_session):
 def test_cancel_job_returns_previous_status(db_session, status):
     service = _service(db_session)
     job = service.create_job("p", "cli", {})
-    service.update_job_status(job.id, status)
+    set_job_status(service, job.id, status)
 
     assert service.cancel_job(job.id) == status
     assert service.get_job(job.id).status == "cancelled"
@@ -149,7 +150,7 @@ def test_cancel_job_returns_previous_status(db_session, status):
 def test_cancel_job_rejects_finished_jobs(db_session, status):
     service = _service(db_session)
     job = service.create_job("p", "cli", {})
-    service.update_job_status(job.id, status)
+    set_job_status(service, job.id, status)
 
     assert service.cancel_job(job.id) is None
     assert service.get_job(job.id).status == status
@@ -310,7 +311,7 @@ async def test_coordinator_interrupts_only_running_jobs(
     )
     deliveries = _service(db_session)
     job = deliveries.create_job("p", "sdnext", {})
-    deliveries.update_job_status(job.id, status)
+    set_job_status(deliveries, job.id, status)
     websocket = WebSocketService()
     stopped = []
     monkeypatch.setattr(websocket, "stop_job_monitoring", stopped.append)
@@ -344,7 +345,7 @@ def test_recover_in_process_restart_fails_running_and_requeues(db_session):
     service.claim_job(running.id)
     first = service.create_job("first", "cli", {})
     second = service.create_job("second", "cli", {})
-    service.update_job_status(second.id, "retrying")
+    set_job_status(service, second.id, "retrying")
 
     report = recover_jobs(service, at_startup=True, running_timeout=timedelta(hours=1))
 

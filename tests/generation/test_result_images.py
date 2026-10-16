@@ -37,6 +37,7 @@ from backend.utils.images import (
 )
 from backend.workers.delivery_runner import DeliveryRunner
 from tests.test_sdnext_backend import FakeSDNextSession
+from tests.util.delivery_jobs import set_job_status
 
 PNG_BASE64 = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQAB"
@@ -71,8 +72,8 @@ def _store_job(
         "sdnext",
         {"generation_params": {"prompt": "prompt"}, "return_format": return_format},
     )
-    deliveries.update_job_status(
-        job.id, "succeeded", {"status": "completed", "images": images}
+    set_job_status(
+        deliveries, job.id, "succeeded", {"status": "completed", "images": images}
     )
     return job.id
 

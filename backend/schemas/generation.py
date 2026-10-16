@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
 
+from backend.utils.progress import PROGRESS_DESCRIPTION
+
 
 class SDNextGenerationParams(BaseModel):
     """Parameters for SDNext text-to-image generation."""
@@ -62,7 +64,9 @@ class SDNextGenerationResult(BaseModel):
     job_id: str
     status: str  # "pending", "running", "completed", "failed"
     images: Optional[List[str]] = None  # base64 or file paths
-    progress: Optional[float] = None  # 0.0 to 1.0
+    progress: Optional[float] = Field(
+        default=None, ge=0.0, le=1.0, description=PROGRESS_DESCRIPTION
+    )
     error_message: Optional[str] = None
     generation_info: Optional[Dict[str, Any]] = None
 
@@ -71,7 +75,7 @@ class ProgressUpdate(BaseModel):
     """WebSocket progress update message."""
 
     job_id: str
-    progress: float  # 0.0 to 1.0
+    progress: float = Field(ge=0.0, le=1.0, description=PROGRESS_DESCRIPTION)
     status: str  # "pending", "running", "completed", "failed"
     current_step: Optional[int] = None
     total_steps: Optional[int] = None
@@ -106,7 +110,9 @@ class GenerationJobStatus(BaseModel):
     jobId: Optional[str] = None
     prompt: Optional[str] = None
     status: str
-    progress: float = 0.0
+    progress: float = Field(
+        default=0.0, ge=0.0, le=1.0, description=PROGRESS_DESCRIPTION
+    )
     message: Optional[str] = None
     error: Optional[str] = None
     params: Dict[str, Any] = Field(default_factory=dict)

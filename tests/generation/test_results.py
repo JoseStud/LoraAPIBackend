@@ -10,6 +10,7 @@ from typing import Dict
 from fastapi.testclient import TestClient
 
 from backend.services.deliveries import DeliveryService
+from tests.util.delivery_jobs import set_job_status
 
 PNG_BASE64 = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQAB"
@@ -33,7 +34,7 @@ def _store_completed_job(
     if result_overrides:
         payload.update(result_overrides)
 
-    delivery_service.update_job_status(job.id, "succeeded", payload)
+    set_job_status(delivery_service, job.id, "succeeded", payload)
     return job
 
 

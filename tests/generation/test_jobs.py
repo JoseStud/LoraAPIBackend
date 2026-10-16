@@ -27,6 +27,7 @@ from backend.services.queue import (
 )
 from backend.services.websocket import WebSocketService
 from backend.workers.delivery_runner import DeliveryRunner
+from tests.util.delivery_jobs import set_job_status
 
 
 def test_cancel_generation_job_succeeds(
@@ -38,7 +39,7 @@ def test_cancel_generation_job_succeeds(
     """Cancelling an active job updates status and stops monitoring."""
     params = generation_params_factory("Prompt")
     job = delivery_service.create_job("Prompt", "sdnext", params)
-    delivery_service.update_job_status(job.id, "running")
+    set_job_status(delivery_service, job.id, "running")
 
     stop_mock = MagicMock()
     monkeypatch.setattr(
@@ -72,7 +73,8 @@ def test_cancel_generation_job_invalid_state(
     """Cancelling a completed job returns an error."""
     params = generation_params_factory("Prompt")
     job = delivery_service.create_job("Prompt", "sdnext", params)
-    delivery_service.update_job_status(
+    set_job_status(
+        delivery_service,
         job.id,
         "succeeded",
         {"status": "completed"},
@@ -126,7 +128,8 @@ def test_serialize_generation_job_normalizes_payload(
     """Helper returns flattened params and normalized result details."""
     params = generation_params_factory("Prompt")
     job = delivery_service.create_job("Prompt", "sdnext", params)
-    delivery_service.update_job_status(
+    set_job_status(
+        delivery_service,
         job.id,
         "running",
         {
@@ -146,7 +149,7 @@ def test_serialize_generation_job_normalizes_payload(
 
     assert serialized["params"]["prompt"] == "Prompt"
     assert serialized["params"]["backend"] == "sdnext"
-    assert serialized["progress"] == 50.0
+    assert serialized["progress"] == 0.5
     assert serialized["message"] == "Working"
     assert serialized["error"] == "Minor issue"
     assert serialized["result"]["progress"] == 0.5
