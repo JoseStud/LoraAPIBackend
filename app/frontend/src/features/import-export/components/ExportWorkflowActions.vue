@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { useImportExportContext } from '@/composables/import-export';
+import { useImportExportContext } from '../composables';
 
 const {
   exportWorkflow: { canExport, isExporting },

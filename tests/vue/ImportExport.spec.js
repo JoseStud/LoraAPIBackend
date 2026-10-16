@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { computed, reactive, ref } from 'vue';
 import { flushPromises, mount } from '@vue/test-utils';
 
-import ImportExportContainer from '../../app/frontend/src/features/import-export/ui/ImportExportContainer';
+import ImportExportContainer from '@/features/import-export/components/ImportExportContainer.vue';
 
 const contextState = { context: null };
 
@@ -279,7 +279,7 @@ function createMockContext() {
   };
 }
 
-vi.mock('@/composables/import-export', () => ({
+vi.mock('@/features/import-export/composables', () => ({
   provideImportExportContext: vi.fn(() => {
     const context = createMockContext();
     contextState.context = context;

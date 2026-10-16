@@ -94,9 +94,7 @@ import MigrationWorkflowPanel from './MigrationWorkflowPanel.vue';
 import ImportExportProgressModal from './ImportExportProgressModal.vue';
 import ImportExportToast from './ImportExportToast.vue';
 
-export type ActiveTab = 'export' | 'import' | 'backup' | 'migration';
-
-import { useImportExportContext } from '@/composables/import-export';
+import { useImportExportContext } from '../composables';
 
 const {
   isInitialized,

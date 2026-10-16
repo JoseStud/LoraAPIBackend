@@ -171,6 +171,23 @@ def _ensure_no_legacy_frontend_paths() -> None:
             ),
         ),
         (
+            "@/composables/import-export",
+            False,
+            (
+                "Import/export composables live in the import-export feature. "
+                'Import them through "@/features/import-export/public".'
+            ),
+        ),
+        (
+            "@/services/generation",
+            False,
+            (
+                "Generation services live in the generation feature "
+                '("app/frontend/src/features/generation/services"). Import them '
+                'through "@/features/generation/public".'
+            ),
+        ),
+        (
             r"GenerationStudio\.vue",
             True,
             (

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RouterLinkStub, flushPromises, mount } from '@vue/test-utils';
 import { defineComponent, h, onMounted } from 'vue';
 
-vi.mock('@/features/import-export/ui/ImportExportContainer', () => {
+vi.mock('@/features/import-export/components/ImportExportContainer.vue', () => {
   return new Promise((resolve) => {
     setTimeout(() => {
       const component = defineComponent({
@@ -40,7 +40,7 @@ vi.mock('@/features/generation/public/widgets', () => ({
   SystemStatusPanel: stubComponent('SystemStatusPanel', 'system-status-panel'),
 }));
 
-vi.mock('@/components/import-export/ImportExport.vue', () => ({
+vi.mock('@/features/import-export/components/ImportExport.vue', () => ({
   __esModule: true,
   default: defineComponent({
     name: 'StubImportExport',
@@ -103,7 +103,7 @@ vi.mock('@/composables/shared', async (importOriginal) => {
   };
 });
 
-vi.mock('@/composables/import-export', async (importOriginal) => {
+vi.mock('@/features/import-export/composables', async (importOriginal) => {
   const actual = await importOriginal();
 
   const context = {
@@ -153,8 +153,8 @@ describe('ImportExportContainer', () => {
 
   it('surfaces initialization failures through notifications', async () => {
     const { default: ImportExportContainer } = await vi.importActual<
-      typeof import('../../app/frontend/src/features/import-export/ui/ImportExportContainer')
-    >('../../app/frontend/src/features/import-export/ui/ImportExportContainer');
+      typeof import('@/features/import-export/components/ImportExportContainer.vue')
+    >('@/features/import-export/components/ImportExportContainer.vue');
 
     importExportContextMocks.initialize.mockRejectedValueOnce(new Error('boom'));
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);

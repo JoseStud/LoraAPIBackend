@@ -204,7 +204,7 @@
 <script setup lang="ts">
 import type { ImportConfig } from '@/types';
 
-import { useImportExportContext } from '@/composables/import-export';
+import { useImportExportContext } from '../composables';
 
 type ImportConfigKey = keyof ImportConfig;
 

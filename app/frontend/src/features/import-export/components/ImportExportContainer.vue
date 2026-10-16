@@ -7,7 +7,7 @@ import { useAsyncLifecycleTask, useNotifications } from '@/composables/shared';
 
 import ImportExport from './ImportExport.vue';
 
-import { provideImportExportContext } from '@/composables/import-export';
+import { provideImportExportContext } from '../composables';
 
 const emit = defineEmits<{ (event: 'initialized'): void }>();
 

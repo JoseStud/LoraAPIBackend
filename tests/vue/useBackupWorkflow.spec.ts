@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-import { useBackupWorkflow } from '../../app/frontend/src/composables/import-export/useBackupWorkflow';
+import { useBackupWorkflow } from '@/features/import-export/composables/useBackupWorkflow';
 import type { BackendHttpClient } from '@/services/shared/http';
 
 const getJson = vi.fn();

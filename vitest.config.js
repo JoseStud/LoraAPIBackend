@@ -10,10 +10,6 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: '@/composables/generation',
-        replacement: resolve(frontendSrc, 'features/generation/composables'),
-      },
-      {
         find: '@/features/generation/orchestrator',
         replacement: resolve(frontendSrc, 'features/generation/orchestrator/facade.ts'),
       },
