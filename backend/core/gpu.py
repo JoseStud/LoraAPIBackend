@@ -17,6 +17,27 @@ _VENDORS = {
 }
 
 
+def torch_gpu_device() -> Optional[str]:
+    """Return the PyTorch device string of a usable GPU, or ``None``.
+
+    ``"cuda"`` covers NVIDIA and AMD ROCm (HIP) builds, which PyTorch exposes
+    through ``torch.cuda``; Apple Silicon is ``"mps"``. A build without a
+    usable device (a ROCm build on a machine without the GPU) and a missing
+    PyTorch both return ``None``. PyTorch is imported lazily.
+    """
+    try:
+        import torch
+    except ImportError:
+        return None
+
+    if torch.cuda.is_available():
+        return "cuda"
+    mps = getattr(getattr(torch, "backends", None), "mps", None)
+    if mps is not None and mps.is_available():
+        return "mps"
+    return None
+
+
 def _read_sysfs(path: Path) -> Optional[str]:
     try:
         return path.read_text().strip()
@@ -126,8 +147,8 @@ def detect_gpu() -> Dict[str, Any]:
     Returns:
         Dictionary with GPU information including:
         - available: bool - Whether GPU is available
-        - type: str - 'amd', 'nvidia', or 'cpu'
-        - device: str - Device string for PyTorch
+        - type: str - 'amd', 'nvidia', 'apple', or 'cpu' (sysfs: 'intel' too)
+        - device: str - Device string for PyTorch ('cuda', 'mps' or 'cpu')
         - details: dict - Additional GPU information
 
     """
@@ -202,6 +223,20 @@ def detect_gpu() -> Dict[str, Any]:
 
             return gpu_info
 
+        mps = getattr(torch.backends, "mps", None)
+        if mps is not None and mps.is_available():
+            gpu_info.update({
+                "available": True,
+                "type": "apple",
+                "device": "mps",
+                "details": {
+                    "device_name": "Apple Silicon GPU",
+                    "pytorch_version": torch.__version__,
+                },
+            })
+            logger.info("Apple Silicon GPU detected (MPS)")
+            return gpu_info
+
         # No GPU detected
         logger.info("No GPU detected by PyTorch")
         gpu_info["details"]["pytorch_version"] = torch.__version__
@@ -227,7 +262,7 @@ def get_optimal_device() -> str:
     """Get the optimal device string for PyTorch operations.
 
     Returns:
-        Device string ('cuda' for GPU, 'cpu' for CPU)
+        Device string ('cuda' for CUDA/ROCm, 'mps' for Apple Silicon, 'cpu')
 
     """
     gpu_info = detect_gpu()

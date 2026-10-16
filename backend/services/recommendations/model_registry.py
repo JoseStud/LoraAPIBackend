@@ -7,6 +7,7 @@ from typing import Optional
 
 from structlog.stdlib import BoundLogger
 
+from backend.core.gpu import torch_gpu_device
 from backend.core.logging import get_logger
 
 from .encoders import TriggerEmbedder
@@ -37,9 +38,14 @@ class RecommendationModelRegistry:
         gpu_enabled: bool,
         logger: Optional[BoundLogger] = None,
     ) -> None:
-        """Initialise registry state for the GPU or CPU device."""
+        """Initialise registry state for the GPU or CPU device.
+
+        With ``gpu_enabled`` the device is the GPU PyTorch reports (``"mps"``
+        on Apple Silicon, ``"cuda"`` for CUDA and ROCm). Without a usable one
+        it stays ``"cuda"``, which the model loaders turn into a CPU fallback.
+        """
         self.gpu_enabled = bool(gpu_enabled)
-        self.device = "cuda" if self.gpu_enabled else "cpu"
+        self.device = (torch_gpu_device() or "cuda") if self.gpu_enabled else "cpu"
         self._logger = logger or get_logger(__name__)
 
     def _ensure_ready(self) -> None:

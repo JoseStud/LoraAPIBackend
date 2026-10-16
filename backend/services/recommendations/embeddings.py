@@ -10,6 +10,7 @@ from typing import Any, Callable, Dict, Optional, Sequence
 
 import numpy as np
 
+from backend.core.gpu import torch_gpu_device
 from backend.core.logging import get_logger
 from backend.models import Adapter
 from backend.schemas.recommendations import IndexRebuildResponse
@@ -47,19 +48,11 @@ class EmbeddingService:
     # ------------------------------------------------------------------
     @staticmethod
     def is_gpu_available() -> bool:
-        """Detect GPU availability across CUDA, ROCm, and MPS runtimes."""
-        try:
-            import torch
+        """Detect GPU availability across CUDA, ROCm, and MPS runtimes.
 
-            # ``torch.cuda`` also reports ROCm (HIP) devices. A ROCm build of
-            # torch without a usable GPU must not count as GPU-capable.
-            if torch.cuda.is_available():
-                return True
-            if torch.backends.mps.is_available():
-                return True
-            return False
-        except ImportError:
-            return False
+        A ROCm build of torch without a usable GPU is not GPU-capable.
+        """
+        return torch_gpu_device() is not None
 
     @classmethod
     def preload_models(cls, gpu_enabled: Optional[bool] = None) -> None:
@@ -81,6 +74,9 @@ class EmbeddingService:
 
             if torch.cuda.is_available():
                 return torch.cuda.memory_allocated() / 1024**3
+            mps = getattr(torch, "mps", None)
+            if torch_gpu_device() == "mps" and mps is not None:
+                return mps.current_allocated_memory() / 1024**3
         except ImportError:  # pragma: no cover - optional dependency
             return 0.0
         return 0.0
