@@ -15,7 +15,12 @@ from typing import Any, Coroutine, Optional, TypeVar
 
 from backend.core.config import settings
 
-from .base import DeliveryBackend, DeliveryRegistry, GenerationBackend
+from .base import (
+    DeliveryBackend,
+    DeliveryRegistry,
+    GenerationBackend,
+    TransientGenerationError,
+)
 from .cli import CLIDeliveryBackend
 from .http import HTTPDeliveryBackend
 from .http_client import DeliveryHTTPClient
@@ -139,6 +144,7 @@ __all__ = [
     "DeliveryBackend",
     "DeliveryRegistry",
     "GenerationBackend",
+    "TransientGenerationError",
     "ensure_delivery_system",
     "get_delivery_backend",
     "get_delivery_registry",

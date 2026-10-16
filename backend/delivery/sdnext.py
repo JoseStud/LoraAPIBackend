@@ -13,12 +13,17 @@ from backend.core.logging import get_logger
 from backend.schemas import SDNextGenerationResult
 from backend.utils.progress import to_progress_fraction
 
-from .base import GenerationBackend
+from .base import GenerationBackend, TransientGenerationError
 from .http_client import DeliveryHTTPClient
 from .sdnext_client import SDNextSession
 from .storage import FileSystemImageStorage, ImageStorage
 
 logger = get_logger(__name__)
+
+NO_IMAGES_MESSAGE = (
+    "SD.Next returned no images (model still loading or out of GPU memory?); "
+    "see the SD.Next log"
+)
 
 
 async def run_pre_generate_command() -> None:
@@ -101,7 +106,15 @@ class SDNextGenerationBackend(GenerationBackend):
     async def generate_image(
         self, prompt: str, params: Dict[str, Any]
     ) -> SDNextGenerationResult:
-        """Generate image using SDNext API."""
+        """Generate image using SDNext API.
+
+        Raises :class:`TransientGenerationError` when SDNext is unreachable
+        (failed health check, connection error, timeout), overloaded (HTTP 429
+        or 5xx) or answers without images (model still loading, out of GPU
+        memory), so the queue can retry the job. Failures a retry would
+        repeat (not configured, other HTTP errors, an invalid response, images
+        that could not be saved) come back as a ``failed`` result.
+        """
         job_id = str(uuid4())
 
         if not self.is_available():
@@ -112,11 +125,7 @@ class SDNextGenerationBackend(GenerationBackend):
             )
 
         if not await self._session.health_check():
-            return SDNextGenerationResult(
-                job_id=job_id,
-                status="failed",
-                error_message="SDNext API not available",
-            )
+            raise TransientGenerationError("SDNext API not available")
 
         gen_params = params.get("generation_params", {})
         save_images = params.get("save_images", True)
@@ -125,6 +134,10 @@ class SDNextGenerationBackend(GenerationBackend):
         await run_pre_generate_command()
         submission = await self._session.submit_txt2img(prompt, gen_params)
         if not submission.ok:
+            if submission.transient:
+                raise TransientGenerationError(
+                    submission.error or "SDNext request failed"
+                )
             return SDNextGenerationResult(
                 job_id=job_id,
                 status="failed",
@@ -153,15 +166,7 @@ class SDNextGenerationBackend(GenerationBackend):
             # SD.Next answers 200 with no images when it aborts a job, e.g. the
             # model is still loading or the GPU ran out of memory.
             logger.warning("SDNext returned no images: %s", generation_info)
-            return SDNextGenerationResult(
-                job_id=job_id,
-                status="failed",
-                error_message=(
-                    "SD.Next returned no images (model still loading or out of "
-                    "GPU memory?); see the SD.Next log"
-                ),
-                generation_info=generation_info or None,
-            )
+            raise TransientGenerationError(NO_IMAGES_MESSAGE)
 
         try:
             images = await self._storage.persist_images(
