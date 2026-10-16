@@ -107,6 +107,7 @@ or a proxy providing its own authentication.
 
 ## More documentation
 
+- [Contributor wiki](docs/wiki/README.md): architecture, subsystems, recipes
 - [Backend feature demonstration](docs/BACKEND_DEMO.md)
 - [Developer guide](docs/DEVELOPMENT.md)
 - [API contract](docs/contract.md)
