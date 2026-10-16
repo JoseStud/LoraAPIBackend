@@ -40,7 +40,9 @@ services:
         UID: ${HOST_UID:-1000}
         GID: ${HOST_GID:-1000}
     container_name: lora-dev-api
-    command: ["uvicorn", "backend.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
+    # app.main is the composition root: the API under /api (where the SPA and
+    # the frontend proxy expect it) plus /health for the healthcheck below.
+    command: ["uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
     volumes:
       - ./backend:/app/backend
       # Startup migrations read it (backend/core/migrations.py).
@@ -115,8 +117,13 @@ services:
         GID: ${HOST_GID:-1000}
     container_name: lora-dev-frontend
     working_dir: /usr/src/app
+    # package.json, vite.config.ts and the tsconfig/tailwind configs live at
+    # the repo root (Vite's root is app/frontend), so mount the whole repo.
+    # The named volume keeps the image's node_modules over the host's; after
+    # a package-lock.json change, rebuild and recreate it
+    # (`docker compose -f docker-compose.dev.yml up --build -V frontend`).
     volumes:
-      - ./app/frontend:/usr/src/app
+      - .:/usr/src/app
       - node_modules:/usr/src/app/node_modules
     environment:
       VITE_BACKEND_URL: ${VITE_BACKEND_URL:-http://api:8000}

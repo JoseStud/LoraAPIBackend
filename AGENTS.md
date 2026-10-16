@@ -73,7 +73,9 @@ npm run build
   `.env.docker`). There is no other supported Docker stack. It sets
   `REDIS_URL`, so the API only enqueues generation jobs and the `worker`
   service (an RQ worker) runs them; the API and worker share `./outputs` as
-  `SDNEXT_OUTPUT_DIR`.
+  `SDNEXT_OUTPUT_DIR`. The `api` service runs `app.main:app` like every other
+  entry point, and the `frontend` service mounts the whole repository, since
+  `package.json` and `vite.config.ts` live at its root.
 - **Single API process**: the API runs as one uvicorn process (no `--workers`,
   no replicas), because the WebSocket `ConnectionManager` lives in a module
   global (`backend/services/websocket/service.py`) and the one lifespan-owned

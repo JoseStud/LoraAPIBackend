@@ -30,9 +30,9 @@ Services defined in [`docker-compose.dev.yml`](../../docker-compose.dev.yml):
 
 | Service | Purpose | Host port |
 | --- | --- | --- |
-| `api` | `uvicorn backend.main:app --reload` (API only, routes under `/v1`) | 8000 |
+| `api` | `uvicorn app.main:app --reload` (API under `/api/v1`, `/health`) | 8000 |
 | `worker` | `rq worker --with-scheduler … default`, restarted by `watchfiles` when `backend/` changes | — |
-| `frontend` | Vite dev server | 5173 |
+| `frontend` | Vite dev server (the repository is mounted at `/usr/src/app`; Vite's root is `app/frontend`) | 5173 |
 | `db` | PostgreSQL 15 | `DB_HOST_PORT` (5432) |
 | `redis` | Redis 7 | — |
 | `sdnext` | Optional, `ml` profile only (`make dev-ml`) | — |
@@ -51,6 +51,9 @@ Things worth knowing:
 - `INSTALL_ML=true` in `.env.docker` installs the optional ML stack (PyTorch
   ROCm, several GB) into the API image; rebuild with `make dev`.
 - `make dev-down` stops and keeps data; `make dev-clean` also deletes volumes.
+- The `frontend` container keeps its `node_modules` in a named volume seeded
+  from the image. After a `package-lock.json` change, rebuild and recreate it:
+  `docker compose -f docker-compose.dev.yml up -d --build -V frontend`.
 
 ## Host development
 
@@ -72,30 +75,32 @@ With no `DATABASE_URL` the backend uses `db.sqlite` in the repository root and
 migrates it on startup. With no `REDIS_URL` generation jobs run in the API
 process (see [Generation pipeline](Generation-Pipeline.md#the-in-process-fallback)).
 
-## Two backend entry points
+## Composition root
 
-| Entry point | Mounts | Used by |
-| --- | --- | --- |
-| [`backend/main.py`](../../backend/main.py) `create_app()` (also exposed as the factory `backend.main:app`) | API routers under `/v1`, `/health` | Docker `api` service, tests |
-| [`app/main.py`](../../app/main.py) `app` | The backend app at `/api` (so routes are `/api/v1/...`), `/frontend/settings`, `/health`, and the SPA built into `app/dist/` with an `index.html` fallback | Host development, `npm run prod:serve` |
+Run [`app/main.py`](../../app/main.py) `app` (`uvicorn app.main:app`)
+everywhere: the Docker `api` service, host development, `npm run prod:serve`
+and the tests. It mounts the backend app from
+[`backend/main.py`](../../backend/main.py) `create_app()` at `/api` (so routes
+are `/api/v1/...`) and adds only a liveness `/health` and the SPA built into
+`app/dist/` with an `index.html` fallback. Every API route, CORS and the error
+handlers belong to `create_app()`, which is also what the OpenAPI schema and
+the generated frontend types come from.
 
-`/frontend/settings` (also `/api/v1/frontend/settings`) gives the SPA its API
-base URL, API key and polling intervals. Vite proxies `/api` and `/ws` to the
-backend during development (`vite.config.ts`).
+`/api/v1/frontend/settings` (keyless, `backend/api/v1/frontend.py`) gives the
+SPA its API base URL, API key and polling intervals. Vite proxies `/api` and
+`/ws` to the backend during development (`vite.config.ts`).
 
 ## Useful URLs
 
-- Interactive API docs: `http://localhost:8000/docs` (`/api/docs` when running
-  `app.main:app`).
+- Interactive API docs: `http://localhost:8000/api/docs`.
 - SPA (dev): `http://localhost:5173`.
-- Progress WebSocket: `ws://localhost:8000/v1/ws/progress`
-  (`/api/v1/ws/progress` through `app.main:app`).
+- Progress WebSocket: `ws://localhost:8000/api/v1/ws/progress`.
 
 ## API key
 
 `API_KEY` (default `dev-token` in Docker) is checked on most routers via the
-`X-API-Key` header, but it is **not an access control**: `/frontend/settings`
-hands it to any browser. See the README's
+`X-API-Key` header, but it is **not an access control**:
+`/api/v1/frontend/settings` hands it to any browser. See the README's
 [Security model](../../README.md#security-model). In the API docs use
 **Authorize** with the key.
 
