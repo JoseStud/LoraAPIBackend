@@ -15,11 +15,12 @@ stops at the first failure:
 | --- | --- | --- |
 | 1 | Repository guardrails | Legacy frontend paths (`@/components/import-export`, `@/composables/import-export`, `@/services/generation`, `GenerationStudio.vue`, `@/providers`), deep cross-feature imports, `cancelGenerationJob` called outside the generation services, generation `stores/results` or `stores/queue` imported outside the feature. Also lints the fixtures in `tests/guardrails/`, which **must fail** lint; if one passes, a boundary rule has stopped working. Never "fix" those fixtures. |
 | 2 | `ruff format --check .` and `ruff check .` | Formatting and lint, including docstrings. Ruff is pinned because `format.preview` output changes between releases. |
-| 3 | `pytest` | The full backend suite. |
-| 4 | `npm run lint` | ESLint, including the import-boundary rules. |
-| 5 | `npm run test:unit` | Vitest. |
-| 6 | `npm run build` | `vue-tsc --noEmit` type-check, then the Vite build. |
-| 7 | `npm run check:bundle` | Dashboard bundle budget, and that the JobQueue widget is code-split away from the Studio. |
+| 3 | API types up to date | `app/frontend/src/types/generated/backend.ts` no longer matching the OpenAPI schema of `backend.main.create_app()`. The step regenerates the types into a temp file, compares, and prints the diff. Fix with `npm run generate:api-types` ([api-type-generation.md](../api-type-generation.md)), never by hand. |
+| 4 | `pytest` | The full backend suite. |
+| 5 | `npm run lint` | ESLint, including the import-boundary rules. |
+| 6 | `npm run test:unit` | Vitest. |
+| 7 | `npm run build` | `vue-tsc --noEmit` type-check, then the Vite build. |
+| 8 | `npm run check:bundle` | Dashboard bundle budget, and that the JobQueue widget is code-split away from the Studio. |
 
 Run pieces on their own while iterating:
 

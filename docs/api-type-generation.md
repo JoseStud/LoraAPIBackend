@@ -6,10 +6,13 @@ TypeScript code stays aligned with backend contracts.
 
 ## Prerequisites
 
-* Install Node dependencies: `npm install`
-* The generator script uses [`openapi-typescript`](https://github.com/drwpow/openapi-typescript).
-  It can consume either the live FastAPI schema (`/openapi.json`) or the
-  snapshot stored in `openapi_example.yaml`.
+* Node dependencies: `npm ci`
+* Python backend dependencies: `pip install -r requirements.txt` (the schema is
+  exported from the backend code, so the generator needs a Python interpreter
+  that can import `backend.main`).
+
+The generator script ([`scripts/generate-api-types.mjs`](../scripts/generate-api-types.mjs))
+uses [`openapi-typescript`](https://github.com/drwpow/openapi-typescript).
 
 ## Generating Types
 
@@ -17,19 +20,29 @@ TypeScript code stays aligned with backend contracts.
 npm run generate:api-types
 ```
 
-The script attempts to download the schema from `http://localhost:8000/openapi.json`.
-If the backend is not running it automatically falls back to
-`openapi_example.yaml` in the repository root.
+The script runs [`scripts/export_openapi.py`](../scripts/export_openapi.py),
+which writes `backend.main.create_app().openapi()` to a temporary JSON file.
+Building the app does not run its lifespan, so no server, database, Redis or
+GPU is involved. openapi-typescript then turns that file into
+`app/frontend/src/types/generated/backend.ts`.
 
-Generated files are written to `app/frontend/src/types/generated/`. The main
-entry point is `backend.ts`, which contains the full set of `paths`,
+There is no fallback. If the schema cannot be exported (for example the Python
+dependencies are missing) the script exits non-zero instead of generating
+types from a stale copy. The interpreter is `python` (then `python3`); set
+`PYTHON` to pick another, such as a virtualenv's.
+
+The main entry point is `backend.ts`, which contains the full set of `paths`,
 `components`, and `operations` emitted by the generator. The convenience module
 `app/frontend/src/types/generated/index.ts` re-exports these symbols and
 exposes a `BackendSchemas` helper alias.
 
+Only routes registered by `create_app()` appear in the schema. The
+`/frontend/settings` routes that `app/main.py` adds when it wraps the backend
+for the SPA are not part of it.
+
 ## Updating Frontend Types
 
-Most domain-specific type files under `app/frontend/src/types/` now re-export or
+Most domain-specific type files under `app/frontend/src/types/` re-export or
 wrap the generated schema types. When backend contracts change:
 
 1. Regenerate types with `npm run generate:api-types`.
@@ -41,23 +54,24 @@ wrap the generated schema types. When backend contracts change:
 Commit both the updated generated file(s) and any manual wrappers in the same
 changeset so reviewers can trace schema updates end-to-end.
 
-## Customising the Source Schema
+## Other Sources and Output Paths
 
-Set the following environment variables when running the generator:
-
-* `OPENAPI_SPEC` – Absolute or relative path/URL to the desired schema.
-* `OPENAPI_FALLBACK` – Optional fallback path/URL if the primary source is
-  unavailable.
-
-Example:
+* `OPENAPI_SPEC` (or the first positional argument) – a path or URL to
+  generate from instead of the exported schema, for example a running server's
+  `http://localhost:8000/openapi.json`.
+* `--out <file>` – write the types somewhere other than `backend.ts`.
 
 ```bash
-OPENAPI_SPEC="https://staging.example.com/openapi.json" npm run generate:api-types
+node scripts/generate-api-types.mjs http://localhost:8000/openapi.json --out /tmp/backend.ts
 ```
 
 ## Continuous Integration
 
-The generated file is committed to version control. Pull requests should run
-`npm run generate:api-types` after making backend schema changes and include the
-resulting diff. CI will catch stale types via the TypeScript check in
-`npm run type-check`.
+The generated file is committed to version control. `npm run ci:check` (and so
+the *Unified quality checks* CI job) has an "API types up to date" step: it
+regenerates the types from `create_app()` into a temporary file and fails,
+printing the diff, when the result differs from the committed `backend.ts`.
+The output is deterministic (no timestamps; keys in the order FastAPI emits
+them), so the step only fails on a real schema change. To fix it, run
+`npm run generate:api-types` and commit the result; never edit `backend.ts` by
+hand.

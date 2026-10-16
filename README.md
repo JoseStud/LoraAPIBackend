@@ -71,7 +71,7 @@ The host backend defaults to SQLite; generation requires a reachable SDNext.
 ## Tests and CI
 
 ```sh
-npm run ci:check  # guardrails, Ruff, pytest, ESLint, Vitest, typecheck/build, bundle budget
+npm run ci:check  # guardrails, Ruff, API types drift, pytest, ESLint, Vitest, typecheck/build, bundle budget
 make demo-check  # real PostgreSQL + Redis + RQ + HTTP integration
 ```
 

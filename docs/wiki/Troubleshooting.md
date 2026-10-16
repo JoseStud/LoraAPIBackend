@@ -127,6 +127,15 @@ The fixtures in `tests/guardrails/` are meant to **fail** lint. If `ci:check`
 reports that one passed, a boundary rule in `.eslintrc.cjs` stopped matching.
 Fix the rule, never the fixture.
 
+### "backend.ts is out of date with the backend's OpenAPI schema"
+
+A request or response model, route or enum changed without regenerating the
+frontend types. Run `npm run generate:api-types`, fix any type errors in
+`app/frontend/src/types/`, and commit `backend.ts`. If the generator says it
+cannot export the schema, install the backend dependencies or point `PYTHON`
+at the virtualenv's interpreter
+([api-type-generation.md](../api-type-generation.md)).
+
 ### `async def` handler test fails
 
 `tests/api/test_route_handlers.py` rejects `async def` handlers that never
