@@ -6,10 +6,13 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from backend.models import DeliveryJob
+from backend.schemas.delivery_jobs import DeliveryJobParams, DeliveryJobResult
 
 from .delivery_repository import (
     CLAIMABLE_STATUSES,
     DeliveryJobRepository,
+    ParamsInput,
+    ResultInput,
 )
 from .delivery_results import DeliveryResultManager, ResultArchive, ResultDownload
 from .queue import QueueUnavailableError
@@ -19,10 +22,12 @@ if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
     from .queue import QueueOrchestrator, TaskScheduler
     from .storage import StorageService
 
-QUEUE_UNAVAILABLE_RESULT: Dict[str, Any] = {
-    "status": "failed",
-    "error_message": "The job queue was unavailable, so the job was never queued",
-}
+QUEUE_UNAVAILABLE_RESULT = DeliveryJobResult(
+    status="failed",
+    error_message="The job queue was unavailable, so the job was never queued",
+)
+
+CANCELLED_RESULT = DeliveryJobResult(status="cancelled")
 
 
 class DeliveryService:
@@ -64,12 +69,12 @@ class DeliveryService:
         self,
         prompt: str,
         mode: str,
-        params: Optional[Dict[str, Any]] = None,
+        params: ParamsInput = None,
         background_tasks: Optional[TaskScheduler] = None,
         **enqueue_kwargs: Any,
     ) -> DeliveryJob:
         """Create a delivery job and enqueue it for processing."""
-        job = self.create_job(prompt, mode, params or {})
+        job = self.create_job(prompt, mode, params)
         self.enqueue_job(job.id, background_tasks=background_tasks, **enqueue_kwargs)
         return job
 
@@ -106,10 +111,10 @@ class DeliveryService:
         self,
         prompt: str,
         mode: str,
-        params: Optional[Dict[str, Any]] = None,
+        params: ParamsInput = None,
     ) -> DeliveryJob:
         """Create and persist a DeliveryJob record."""
-        return self._repository.create_job(prompt, mode, params or {})
+        return self._repository.create_job(prompt, mode, params)
 
     def get_job(self, job_id: str) -> Optional[DeliveryJob]:
         """Get a delivery job by ID."""
@@ -157,7 +162,7 @@ class DeliveryService:
         )
 
     def finish_job(
-        self, job_id: str, status: str, result: Optional[Dict[str, Any]] = None
+        self, job_id: str, status: str, result: ResultInput = None
     ) -> Optional[DeliveryJob]:
         """Record the outcome of a running job.
 
@@ -175,14 +180,14 @@ class DeliveryService:
                 job_id,
                 "cancelled",
                 from_statuses=(previous,),
-                result={"status": "cancelled"},
+                result=CANCELLED_RESULT,
             )
             if cancelled is not None:
                 return previous
         return None
 
     def fail_running_jobs(
-        self, *, older_than: timedelta, result: Dict[str, Any]
+        self, *, older_than: timedelta, result: ResultInput
     ) -> List[DeliveryJob]:
         """Fail jobs that have been running for longer than ``older_than``."""
         cutoff = self._repository.mapper.now() - older_than
@@ -200,12 +205,12 @@ class DeliveryService:
         jobs = self._repository.list_jobs_by_statuses(CLAIMABLE_STATUSES, limit=limit)
         return sorted(jobs, key=lambda job: job.created_at)
 
-    def get_job_params(self, job: DeliveryJob) -> Dict[str, Any]:
-        """Parse and return job parameters as dict."""
+    def get_job_params(self, job: DeliveryJob) -> DeliveryJobParams:
+        """Return ``job``'s stored params (empty when missing or malformed)."""
         return self._repository.get_job_params(job)
 
-    def get_job_result(self, job: DeliveryJob) -> Optional[Dict[str, Any]]:
-        """Parse and return job result as dict."""
+    def get_job_result(self, job: DeliveryJob) -> Optional[DeliveryJobResult]:
+        """Return ``job``'s stored result (``None`` when missing or malformed)."""
         return self._repository.get_job_result(job)
 
     def set_job_rating(

@@ -1,14 +1,18 @@
 """Generation service and helpers for SDNext integration."""
 
 import asyncio
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from backend.delivery import get_delivery_registry, get_generation_backend
 from backend.models import DeliveryJob
-from backend.schemas import SDNextGenerationParams, SDNextGenerationResult
+from backend.schemas import (
+    DeliveryJobResult,
+    SDNextGenerationParams,
+    SDNextGenerationResult,
+)
 from backend.services.deliveries import DeliveryService
 from backend.services.queue import TaskScheduler
-from backend.utils.progress import to_progress_fraction
 
 from .statuses import NormalizedGenerationStatus, normalize_status
 
@@ -174,6 +178,20 @@ class GenerationService:
         )
 
 
+@dataclass(frozen=True)
+class SerializedGenerationJob:
+    """A generation job's stored params and result as the API presents them."""
+
+    params: Dict[str, Any]
+    """Generation parameters, with ``backend`` filled from the job's mode."""
+    result: DeliveryJobResult
+    """The stored result; empty when the job has none yet."""
+    progress: float
+    """Stored progress as a fraction; 1.0 once the job completed."""
+    message: Optional[str] = None
+    error: Optional[str] = None
+
+
 class GenerationCoordinator:
     """Helper responsible for coordinating generation job lifecycles."""
 
@@ -220,63 +238,29 @@ class GenerationCoordinator:
             **schedule_kwargs,
         )
 
-    def serialize_delivery_job(self, job: DeliveryJob) -> Dict[str, Any]:
-        """Return normalized parameters and result payload data for a job."""
-        raw_params = self._deliveries.get_job_params(job)
-        backend_name: Optional[str] = None
-        generation_params: Dict[str, Any] = {}
-        if isinstance(raw_params, dict):
-            maybe_backend = raw_params.get("backend")
-            if isinstance(maybe_backend, str):
-                backend_name = maybe_backend
-
-            maybe_generation_params = raw_params.get("generation_params")
-            if isinstance(maybe_generation_params, dict):
-                generation_params = dict(maybe_generation_params)
-            else:
-                generation_params = dict(raw_params)
-
-        if not backend_name and isinstance(job.mode, str):
-            backend_name = job.mode
-
+    def serialize_delivery_job(self, job: DeliveryJob) -> SerializedGenerationJob:
+        """Return a job's generation parameters and stored result, normalised."""
+        params = self._deliveries.get_job_params(job)
+        generation_params = params.generation_fields()
+        backend_name = params.backend or job.mode
         if backend_name:
             generation_params.setdefault("backend", backend_name)
 
-        result_payload = self._deliveries.get_job_result(job) or {}
-        if not isinstance(result_payload, dict):
-            result_payload = {}
+        result = self._deliveries.get_job_result(job) or DeliveryJobResult()
 
-        # The same rule as the progress WebSocket (``JobProgressMonitor``): a
-        # stored value on the shared scale, and 1.0 once the job completed.
-        progress = to_progress_fraction(result_payload.get("progress")) or 0.0
+        # The same rule as the progress WebSocket (``JobProgressMonitor``): the
+        # stored value, and 1.0 once the job completed.
+        progress = result.progress or 0.0
         if normalize_status(job.status) is NormalizedGenerationStatus.COMPLETED:
             progress = 1.0
 
-        message: Optional[str] = None
-        for key in ("message", "detail"):
-            value = result_payload.get(key)
-            if isinstance(value, str):
-                message = value
-                break
-
-        error_text: Optional[str] = None
-        for key in ("error", "error_message"):
-            value = result_payload.get(key)
-            if isinstance(value, str):
-                error_text = value
-                break
-
-        return {
-            "params": generation_params,
-            "result": result_payload,
-            "progress": progress,
-            "message": message,
-            "error": error_text,
-            "rating": job.rating,
-            "is_favorite": bool(job.is_favorite),
-            "rating_updated_at": job.rating_updated_at,
-            "favorite_updated_at": job.favorite_updated_at,
-        }
+        return SerializedGenerationJob(
+            params=generation_params,
+            result=result,
+            progress=progress,
+            message=result.status_message,
+            error=result.error_message or None,
+        )
 
     async def cancel_job(self, job_id: str) -> bool:
         """Cancel an active job; ``False`` when it is not active.

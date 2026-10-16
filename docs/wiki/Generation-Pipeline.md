@@ -11,7 +11,9 @@ backend; read it before touching `queue.py`, `deliveries.py`,
 
 - A **delivery job** is a `DeliveryJob` row ([`backend/models/deliveries.py`](../../backend/models/deliveries.py)).
   A generation job is a delivery job whose `mode` names a generation backend
-  (`sdnext`). `params` and `result` are JSON strings.
+  (`sdnext`). `params` and `result` are JSON strings, read and written only
+  through the `DeliveryJobParams` and `DeliveryJobResult` models
+  ([Data model](Data-Model.md#deliveryjob-deliveriespy)).
 - A **runner** is whatever executes a job: an RQ worker process, or the
   in-process job runner inside the API.
 - To **claim** a job is to move it to `running` with a conditional update; only
@@ -79,7 +81,9 @@ Step by step, with the code that does it:
    ([`delivery/sdnext.py`](../../backend/delivery/sdnext.py)). That runs
    `SDNEXT_PRE_GENERATE_COMMAND` if set, submits txt2img, validates the
    response and persists the images.
-5. **Finish.** The runner records the outcome with `finish_job` and, for
+5. **Finish.** The runner records the outcome with `finish_job` (the
+   backend's `SDNextGenerationResult`, or `error_message` when the backend
+   raised, plus `retries_left` for a retry) and, for
    `succeeded`/`failed`, sends the job-finished webhook
    ([`services/job_webhooks.py`](../../backend/services/job_webhooks.py)).
 6. **Report.** The monitor's next tick finds the job finished and

@@ -9,11 +9,12 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, Union
 
 import aiohttp
 
 from backend.core.config import settings
+from backend.schemas.delivery_jobs import DeliveryJobParams, DeliveryJobResult
 
 logger = logging.getLogger(__name__)
 
@@ -57,32 +58,27 @@ class JobWebhookNotifier:
         job_id: str,
         status: str,
         prompt: str,
-        params: Mapping[str, Any],
-        result: Mapping[str, Any],
+        params: Union[DeliveryJobParams, Mapping[str, Any]],
+        result: Union[DeliveryJobResult, Mapping[str, Any]],
     ) -> Dict[str, Any]:
         """Describe a finished job without embedding any image data."""
-        images = result.get("images")
-        image_count = len(images) if isinstance(images, list) else 0
-
-        generation_params = params.get("generation_params")
-        if not isinstance(generation_params, dict):
-            generation_params = {}
+        job_params = DeliveryJobParams.coerce(params)
+        job_result = DeliveryJobResult.coerce(result)
+        image_count = len(job_result.images or [])
 
         error: Optional[str] = None
         if status != "succeeded":
-            raw_error = result.get("error_message") or result.get("detail")
-            error = str(raw_error)[:_MAX_ERROR_LENGTH] if raw_error else None
-
-        client_ref = params.get("client_ref")
+            raw_error = job_result.failure_message
+            error = raw_error[:_MAX_ERROR_LENGTH] if raw_error else None
 
         return {
             "event": EVENT_NAME,
             "job_id": job_id,
             "status": status,
             "prompt": prompt,
-            "backend": params.get("backend"),
-            "client_ref": client_ref if isinstance(client_ref, str) else None,
-            "generation_params": generation_params,
+            "backend": job_params.backend,
+            "client_ref": job_params.client_ref,
+            "generation_params": dict(job_params.generation_params or {}),
             "image_count": image_count,
             "download_path": (
                 f"/api/v1/generation/results/{job_id}/download"

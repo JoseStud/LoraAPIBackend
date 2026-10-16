@@ -111,8 +111,8 @@ def test_delivery_job_state_repository_loads_monitored_jobs(
     state = next(job for job in named.jobs if job.job_id == finished.id)
     assert state.status == "succeeded"
     assert state.mode == "sdnext"
-    assert state.params == {"foo": "bar"}
-    assert state.result == {"status": "completed", "progress": 0.8}
+    assert state.params.to_payload() == {"foo": "bar"}
+    assert state.result.to_payload() == {"status": "completed", "progress": 0.8}
     assert state.started_at is not None
     assert state.finished_at is not None
 

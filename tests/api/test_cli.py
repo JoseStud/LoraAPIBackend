@@ -24,7 +24,7 @@ def _assert_single_failed_job(db_session) -> None:
     db_session.expire_all()
     jobs = db_session.exec(select(DeliveryJob)).all()
     assert [job.status for job in jobs] == ["failed"]
-    assert json.loads(jobs[0].result) == QUEUE_UNAVAILABLE_RESULT
+    assert json.loads(jobs[0].result) == QUEUE_UNAVAILABLE_RESULT.to_payload()
 
 
 def test_compose_uses_primary_queue_backend(
@@ -263,5 +263,5 @@ async def test_queue_generation_job_stores_client_ref(
     job_id = response.json()["delivery_id"]
     repository = DeliveryJobRepository(db_session)
     job = repository.get_job(job_id)
-    assert repository.get_job_params(job)["client_ref"] == "n8n-form"
+    assert repository.get_job_params(job).client_ref == "n8n-form"
     assert too_long.status_code == 422

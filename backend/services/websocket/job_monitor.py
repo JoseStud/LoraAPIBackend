@@ -39,12 +39,14 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Protocol, Sequence, Set
+from typing import Dict, List, Optional, Protocol, Sequence, Set
 
 import structlog
 from pydantic import ValidationError
 
 from backend.schemas import (
+    DeliveryJobParams,
+    DeliveryJobResult,
     GenerationComplete,
     GenerationStarted,
     ProgressUpdate,
@@ -84,8 +86,9 @@ class PersistedJob:
     job_id: str
     status: str
     mode: Optional[str] = None
-    params: Dict[str, Any] = field(default_factory=dict)
-    result: Optional[Dict[str, Any]] = None
+    params: DeliveryJobParams = field(default_factory=DeliveryJobParams)
+    result: DeliveryJobResult = field(default_factory=DeliveryJobResult)
+    """The stored result; empty while the job has none."""
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
 
@@ -200,7 +203,10 @@ class JobProgressMonitor:
         if self._seeded_at is None:
             self._seeded_at = observation.observed_at
 
-        jobs = [job for job in observation.jobs if _generation_params(job) is not None]
+        # Only generation jobs are reported; other deliveries have no params.
+        jobs = [
+            job for job in observation.jobs if job.params.generation_params is not None
+        ]
         active = [job for job in jobs if job.status in ACTIVE_STATUSES]
         finished = [job for job in jobs if job.status not in ACTIVE_STATUSES]
 
@@ -261,7 +267,7 @@ class JobProgressMonitor:
     async def _check_live_progress(
         self, job: PersistedJob
     ) -> Optional[SDNextGenerationResult]:
-        backend = job.params.get("backend") or job.mode or "sdnext"
+        backend = job.params.backend or job.mode or "sdnext"
         try:
             return await self._generation.check_generation_progress(job.job_id, backend)
         except Exception as exc:
@@ -274,19 +280,13 @@ class JobProgressMonitor:
 
     async def _send_started(self, job: PersistedJob) -> None:
         try:
-            params = SDNextGenerationParams.model_validate(_generation_params(job))
+            params = SDNextGenerationParams.model_validate(job.params.generation_params)
         except ValidationError:
             logger.warning("Stored generation params are invalid", job_id=job.job_id)
             return
         await self._broadcaster.broadcast_generation_started(
             job.job_id, GenerationStarted(job_id=job.job_id, params=params)
         )
-
-
-def _generation_params(job: PersistedJob) -> Optional[Dict[str, Any]]:
-    """Return the job's generation parameters; ``None`` for other deliveries."""
-    value = job.params.get("generation_params") if job.params else None
-    return value if isinstance(value, dict) else None
 
 
 def _live_job(active: List[PersistedJob]) -> Optional[PersistedJob]:
@@ -315,7 +315,7 @@ def _progress_update(
     1.0, the same rule the REST queue applies.
     """
     status = _normalized_status(job)
-    progress = _stored_progress(job.result)
+    progress = job.result.progress
     error_message: Optional[str] = None
     if live_result is not None:
         if progress is None:
@@ -325,7 +325,7 @@ def _progress_update(
     if status == "completed":
         progress = 1.0
     if error_message is None:
-        error_message = _stored_error_message(job.result)
+        error_message = job.result.failure_message
 
     return ProgressUpdate(
         job_id=job.job_id,
@@ -337,47 +337,25 @@ def _progress_update(
 
 def _completion(job: PersistedJob) -> GenerationComplete:
     """Build the completion message for a finished job from its stored row."""
-    payload = job.result if isinstance(job.result, dict) else {}
+    result = job.result
 
     images: Optional[List[str]] = None
-    stored_images = payload.get("images")
-    if isinstance(stored_images, list):
+    if result.images is not None:
         # Clients render these directly, so send loadable sources only.
         sources = (
             to_browser_image_src(image, job_id=job.job_id, index=index)
-            for index, image in enumerate(stored_images)
-            if isinstance(image, str)
+            for index, image in enumerate(result.images)
         )
         images = [src for src in sources if src] or None
-
-    generation_info = payload.get("generation_info")
-    if not isinstance(generation_info, dict) or not generation_info:
-        generation_info = None
 
     return GenerationComplete(
         job_id=job.job_id,
         status=_normalized_status(job),
         images=images,
-        error_message=_stored_error_message(payload),
+        error_message=result.failure_message,
         total_duration=_total_duration(job.started_at, job.finished_at),
-        generation_info=generation_info,
+        generation_info=result.generation_info or None,
     )
-
-
-def _stored_progress(payload: Optional[Dict[str, Any]]) -> Optional[float]:
-    if not isinstance(payload, dict):
-        return None
-    return to_progress_fraction(payload.get("progress"))
-
-
-def _stored_error_message(payload: Optional[Dict[str, Any]]) -> Optional[str]:
-    if not isinstance(payload, dict):
-        return None
-    for key in ("error_message", "error", "detail", "message"):
-        value = payload.get(key)
-        if isinstance(value, str) and value:
-            return value
-    return None
 
 
 def _total_duration(

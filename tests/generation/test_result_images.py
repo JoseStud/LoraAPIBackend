@@ -22,7 +22,12 @@ from backend.delivery.storage import (
     FileSystemImageStorage,
     stored_return_format,
 )
-from backend.schemas import GenerationComplete, SDNextGenerationResult
+from backend.schemas import (
+    DeliveryJobParams,
+    DeliveryJobResult,
+    GenerationComplete,
+    SDNextGenerationResult,
+)
 from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.storage import StorageService, get_storage_backend
@@ -266,8 +271,10 @@ async def test_completion_message_points_at_image_route():
     persisted = PersistedJob(
         job_id="job-9",
         status="succeeded",
-        params={"generation_params": {"prompt": "Prompt"}},
-        result={"status": "completed", "images": [make_output_reference("a.png")]},
+        params=DeliveryJobParams(generation_params={"prompt": "Prompt"}),
+        result=DeliveryJobResult(
+            status="completed", images=[make_output_reference("a.png")]
+        ),
         finished_at=finished_at,
     )
 

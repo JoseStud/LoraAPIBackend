@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 from sqlalchemy import Integer, case, func, or_, update
 from sqlmodel import Session, select
 
 from backend.models import DeliveryJob
+from backend.schemas.delivery_jobs import DeliveryJobParams, DeliveryJobResult
+
+ParamsInput = Union[DeliveryJobParams, Mapping[str, Any], None]
+"""Job params as callers pass them; mappings are validated into the model."""
+
+ResultInput = Union[DeliveryJobResult, Mapping[str, Any], None]
+"""A job result as callers pass them; mappings are validated into the model."""
 
 _ACTIVE_STATUSES = {"pending", "running", "retrying"}
 
@@ -26,56 +32,23 @@ class DeliveryJobMapper:
         """Store the callable used for timestamp generation."""
         self._now = now or (lambda: datetime.now(timezone.utc))
 
-    def serialize_params(self, params: Optional[Dict[str, Any]]) -> str:
-        """Convert job parameter payloads into a JSON string."""
-        return json.dumps(params or {})
+    def serialize_params(self, params: ParamsInput) -> str:
+        """Convert job parameters into the stored JSON string."""
+        return DeliveryJobParams.coerce(params).to_json()
 
-    def deserialize_params(self, params: Optional[str]) -> Dict[str, Any]:
-        """Convert the stored JSON params into a dictionary."""
-        if not params:
-            return {}
+    def deserialize_params(self, params: Optional[str]) -> DeliveryJobParams:
+        """Parse stored params; empty when missing or malformed."""
+        return DeliveryJobParams.parse_json(params) or DeliveryJobParams()
 
-        try:
-            data = json.loads(params)
-        except json.JSONDecodeError:  # pragma: no cover - defensive guard
-            return {}
-        if isinstance(data, dict):
-            return data
-        return {}
-
-    def serialize_result(
-        self,
-        result: Optional[Dict[str, Any]],
-        error: Optional[str],
-    ) -> Optional[str]:
-        """Merge result payloads and error messages into a JSON string."""
-        payload: Optional[Dict[str, Any]] = None
-        if result is not None:
-            payload = dict(result)
-
-        if error is not None:
-            if payload is None:
-                payload = {"error": error}
-            else:
-                payload["error"] = error
-
-        if payload is None:
+    def serialize_result(self, result: ResultInput) -> Optional[str]:
+        """Convert a job result into the stored JSON string (``None`` stays unset)."""
+        if result is None:
             return None
+        return DeliveryJobResult.coerce(result).to_json()
 
-        return json.dumps(payload)
-
-    def deserialize_result(self, result: Optional[str]) -> Optional[Dict[str, Any]]:
-        """Decode the stored result JSON blob."""
-        if not result:
-            return None
-
-        try:
-            data = json.loads(result)
-        except json.JSONDecodeError:  # pragma: no cover - defensive guard
-            return None
-        if isinstance(data, dict):
-            return data
-        return None
+    def deserialize_result(self, result: Optional[str]) -> Optional[DeliveryJobResult]:
+        """Parse the stored result; ``None`` when missing or malformed."""
+        return DeliveryJobResult.parse_json(result)
 
     def apply_status(self, job: DeliveryJob, status: str) -> None:
         """Update job status and lifecycle timestamps."""
@@ -188,13 +161,13 @@ class DeliveryJobRepository:
         self,
         prompt: str,
         mode: str,
-        params: Optional[Dict[str, Any]] = None,
+        params: ParamsInput = None,
     ) -> DeliveryJob:
         """Persist a new delivery job and return the stored model."""
         job = DeliveryJob(
             prompt=prompt,
             mode=mode,
-            params=self._mapper.serialize_params(params or {}),
+            params=self._mapper.serialize_params(params),
         )
         self._session.add(job)
         self._session.commit()
@@ -397,37 +370,13 @@ class DeliveryJobRepository:
         self._session.commit()
         return len(jobs)
 
-    def bulk_update_jobs(
-        self,
-        job_ids: Sequence[str],
-        *,
-        status: Optional[str] = None,
-        result: Optional[Dict[str, Any]] = None,
-        error: Optional[str] = None,
-    ) -> int:
-        """Apply status/result updates to multiple jobs at once."""
-        jobs = self.list_jobs_by_ids(job_ids)
-        if not jobs:
-            return 0
-
-        for job in jobs:
-            if status is not None:
-                self._mapper.apply_status(job, status)
-            if result is not None or error is not None:
-                job.result = self._mapper.serialize_result(result, error)
-            self._session.add(job)
-
-        self._session.commit()
-        return len(jobs)
-
     def transition_job_status(
         self,
         job_id: str,
         status: str,
         *,
         from_statuses: Sequence[str],
-        result: Optional[Dict[str, Any]] = None,
-        error: Optional[str] = None,
+        result: ResultInput = None,
     ) -> Optional[DeliveryJob]:
         """Move ``job_id`` to ``status`` only while its status is in ``from_statuses``.
 
@@ -436,7 +385,7 @@ class DeliveryJobRepository:
         or ``None`` when the job is missing or in another status.
         """
         values = self._mapper.status_column_values(status)
-        serialized_result = self._mapper.serialize_result(result, error)
+        serialized_result = self._mapper.serialize_result(result)
         if serialized_result is not None:
             values["result"] = serialized_result
 
@@ -491,12 +440,12 @@ class DeliveryJobRepository:
         )
         return list(self._session.exec(query).all())
 
-    def get_job_params(self, job: DeliveryJob) -> Dict[str, Any]:
-        """Decode the serialized parameter payload for ``job``."""
+    def get_job_params(self, job: DeliveryJob) -> DeliveryJobParams:
+        """Parse ``job``'s stored params (empty when missing or malformed)."""
         return self._mapper.deserialize_params(job.params)
 
-    def get_job_result(self, job: DeliveryJob) -> Optional[Dict[str, Any]]:
-        """Decode the serialized result payload for ``job``."""
+    def get_job_result(self, job: DeliveryJob) -> Optional[DeliveryJobResult]:
+        """Parse ``job``'s stored result (``None`` when missing or malformed)."""
         return self._mapper.deserialize_result(job.result)
 
 
