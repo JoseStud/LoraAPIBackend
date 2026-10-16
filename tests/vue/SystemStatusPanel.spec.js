@@ -1,16 +1,22 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import SystemStatusPanel from '@/features/generation/components/system/SystemStatusPanel.vue';
 import { useSettingsStore } from '../../app/frontend/src/stores/settings';
 
-// Mock the global fetch function
-global.fetch = vi.fn();
+// Mounting starts the admin metrics poller. These tests cover the panel before any metrics
+// arrive, so its requests never settle.
+const pendingFetch = vi.fn(() => new Promise(() => {}));
 
 describe('SystemStatusPanel.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal('fetch', pendingFetch);
     const settingsStore = useSettingsStore();
     settingsStore.setSettings({ backendUrl: '/api/v1' });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('renders basic structure correctly', () => {

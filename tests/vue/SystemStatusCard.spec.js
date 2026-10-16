@@ -21,6 +21,16 @@ vi.mock('@/features/generation/stores/systemStatusController', () => ({
   }),
 }));
 
+// The card keeps the shared orchestrator running through a widget binding. These tests render
+// store state the test seeds directly, so the binding (and the transport it would start) is mocked.
+const { useGenerationWidgetBinding } = vi.hoisted(() => ({
+  useGenerationWidgetBinding: vi.fn(),
+}));
+
+vi.mock('@/features/generation/composables/useGenerationWidgetBinding', () => ({
+  useGenerationWidgetBinding,
+}));
+
 const flush = async () => {
   await Promise.resolve();
   await nextTick();
@@ -56,6 +66,8 @@ describe('SystemStatusCard.vue', () => {
 
     const wrapper = mount(SystemStatusCard);
     await flush();
+
+    expect(useGenerationWidgetBinding).toHaveBeenCalledWith('SystemStatusCard');
 
     expect(wrapper.text()).toContain('GPU Status');
     expect(wrapper.text()).toContain('Available');
