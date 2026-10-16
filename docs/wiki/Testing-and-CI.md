@@ -69,11 +69,13 @@ fails.
 
 ## Frontend tests (Vitest)
 
-- Location: `tests/vue/` (components, composables, stores, services),
-  `tests/integration/` (mocked API workflows). Config in
-  [`vitest.config.js`](../../vitest.config.js).
+- Location: `tests/vue/` (components, composables, stores, services). Config
+  in [`vitest.config.js`](../../vitest.config.js).
 - The global setup ([`tests/setup/vitest.setup.js`](../../tests/setup/vitest.setup.js))
-  creates a fresh Pinia per test and disposes stores afterwards. Keep setup
+  creates a fresh Pinia per test and disposes stores afterwards. It replaces
+  `fetch` and `WebSocket` with guards that fail the test on any call, so a
+  spec that talks to the network stubs it explicitly (`vi.stubGlobal`) or mocks
+  the service module it uses. Keep setup
   files free of app imports: anything they load is cached before a spec's
   `vi.mock()` runs, and the mock silently stops applying.
 - Mock the module the code under test actually imports (for example

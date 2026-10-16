@@ -353,6 +353,9 @@ Read these before changing the matching subsystem:
   test and disposes its stores afterwards. Keep setup files free of app
   imports: anything they load is cached before a spec's `vi.mock()` runs, and
   the mock silently stops applying.
+- The global setup replaces `fetch` and `WebSocket` with guards that fail the
+  test on any call. Stub the network explicitly in the spec (`vi.stubGlobal`)
+  or mock the service module the code imports; never add a global API mock.
 - Mock the module the code under test actually imports (for example
   `@/features/history/services/historyService`), not a barrel it no longer uses.
 - Fixtures must satisfy the Zod schemas; `tests/fixtures/adapters.js` builds a
