@@ -6,7 +6,8 @@ from typing import Any, Dict, Iterable, Optional
 
 import pytest
 
-from backend.delivery.sdnext import SDNextGenerationBackend
+from backend.delivery.base import TransientGenerationError
+from backend.delivery.sdnext import NO_IMAGES_MESSAGE, SDNextGenerationBackend
 from backend.delivery.sdnext_client import SDNextResponse
 
 
@@ -24,7 +25,7 @@ class FakeSDNextSession:
         self._submit_response = submit_response or SDNextResponse(
             ok=True,
             status=200,
-            data={"images": [], "info": {}},
+            data={"images": ["raw"], "info": {}},
         )
         self._progress_response = progress_response or SDNextResponse(
             ok=True,
@@ -109,28 +110,62 @@ async def test_generate_image_success_flow() -> None:
 
 
 @pytest.mark.anyio("asyncio")
-async def test_generate_image_session_error() -> None:
+async def test_generate_image_permanent_session_error_is_a_failed_result() -> None:
+    """A failure a retry would repeat (HTTP 4xx) is a failed result."""
     session = FakeSDNextSession(
-        submit_response=SDNextResponse(ok=False, status=500, error="bad request"),
+        submit_response=SDNextResponse(
+            ok=False, status=422, error="SDNext returned HTTP 422"
+        ),
     )
     backend = SDNextGenerationBackend(session=session, storage=FakeImageStorage())
 
     result = await backend.generate_image("Prompt", {"generation_params": {}})
 
     assert result.status == "failed"
-    assert result.error_message == "bad request"
+    assert result.error_message == "SDNext returned HTTP 422"
 
 
 @pytest.mark.anyio("asyncio")
-async def test_generate_image_health_check_failure() -> None:
+@pytest.mark.parametrize(
+    "error",
+    ["SDNext returned HTTP 503", "SDNext request timed out", "SDNext request failed"],
+)
+async def test_generate_image_transient_session_error_raises(error) -> None:
+    """Timeouts, connection errors, 429 and 5xx raise, so the queue retries."""
+    session = FakeSDNextSession(
+        submit_response=SDNextResponse(
+            ok=False, status=None, error=error, transient=True
+        ),
+    )
+    backend = SDNextGenerationBackend(session=session, storage=FakeImageStorage())
+
+    with pytest.raises(TransientGenerationError) as raised:
+        await backend.generate_image("Prompt", {"generation_params": {}})
+
+    assert raised.value.message == error
+
+
+@pytest.mark.anyio("asyncio")
+async def test_generate_image_health_check_failure_is_transient() -> None:
     session = FakeSDNextSession(healthy=False)
+    backend = SDNextGenerationBackend(session=session, storage=FakeImageStorage())
+
+    with pytest.raises(TransientGenerationError) as raised:
+        await backend.generate_image("Prompt", {"generation_params": {}})
+
+    assert raised.value.message == "SDNext API not available"
+    assert session.submissions == []
+
+
+@pytest.mark.anyio("asyncio")
+async def test_generate_image_not_configured_is_a_failed_result() -> None:
+    session = FakeSDNextSession(configured=False)
     backend = SDNextGenerationBackend(session=session, storage=FakeImageStorage())
 
     result = await backend.generate_image("Prompt", {"generation_params": {}})
 
     assert result.status == "failed"
-    assert result.error_message == "SDNext API not available"
-    assert session.submissions == []
+    assert result.error_message == "SDNext backend not configured"
 
 
 @pytest.mark.anyio("asyncio")
@@ -197,7 +232,7 @@ async def test_pre_generate_command_runs_before_submission(tmp_path, monkeypatch
         sdnext_module.settings, "SDNEXT_PRE_GENERATE_COMMAND", f"touch {marker}"
     )
 
-    backend = SDNextGenerationBackend(session=session)
+    backend = SDNextGenerationBackend(session=session, storage=FakeImageStorage())
     await backend.generate_image("prompt", {"generation_params": {}})
 
     assert seen_marker_at_submit == [True]
@@ -216,7 +251,7 @@ async def test_failing_pre_generate_command_does_not_block_generation(
     monkeypatch.setattr(sdnext_module.settings, "SDNEXT_PRE_GENERATE_TIMEOUT", 1)
     session = FakeSDNextSession()
 
-    backend = SDNextGenerationBackend(session=session)
+    backend = SDNextGenerationBackend(session=session, storage=FakeImageStorage())
     await backend.generate_image("prompt", {"generation_params": {}})
 
     assert len(session.submissions) == 1
@@ -224,19 +259,24 @@ async def test_failing_pre_generate_command_does_not_block_generation(
 
 @pytest.mark.anyio("asyncio")
 async def test_empty_image_list_reports_an_aborted_job() -> None:
-    """SD.Next answers 200 with no images when it aborts (e.g. GPU OOM)."""
+    """SD.Next answers 200 with no images when it aborts (e.g. GPU OOM).
+
+    The model may have finished loading by the next attempt, so it is
+    transient.
+    """
     session = FakeSDNextSession(
         submit_response=SDNextResponse(
             ok=True, status=200, data={"images": [], "info": "{}"}
         )
     )
 
-    result = await SDNextGenerationBackend(session=session).generate_image(
-        "prompt", {"generation_params": {}}
-    )
+    with pytest.raises(TransientGenerationError) as raised:
+        await SDNextGenerationBackend(session=session).generate_image(
+            "prompt", {"generation_params": {}}
+        )
 
-    assert result.status == "failed"
-    assert "returned no images" in (result.error_message or "")
+    assert raised.value.message == NO_IMAGES_MESSAGE
+    assert "returned no images" in raised.value.message
 
 
 class InterruptSession(FakeSDNextSession):

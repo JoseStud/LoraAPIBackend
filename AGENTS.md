@@ -155,7 +155,11 @@ Read these before changing the matching subsystem:
   schedule a job like `/queue-generation` and wait for it with
   `GenerationCoordinator.wait_for_job` (bounded by
   `generation_wait_timeout_seconds`, then 504 naming the job), so no render
-  bypasses the queue or lacks a job row.
+  bypasses the queue or lacks a job row. A generation backend returns a
+  failed result for a failure that would recur (bad request, images not
+  saved) and raises `TransientGenerationError` (`backend/delivery/base.py`,
+  a fixed, safe message) for one worth retrying: SDNext unreachable, timing
+  out, HTTP 429/5xx, or no images returned.
   With Redis configured a failed enqueue never moves the job in-process, where
   it would run beside the RQ worker and recovery would never requeue it: the
   orchestrator raises `QueueUnavailableError`, `DeliveryService.enqueue_job`
@@ -172,7 +176,10 @@ Read these before changing the matching subsystem:
   from `DELIVERY_MAX_RETRIES` and `DELIVERY_RETRY_INTERVAL_SECONDS`
   (exponential delays, so workers run `rq worker --with-scheduler`); the
   in-process fallback runs each job once. Don't build a separate retry policy
-  at call sites. `DeliveryHTTPClient` keeps one aiohttp session per event loop, so
+  at call sites. Every RQ job's id is `rq_job_id(delivery_id)`
+  (`delivery-<id>`), so `QueueOrchestrator.has_pending(job_id)` can ask the
+  backend whether the job's RQ job is still waiting or running (always
+  `False` without Redis); look RQ jobs up only through it. `DeliveryHTTPClient` keeps one aiohttp session per event loop, so
   the shared SDNext client works from the API loop, the runner loop and RQ
   workers alike. RQ tasks run each job on a fresh loop on the worker's main
   thread (RQ's job timeout is a SIGALRM there) through `run_with_fresh_loop`
@@ -191,10 +198,17 @@ Read these before changing the matching subsystem:
   through `GenerationCoordinator.cancel_job`, which also interrupts the
   backend. `retrying` means an RQ retry is pending: the runner sets it when
   the backend raises and RQ's `retries_left` (the retries after this attempt)
-  is above 0, otherwise `failed`; an RQ job timeout is always `failed`.
-  Claiming from `retrying` restarts `started_at`. A retry of a job that was
-  cancelled, or that a killed attempt left `running`, skips it; job recovery
-  fails the latter.
+  is above 0, otherwise `failed`. The stored `error_message` is a
+  `TransientGenerationError`'s message or a fixed text, never another
+  exception's text. A timed-out attempt is always `failed` ("Delivery timed
+  out", no retry): the runner bounds the backend call with
+  `asyncio.timeout(settings.job_deadline_seconds)` and interrupts the backend
+  when it expires; RQ's job timeout is a backstop just after it, and a
+  `JobTimeoutException` that escapes the event loop is recorded the same way
+  before it is re-raised. Claiming from `retrying` restarts `started_at` and
+  clears the previous attempt's result in the same `UPDATE`. A retry of a
+  job that was cancelled, or that a killed attempt left `running`, skips it;
+  job recovery fails the latter.
 - **Progress scale**: every `progress` the API emits (the REST queue's
   `GenerationJobStatus`, `SDNextGenerationResult`, the WebSocket's
   `ProgressUpdate`) is a fraction in [0, 1], where 1 means complete; the
@@ -205,12 +219,23 @@ Read these before changing the matching subsystem:
   report 1.0). The frontend keeps progress as a fraction and converts it to a
   percentage only for display, with `toProgressPercent`
   (`app/frontend/src/utils/progress.ts`); never guess the scale from the value.
+- **Job timeouts**: `JOB_RUNNING_TIMEOUT_SECONDS` sets three limits, each
+  strictly inside the next (`backend/core/config.py`): the runner's deadline
+  (`job_deadline_seconds`, `JOB_DEADLINE_MARGIN_SECONDS` earlier), RQ's job
+  timeout (`rq_job_timeout_seconds`), and recovery's running timeout, which
+  must stay >= RQ's. Derive any new limit from these properties rather than
+  from the raw setting.
 - **Job recovery**: `JobRecovery` (`backend/services/job_recovery.py`), started
   by the lifespan, fails jobs `running` longer than
-  `JOB_RUNNING_TIMEOUT_SECONDS` (also the RQ job timeout) at startup and every
+  `JOB_RUNNING_TIMEOUT_SECONDS` at startup and every
   `JOB_RECOVERY_INTERVAL_SECONDS`. Without Redis it fails every running job at
   startup and requeues the waiting ones, which lived only in the old process,
   through the orchestrator onto the same in-process runner as new requests.
+  With Redis every pass requeues, through `QueueOrchestrator.enqueue_delivery`,
+  each `pending`/`retrying` job whose RQ job is missing or finished
+  (`has_pending` is `False`; Redis flushed or restarted empty); periodic
+  passes skip jobs younger than `LOST_JOB_GRACE`, and a queue error leaves
+  the jobs waiting for the next pass instead of failing them.
   Tests stub `JobRecovery.start` (autouse fixture in `tests/conftest.py`).
 - **Progress WebSocket**: one `JobProgressMonitor`
   (`backend/services/websocket/job_monitor.py`), started and stopped by the

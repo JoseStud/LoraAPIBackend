@@ -200,8 +200,18 @@ class DeliveryService:
                 failed.append(updated)
         return failed
 
-    def list_claimable_jobs(self, *, limit: int = 1000) -> List[DeliveryJob]:
-        """Return jobs waiting to run, oldest first."""
+    def list_claimable_jobs(
+        self, *, limit: int = 1000, older_than: Optional[timedelta] = None
+    ) -> List[DeliveryJob]:
+        """Return jobs waiting to run, oldest first.
+
+        ``older_than`` leaves out jobs created more recently than that.
+        """
+        if older_than is not None:
+            cutoff = self._repository.mapper.now() - older_than
+            return self._repository.list_jobs_created_before(
+                CLAIMABLE_STATUSES, cutoff, limit=limit
+            )
         jobs = self._repository.list_jobs_by_statuses(CLAIMABLE_STATUSES, limit=limit)
         return sorted(jobs, key=lambda job: job.created_at)
 

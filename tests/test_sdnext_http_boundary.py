@@ -3,6 +3,7 @@
 import asyncio
 from unittest.mock import AsyncMock
 
+import aiohttp
 import pytest
 
 from backend.delivery.sdnext import SDNextGenerationBackend
@@ -11,10 +12,11 @@ from backend.delivery.storage import FileSystemImageStorage
 
 
 class ResponseContext:
-    def __init__(self, *, status=200, data=None, error=None):
+    def __init__(self, *, status=200, data=None, error=None, json_error=None):
         self.status = status
         self.data = data
         self.error = error
+        self.json_error = json_error
 
     async def __aenter__(self):
         if self.error:
@@ -25,6 +27,8 @@ class ResponseContext:
         pass
 
     async def json(self):
+        if self.json_error:
+            raise self.json_error
         return self.data
 
     async def text(self):
@@ -33,15 +37,42 @@ class ResponseContext:
 
 @pytest.mark.anyio
 @pytest.mark.parametrize(
-    ("response", "expected"),
+    ("response", "expected", "transient"),
     [
-        (ResponseContext(error=asyncio.TimeoutError()), "SDNext request timed out"),
-        (ResponseContext(error=RuntimeError("secret")), "SDNext request failed"),
-        (ResponseContext(status=503), "SDNext returned HTTP 503"),
-        (ResponseContext(data=[]), "Invalid SDNext response"),
+        (
+            ResponseContext(error=asyncio.TimeoutError()),
+            "SDNext request timed out",
+            True,
+        ),
+        (
+            ResponseContext(error=aiohttp.ClientConnectionError("secret")),
+            "SDNext request failed",
+            True,
+        ),
+        (
+            ResponseContext(error=ConnectionRefusedError("secret")),
+            "SDNext request failed",
+            True,
+        ),
+        (
+            ResponseContext(error=RuntimeError("secret")),
+            "SDNext request failed",
+            False,
+        ),
+        (ResponseContext(status=503), "SDNext returned HTTP 503", True),
+        (ResponseContext(status=500), "SDNext returned HTTP 500", True),
+        (ResponseContext(status=429), "SDNext returned HTTP 429", True),
+        (ResponseContext(status=422), "SDNext returned HTTP 422", False),
+        (ResponseContext(status=401), "SDNext returned HTTP 401", False),
+        (ResponseContext(data=[]), "Invalid SDNext response", False),
+        (
+            ResponseContext(json_error=ValueError("secret")),
+            "Invalid SDNext response",
+            False,
+        ),
     ],
 )
-async def test_transport_error_is_safe_and_terminal(response, expected):
+async def test_transport_error_is_safe_and_classified(response, expected, transient):
     client = AsyncMock()
     client.is_configured = lambda: True
     client.request.return_value = response
@@ -49,6 +80,7 @@ async def test_transport_error_is_safe_and_terminal(response, expected):
     result = await session.submit_txt2img("ordinary prompt")
     assert result.ok is False
     assert result.error == expected
+    assert result.transient is transient
     assert "secret" not in result.error
     assert "private-upstream-detail" not in result.error
 

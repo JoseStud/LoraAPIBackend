@@ -3,13 +3,19 @@
 from __future__ import annotations
 
 import asyncio
+import signal
 from contextlib import contextmanager
 from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
 import pytest
+from rq.timeouts import JobTimeoutException
 
-from backend.delivery.base import DeliveryRegistry, GenerationBackend
+from backend.delivery.base import (
+    DeliveryRegistry,
+    GenerationBackend,
+    TransientGenerationError,
+)
 from backend.delivery.storage import remove_stored_images
 from backend.schemas import SDNextGenerationResult
 from backend.services.deliveries import CANCELLED_RESULT, DeliveryService
@@ -17,11 +23,20 @@ from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.generation import GenerationCoordinator, GenerationService
 from backend.services.job_recovery import (
     INTERRUPTED_RESULT,
+    LOST_JOB_GRACE,
     JobRecovery,
     recover_jobs,
 )
-from backend.services.queue import QueueBackend, QueueOrchestrator
-from backend.workers.delivery_runner import DeliveryRunner
+from backend.services.queue import (
+    QueueBackend,
+    QueueOrchestrator,
+    QueueUnavailableError,
+)
+from backend.workers.delivery_runner import (
+    PROCESSING_FAILED_MESSAGE,
+    TIMED_OUT_RESULT,
+    DeliveryRunner,
+)
 from tests.util.delivery_jobs import set_job_status
 
 
@@ -37,7 +52,29 @@ class RecordingQueue(QueueBackend):
 
 
 class DurableQueue(RecordingQueue):
-    """A queue backend that stands in for Redis."""
+    """A queue backend that stands in for Redis.
+
+    ``held`` is the set of job ids "Redis" still holds, unfinished; ``None``
+    keeps the base class's answer (every job is held).
+    """
+
+    def __init__(self, held: Optional[set] = None) -> None:
+        super().__init__()
+        self.held = held
+        self.lookups: List[str] = []
+
+    def enqueue_delivery(self, job_id, *, background_tasks=None, **enqueue_kwargs):
+        if self.held is not None:
+            self.held.add(job_id)
+        return super().enqueue_delivery(
+            job_id, background_tasks=background_tasks, **enqueue_kwargs
+        )
+
+    def has_pending(self, job_id: str) -> bool:
+        self.lookups.append(job_id)
+        if self.held is None:
+            return super().has_pending(job_id)
+        return job_id in self.held
 
 
 def _service(db_session, orchestrator: Optional[QueueOrchestrator] = None):
@@ -107,6 +144,43 @@ def test_claim_from_retrying_restarts_started_at(db_session):
         older_than=timedelta(hours=1), result=INTERRUPTED_RESULT
     )
     assert failed == []
+
+
+def test_claim_from_retrying_clears_previous_attempts_result(db_session):
+    """A retried attempt starts without the error its predecessor stored."""
+    service = _service(db_session)
+    coordinator = GenerationCoordinator(service, GenerationService())
+    job = service.create_job("p", "sdnext", {})
+    service.claim_job(job.id)
+    service.finish_job(
+        job.id,
+        "retrying",
+        {"error_message": "SDNext API not available", "retries_left": 1},
+    )
+    waiting = service.get_job(job.id)
+    assert coordinator.serialize_delivery_job(waiting).error == (
+        "SDNext API not available"
+    )
+
+    retried = service.claim_job(job.id)
+
+    assert retried.status == "running"
+    assert retried.result is None
+    assert service.get_job_result(retried) is None
+    serialized = coordinator.serialize_delivery_job(retried)
+    assert serialized.error is None
+    assert serialized.progress == 0.0
+
+
+def test_claim_from_pending_keeps_stored_result(db_session):
+    """Only a retry clears the result; a first claim leaves it alone."""
+    service = _service(db_session)
+    job = service.create_job("p", "cli", {})
+    set_job_status(service, job.id, "pending", {"progress": 0.25})
+
+    claimed = service.claim_job(job.id)
+
+    assert service.get_job_result(claimed).progress == pytest.approx(0.25)
 
 
 def test_finish_job_keeps_cancelled_status(db_session):
@@ -258,6 +332,181 @@ async def test_runner_holds_task_reference_on_running_loop(
         runner.process_delivery_job(job.id, raise_on_error=True)
 
 
+class ScriptedBackend(GenerationBackend):
+    """Generation backend that raises, hangs or succeeds as told."""
+
+    def __init__(self, *, raises: Optional[BaseException] = None, hang=False):
+        self.raises = raises
+        self.hang = hang
+        self.calls = 0
+        self.interrupts = 0
+
+    async def generate_image(self, prompt: str, params: Dict[str, Any]):
+        self.calls += 1
+        if self.raises is not None:
+            raise self.raises
+        if self.hang:
+            await asyncio.sleep(30)
+        return SDNextGenerationResult(job_id="x", status="completed", images=[])
+
+    async def check_progress(self, job_id: str):
+        return SDNextGenerationResult(job_id=job_id, status="running")
+
+    def is_available(self) -> bool:
+        return True
+
+    async def interrupt(self) -> bool:
+        self.interrupts += 1
+        return True
+
+
+def _runner_for(backend: GenerationBackend, **kwargs: Any) -> DeliveryRunner:
+    registry = DeliveryRegistry()
+    registry.register_generation_backend("sdnext", backend)
+    return DeliveryRunner(registry, **kwargs)
+
+
+def _sdnext_job(service: DeliveryService) -> str:
+    return service.create_job(
+        "p", "sdnext", {"backend": "sdnext", "generation_params": {}}
+    ).id
+
+
+def test_transient_error_leaves_job_retrying_with_its_message(
+    db_session, session_override
+):
+    service = _service(db_session)
+    job_id = _sdnext_job(service)
+    backend = ScriptedBackend(
+        raises=TransientGenerationError("SDNext API not available")
+    )
+    runner = _runner_for(backend)
+
+    with pytest.raises(TransientGenerationError):
+        runner.process_delivery_job(job_id, retries_left=2, raise_on_error=True)
+
+    db_session.expire_all()
+    stored = service.get_job(job_id)
+    assert stored.status == "retrying"
+    result = service.get_job_result(stored)
+    assert result.error_message == "SDNext API not available"
+    assert result.retries_left == 2
+
+
+@pytest.mark.parametrize("retries_left", [0, None])
+def test_transient_error_without_retries_fails_with_its_message(
+    db_session, session_override, retries_left
+):
+    """The last RQ attempt, or an in-process job, fails with the specific text."""
+    service = _service(db_session)
+    job_id = _sdnext_job(service)
+    runner = _runner_for(
+        ScriptedBackend(raises=TransientGenerationError("SDNext request timed out"))
+    )
+
+    runner.process_delivery_job(job_id, retries_left=retries_left)
+
+    db_session.expire_all()
+    stored = service.get_job(job_id)
+    assert stored.status == "failed"
+    assert service.get_job_result(stored).error_message == "SDNext request timed out"
+
+
+def test_unexpected_error_text_is_never_stored(db_session, session_override):
+    service = _service(db_session)
+    job_id = _sdnext_job(service)
+    runner = _runner_for(ScriptedBackend(raises=RuntimeError("secret upstream text")))
+
+    runner.process_delivery_job(job_id, retries_left=1)
+
+    db_session.expire_all()
+    stored = service.get_job(job_id)
+    assert stored.status == "retrying"
+    assert service.get_job_result(stored).error_message == PROCESSING_FAILED_MESSAGE
+    assert "secret" not in (stored.result or "")
+
+
+def test_deadline_interrupts_backend_and_fails_without_retry(
+    db_session, session_override
+):
+    """The runner's own deadline fails the job as timed out, with retries left."""
+    service = _service(db_session)
+    job_id = _sdnext_job(service)
+    backend = ScriptedBackend(hang=True)
+    runner = _runner_for(backend, deadline_seconds=0.05)
+
+    # No exception reaches RQ, so it does not schedule a pointless retry.
+    runner.process_delivery_job(job_id, retries_left=2, raise_on_error=True)
+
+    db_session.expire_all()
+    stored = service.get_job(job_id)
+    assert stored.status == "failed"
+    assert service.get_job_result(stored) == TIMED_OUT_RESULT
+    assert backend.interrupts == 1
+
+
+@pytest.mark.anyio
+async def test_deadline_applies_to_in_process_jobs(db_session, session_override):
+    """On a running loop (the in-process runner) the deadline applies too."""
+    service = _service(db_session)
+    job_id = _sdnext_job(service)
+    backend = ScriptedBackend(hang=True)
+    runner = _runner_for(backend, deadline_seconds=0.05)
+
+    task = runner.process_delivery_job(job_id)
+    assert task is not None
+    await task
+
+    db_session.expire_all()
+    stored = service.get_job(job_id)
+    assert stored.status == "failed"
+    assert service.get_job_result(stored) == TIMED_OUT_RESULT
+    assert backend.interrupts == 1
+
+
+def test_default_deadline_comes_from_settings(monkeypatch):
+    from backend.core.config import settings
+
+    monkeypatch.setattr(settings, "JOB_RUNNING_TIMEOUT_SECONDS", 300)
+    runner = DeliveryRunner(DeliveryRegistry())
+
+    assert runner._job_deadline_seconds() == settings.job_deadline_seconds == 270
+
+
+@pytest.mark.skipif(not hasattr(signal, "setitimer"), reason="needs SIGALRM")
+def test_rq_timeout_escaping_the_loop_still_fails_the_job(db_session, session_override):
+    """RQ's SIGALRM timeout fired while the loop waited on I/O.
+
+    The exception escapes ``asyncio.run`` and cancels the coroutine, so the
+    runner's ``except`` never sees it. The job is still failed as timed out
+    and the backend interrupted, and RQ gets its exception back.
+    """
+    service = _service(db_session)
+    job_id = _sdnext_job(service)
+    backend = ScriptedBackend(hang=True)
+    # The runner's deadline is far away: only the "RQ" alarm fires.
+    runner = _runner_for(backend, deadline_seconds=60)
+
+    def alarm(signum, frame):
+        raise JobTimeoutException("Task exceeded maximum timeout value")
+
+    previous = signal.signal(signal.SIGALRM, alarm)
+    signal.setitimer(signal.ITIMER_REAL, 0.1)
+    try:
+        with pytest.raises(JobTimeoutException):
+            runner.process_delivery_job(job_id, retries_left=2, raise_on_error=True)
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous)
+
+    db_session.expire_all()
+    stored = service.get_job(job_id)
+    assert stored.status == "failed"
+    assert service.get_job_result(stored) == TIMED_OUT_RESULT
+    assert backend.calls == 1
+    assert backend.interrupts == 1
+
+
 def test_remove_stored_images_stays_inside_output_dir(tmp_path):
     root = tmp_path / "outputs"
     root.mkdir()
@@ -388,6 +637,106 @@ def test_recover_periodic_pass_does_not_requeue(db_session):
 
     assert report.failed == [] and report.requeued == []
     assert queue.enqueued == []
+
+
+def _age(service: DeliveryService, db_session, job_id: str, age: timedelta) -> None:
+    job = service.get_job(job_id)
+    job.created_at = service._repository.mapper.now() - age
+    db_session.add(job)
+    db_session.commit()
+
+
+@pytest.mark.parametrize("at_startup", [True, False])
+def test_recover_requeues_waiting_jobs_the_durable_queue_lost(db_session, at_startup):
+    """Redis flushed or restarted empty: lost waiting jobs are queued again."""
+    held: set = set()
+    durable = DurableQueue(held)
+    service = _service(db_session, QueueOrchestrator(primary_backend=durable))
+    lost = service.create_job("lost", "cli", {})
+    lost_retry = service.create_job("lost retry", "cli", {})
+    set_job_status(service, lost_retry.id, "retrying")
+    queued = service.create_job("queued", "cli", {})
+    held.add(queued.id)
+    for job_id in (lost.id, lost_retry.id, queued.id):
+        _age(service, db_session, job_id, LOST_JOB_GRACE * 2)
+
+    report = recover_jobs(
+        service, at_startup=at_startup, running_timeout=timedelta(hours=1)
+    )
+
+    assert report.requeued == [lost.id, lost_retry.id]
+    assert [job_id for job_id, _ in durable.enqueued] == [lost.id, lost_retry.id]
+    db_session.expire_all()
+    assert service.get_job(lost.id).status == "pending"
+    assert service.get_job(lost_retry.id).status == "retrying"
+
+    again = recover_jobs(service, at_startup=False, running_timeout=timedelta(hours=1))
+    assert again.requeued == [], "a job the queue holds is not queued twice"
+    assert len(durable.enqueued) == 2
+
+
+def test_periodic_recovery_skips_jobs_a_request_may_still_enqueue(db_session):
+    durable = DurableQueue(set())
+    service = _service(db_session, QueueOrchestrator(primary_backend=durable))
+    fresh = service.create_job("fresh", "cli", {})
+
+    periodic = recover_jobs(
+        service, at_startup=False, running_timeout=timedelta(hours=1)
+    )
+    assert periodic.requeued == []
+    assert durable.lookups == []
+
+    startup = recover_jobs(service, at_startup=True, running_timeout=timedelta(hours=1))
+    assert startup.requeued == [fresh.id]
+
+
+class UnreachableQueue(DurableQueue):
+    def __init__(self, *, fail_lookup: bool) -> None:
+        super().__init__(set())
+        self.fail_lookup = fail_lookup
+
+    def has_pending(self, job_id: str) -> bool:
+        if self.fail_lookup:
+            raise ConnectionError("redis down")
+        return False
+
+    def enqueue_delivery(self, job_id, *, background_tasks=None, **enqueue_kwargs):
+        raise ConnectionError("redis down")
+
+
+@pytest.mark.parametrize("fail_lookup", [True, False])
+def test_recovery_leaves_lost_jobs_waiting_while_the_queue_is_down(
+    db_session, fail_lookup
+):
+    """A Redis outage stops the pass; nothing is failed, the next pass retries."""
+    service = _service(
+        db_session,
+        QueueOrchestrator(primary_backend=UnreachableQueue(fail_lookup=fail_lookup)),
+    )
+    first = service.create_job("first", "cli", {})
+    second = service.create_job("second", "cli", {})
+
+    report = recover_jobs(service, at_startup=True, running_timeout=timedelta(hours=1))
+
+    assert report.requeued == []
+    db_session.expire_all()
+    assert service.get_job(first.id).status == "pending"
+    assert service.get_job(second.id).status == "pending"
+
+
+def test_orchestrator_has_pending_without_durable_queue_is_false():
+    orchestrator = QueueOrchestrator(
+        fallback_backend=RecordingQueue(), redis_url_factory=lambda: None
+    )
+    assert orchestrator.has_pending("anything") is False
+
+
+def test_orchestrator_rejected_enqueue_is_queue_unavailable():
+    orchestrator = QueueOrchestrator(
+        primary_backend=UnreachableQueue(fail_lookup=False)
+    )
+    with pytest.raises(QueueUnavailableError):
+        orchestrator.enqueue_delivery("job")
 
 
 class RecordingNotifier:

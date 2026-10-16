@@ -78,9 +78,13 @@ Step by step, with the code that does it:
    ([`workers/delivery_runner.py`](../../backend/workers/delivery_runner.py)),
    which claims the job, picks the backend from `params.backend` or `mode`, and
    calls `SDNextGenerationBackend.generate_image`
-   ([`delivery/sdnext.py`](../../backend/delivery/sdnext.py)). That runs
+   ([`delivery/sdnext.py`](../../backend/delivery/sdnext.py)) under the job
+   deadline (see [Timeouts](#timeouts)). That runs
    `SDNEXT_PRE_GENERATE_COMMAND` if set, submits txt2img, validates the
-   response and persists the images.
+   response and persists the images. A failure that would recur (SDNext not
+   configured, HTTP 4xx other than 429, an invalid response, images not
+   saved) comes back as a failed result; a transient one raises
+   `TransientGenerationError` (see [Retries](#retries)).
 5. **Finish.** The runner records the outcome with `finish_job` (the
    backend's `SDNextGenerationResult`, or `error_message` when the backend
    raised, plus `retries_left` for a retry) and, for
@@ -119,7 +123,7 @@ job is the one being rendered and has no stored progress.
 stateDiagram-v2
     [*] --> pending: schedule_job
     pending --> running: claim_job
-    retrying --> running: claim_job (restarts started_at)
+    retrying --> running: claim_job (restarts started_at, clears result)
     running --> succeeded: finish_job
     running --> failed: finish_job / recovery
     running --> retrying: finish_job (backend raised, RQ retries left)
@@ -138,7 +142,7 @@ single conditional `UPDATE … WHERE status IN (…)` via
 
 | Method | From | To | Returns `None` when |
 | --- | --- | --- | --- |
-| `claim_job` | `pending`, `retrying` | `running` | Job is missing, cancelled, finished or already claimed. The runner then skips it, which is what makes re-enqueueing safe. |
+| `claim_job` | `pending`, `retrying` | `running` | Job is missing, cancelled, finished or already claimed. The runner then skips it, which is what makes re-enqueueing safe. A claim from `retrying` also clears the previous attempt's result, so the REST queue and the WebSocket don't report its error for the running retry. |
 | `finish_job` | `running` | `succeeded` / `failed` / `retrying` | Job was cancelled or failed by recovery while it ran. The runner deletes the images it just saved and sends no webhook. |
 | `cancel_job` | `running`, `pending`, `retrying` | `cancelled` | Job is not active. |
 
@@ -160,17 +164,49 @@ Only the Redis queue retries.
   Intervals are exponential: retry *n* waits
   `DELIVERY_RETRY_INTERVAL_SECONDS × 2^(n-1)`. Delayed retries need the
   worker's scheduler, hence `rq worker --with-scheduler`.
-- A retry happens only when the backend **raises** (network error, crash). A
-  generation SDNext reports as failed returns normally and is final.
+- A retry happens only when the backend **raises**. SDNext's backend raises
+  `TransientGenerationError` ([`delivery/base.py`](../../backend/delivery/base.py))
+  when its health check fails, the request cannot connect or times out,
+  SDNext answers HTTP 429 or 5xx, or it returns no images (model still
+  loading, out of GPU memory). Any other exception (a crash) is retried too.
+  A failure that would recur (bad request, images not saved) returns a
+  failed result and is final.
 - The runner reads RQ's `retries_left`. If it is above 0 the job goes to
   `retrying` and the task re-raises so RQ schedules the next attempt, which
-  claims it from `retrying`. Otherwise `failed`.
-- An RQ job timeout (`JOB_RUNNING_TIMEOUT_SECONDS`) is always final: SDNext may
-  still be busy with the job, and another attempt would pile onto it.
+  claims it from `retrying` (clearing the stored result). Otherwise `failed`.
+  Either way `error_message` is the `TransientGenerationError`'s fixed
+  message, or "Delivery processing failed" for any other exception, whose
+  text is only logged.
+- A timeout is always final (see [Timeouts](#timeouts)): SDNext may still be
+  busy with the job, and another attempt would pile onto it.
 - A retry of a job that was cancelled meanwhile, or that a killed attempt left
   `running`, cannot claim it and does nothing; recovery fails the latter.
+- Each RQ job's id is `delivery-<job id>` (`rq_job_id` in
+  [`services/queue.py`](../../backend/services/queue.py)), the same for
+  every attempt, so recovery can tell whether Redis still holds a job.
 
 Don't add retry loops at call sites; the RQ policy is the one retry mechanism.
+
+## Timeouts
+
+`JOB_RUNNING_TIMEOUT_SECONDS` (default
+`SDNEXT_TIMEOUT + SDNEXT_PRE_GENERATE_TIMEOUT + 120`) sets three limits on one
+attempt, each strictly inside the next
+([`core/config.py`](../../backend/core/config.py)):
+
+1. **The runner's deadline**, `job_deadline_seconds`: the timeout minus
+   `JOB_DEADLINE_MARGIN_SECONDS` (30, at most half the timeout). The runner
+   wraps the backend call in `asyncio.timeout`; when it expires it interrupts
+   the backend (best-effort, bounded), fails the job with "Delivery timed
+   out" and sends the webhook. It does not raise, so RQ has nothing to retry.
+   This applies in RQ workers and in-process alike.
+2. **RQ's job timeout**, `rq_job_timeout_seconds` (the timeout itself): a
+   SIGALRM backstop for an attempt stuck where the deadline cannot reach it
+   (blocking code on the loop). If its `JobTimeoutException` escapes the
+   event loop, the runner fails the job the same way before re-raising it;
+   RQ's retry then cannot claim the failed job.
+3. **Recovery's running timeout** (the timeout again, never below RQ's):
+   a job still `running` after that has lost its runner and is failed.
 
 ## Cancelling
 
@@ -201,10 +237,19 @@ mid-job):
   `running` job is failed at once, and every `pending`/`retrying` job (which
   lived only in the old process's memory) is requeued through the orchestrator
   onto the in-process runner, behind any new requests.
+- **With Redis**, a `pending`/`retrying` job whose RQ job is gone (Redis
+  flushed, or restarted without persistence) or already finished would never
+  run. Every pass asks `QueueOrchestrator.has_pending(job_id)` and requeues
+  those jobs through `QueueOrchestrator.enqueue_delivery`, oldest first. A job
+  RQ still holds is left alone, so passes don't pile up duplicates, and
+  periodic passes skip jobs younger than `LOST_JOB_GRACE` (30 s), which a
+  request may still be enqueueing. If Redis is down the pass stops and leaves
+  the jobs waiting for the next one. A duplicate that slips through is
+  harmless: the second run cannot claim the job.
 
-`JOB_RUNNING_TIMEOUT_SECONDS` defaults to
-`SDNEXT_TIMEOUT + SDNEXT_PRE_GENERATE_TIMEOUT + 120` and is also the RQ job
-timeout, so the two agree on when a job is lost.
+The running timeout is `JOB_RUNNING_TIMEOUT_SECONDS`, which is never below
+RQ's job timeout (see [Timeouts](#timeouts)), so recovery never fails a job
+RQ still lets run.
 
 Tests stub `JobRecovery.start` with an autouse fixture in
 [`tests/conftest.py`](../../tests/conftest.py).
