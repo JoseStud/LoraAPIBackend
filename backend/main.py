@@ -8,7 +8,6 @@ from typing import Any, Dict
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.encoders import jsonable_encoder
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.utils import is_body_allowed_for_status_code
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -28,6 +27,7 @@ from backend.api.v1 import (
 )
 from backend.api.v1.generation import images as generation_images
 from backend.core.config import settings
+from backend.core.cors import add_cors_middleware
 from backend.core.database import init_db
 from backend.core.logging import get_logger, setup_logging
 from backend.core.security import get_api_key
@@ -152,16 +152,8 @@ def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(title="LoRA Manager Backend (MVP)", lifespan=lifespan)
 
-    # The only CORS configuration: app.main mounts this app at /api and its
-    # SPA files are same-origin. Credentials cannot go with a wildcard origin.
-    cors_origins = list(settings.CORS_ORIGINS)
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=cors_origins,
-        allow_credentials=settings.CORS_ALLOW_CREDENTIALS and "*" not in cors_origins,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # The only CORS middleware; app.main mounts this app at /api without its own.
+    add_cors_middleware(app, settings)
 
     # Include API routers with consistent /v1 prefix
     app.include_router(
