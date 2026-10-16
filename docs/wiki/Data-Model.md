@@ -60,7 +60,10 @@ and `DeliveryService.get_job_params` / `get_job_result` return those models.
 - `DeliveryJobResult`: `status` (a string, or an HTTP status code from the
   HTTP backend), `images`, `progress`, `error_message`, `message`, `detail`,
   `generation_info`, `retries_left`, `image_url`, `thumbnail_url`; anything
-  else is kept as an extra. Failures are written as `error_message`.
+  else is kept as an extra. Failures are written as `error_message`, a
+  fixed text (a `TransientGenerationError`'s message, "Delivery timed out",
+  ...), never an exception's text. A claim from `retrying` sets `result` to
+  `NULL`, so a running retry carries no earlier error.
   `status_message` (`message`, else `detail`) and `failure_message`
   (`error_message`, else `detail`, else `message`) are the derived texts the
   API, the WebSocket, the webhook and analytics use.
