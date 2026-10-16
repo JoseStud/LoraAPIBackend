@@ -115,6 +115,18 @@ describe('createHttpClient', () => {
     });
   });
 
+  it.each([
+    ['a problem detail title', { type: 'about:blank', title: 'Adapter not found', status: 404 }, 'Adapter not found'],
+    ['a validation error message', { detail: [{ loc: ['body', 'prompt'], msg: 'Field required' }] }, 'Field required'],
+  ])('uses %s as the error message', async (_label, payload, expected) => {
+    fetchMock.mockResolvedValue(createJsonResponse(payload, { ok: false, status: 404, statusText: 'Not Found' }));
+    const client = createHttpClient({ fetch: fetchImpl, retry: NO_DELAY });
+
+    await expect(client.requestJson('https://api.example/missing')).rejects.toMatchObject({
+      message: expected,
+    });
+  });
+
   it.each([401, 403, 404, 422])('does not retry a %i response', async (status) => {
     fetchMock.mockResolvedValue(createJsonResponse({ detail: 'denied' }, { ok: false, status }));
     const client = createHttpClient({ fetch: fetchImpl, retry: NO_DELAY });

@@ -501,7 +501,7 @@ const apiMocks = {
         version: '2.1.0',
     }),
 
-    'GET /frontend/settings': () => ({
+    'GET /api/v1/frontend/settings': () => ({
         backendUrl: '/api/v1',
         generationPolling: defaultGenerationPolling,
         features: {

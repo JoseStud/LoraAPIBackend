@@ -293,8 +293,14 @@ const firstNonEmptyString = (value: unknown): string | null => {
     return value;
   }
   if (Array.isArray(value)) {
-    const first = value.find((entry) => typeof entry === 'string' && entry.trim());
-    return typeof first === 'string' ? first : null;
+    for (const entry of value) {
+      // FastAPI validation errors are ``[{loc, msg, type}, ...]``.
+      const candidate =
+        entry && typeof entry === 'object' ? (entry as Record<string, unknown>).msg : entry;
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate;
+      }
+    }
   }
   return null;
 };
@@ -309,7 +315,9 @@ const deriveErrorMessage = (payload: unknown, response: Response): string => {
     const message =
       firstNonEmptyString(record.detail)
       ?? (typeof record.message === 'string' && record.message.trim() ? record.message : null)
-      ?? firstNonEmptyString(record.errors);
+      ?? firstNonEmptyString(record.errors)
+      // RFC 7807 problem details carry the message in ``title``.
+      ?? firstNonEmptyString(record.title);
     if (message) {
       return message;
     }
