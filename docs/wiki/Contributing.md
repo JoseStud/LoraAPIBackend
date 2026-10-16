@@ -32,8 +32,9 @@ Step-by-step patterns for the changes people make most often. Each ends with
    the global handler logs them and returns a generic 500. Never put exception
    text in a response.
 6. Add a test in `tests/api/`, and update [`docs/contract.md`](../contract.md).
-7. If the frontend uses it, regenerate types (`npm run generate:api-types`) and
-   add a Zod schema for the response.
+7. Regenerate the frontend types (`npm run generate:api-types`) and commit
+   `backend.ts`; `ci:check` fails while they differ from the backend. If the
+   frontend uses the endpoint, add a Zod schema for the response.
 
 ## Add a backend service
 

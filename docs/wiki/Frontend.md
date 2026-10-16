@@ -190,7 +190,10 @@ anywhere. `VITE_BACKEND_URL` / `VITE_BACKEND_API_KEY` configure the dev server.
 
 ## API types
 
-`npm run generate:api-types` regenerates TypeScript types from the backend's
-OpenAPI schema into `types/generated` ([api-type-generation.md](../api-type-generation.md)).
+`npm run generate:api-types` regenerates `types/generated/backend.ts` from the
+OpenAPI schema of `backend.main.create_app()`, exported without a server
+([api-type-generation.md](../api-type-generation.md)). The file is committed;
+`ci:check` fails when it no longer matches the backend, so regenerate it rather
+than editing it.
 
 Next: [Recommendations](Recommendations.md) or [Testing and CI](Testing-and-CI.md).

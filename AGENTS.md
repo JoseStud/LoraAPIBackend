@@ -20,17 +20,24 @@ updates this file in the same PR.
    *fail* lint. Never "fix" those fixtures by changing their imports.
 2. `ruff format --check .` and `ruff check .` (ruff is pinned; `format.preview`
    output changes between releases).
-3. `pytest` (full backend suite).
-4. `npm run lint` (ESLint, including import-boundary rules).
-5. `npm run test:unit` (Vitest).
-6. `npm run build` (`vue-tsc --noEmit` type-check, then Vite build).
-7. `npm run check:bundle` (dashboard bundle budget and JobQueue code-splitting).
+3. API types up to date: regenerates
+   `app/frontend/src/types/generated/backend.ts` from
+   `backend.main.create_app().openapi()` into a temp file and fails if it
+   differs from the committed file. Fix it with `npm run generate:api-types`
+   (never by hand-editing `backend.ts`), then fix any type errors and commit
+   both.
+4. `pytest` (full backend suite).
+5. `npm run lint` (ESLint, including import-boundary rules).
+6. `npm run test:unit` (Vitest).
+7. `npm run build` (`vue-tsc --noEmit` type-check, then Vite build).
+8. `npm run check:bundle` (dashboard bundle budget and JobQueue code-splitting).
 
 Individual commands:
 
 ```bash
 pip install -r requirements.txt -r dev-requirements.txt   # Python 3.11
 npm ci
+npm run generate:api-types   # after any API schema change; needs the Python deps
 pytest
 npm run lint
 npm run test:unit
@@ -192,6 +199,12 @@ Read these before changing the matching subsystem:
 - **Configuration**: runtime settings live only in `backend/core/config.py`, so
   startup validation and the frontend `/frontend/settings` payload stay
   consistent.
+- **Generated API types**: `app/frontend/src/types/generated/backend.ts` is
+  generated from `backend.main.create_app().openapi()`, exported without a
+  server by `scripts/export_openapi.py` (`npm run generate:api-types`). Only
+  routes registered in `create_app()` are part of it; `app/main.py`'s
+  `/frontend/settings` routes are not. A schema change ships with the
+  regenerated file, or `ci:check` fails.
 - **Result images**: job results store saved images as `output://` file
   references (relative to `SDNEXT_OUTPUT_DIR`), never base64; the browser
   loads them from the keyless `GET /v1/generation/results/{job_id}/images/{index}`

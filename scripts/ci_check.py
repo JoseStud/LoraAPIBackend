@@ -3,16 +3,75 @@
 
 from __future__ import annotations
 
+import difflib
+import os
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
-from typing import Sequence
+from typing import Callable, Sequence, Union
 
-COMMANDS: Sequence[Sequence[str]] = (
+REPO_ROOT = Path(__file__).resolve().parents[1]
+GENERATED_API_TYPES = Path("app/frontend/src/types/generated/backend.ts")
+API_TYPES_DIFF_PREVIEW_LINES = 80
+
+
+def check_api_types_up_to_date() -> None:
+    """Fail when the committed API types differ from the backend's schema.
+
+    Regenerates the types from ``backend.main.create_app()`` (through
+    ``scripts/generate-api-types.mjs``) into a temporary file and compares it
+    with the committed ``backend.ts``.
+    """
+    print("\n→ API types up to date", flush=True)
+    committed = REPO_ROOT / GENERATED_API_TYPES
+    with tempfile.TemporaryDirectory(prefix="lora-api-types-") as tmp:
+        regenerated = Path(tmp) / "backend.ts"
+        subprocess.run(
+            [
+                "node",
+                str(REPO_ROOT / "scripts" / "generate-api-types.mjs"),
+                "--out",
+                str(regenerated),
+            ],
+            check=True,
+            cwd=REPO_ROOT,
+            env={**os.environ, "PYTHON": sys.executable},
+        )
+        expected = regenerated.read_text(encoding="utf-8")
+
+    actual = committed.read_text(encoding="utf-8") if committed.exists() else ""
+    if actual == expected:
+        print(f"{GENERATED_API_TYPES} matches the backend's OpenAPI schema.")
+        return
+
+    diff = list(
+        difflib.unified_diff(
+            actual.splitlines(keepends=True),
+            expected.splitlines(keepends=True),
+            fromfile=f"{GENERATED_API_TYPES} (committed)",
+            tofile=f"{GENERATED_API_TYPES} (from backend.main.create_app())",
+        )
+    )
+    preview = "".join(diff[:API_TYPES_DIFF_PREVIEW_LINES])
+    if len(diff) > API_TYPES_DIFF_PREVIEW_LINES:
+        preview += f"... ({len(diff) - API_TYPES_DIFF_PREVIEW_LINES} more diff lines)\n"
+    print(preview, file=sys.stderr)
+    raise SystemExit(
+        f"{GENERATED_API_TYPES} is out of date with the backend's OpenAPI schema.\n"
+        "Run `npm run generate:api-types`, fix any type errors it causes, and "
+        "commit the result."
+    )
+
+
+Step = Union[Sequence[str], Callable[[], None]]
+
+STEPS: Sequence[Step] = (
     ("ruff", "format", "--check", "."),
     ("ruff", "check", "."),
+    check_api_types_up_to_date,
     ("pytest",),
     ("npm", "run", "lint"),
     ("npm", "run", "test:unit"),
@@ -303,11 +362,19 @@ def run_command(command: Sequence[str]) -> None:
     subprocess.run(command, check=True)
 
 
+def run_step(step: Step) -> None:
+    """Run a command tuple or an in-process check function (which prints its title)."""
+    if callable(step):
+        step()
+    else:
+        run_command(step)
+
+
 def main() -> int:
     """Run the CI-equivalent workflow and return the exit code."""
     run_guardrail_checks()
-    for command in COMMANDS:
-        run_command(command)
+    for step in STEPS:
+        run_step(step)
     return 0
 
 

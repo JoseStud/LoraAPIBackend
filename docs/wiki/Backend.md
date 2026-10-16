@@ -37,8 +37,9 @@ cancel), `live.py` (immediate generation, progress, backends), `results.py`,
 `controllers/` (call services) and `presenters/` (shape responses).
 
 The endpoint-by-endpoint reference is [`docs/contract.md`](../contract.md).
-`openapi_example.yaml` and `npm run generate:api-types`
-([api-type-generation.md](../api-type-generation.md)) cover the schema side.
+The schema side is `create_app().openapi()` itself: `npm run generate:api-types`
+exports it without a server (`scripts/export_openapi.py`) and generates the
+frontend types from it ([api-type-generation.md](../api-type-generation.md)).
 
 ## Handlers and the event loop
 
