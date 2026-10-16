@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
-import logging
 import re
 import threading
 import uuid
@@ -30,6 +29,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from pydantic import BaseModel
 
+from backend.core.logging import get_logger
 from backend.schemas.recommendations import (
     BatchEmbeddingResponse,
     EmbeddingComputeResponse,
@@ -42,7 +42,7 @@ from backend.schemas.recommendations import (
 from .in_process_jobs import InProcessJobRunner, get_in_process_job_runner
 from .queue import QueueOrchestrator, RedisQueueBackend
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # How long finished jobs can be polled, in Redis and in memory.
 RESULT_TTL_SECONDS = 24 * 60 * 60

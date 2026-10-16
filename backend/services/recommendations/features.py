@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 import numpy as np
+from structlog.stdlib import BoundLogger
+
+from backend.core.logging import get_logger
 
 from .encoders import SentenceTransformerProvider, TriggerEmbedder
 from .scoring import ScoreCalculator
@@ -142,7 +144,7 @@ class LoRASemanticEmbedder:
         batch_size: int = 32,
         mixed_precision: bool = True,
         *,
-        logger: Optional[logging.Logger] = None,
+        logger: Optional[BoundLogger] = None,
         force_fallback: bool = False,
         provider: SentenceTransformerProvider | None = None,
         payload_builder: MultiModalTextPayloadBuilder | None = None,
@@ -150,7 +152,7 @@ class LoRASemanticEmbedder:
         """Initialize semantic embedding orchestrator."""
         self.batch_size = batch_size
         self.mixed_precision = mixed_precision
-        self._logger = logger or logging.getLogger(__name__)
+        self._logger = logger or get_logger(__name__)
         self._payload_builder = payload_builder or MultiModalTextPayloadBuilder()
 
         if provider is None:
@@ -237,11 +239,11 @@ class GPULoRAFeatureExtractor:
         score_calculator: ScoreCalculator | None = None,
         trigger_resolver: TriggerResolver | None = None,
         trigger_embedder: TriggerEmbedder | None = None,
-        logger: Optional[logging.Logger] = None,
+        logger: Optional[BoundLogger] = None,
     ) -> None:
         """Initialize feature extractor."""
         self.device = device
-        self._logger = logger or logging.getLogger(__name__)
+        self._logger = logger or get_logger(__name__)
         self.semantic_embedder = semantic_embedder or LoRASemanticEmbedder(
             device=device,
             logger=self._logger,

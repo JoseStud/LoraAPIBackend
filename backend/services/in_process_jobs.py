@@ -15,12 +15,13 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-import logging
 import threading
 from concurrent.futures import CancelledError, Future
 from typing import Any, Callable, Optional, Tuple
 
-logger = logging.getLogger(__name__)
+from backend.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 JobFunc = Callable[[str], Any]
 _QueuedJob = Tuple[JobFunc, str, "Future[None]"]

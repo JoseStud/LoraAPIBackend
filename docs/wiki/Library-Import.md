@@ -9,7 +9,7 @@ imported and backed up.
 
 [`scripts/importer.py`](../../scripts/importer.py) scans a directory of LoRA
 files with Civitai-style JSON sidecars and registers an adapter per JSON file.
-The field-by-field mapping is in [JSON_IMPORT_FLOW.md](../../JSON_IMPORT_FLOW.md).
+The field-by-field mapping is in [JSON import flow](JSON-Import-Flow.md).
 
 ### How a scan works
 

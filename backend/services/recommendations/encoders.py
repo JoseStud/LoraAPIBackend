@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import hashlib
-import logging
 import re
 from threading import Lock
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Sequence
 
 import numpy as np
+from structlog.stdlib import BoundLogger
+
+from backend.core.logging import get_logger
 
 
 class _FallbackSentenceEncoder:
@@ -64,12 +66,12 @@ class SentenceTransformerProvider:
         self,
         *,
         device: str = "cuda",
-        logger: Optional[logging.Logger] = None,
+        logger: Optional[BoundLogger] = None,
         force_fallback: bool = False,
         model_configs: Optional[Mapping[str, Mapping[str, Any]]] = None,
     ) -> None:
         """Initialise model configuration and optional fallbacks."""
-        self._logger = logger or logging.getLogger(__name__)
+        self._logger = logger or get_logger(__name__)
         self._preferred_device = device
 
         self._model_configs: Dict[str, Mapping[str, Any]] = (
@@ -255,11 +257,11 @@ class TriggerEmbedder:
         self,
         *,
         device: str = "cpu",
-        logger: Optional[logging.Logger] = None,
+        logger: Optional[BoundLogger] = None,
         provider: Optional[SentenceTransformerProvider] = None,
     ) -> None:
         """Initialise the embedder with the desired device and provider overrides."""
-        self._logger = logger or logging.getLogger(__name__)
+        self._logger = logger or get_logger(__name__)
         configs = {
             self.MODEL_KEY: {
                 "model_name": "sentence-transformers/all-MiniLM-L6-v2",

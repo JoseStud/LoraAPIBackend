@@ -1,13 +1,12 @@
 """RQ task entrypoints and the shared worker context."""
 
 import asyncio
-import json
-import logging
 from typing import List, Optional
 
 from rq import get_current_job
 
 from backend.core.database import get_session_context
+from backend.core.logging import get_logger
 from backend.schemas.recommendations import (
     BatchEmbeddingResponse,
     IndexRebuildResponse,
@@ -15,14 +14,7 @@ from backend.schemas.recommendations import (
 from backend.services.queue import QueueOrchestrator
 from backend.workers.context import AsyncRunner, WorkerContext
 
-# Basic structured-ish logger for worker events
-logger = logging.getLogger("lora.tasks")
-if not logger.handlers:
-    h = logging.StreamHandler()
-    fmt = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
-    h.setFormatter(fmt)
-    logger.addHandler(h)
-logger.setLevel(logging.INFO)
+logger = get_logger(__name__)
 
 _worker_context: Optional[WorkerContext] = None
 
@@ -71,14 +63,14 @@ def process_delivery(delivery_id: str, *, context: Optional[WorkerContext] = Non
     (cancelled, finished, or still ``running`` after a timed-out attempt)
     does nothing.
     """
-    logger.info(json.dumps({"event": "start", "delivery_id": delivery_id}))
+    logger.info("Delivery task started", delivery_id=delivery_id)
 
     ctx = context or get_worker_context()
 
     with get_session_context() as sess:
         services = ctx.create_service_container(sess)
         if services.deliveries.get_job(delivery_id) is None:
-            logger.warning(json.dumps({"event": "missing", "delivery_id": delivery_id}))
+            logger.warning("Delivery task found no job", delivery_id=delivery_id)
             return
 
     try:
@@ -93,17 +85,14 @@ def process_delivery(delivery_id: str, *, context: Optional[WorkerContext] = Non
             retries_left=retries_left,
             raise_on_error=True,
         )
-        logger.info(json.dumps({"event": "finished", "delivery_id": delivery_id}))
+        logger.info("Delivery task finished", delivery_id=delivery_id)
     except Exception as exc:
+        # The runner already logged the traceback.
         logger.error(
-            json.dumps(
-                {
-                    "event": "error",
-                    "delivery_id": delivery_id,
-                    "error": str(exc),
-                    "retries_left": retries_left,
-                },
-            ),
+            "Delivery task failed",
+            delivery_id=delivery_id,
+            error=str(exc),
+            retries_left=retries_left,
         )
         raise
 
@@ -129,7 +118,6 @@ async def process_embeddings_batch_async(
 
     """
     ctx = context or get_worker_context()
-    logger = logging.getLogger(__name__)
 
     def compute() -> dict:
         with get_session_context() as sess:
@@ -165,8 +153,8 @@ async def process_embeddings_batch_async(
 
         return BatchEmbeddingResponse.model_validate(result).model_dump(mode="json")
 
-    except Exception as exc:
-        logger.error(f"Embedding computation failed: {exc}")
+    except Exception:
+        logger.exception("Embedding computation failed")
         raise
 
 
@@ -207,7 +195,6 @@ async def compute_single_embedding_async(
 
     """
     ctx = context or get_worker_context()
-    logger = logging.getLogger(__name__)
 
     def compute() -> bool:
         with get_session_context() as sess:
@@ -231,8 +218,8 @@ async def compute_single_embedding_async(
 
         return result
 
-    except Exception as exc:
-        logger.error(f"Single embedding computation failed for {adapter_id}: {exc}")
+    except Exception:
+        logger.exception("Single embedding computation failed for %s", adapter_id)
         raise
 
 
@@ -269,7 +256,6 @@ async def rebuild_similarity_index_async(
         produced by the recommendation service, as a JSON-safe dict.
 
     """
-    logger = logging.getLogger(__name__)
     ctx = context or get_worker_context()
 
     def rebuild() -> IndexRebuildResponse:
@@ -300,10 +286,3 @@ def rebuild_similarity_index(
     """Run :func:`rebuild_similarity_index_async` synchronously."""
     ctx = context or get_worker_context()
     return ctx.run_async(rebuild_similarity_index_async(force=force, context=ctx))
-
-
-if __name__ == "__main__":
-    print(
-        "Queue ready. Run workers with: "
-        "rq worker --with-scheduler --url $REDIS_URL default"
-    )

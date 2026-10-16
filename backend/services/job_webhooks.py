@@ -7,16 +7,16 @@ the image from ``download_path`` with the usual ``X-API-Key`` header.
 from __future__ import annotations
 
 import asyncio
-import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, Mapping, Optional, Union
 
 import aiohttp
 
 from backend.core.config import settings
+from backend.core.logging import get_logger
 from backend.schemas.delivery_jobs import DeliveryJobParams, DeliveryJobResult
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 EVENT_NAME = "generation.finished"
 NOTIFY_STATUSES = frozenset({"succeeded", "failed"})

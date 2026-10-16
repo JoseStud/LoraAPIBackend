@@ -9,7 +9,9 @@ performs the same idempotent registration on first use.
 
 from __future__ import annotations
 
+import asyncio
 import threading
+from typing import Any, Coroutine, Optional, TypeVar
 
 from backend.core.config import settings
 
@@ -20,6 +22,8 @@ from .http_client import DeliveryHTTPClient
 from .sdnext import SDNextGenerationBackend
 from .sdnext_client import SDNextSession
 from .storage import FileSystemImageStorage
+
+T = TypeVar("T")
 
 _registry = DeliveryRegistry()
 _registry_lock = threading.Lock()
@@ -69,6 +73,30 @@ def get_delivery_registry() -> DeliveryRegistry:
     return ensure_delivery_system()
 
 
+def run_with_fresh_loop(
+    coro: Coroutine[Any, Any, T],
+    *,
+    registry: Optional[DeliveryRegistry] = None,
+) -> T:
+    """Run ``coro`` with :func:`asyncio.run`, then release loop-bound resources.
+
+    The shared HTTP clients keep one session per event loop. Before the new
+    loop closes, the registry's backends close the sessions they opened on
+    it, so nothing is left unclosed when the loop is gone. Runs on the
+    calling thread, so RQ's job timeout (SIGALRM on the main thread) still
+    interrupts the job.
+    """
+    target = registry if registry is not None else get_delivery_registry()
+
+    async def main() -> T:
+        try:
+            return await coro
+        finally:
+            await target.release_loop_resources()
+
+    return asyncio.run(main())
+
+
 def get_delivery_backend(name: str) -> DeliveryBackend:
     """Get a delivery backend by name.
 
@@ -115,4 +143,5 @@ __all__ = [
     "get_delivery_backend",
     "get_delivery_registry",
     "get_generation_backend",
+    "run_with_fresh_loop",
 ]

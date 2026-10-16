@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-import logging
 import re
 from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
+from structlog.stdlib import BoundLogger
+
+from backend.core.logging import get_logger
 
 
 class LoRARecommendationEngine:
@@ -17,12 +19,12 @@ class LoRARecommendationEngine:
         feature_extractor: Any,
         *,
         device: str = "cuda",
-        logger: Optional[logging.Logger] = None,
+        logger: Optional[BoundLogger] = None,
     ) -> None:
         """Initialize recommendation engine."""
         self.feature_extractor = feature_extractor
         self.device = device
-        self._logger = logger or logging.getLogger(__name__)
+        self._logger = logger or get_logger(__name__)
 
         self.semantic_embeddings: Optional[np.ndarray] = None
         self.artistic_embeddings: Optional[np.ndarray] = None

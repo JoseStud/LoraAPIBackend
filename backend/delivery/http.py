@@ -1,14 +1,15 @@
 """HTTP delivery implementation."""
 
 import asyncio
-import logging
 from typing import Any, Dict
 
 import aiohttp
 
+from backend.core.logging import get_logger
+
 from .base import DeliveryBackend
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class HTTPDeliveryBackend(DeliveryBackend):

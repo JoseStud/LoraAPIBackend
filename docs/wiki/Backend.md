@@ -177,7 +177,10 @@ To add a backend, implement the base class in
 - Any other exception is logged with its traceback by the `lora.api` logger and
   returned as a generic 500. **Never return exception text to clients**; it can
   contain paths, SQL or configuration.
-- Logging is structlog with a JSON renderer (`core/logging.py`).
+- Logging is structlog over stdlib with a JSON renderer (`core/logging.py`).
+  Modules call `get_logger(__name__)` and log with `%s` arguments or keyword
+  fields; `setup_logging()` runs in the lifespan and when an RQ worker builds
+  its `WorkerContext`.
 - `get_api_key` (`core/security.py`) compares `X-API-Key` with `API_KEY` when
   one is set. This is a convenience, not security: the key is served to the
   browser. The tool assumes a single user on a trusted LAN; don't build

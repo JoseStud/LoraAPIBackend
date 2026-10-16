@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import os
 import shutil
 from dataclasses import dataclass
@@ -14,6 +13,7 @@ from sqlalchemy import func, select
 
 from backend.core.config import settings
 from backend.core.gpu import detect_gpu, get_gpu_memory_info
+from backend.core.logging import get_logger
 from backend.delivery.sdnext_client import SDNextSession
 from backend.models import Adapter
 from backend.services.recommendations import EmbeddingService
@@ -23,7 +23,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from .deliveries import DeliveryService
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _bytes_to_gigabytes(value: Optional[int]) -> float:
