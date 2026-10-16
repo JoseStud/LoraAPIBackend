@@ -1844,6 +1844,7 @@ export interface components {
             status: string;
             /**
              * Progress
+             * @description Progress as a fraction from 0.0 to 1.0 (1.0 is complete).
              * @default 0
              */
             progress: number;
@@ -2361,7 +2362,10 @@ export interface components {
             status: string;
             /** Images */
             images?: string[] | null;
-            /** Progress */
+            /**
+             * Progress
+             * @description Progress as a fraction from 0.0 to 1.0 (1.0 is complete).
+             */
             progress?: number | null;
             /** Error Message */
             error_message?: string | null;
