@@ -258,6 +258,42 @@ async def test_failing_pre_generate_command_does_not_block_generation(
 
 
 @pytest.mark.anyio("asyncio")
+async def test_cancelled_pre_generate_command_kills_its_process(monkeypatch):
+    """A job deadline that fires mid-command must not leave the command running."""
+    import asyncio
+
+    from backend.delivery import sdnext as sdnext_module
+
+    monkeypatch.setattr(
+        sdnext_module.settings, "SDNEXT_PRE_GENERATE_COMMAND", "sleep 30"
+    )
+    monkeypatch.setattr(sdnext_module.settings, "SDNEXT_PRE_GENERATE_TIMEOUT", 60)
+    started = []
+    create = asyncio.create_subprocess_exec
+
+    async def recording_create(*args, **kwargs):
+        process = await create(*args, **kwargs)
+        started.append(process)
+        return process
+
+    monkeypatch.setattr(
+        sdnext_module.asyncio, "create_subprocess_exec", recording_create
+    )
+
+    with pytest.raises(TimeoutError):
+        async with asyncio.timeout(0.5):
+            await sdnext_module.run_pre_generate_command()
+
+    (process,) = started
+    try:
+        assert await asyncio.wait_for(process.wait(), timeout=5) is not None
+    finally:
+        if process.returncode is None:  # pragma: no cover - only when the fix regresses
+            process.kill()
+            await process.wait()
+
+
+@pytest.mark.anyio("asyncio")
 async def test_empty_image_list_reports_an_aborted_job() -> None:
     """SD.Next answers 200 with no images when it aborts (e.g. GPU OOM).
 

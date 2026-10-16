@@ -55,6 +55,11 @@ async def run_pre_generate_command() -> None:
         await process.wait()
         logger.warning("Pre-generate command timed out: %s", command)
         return
+    except asyncio.CancelledError:
+        # The job's deadline (or a cancel) stopped the job; don't leave the
+        # command running after it.
+        process.kill()
+        raise
 
     if process.returncode != 0:
         logger.warning(
