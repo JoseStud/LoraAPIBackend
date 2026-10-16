@@ -5,9 +5,9 @@
 A Vue 3 + TypeScript SPA built with Vite, using Pinia for state, Vue Router for
 navigation, Zod for response validation and Tailwind for styling. Source lives
 in [`app/frontend/src`](../../app/frontend/src). Vite's root is `app/frontend`
-and `npm run build` writes the bundle to `app/dist/`.
-[`app/main.py`](../../app/main.py) serves a built SPA from `dist/` at the
-repository root; see [Troubleshooting](Troubleshooting.md#the-built-spa-is-not-served).
+and `npm run build` writes the bundle to `app/dist/`, which
+[`app/main.py`](../../app/main.py) serves (with an `index.html` fallback for
+client-side routes); see [Troubleshooting](Troubleshooting.md#the-built-spa-is-not-served).
 
 ## Layout
 

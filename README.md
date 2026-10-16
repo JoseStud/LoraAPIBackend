@@ -77,7 +77,8 @@ make demo-check  # real PostgreSQL + Redis + RQ + HTTP integration
 
 CI runs both, plus production builds on Linux and Windows. Browser E2E and
 performance suites are separate: see the [testing guide](tests/README.md).
-`npm run prod:build` creates the production frontend bundle.
+`npm run prod:build` creates the production frontend bundle in `app/dist/`,
+which `npm run prod:serve` serves.
 
 ## Scope and limitations
 
