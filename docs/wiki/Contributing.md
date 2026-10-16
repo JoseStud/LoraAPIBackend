@@ -38,13 +38,13 @@ Step-by-step patterns for the changes people make most often. Each ends with
 ## Add a backend service
 
 1. Write the class in `backend/services/` (sync methods for database work).
-2. Add a `make_<name>_service` factory and a factory type in
-   `backend/services/providers/`.
-3. Add a field to `ServiceFactories` and a `cached_property` on
-   `ServiceRegistry`
-   ([`service_registry.py`](../../backend/services/service_registry.py)). Raise
-   a clear `ValueError` from the property if a needed collaborator is missing.
-4. Use it as `services.<name>`. Test it directly and through a registry with
+2. Add a field to `ServiceFactories`, typed `Callable[..., <Name>Service]`,
+   and a `cached_property` on `ServiceRegistry`
+   ([`service_registry.py`](../../backend/services/service_registry.py)). The
+   field's default is the class itself, or a `make_<name>_service` function
+   in the same file when the registry's arguments need translating. Raise a
+   clear `ValueError` from the property if a needed collaborator is missing.
+3. Use it as `services.<name>`. Test it directly and through a registry with
    overridden factories.
 
 Don't instantiate services directly in routers or workers.

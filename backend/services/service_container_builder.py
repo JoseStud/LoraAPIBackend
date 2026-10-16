@@ -37,9 +37,6 @@ class ServiceContainerBuilder:
         queue_orchestrator_factory: Callable[
             [], QueueOrchestrator
         ] = create_queue_orchestrator,
-        analytics_repository_factory: Callable[
-            [Session], AnalyticsRepository
-        ] = AnalyticsRepository,
         delivery_repository_factory: Callable[
             [Session], DeliveryJobRepository
         ] = DeliveryJobRepository,
@@ -50,7 +47,6 @@ class ServiceContainerBuilder:
         """Capture override factories and lazily constructed dependencies."""
         self._factories = factories or ServiceFactories()
         self._queue_orchestrator_factory = queue_orchestrator_factory
-        self._analytics_repository_factory = analytics_repository_factory
         self._delivery_repository_factory = delivery_repository_factory
         self._recommendation_gpu_detector = recommendation_gpu_detector
 
@@ -91,9 +87,6 @@ class ServiceContainerBuilder:
         *,
         factories: Optional[ConfigOverride[ServiceFactories]] = None,
         queue_orchestrator_factory: Optional[Callable[[], QueueOrchestrator]] = None,
-        analytics_repository_factory: Optional[
-            Callable[[Session], AnalyticsRepository]
-        ] = None,
         delivery_repository_factory: Optional[
             Callable[[Session], DeliveryJobRepository]
         ] = None,
@@ -109,9 +102,6 @@ class ServiceContainerBuilder:
             factories=_resolve_override(self._factories, factories),
             queue_orchestrator_factory=(
                 queue_orchestrator_factory or self._queue_orchestrator_factory
-            ),
-            analytics_repository_factory=(
-                analytics_repository_factory or self._analytics_repository_factory
             ),
             delivery_repository_factory=(
                 delivery_repository_factory or self._delivery_repository_factory
@@ -169,22 +159,13 @@ class ServiceContainerBuilder:
             if delivery_repository is not None
             else self._delivery_repository_factory(db_session)
         )
-        analytics_repository = (
-            analytics_repository
-            if analytics_repository is not None
-            else self._analytics_repository_factory(db_session)
-        )
+        if analytics_repository is None:
+            analytics_repository = AnalyticsRepository(db_session)
 
         if delivery_repository is None:
             raise ValueError(
                 "ServiceContainerBuilder.build() could not resolve a delivery "
                 "repository. Ensure the delivery repository factory returns an "
-                "instance.",
-            )
-        if analytics_repository is None:
-            raise ValueError(
-                "ServiceContainerBuilder.build() could not resolve an analytics "
-                "repository. Ensure the analytics repository factory returns an "
                 "instance.",
             )
 

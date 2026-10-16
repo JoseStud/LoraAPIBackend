@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Optional
+from typing import Callable, Optional
 
 from sqlmodel import Session
+
+from backend.core.config import settings
 
 from .adapters import AdapterService
 from .analytics import AnalyticsService
@@ -16,60 +18,88 @@ from .composition import ComposeService
 from .deliveries import DeliveryService
 from .delivery_repository import DeliveryJobRepository
 from .generation import GenerationCoordinator, GenerationService
-from .providers.analytics import AnalyticsServiceFactory, make_analytics_service
-from .providers.archive import ArchiveServiceFactory, make_archive_service
-from .providers.deliveries import DeliveryServiceFactory, make_delivery_service
 from .providers.generation import (
-    ComposeServiceFactory,
-    GenerationCoordinatorFactory,
-    GenerationServiceFactory,
     make_compose_service,
     make_generation_coordinator,
     make_generation_service,
 )
-from .providers.recommendations import (
-    RecommendationJobServiceFactory,
-    RecommendationServiceFactory,
-    make_recommendation_job_service,
-    make_recommendation_service,
-)
-from .providers.storage import (
-    AdapterServiceFactory,
-    StorageServiceFactory,
-    make_adapter_service,
-    make_storage_service,
-)
-from .providers.system import SystemServiceFactory, make_system_service
-from .providers.websocket import (
-    WebSocketServiceFactory,
-    default_websocket_service_factory,
-)
+from .providers.websocket import default_websocket_service_factory
 from .queue import QueueOrchestrator
 from .recommendation_jobs import RecommendationJobService
-from .recommendations import RecommendationService
-from .storage import StorageService
+from .recommendations import (
+    EmbeddingService,
+    RecommendationModelRegistry,
+    RecommendationRepository,
+    RecommendationService,
+)
+from .storage import StorageService, get_storage_backend
 from .system import SystemService
 from .websocket import WebSocketService
 
 
+def make_storage_service() -> StorageService:
+    """Create a :class:`StorageService` on the configured storage backend."""
+    return StorageService(get_storage_backend())
+
+
+def make_adapter_service(
+    *,
+    db_session: Session,
+    storage_service: StorageService,
+) -> AdapterService:
+    """Create an :class:`AdapterService` on the storage service's backend."""
+    return AdapterService(db_session, storage_backend=storage_service.backend)
+
+
+def make_recommendation_service(
+    db_session: Session,
+    *,
+    gpu_available: bool,
+) -> RecommendationService:
+    """Create a :class:`RecommendationService` bound to ``db_session``."""
+    model_registry = RecommendationModelRegistry(gpu_enabled=gpu_available)
+    repository = RecommendationRepository(db_session)
+    return RecommendationService(
+        repository=repository,
+        embeddings=EmbeddingService(repository, model_registry),
+        model_registry=model_registry,
+    )
+
+
+def make_system_service(delivery_service: DeliveryService) -> SystemService:
+    """Create a :class:`SystemService` with the configured queue thresholds."""
+    return SystemService(
+        delivery_service,
+        queue_warning_active=settings.SYSTEM_QUEUE_WARNING_ACTIVE,
+        queue_warning_failed=settings.SYSTEM_QUEUE_WARNING_FAILED,
+        importer_stale_hours=settings.SYSTEM_IMPORTER_STALE_HOURS,
+    )
+
+
 @dataclass(frozen=True)
 class ServiceFactories:
-    """The factory used to construct each service in a :class:`ServiceRegistry`."""
+    """The factory used to construct each service in a :class:`ServiceRegistry`.
 
-    storage: StorageServiceFactory = make_storage_service
-    adapter: AdapterServiceFactory = make_adapter_service
-    compose: ComposeServiceFactory = make_compose_service
-    generation: GenerationServiceFactory = make_generation_service
-    analytics: AnalyticsServiceFactory = make_analytics_service
-    recommendation: RecommendationServiceFactory = make_recommendation_service
-    recommendation_jobs: RecommendationJobServiceFactory = (
-        make_recommendation_job_service
+    A default is the service class itself when the registry's arguments map
+    straight onto its constructor, otherwise a ``make_*`` function.
+    """
+
+    storage: Callable[..., StorageService] = make_storage_service
+    adapter: Callable[..., AdapterService] = make_adapter_service
+    compose: Callable[..., ComposeService] = make_compose_service
+    generation: Callable[..., GenerationService] = make_generation_service
+    analytics: Callable[..., AnalyticsService] = AnalyticsService
+    recommendation: Callable[..., RecommendationService] = make_recommendation_service
+    recommendation_jobs: Callable[..., RecommendationJobService] = (
+        RecommendationJobService
     )
-    archive: ArchiveServiceFactory = make_archive_service
-    delivery: DeliveryServiceFactory = make_delivery_service
-    generation_coordinator: GenerationCoordinatorFactory = make_generation_coordinator
-    websocket: WebSocketServiceFactory = default_websocket_service_factory
-    system: SystemServiceFactory = make_system_service
+    archive: Callable[..., ArchiveService] = ArchiveService
+    delivery: Callable[..., DeliveryService] = DeliveryService
+    generation_coordinator: Callable[..., GenerationCoordinator] = (
+        make_generation_coordinator
+    )
+    websocket: Callable[..., WebSocketService] = default_websocket_service_factory
+    system: Callable[..., SystemService] = make_system_service
 
 
 class ServiceRegistry:
@@ -210,4 +240,11 @@ class ServiceRegistry:
         )
 
 
-__all__ = ["ServiceFactories", "ServiceRegistry"]
+__all__ = [
+    "ServiceFactories",
+    "ServiceRegistry",
+    "make_adapter_service",
+    "make_recommendation_service",
+    "make_storage_service",
+    "make_system_service",
+]

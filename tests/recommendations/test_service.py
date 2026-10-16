@@ -4,12 +4,12 @@ from unittest.mock import MagicMock
 
 from backend.services import get_service_container_builder
 from backend.services.analytics_repository import AnalyticsRepository
-from backend.services.providers.recommendations import make_recommendation_service
 from backend.services.recommendations import (
     EmbeddingService,
     RecommendationModelRegistry,
     RecommendationService,
 )
+from backend.services.service_registry import make_recommendation_service
 
 
 class TestRecommendationService:
