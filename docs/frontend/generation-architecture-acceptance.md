@@ -11,7 +11,7 @@ This checklist confirms that the post-refactor generation stack satisfies the re
 ## Unified Networking
 
 - `services/shared/http` owns the only HTTP client: fetch handling, auth headers, retries, tracing and parsing are defined once in `createHttpClient.ts`, and `useApi` goes through it for consistent error handling (`app/frontend/src/services/shared/http/createHttpClient.ts`, `app/frontend/src/services/shared/http/index.ts`, `app/frontend/src/composables/shared/useApi.ts`).
-- Generation services (`services/generationService.ts`, `services/queueClient.ts`, `services/websocketManager.ts`) depend on the shared API client or the transport adapter rather than bespoke fetch utilities.
+- Generation services (`services/generationService.ts`, `services/websocketManager.ts`) depend on the shared API client or the transport adapter rather than bespoke fetch utilities.
 
 ## Clean Module Boundaries
 
@@ -33,6 +33,6 @@ This checklist confirms that the post-refactor generation stack satisfies the re
 
 - The transport module records connection phases, retry counts, downtime, and last errors, exposing immutable metrics for debugging (`stores/orchestrator/transportModule.ts`).
 - Tests exercise transport recovery, orchestrator lifecycle, and error handling to guarantee deterministic behaviour (e.g., reconnect scheduling, metrics reset, pause/resume, initialization idempotence): `tests/vue/stores/orchestrator/transportModule.spec.ts`, `tests/vue/stores/orchestrator/transportAdapter.spec.ts`, `tests/vue/stores/useGenerationOrchestratorStore.spec.ts`, `tests/vue/composables/useGenerationOrchestratorManager.lifecycle.spec.ts`.
-- Queue client tests confirm HTTP error reporting, ensuring logging metadata is preserved for observability (`tests/vue/useGenerationQueueClient.spec.ts`).
+- Transport adapter tests confirm HTTP error reporting, ensuring logging metadata is preserved for observability (`tests/vue/stores/orchestrator/transportAdapter.spec.ts`).
 
 Collectively, these artefacts validate that the refactored architecture remains modular, observable, and resilient, aligning with the review’s expectations.

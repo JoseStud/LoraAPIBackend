@@ -1,3 +1,10 @@
+/**
+ * The generation feature's HTTP surface: payload builders, URL resolvers and every generation
+ * request, validated with Zod before it is returned. `createGenerationQueueClient` binds these
+ * requests to a backend URL getter; it is the one typed client the orchestrator transport
+ * (`stores/orchestrator/transportAdapter.ts`) talks to. `/system/status` is not here: the
+ * shared `stores/systemStatusController.ts` owns it.
+ */
 import type {
   CompositionEntry,
   DeliveryCreateResponse,
@@ -6,6 +13,7 @@ import type {
   GenerationFormState,
   GenerationJobStatus,
   GenerationRequestPayload,
+  GenerationResult,
   GenerationStartResponse,
   SDNextGenerationParams,
   SDNextGenerationResult,
@@ -16,11 +24,12 @@ import {
   getFilenameFromContentDisposition,
   resolveBackendClient as resolveClient,
   resolveBackendPath,
+  type BackendHttpClient,
   type BackendHttpClientInput,
 } from '@/services/shared/http';
 import { withSameOrigin } from '@/utils/backend';
 import { DeliveryCreateResponseSchema, GenerationRequestPayloadSchema } from '@/schemas';
-import { parseGenerationJobStatuses } from './validation';
+import { parseGenerationJobStatuses, parseGenerationResults } from './validation';
 
 export type GenerationParamOverrides =
   & Pick<SDNextGenerationParams, 'prompt'>
@@ -78,6 +87,7 @@ export const requestGeneration = async (
   return data ?? null;
 };
 
+/** `GET /generation/jobs/active`; malformed records are logged and dropped. */
 export const fetchActiveGenerationJobs = async (
   input?: GenerationClientInput,
 ): Promise<GenerationJobStatus[]> => {
@@ -87,6 +97,20 @@ export const fetchActiveGenerationJobs = async (
     withSameOrigin(),
   );
   return parseGenerationJobStatuses(result.data, 'active job');
+};
+
+/** `GET /generation/results?limit=…`; malformed records are logged and dropped. */
+export const fetchRecentGenerationResults = async (
+  limit: number,
+  input?: GenerationClientInput,
+): Promise<GenerationResult[]> => {
+  const backend = resolveClient(input);
+  const normalizedLimit = Math.max(1, Number(limit) || 1);
+  const result = await backend.requestJson<unknown>(
+    generationPath(`results?limit=${normalizedLimit}`),
+    withSameOrigin(),
+  );
+  return parseGenerationResults(result.data, 'recent result');
 };
 
 export const toGenerationRequestPayload = (
@@ -163,5 +187,37 @@ export const downloadGenerationResult = async (
       ?? `${fallbackName}.png`,
     contentType: response.headers.get('content-type'),
     size: blob.size,
+  };
+};
+
+/** The generation requests the orchestrator transport needs, bound to one backend. */
+export interface GenerationQueueClient {
+  startGeneration(payload: GenerationRequestPayload): Promise<GenerationStartResponse>;
+  cancelJob(jobId: string): Promise<void>;
+  deleteResult(resultId: string | number): Promise<void>;
+  fetchActiveJobs(): Promise<GenerationJobStatus[]>;
+  fetchRecentResults(limit: number): Promise<GenerationResult[]>;
+}
+
+export interface GenerationQueueClientOptions {
+  /** A fixed client; takes precedence over `getBackendUrl`. */
+  client?: BackendHttpClient | null;
+  /** Read on every request, so backend URL changes apply without recreating the client. */
+  getBackendUrl?: () => string | null | undefined;
+}
+
+export const createGenerationQueueClient = (
+  options: GenerationQueueClientOptions = {},
+): GenerationQueueClient => {
+  const backend = (): GenerationClientInput => options.client ?? (options.getBackendUrl?.() || undefined);
+
+  return {
+    startGeneration: (payload) => startGeneration(payload, backend()),
+    cancelJob: async (jobId) => {
+      await cancelGenerationJob(jobId, backend());
+    },
+    deleteResult: (resultId) => deleteGenerationResult(resultId, backend()),
+    fetchActiveJobs: () => fetchActiveGenerationJobs(backend()),
+    fetchRecentResults: (limit) => fetchRecentGenerationResults(limit, backend()),
   };
 };

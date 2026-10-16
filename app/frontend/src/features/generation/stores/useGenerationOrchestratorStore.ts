@@ -2,7 +2,7 @@
 import { computed, readonly, ref, type ComputedRef } from 'vue';
 import { defineStore } from 'pinia';
 
-import type { GenerationQueueClient } from '../services/queueClient';
+import type { GenerationQueueClient } from '../services/generationService';
 import type { GenerationWebSocketManager } from '../services/websocketManager';
 import { acquireSystemStatusController } from './systemStatusController';
 import { createQueueModule } from './orchestrator/queueModule';
@@ -167,7 +167,6 @@ export const useGenerationOrchestratorStore = defineStore('generation-orchestrat
         websocketManager: options.websocketManager,
         initialPollInterval: systemStatusModule.pollIntervalMs.value,
         shouldPollQueue: () => queue.hasActiveJobs.value,
-        onSystemStatus: adapterHandlers.onSystemStatus,
         onQueueUpdate: adapterHandlers.onQueueUpdate,
         onProgress: adapterHandlers.onProgress,
         onComplete: adapterHandlers.onComplete,

@@ -19,8 +19,13 @@ vi.mock('@/features/generation/services/websocketManager', () => ({
   },
 }));
 
-import { createGenerationTransportAdapter } from '@/features/generation/stores/orchestrator/transportAdapter';
+import {
+  createGenerationTransportAdapter,
+  toQueueJobInput,
+} from '@/features/generation/stores/orchestrator/transportAdapter';
 import type { GenerationTransportAdapterOptions } from '@/features/generation/stores/orchestrator/transportAdapter';
+import { ApiError } from '@/types';
+import type { GenerationJobStatus } from '@/types';
 
 const POLL_MS = 1_000;
 
@@ -28,7 +33,6 @@ const createQueueClient = () => ({
   startGeneration: vi.fn().mockResolvedValue({ job_id: 'job-1', status: 'queued', progress: 0 }),
   cancelJob: vi.fn().mockResolvedValue(undefined),
   deleteResult: vi.fn().mockResolvedValue(undefined),
-  fetchSystemStatus: vi.fn().mockResolvedValue(null),
   fetchActiveJobs: vi.fn().mockResolvedValue([]),
   fetchRecentResults: vi.fn().mockResolvedValue([]),
 });
@@ -43,7 +47,7 @@ const createOptions = (
   initialPollInterval: POLL_MS,
   shouldPollQueue: () => true,
   queueClient: createQueueClient(),
-  onSystemStatus: vi.fn(),
+  refreshSystemStatus: vi.fn().mockResolvedValue(undefined),
   onQueueUpdate: vi.fn(),
   onProgress: vi.fn(),
   onComplete: vi.fn(),
@@ -86,7 +90,7 @@ describe('createGenerationTransportAdapter', () => {
 
     await adapter.initialize(10);
 
-    expect(options.queueClient!.fetchSystemStatus).toHaveBeenCalledTimes(1);
+    expect(options.refreshSystemStatus).toHaveBeenCalledTimes(1);
     expect(options.queueClient!.fetchActiveJobs).toHaveBeenCalledTimes(1);
     expect(options.queueClient!.fetchRecentResults).toHaveBeenCalledWith(10);
     expect(options.onQueueUpdate).toHaveBeenCalledWith([]);
@@ -195,11 +199,11 @@ describe('createGenerationTransportAdapter', () => {
 
     await Promise.all([adapter.resume(10, resumePayload), adapter.resume(10, resumePayload)]);
     expect(adapter.isPaused()).toBe(false);
-    expect(options.queueClient!.fetchSystemStatus).toHaveBeenCalledTimes(2);
+    expect(options.refreshSystemStatus).toHaveBeenCalledTimes(2);
     expect(socket.start).toHaveBeenCalledTimes(2);
 
     await adapter.resume(10, resumePayload);
-    expect(options.queueClient!.fetchSystemStatus).toHaveBeenCalledTimes(2);
+    expect(options.refreshSystemStatus).toHaveBeenCalledTimes(2);
 
     await vi.advanceTimersByTimeAsync(POLL_MS);
     expect(options.queueClient!.fetchActiveJobs).toHaveBeenCalledTimes(callsBefore + 2);
@@ -214,7 +218,7 @@ describe('createGenerationTransportAdapter', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
     adapter.pause(pausePayload);
-    options.queueClient!.fetchSystemStatus.mockRejectedValueOnce(new Error('offline'));
+    vi.mocked(options.refreshSystemStatus).mockRejectedValueOnce(new Error('offline'));
 
     await expect(adapter.resume(10, resumePayload)).rejects.toThrow('offline');
     expect(adapter.isPaused()).toBe(true);
@@ -229,7 +233,7 @@ describe('createGenerationTransportAdapter', () => {
     const socket = socketMocks.created[0];
 
     adapter.clear();
-    expect(socket.stop).toHaveBeenCalledTimes(2);
+    expect(socket.stop).toHaveBeenCalledTimes(1);
     expect(options.onReleaseSystemStatus).toHaveBeenCalledTimes(1);
     expect(adapter.isPaused()).toBe(false);
 
@@ -255,7 +259,7 @@ describe('createGenerationTransportAdapter', () => {
     expect(websocketManager.reconnect).toHaveBeenCalledTimes(1);
 
     adapter.clear();
-    expect(websocketManager.stop).toHaveBeenCalledTimes(2);
+    expect(websocketManager.stop).toHaveBeenCalledTimes(1);
   });
 
   it('only polls the queue while shouldPollQueue allows it and honours poll interval changes', async () => {
@@ -273,6 +277,93 @@ describe('createGenerationTransportAdapter', () => {
     expect(options.queueClient!.fetchActiveJobs).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(POLL_MS);
     expect(options.queueClient!.fetchActiveJobs).toHaveBeenCalledTimes(2);
+
+    adapter.clear();
+  });
+
+  it('maps active jobs onto queue inputs, keeping UI and backend ids', async () => {
+    const job: GenerationJobStatus = {
+      id: 'ui-1',
+      jobId: 'backend-1',
+      prompt: 'a cat',
+      name: null,
+      status: 'processing',
+      progress: 0.5,
+      message: null,
+      error: null,
+      params: null,
+      created_at: '2024-01-01T00:00:00Z',
+      startTime: null,
+      finished_at: null,
+      result: null,
+    };
+    const options = createOptions();
+    options.queueClient!.fetchActiveJobs = vi.fn().mockResolvedValue([job]);
+    const adapter = createGenerationTransportAdapter(options);
+
+    await adapter.refreshActiveJobs();
+
+    expect(options.onQueueUpdate).toHaveBeenCalledWith([toQueueJobInput(job)]);
+    expect(toQueueJobInput(job)).toMatchObject({
+      id: 'ui-1',
+      uiId: 'ui-1',
+      jobId: 'backend-1',
+      backendId: 'backend-1',
+      prompt: 'a cat',
+      progress: 0.5,
+      name: undefined,
+    });
+  });
+
+  it('reports HTTP failures as transport errors and rethrows them', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const apiError = new ApiError({
+      message: 'Server exploded',
+      status: 500,
+      statusText: 'Server Error',
+      payload: null,
+      meta: { ok: false, status: 500, statusText: 'Server Error' },
+    });
+    const options = createOptions();
+    options.queueClient!.fetchActiveJobs = vi.fn().mockRejectedValue(apiError);
+    options.queueClient!.cancelJob = vi.fn().mockRejectedValue(new Error('gone'));
+    const adapter = createGenerationTransportAdapter(options);
+
+    await expect(adapter.refreshActiveJobs()).rejects.toBe(apiError);
+    expect(options.onTransportError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: 'http',
+        context: 'refreshActiveJobs',
+        statusCode: 500,
+        message: 'Server exploded',
+      }),
+    );
+
+    await expect(adapter.cancelJob('job-9')).rejects.toThrow('gone');
+    expect(options.onTransportError).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        context: 'cancelJob',
+        message: 'gone',
+        details: expect.objectContaining({ jobId: 'job-9' }),
+      }),
+    );
+    expect(options.notificationAdapter.notify).toHaveBeenCalledWith('Failed to cancel generation', 'error');
+  });
+
+  it('reports a failed polling cycle without stopping the timer', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const options = createOptions();
+    const adapter = createGenerationTransportAdapter(options);
+    await adapter.initialize(10);
+
+    vi.mocked(options.queueClient!.fetchActiveJobs).mockRejectedValueOnce(new Error('flaky'));
+    await vi.advanceTimersByTimeAsync(POLL_MS);
+    expect(options.onTransportError).toHaveBeenCalledWith(
+      expect.objectContaining({ context: 'pollActiveJobs', message: 'flaky' }),
+    );
+
+    await vi.advanceTimersByTimeAsync(POLL_MS);
+    expect(options.queueClient!.fetchActiveJobs).toHaveBeenCalledTimes(3);
 
     adapter.clear();
   });

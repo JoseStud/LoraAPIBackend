@@ -272,9 +272,11 @@ Read these before changing the matching subsystem:
   ADR 007's 2026-10-15 amendments have the full module map and the
   single-lifecycle decision.
 - **Transport**: queue polling and WebSocket updates are wired in
-  `features/generation/stores/orchestrator/transportAdapter.ts` (HTTP through
-  `composables/useGenerationQueueClient.ts`, the socket through
-  `services/websocketManager.ts`). Transport state, the store's transport
+  `features/generation/stores/orchestrator/transportAdapter.ts`, which owns the
+  active-job poll timer and talks to one typed client,
+  `createGenerationQueueClient` in `services/generationService.ts` (every
+  generation request, Zod-validated there), and to the socket through
+  `services/websocketManager.ts`. Transport state, the store's transport
   commands and the routing of adapter callbacks into the store live in
   `features/generation/stores/orchestrator/transportModule.ts`. Extend those
   instead of adding polling to components. Polling intervals come from

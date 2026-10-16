@@ -425,7 +425,7 @@ export interface AdapterHandlerDependencies {
     | 'handleErrorMessage'
   >;
   results: Pick<ResultsModule, 'setResults'>;
-  systemStatus: Pick<SystemStatusModule, 'applySystemStatusPayload' | 'setConnectionState'>;
+  systemStatus: Pick<SystemStatusModule, 'setConnectionState'>;
   /**
    * Called with the backend ids of jobs whose results are now available: on a
    * WebSocket completion, or when a job leaves the active-jobs feed.
@@ -434,7 +434,6 @@ export interface AdapterHandlerDependencies {
 }
 
 export interface AdapterHandlers {
-  onSystemStatus: SystemStatusModule['applySystemStatusPayload'];
   onQueueUpdate: QueueModule['ingestQueue'];
   onProgress: QueueModule['handleProgressMessage'];
   onComplete: QueueModule['handleCompletionMessage'];
@@ -470,7 +469,6 @@ export const createAdapterHandlers = ({
   };
 
   return {
-    onSystemStatus: systemStatus.applySystemStatusPayload,
     onQueueUpdate: handleQueueUpdate,
     onProgress: queue.handleProgressMessage,
     onComplete: handleCompletion,

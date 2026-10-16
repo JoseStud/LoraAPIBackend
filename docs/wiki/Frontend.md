@@ -89,7 +89,7 @@ flowchart TD
     Sys["systemStatusModule<br/>+ systemStatusController"]
     T["transportModule"]
     A["transportAdapter"]
-    HTTP["useGenerationQueueClient<br/>(HTTP polling)"]
+    HTTP["generationService<br/>createGenerationQueueClient (HTTP)"]
     WS["websocketManager<br/>(progress socket)"]
 
     Studio -- "acquire()" --> Manager
@@ -130,8 +130,10 @@ Related contracts: [orchestrator store](../frontend/generation-orchestrator.md),
 
 ### Transport
 
-- `stores/orchestrator/transportAdapter.ts` combines HTTP queue polling and the
-  progress WebSocket behind one object. Creating it starts nothing; it starts in
+- `stores/orchestrator/transportAdapter.ts` combines active-job polling, the HTTP
+  commands and the progress WebSocket behind one object. Its HTTP goes through one
+  typed client, `createGenerationQueueClient` in `services/generationService.ts`,
+  which validates every response. Creating it starts nothing; it starts in
   `initialize()`/`resume()` and stops in `pause()`/`clear()`.
 - `stores/orchestrator/transportModule.ts` holds transport state and commands
   and routes adapter callbacks into the store.

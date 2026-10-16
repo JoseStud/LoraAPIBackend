@@ -145,7 +145,6 @@ const backendClientAllowedFiles = [
   'app/frontend/src/components/dashboard/DashboardGenerationSummary.vue',
   'app/frontend/src/features/analytics/services/analyticsService.ts',
   'app/frontend/src/features/analytics/stores/performanceAnalytics.ts',
-  'app/frontend/src/features/generation/services/generationBackendClient.ts',
   'app/frontend/src/features/generation/stores/systemStatusController.ts',
   'app/frontend/src/features/history/composables/useGenerationHistory.ts',
   'app/frontend/src/features/history/composables/useHistoryActions.ts',

@@ -81,7 +81,8 @@ What changed is that each responsibility now lives in one module instead of a ch
 | Orchestrator store (thin façade) | `stores/useGenerationOrchestratorStore.ts` |
 | Queue / results / system status state | `stores/orchestrator/queueModule.ts`, `resultsModule.ts`, `systemStatusModule.ts`, `stores/systemStatusController.ts` |
 | Transport state, commands and callback routing | `stores/orchestrator/transportModule.ts` (`createTransportModule`, `createTransportActions`, `createAdapterHandlers`) |
-| Transport adapter: HTTP polling + progress WebSocket, pause/resume/clear | `stores/orchestrator/transportAdapter.ts`, using `composables/useGenerationQueueClient.ts`, `services/websocketManager.ts`, `services/websocketMessages.ts` |
+| Transport adapter: active-job polling, HTTP commands, progress WebSocket, pause/resume/clear | `stores/orchestrator/transportAdapter.ts`, using `services/generationService.ts` (`createGenerationQueueClient`), `services/websocketManager.ts`, `services/websocketMessages.ts` |
+| Generation HTTP requests and payload builders | `services/generationService.ts`, validated by `services/validation.ts` |
 | Polling intervals | `config/polling.ts` |
 | Studio building blocks and binding | `composables/useGenerationStudioController.ts` (`createStudioVm`, `createGalleryModalVm`, `useGenerationUI`, `useGenerationStudioController`) |
 | Studio composable used by the shell | `composables/useGenerationStudio.ts` (+ `useGenerationPersistence.ts`, `useGenerationStudioNotifications.ts`) |
@@ -147,3 +148,33 @@ same orchestrator, and teardown depended on two consumer sets agreeing.
 and checks that they share one orchestrator, which is destroyed after the last unmounts and kept
 while the Studio still holds a binding.
 
+## Amendment 2026-10-16 – One typed transport client
+
+**Why.** The transport's HTTP path still ran through four layers: `transportAdapter.ts` wrapped
+`composables/useGenerationQueueClient.ts` (polling timer, notifications, error reports), which
+called `services/queueClient.ts` (a `console.error` and rethrow around each request), which
+called `services/generationBackendClient.ts` and the request functions in
+`services/generationService.ts`. Each layer re-declared the same callbacks, active jobs and
+results were Zod-validated twice, and `/system/status` had a fetch path that never ran in the app
+because the store always routes it through `stores/systemStatusController.ts`.
+
+**Decision.**
+
+- `services/generationService.ts` holds every generation request and its validation, plus
+  `createGenerationQueueClient`, the one typed client (`GenerationQueueClient`: `startGeneration`,
+  `cancelJob`, `deleteResult`, `fetchActiveJobs`, `fetchRecentResults`) bound to the backend URL
+  getter. Responses are validated there, once.
+- `stores/orchestrator/transportAdapter.ts` talks to that client directly and owns the active-job
+  poll timer, the user notifications and the `GenerationTransportError` reports that
+  `useGenerationQueueClient` used to own. Its `refreshSystemStatus` option is required: the
+  adapter never fetches `/system/status` itself, so the transport has no `onSystemStatus`
+  callback and the client no `fetchSystemStatus`.
+- `services/queueClient.ts`, `services/generationBackendClient.ts` and
+  `composables/useGenerationQueueClient.ts` are deleted. The `queueClient` option on `acquire()`
+  and `initialize()` still injects a `GenerationQueueClient`, now imported from
+  `services/generationService.ts`.
+
+**Unchanged.** The adapter's public methods, notifications, debug logs, polling interval rules and
+pause/resume semantics, and the store, manager and façade APIs. `useGenerationStudio.ts` stays
+separate from `useGenerationStudioController.ts`: it composes persistence, confirmations, view
+models and the initialization task rather than forwarding.

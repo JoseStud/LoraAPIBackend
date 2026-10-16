@@ -78,9 +78,11 @@ All helpers live in `stores/orchestrator/`.
   - `createAdapterHandlers` bridges transport callbacks into the queue/results/system-status
     modules so WebSocket and polling responses remain type-safe, and reports finished jobs so the
     store can refresh results.
-- **Transport adapter (`transportAdapter.ts`)** – `createGenerationTransportAdapter` combines HTTP
-  polling (`composables/useGenerationQueueClient.ts`, intervals from `config/polling.ts`) and the
-  progress WebSocket (`services/websocketManager.ts`) behind one object with `initialize`,
+- **Transport adapter (`transportAdapter.ts`)** – `createGenerationTransportAdapter` combines
+  active-job polling and the HTTP commands (through the typed client from
+  `services/generationService.ts`, intervals from `config/polling.ts`), `/system/status` refreshes
+  through the shared `systemStatusController`, and the progress WebSocket
+  (`services/websocketManager.ts`) behind one object with `initialize`,
   `pause`, `resume` and `clear`. Creating it starts nothing; the store's lifecycle methods start
   and stop it.
 
