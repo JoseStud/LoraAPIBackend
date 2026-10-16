@@ -15,11 +15,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Optional
 
-import structlog
 from fastapi import HTTPException
 from fastapi.concurrency import run_in_threadpool
 
 from backend.core.config import settings
+from backend.core.logging import get_logger
 from backend.delivery import get_delivery_registry
 from backend.delivery.storage import REFERENCE_FORMAT
 from backend.models import DeliveryJob
@@ -35,7 +35,7 @@ from backend.utils.progress import to_progress_fraction
 
 from ..presenters.jobs import build_generation_result
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 __all__ = [
     "list_generation_backends",

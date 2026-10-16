@@ -1,7 +1,6 @@
 """FastAPI application factory and global wiring for the LoRA backend."""
 
 import asyncio
-import logging
 import os
 from contextlib import asynccontextmanager
 from http import HTTPStatus
@@ -30,7 +29,7 @@ from backend.api.v1 import (
 from backend.api.v1.generation import images as generation_images
 from backend.core.config import settings
 from backend.core.database import init_db
-from backend.core.logging import setup_logging
+from backend.core.logging import get_logger, setup_logging
 from backend.core.security import get_api_key
 from backend.delivery import ensure_delivery_system
 from backend.services.generation import GenerationWaitTimeout
@@ -53,7 +52,7 @@ async def lifespan(app: FastAPI):
     job_monitor = JobProgressMonitor.from_settings(websocket_service.manager)
     job_monitor.start()
     startup_tasks = []
-    recommendation_logger = logging.getLogger("lora.recommendations.startup")
+    recommendation_logger = get_logger("lora.recommendations.startup")
 
     async def _preload_recommendations() -> None:
         loop = asyncio.get_running_loop()
@@ -73,7 +72,7 @@ async def lifespan(app: FastAPI):
 
     if settings.IMPORT_ON_STARTUP and settings.IMPORT_PATH:
         loop = asyncio.get_running_loop()
-        importer_logger = logging.getLogger("lora.importer.startup")
+        importer_logger = get_logger("lora.importer.startup")
 
         async def _run_startup_import() -> None:
             def _worker():
@@ -126,7 +125,7 @@ async def lifespan(app: FastAPI):
         # Jobs that never started are requeued by recovery at the next start.
         await asyncio.to_thread(get_in_process_job_runner().stop)
         # On shutdown, ensure all background tasks are completed or cancelled
-        lifespan_logger = logging.getLogger("lora.lifespan")
+        lifespan_logger = get_logger("lora.lifespan")
         for task in startup_tasks:
             try:
                 if task.done():
@@ -211,7 +210,7 @@ def create_app() -> FastAPI:
     @app.exception_handler(QueueUnavailableError)
     async def queue_unavailable_handler(request: Request, exc: QueueUnavailableError):
         """Report a job the durable queue rejected as a 503 problem detail."""
-        logging.getLogger("lora.api").error(
+        get_logger("lora.api").error(
             "Job queue unavailable during %s %s",
             request.method,
             request.url.path,
@@ -252,7 +251,7 @@ def create_app() -> FastAPI:
         The exception text can contain paths, SQL or configuration values, so it is
         logged server-side and never sent to the client.
         """
-        logging.getLogger("lora.api").exception(
+        get_logger("lora.api").exception(
             "Unhandled error during %s %s",
             request.method,
             request.url.path,
