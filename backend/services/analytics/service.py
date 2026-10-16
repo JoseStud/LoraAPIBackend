@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Iterable, List
@@ -20,6 +19,7 @@ from backend.schemas.analytics import (
     PerformanceKpiSummary,
     PerformanceTimeRange,
 )
+from backend.schemas.delivery_jobs import DeliveryJobResult
 
 from ..analytics_repository import AnalyticsRepository
 from .insights import InsightGenerator
@@ -209,28 +209,16 @@ class AnalyticsService:
         return (value / total) * 100
 
     def _extract_error_message(self, payload: str | None) -> str:
+        """Return the failure message stored in a failed job's ``result`` column.
+
+        A result that does not parse is counted under its raw text.
+        """
         if not payload:
             return "Unknown error"
 
-        message = payload
-        try:
-            data = json.loads(payload)
-        except json.JSONDecodeError:
-            data = None
-
-        if isinstance(data, dict):
-            for key in ("error", "message", "detail", "reason"):
-                value = data.get(key)
-                if isinstance(value, str) and value.strip():
-                    message = value
-                    break
-        elif isinstance(data, list) and data:
-            first = data[0]
-            if isinstance(first, str) and first.strip():
-                message = first
-
-        message = str(message).strip() or "Unknown error"
-        return message
+        result = DeliveryJobResult.parse_json(payload)
+        message = result.failure_message if result is not None else payload
+        return (message or "").strip() or "Unknown error"
 
     def _build_lora_usage_fallback(self, limit: int = 10) -> List[LoraUsageSlice]:
         usage_pairs = self.repository.active_lora_usage_counts()

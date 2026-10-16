@@ -26,6 +26,8 @@ import pytest
 from fastapi import WebSocketDisconnect
 
 from backend.schemas import (
+    DeliveryJobParams,
+    DeliveryJobResult,
     SDNextGenerationParams,
     SDNextGenerationResult,
     WebSocketSubscription,
@@ -74,12 +76,12 @@ class _ClientWebSocket:
         self._inbox.put_nowait(None)
 
 
-GENERATION_PARAMS = {
-    "generation_params": SDNextGenerationParams(
+GENERATION_PARAMS = DeliveryJobParams(
+    generation_params=SDNextGenerationParams(
         prompt="a lighthouse at dusk"
     ).model_dump(),
-    "backend": "sdnext",
-}
+    backend="sdnext",
+)
 CLAIMED_AT = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
 
@@ -133,11 +135,11 @@ async def _capture_contract() -> Dict[str, Any]:
                 "succeeded",
                 "sdnext",
                 GENERATION_PARAMS,
-                result={
-                    "status": "completed",
-                    "images": [PNG_BASE64],
-                    "generation_info": {"seed": 1234},
-                },
+                result=DeliveryJobResult(
+                    status="completed",
+                    images=[PNG_BASE64],
+                    generation_info={"seed": 1234},
+                ),
             )
         ],
         [
@@ -146,10 +148,10 @@ async def _capture_contract() -> Dict[str, Any]:
                 "failed",
                 "sdnext",
                 GENERATION_PARAMS,
-                result={
-                    "status": "failed",
-                    "error_message": "SD.Next returned no images",
-                },
+                result=DeliveryJobResult(
+                    status="failed",
+                    error_message="SD.Next returned no images",
+                ),
                 started_at=CLAIMED_AT,
             )
         ],

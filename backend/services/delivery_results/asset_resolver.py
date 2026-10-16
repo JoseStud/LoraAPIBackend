@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from backend.models import DeliveryJob
+from backend.schemas.delivery_jobs import DeliveryJobResult
 from backend.utils.images import parse_output_reference, resolve_output_dir
 
 from ..delivery_repository import DeliveryJobRepository
@@ -50,16 +51,15 @@ class ResultAssetResolver:
         storage: "StorageService",
         *,
         coordinator: Optional["GenerationCoordinator"] = None,
-    ) -> tuple[Dict[str, Any], Dict[str, Any], List[ResultAsset]]:
-        """Return payload metadata alongside resolved assets."""
-        params_payload, result_payload = self._load_payloads(job, coordinator)
-        assets = self._extract_assets(
-            job,
-            result_payload,
-            storage,
-            params=params_payload,
-        )
-        return params_payload, result_payload, assets
+    ) -> tuple[Dict[str, Any], DeliveryJobResult, List[ResultAsset]]:
+        """Return the job's params and stored result alongside resolved assets.
+
+        With a coordinator the params are its generation parameters, otherwise
+        the stored delivery params.
+        """
+        params_payload, result = self._load_payloads(job, coordinator)
+        assets = self._extract_assets(job, result, storage)
+        return params_payload, result, assets
 
     def resolve_image(
         self,
@@ -70,15 +70,15 @@ class ResultAssetResolver:
         coordinator: Optional["GenerationCoordinator"] = None,
     ) -> Optional[ResultAsset]:
         """Resolve entry ``index`` of the job's stored ``images`` list."""
-        params_payload, result_payload = self._load_payloads(job, coordinator)
-        images = result_payload.get("images")
-        if not isinstance(images, list) or not 0 <= index < len(images):
+        _, result = self._load_payloads(job, coordinator)
+        images = result.images or []
+        if not 0 <= index < len(images):
             return None
         return self._resolve_asset_value(
             images[index],
             storage,
             default_filename=f"{job.id}-{index:03d}.png",
-            return_format=self._resolve_return_format(job, params_payload),
+            return_format=self._resolve_return_format(job),
         )
 
     def remove(
@@ -108,48 +108,40 @@ class ResultAssetResolver:
         self,
         job: DeliveryJob,
         coordinator: Optional["GenerationCoordinator"],
-    ) -> tuple[Dict[str, Any], Dict[str, Any]]:
-        params_payload: Dict[str, Any] = {}
-        result_payload: Dict[str, Any] = {}
-
+    ) -> tuple[Dict[str, Any], DeliveryJobResult]:
         if coordinator is not None:
             serialized = coordinator.serialize_delivery_job(job)
-            params_payload = self._extract_dict(serialized.get("params"))
-            result_payload = self._extract_dict(serialized.get("result"))
-        else:
-            params_payload = self._extract_dict(self._repository.get_job_params(job))
-            result_payload = self._extract_dict(self._repository.get_job_result(job))
+            return serialized.params, serialized.result
 
-        return params_payload, result_payload
+        params = self._repository.get_job_params(job).to_payload()
+        result = self._repository.get_job_result(job) or DeliveryJobResult()
+        return params, result
 
     def _extract_assets(
         self,
         job: DeliveryJob,
-        result_payload: Dict[str, Any],
+        result: DeliveryJobResult,
         storage: "StorageService",
-        *,
-        params: Optional[Dict[str, Any]] = None,
     ) -> List[ResultAsset]:
         assets: List[ResultAsset] = []
         seen_paths: set[str] = set()
+        return_format = self._resolve_return_format(job)
 
-        params = params or {}
-        return_format = self._resolve_return_format(job, params)
-
-        images = result_payload.get("images")
-        if isinstance(images, list):
+        if result.images:
             assets.extend(
                 self._collect_image_assets(
                     job,
-                    images,
+                    result.images,
                     storage,
                     return_format,
                     seen_paths,
                 ),
             )
 
-        for key in ("image_url", "thumbnail_url"):
-            value = result_payload.get(key)
+        for key, value in (
+            ("image_url", result.image_url),
+            ("thumbnail_url", result.thumbnail_url),
+        ):
             asset = self._resolve_asset_value(
                 value,
                 storage,
@@ -169,7 +161,7 @@ class ResultAssetResolver:
     def _collect_image_assets(
         self,
         job: DeliveryJob,
-        images: List[Any],
+        images: List[str],
         storage: "StorageService",
         return_format: Optional[str],
         seen_paths: set[str],
@@ -324,27 +316,10 @@ class ResultAssetResolver:
             size=len(binary),
         )
 
-    @staticmethod
-    def _extract_dict(value: Any) -> Dict[str, Any]:
-        if isinstance(value, dict):
-            return dict(value)
-        return {}
-
-    def _resolve_return_format(
-        self, job: DeliveryJob, params: Dict[str, Any]
-    ) -> Optional[str]:
-        """Return the job's ``return_format``.
-
-        Coordinator-serialized params only hold the generation parameters, so
-        fall back to the stored delivery params, which record the format.
-        """
-        for candidate in (params, self._repository.get_job_params(job)):
-            maybe_format = (
-                candidate.get("return_format") if isinstance(candidate, dict) else None
-            )
-            if isinstance(maybe_format, str):
-                return maybe_format.lower()
-        return None
+    def _resolve_return_format(self, job: DeliveryJob) -> Optional[str]:
+        """Return the ``return_format`` stored with the job's params, lowercased."""
+        return_format = self._repository.get_job_params(job).return_format
+        return return_format.lower() if return_format is not None else None
 
 
 __all__ = ["ResultAssetResolver"]

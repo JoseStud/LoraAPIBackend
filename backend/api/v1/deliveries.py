@@ -42,14 +42,14 @@ def get_delivery(
     if not dj:
         raise HTTPException(status_code=404, detail="delivery not found")
 
-    # Convert to read model
+    result = services.deliveries.get_job_result(dj)
     delivery_read = DeliveryRead(
         id=dj.id,
         prompt=dj.prompt,
         mode=dj.mode,
-        params=services.deliveries.get_job_params(dj),
+        params=services.deliveries.get_job_params(dj).to_payload(),
         status=dj.status,
-        result=services.deliveries.get_job_result(dj),
+        result=result.to_payload() if result is not None else None,
         created_at=dj.created_at,
         started_at=dj.started_at,
         finished_at=dj.finished_at,

@@ -139,12 +139,12 @@ def test_serialize_generation_job_normalizes_payload(
 
     serialized = coordinator.serialize_delivery_job(job)
 
-    assert serialized["params"]["prompt"] == "Prompt"
-    assert serialized["params"]["backend"] == "sdnext"
-    assert serialized["progress"] == 0.5
-    assert serialized["message"] == "Working"
-    assert serialized["error"] == "Minor issue"
-    assert serialized["result"]["progress"] == 0.5
+    assert serialized.params["prompt"] == "Prompt"
+    assert serialized.params["backend"] == "sdnext"
+    assert serialized.progress == 0.5
+    assert serialized.message == "Working"
+    assert serialized.error == "Minor issue"
+    assert serialized.result.progress == 0.5
 
 
 def test_generation_coordinator_schedule_generation_job(db_session):
@@ -186,11 +186,11 @@ def test_generation_coordinator_schedule_generation_job(db_session):
     assert call_kwargs["priority"] == "high"
 
     stored_params = deliveries.get_job_params(job)
-    assert stored_params["generation_params"]["prompt"] == "Prompt"
-    assert stored_params["backend"] == "custom"
-    assert stored_params["mode"] == "deferred"
-    assert stored_params["save_images"] is False
-    assert stored_params["return_format"] == "url"
+    assert stored_params.generation_params["prompt"] == "Prompt"
+    assert stored_params.backend == "custom"
+    assert stored_params.mode == "deferred"
+    assert stored_params.save_images is False
+    assert stored_params.return_format == "url"
 
 
 def test_delivery_runner_uses_requested_generation_backend(

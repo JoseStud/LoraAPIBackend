@@ -174,7 +174,7 @@ class TestDeliveryService:
         async def fake_execute(prompt, mode, params):
             assert prompt == "p"
             assert mode == "cli"
-            assert params == {"key": "value"}
+            assert params.to_payload() == {"key": "value"}
             return {"status": "ok", "result": True}
 
         runner = self._make_runner()
@@ -187,7 +187,7 @@ class TestDeliveryService:
         assert refreshed is not None
         assert refreshed.status == "succeeded"
         result = service.get_job_result(refreshed)
-        assert result == {"status": "ok", "result": True}
+        assert result.to_payload() == {"status": "ok", "result": True}
 
     def test_process_delivery_job_uses_injected_service_factory(
         self, db_session, monkeypatch
@@ -269,8 +269,8 @@ class TestDeliveryService:
         assert refreshed.status == "retrying"
         result = service.get_job_result(refreshed)
         assert result is not None
-        assert result["error"] == "Delivery processing failed"
-        assert result["retries_left"] == 2
+        assert result.error_message == "Delivery processing failed"
+        assert result.retries_left == 2
 
     def test_process_delivery_job_raises_when_requested(self, db_session, monkeypatch):
         """raise_on_error propagates the original exception."""
@@ -294,7 +294,7 @@ class TestDeliveryService:
         assert refreshed.status == "failed"
         result = service.get_job_result(refreshed)
         assert result is not None
-        assert result["error"] == "Delivery processing failed"
+        assert result.error_message == "Delivery processing failed"
 
     def test_set_job_rating_tracks_timestamp(self, db_session):
         """Setting and clearing ratings updates timestamp metadata."""

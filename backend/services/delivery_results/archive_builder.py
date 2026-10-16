@@ -86,7 +86,7 @@ class ResultArchiveBuilder:
         include_metadata: bool,
         chunk_size: int,
     ) -> Dict[str, Any]:
-        params_payload, result_payload, assets = self._assets.collect_with_payloads(
+        params_payload, result, assets = self._assets.collect_with_payloads(
             job,
             storage,
             coordinator=coordinator,
@@ -102,7 +102,7 @@ class ResultArchiveBuilder:
         }
         if include_metadata:
             metadata_payload["params"] = params_payload
-            metadata_payload["result"] = result_payload
+            metadata_payload["result"] = result.to_payload()
 
         self._write_metadata_entry(archive, base_path, metadata_payload)
         asset_entries = self._write_asset_entries(

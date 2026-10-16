@@ -20,23 +20,24 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import timedelta
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, List, Optional
 
 from backend.core.config import settings
 from backend.core.database import get_session_context
+from backend.schemas.delivery_jobs import DeliveryJobParams, DeliveryJobResult
 
 from .deliveries import DeliveryService
 from .job_webhooks import JobWebhookNotifier
 
 logger = logging.getLogger(__name__)
 
-INTERRUPTED_RESULT: Dict[str, Any] = {
-    "status": "failed",
-    "error_message": (
+INTERRUPTED_RESULT = DeliveryJobResult(
+    status="failed",
+    error_message=(
         "Generation was interrupted before it finished (the worker stopped or "
         "the job timed out)"
     ),
-}
+)
 
 
 @dataclass(frozen=True)
@@ -45,7 +46,7 @@ class FailedJob:
 
     job_id: str
     prompt: str
-    params: Dict[str, Any]
+    params: DeliveryJobParams
 
 
 @dataclass

@@ -11,7 +11,11 @@ from sqlmodel import Session
 from backend.core.database import get_session_context
 from backend.delivery.base import DeliveryRegistry
 from backend.delivery.storage import remove_stored_images, stored_return_format
-from backend.schemas import SDNextGenerationParams
+from backend.schemas import (
+    DeliveryJobParams,
+    DeliveryJobResult,
+    SDNextGenerationParams,
+)
 from backend.services.job_webhooks import NOTIFY_STATUSES, JobWebhookNotifier
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
@@ -124,9 +128,9 @@ class DeliveryRunner:
         """
         prompt: str
         mode: str
-        params: Dict[str, Any]
+        params: DeliveryJobParams
         error: Optional[Exception] = None
-        result_payload: Dict[str, Any] = {}
+        result: DeliveryJobResult
         status: str = "failed"
 
         with get_session_context() as session:
@@ -146,45 +150,44 @@ class DeliveryRunner:
             params = service.get_job_params(job)
 
         try:
-            result_payload = await self._execute_delivery_backend(prompt, mode, params)
-            status = (
-                "succeeded" if self._is_successful_result(result_payload) else "failed"
+            result = DeliveryJobResult.coerce(
+                await self._execute_delivery_backend(prompt, mode, params)
             )
+            status = "succeeded" if result.status in _SUCCESS_STATUSES else "failed"
         except Exception as exc:
             error = exc
             logger.exception("Delivery %s failed", job_id)
             if _is_job_timeout(exc):
                 # The backend may still be busy with this job; another
                 # attempt would pile onto it, so a timeout is final.
-                result_payload = {"error": "Delivery timed out"}
+                result = DeliveryJobResult(error_message="Delivery timed out")
                 status = "failed"
             elif retries_left is not None and retries_left > 0:
                 # RQ runs the task again; that attempt claims the job back
                 # from ``retrying`` unless it was cancelled meanwhile.
-                result_payload = {
-                    "error": "Delivery processing failed",
-                    "retries_left": retries_left,
-                }
+                result = DeliveryJobResult(
+                    error_message="Delivery processing failed",
+                    retries_left=retries_left,
+                )
                 status = "retrying"
             else:
-                result_payload = {"error": "Delivery processing failed"}
+                result = DeliveryJobResult(error_message="Delivery processing failed")
                 status = "failed"
 
         with get_session_context() as session:
             service = self._delivery_service_factory(session)
-            finished = service.finish_job(job_id, status, result_payload)
+            finished = service.finish_job(job_id, status, result)
 
         if finished is None:
             # The job was cancelled (or failed by recovery) while it ran; its
             # stored status stands and nothing references the new images.
-            images = result_payload.get("images")
-            if isinstance(images, list):
-                remove_stored_images(images)
+            if result.images:
+                remove_stored_images(result.images)
             logger.info("Delivery %s finished after it stopped running", job_id)
             return
 
         if status in NOTIFY_STATUSES:
-            await self._notify_finished(job_id, status, prompt, params, result_payload)
+            await self._notify_finished(job_id, status, prompt, params, result)
 
         if error is not None and raise_on_error:
             raise error
@@ -194,36 +197,24 @@ class DeliveryRunner:
         job_id: str,
         status: str,
         prompt: str,
-        params: Dict[str, Any],
-        result: Dict[str, Any],
+        params: DeliveryJobParams,
+        result: DeliveryJobResult,
     ) -> None:
         """Announce a final job status through the webhook, if configured."""
         notifier = self._webhook_notifier or JobWebhookNotifier.from_settings()
         if notifier is None:
             return
-        payload = notifier.build_payload(
-            job_id,
-            status,
-            prompt,
-            params if isinstance(params, dict) else {},
-            result,
-        )
+        payload = notifier.build_payload(job_id, status, prompt, params, result)
         await notifier.send(payload)
 
     async def _execute_delivery_backend(
         self,
         prompt: str,
         mode: str,
-        params: Dict[str, Any],
+        params: DeliveryJobParams,
     ) -> Dict[str, Any]:
         """Execute the delivery backend associated with the job mode."""
-        params_dict = params if isinstance(params, dict) else {}
-
-        backend_name: Optional[str] = None
-        maybe_backend = params_dict.get("backend")
-        if isinstance(maybe_backend, str):
-            backend_name = maybe_backend
-
+        backend_name = params.backend
         generation_backend = None
         candidate_names = []
         if backend_name:
@@ -239,25 +230,21 @@ class DeliveryRunner:
                 break
 
         if generation_backend is not None:
-            gen_params_dict: Dict[str, Any] = {}
-            raw_generation_params = params_dict.get("generation_params")
-            if isinstance(raw_generation_params, dict):
-                gen_params_dict.update(raw_generation_params)
+            gen_params_dict: Dict[str, Any] = dict(params.generation_params or {})
             gen_params_dict["prompt"] = prompt
 
             gen_params = SDNextGenerationParams(**gen_params_dict)
-            save_images = bool(params_dict.get("save_images", True))
-            return_format = params_dict.get("return_format", "base64")
+            save_images = params.save_images is not False
             # The result is stored on the job row rather than returned to a
             # caller, so saved images come back as file references, never as
             # base64 (``return_format`` only shapes immediate responses).
             full_params = {
                 "generation_params": gen_params.model_dump(),
-                "mode": params_dict.get("mode", "immediate"),
+                "mode": params.mode or "immediate",
                 "save_images": save_images,
                 "return_format": stored_return_format(
                     save_images=save_images,
-                    return_format=return_format,
+                    return_format=params.return_format or "base64",
                 ),
             }
             if backend_name:
@@ -270,9 +257,4 @@ class DeliveryRunner:
         if backend is None:
             return {"status": "error", "detail": f"unknown mode: {mode}"}
 
-        return await backend.deliver(prompt, params)
-
-    @staticmethod
-    def _is_successful_result(result: Dict[str, Any]) -> bool:
-        status = result.get("status")
-        return status in _SUCCESS_STATUSES
+        return await backend.deliver(prompt, params.to_payload())

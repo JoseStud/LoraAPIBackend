@@ -9,6 +9,7 @@ from typing import Callable, Optional, Sequence
 from sqlmodel import Session
 
 from backend.core.database import get_session_context
+from backend.schemas.delivery_jobs import DeliveryJobResult
 from backend.services.delivery_repository import DeliveryJobRepository
 
 from .job_monitor import JobObservation, JobStateRepository, PersistedJob
@@ -47,7 +48,7 @@ class DeliveryJobStateRepository(JobStateRepository):
                         status=job.status,
                         mode=job.mode,
                         params=repository.get_job_params(job),
-                        result=repository.get_job_result(job),
+                        result=repository.get_job_result(job) or DeliveryJobResult(),
                         started_at=job.started_at,
                         finished_at=job.finished_at,
                     )

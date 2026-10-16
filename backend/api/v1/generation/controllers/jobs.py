@@ -29,12 +29,6 @@ __all__ = [
 ]
 
 
-def _coerce_params(payload: object) -> dict:
-    if isinstance(payload, dict):
-        return payload
-    return {}
-
-
 async def schedule_generation_job(
     *,
     services: ServiceRegistry,
@@ -88,7 +82,7 @@ def get_job_wrapper(
         raise HTTPException(status_code=404, detail="Job not found")
 
     presenter = build_active_job(job, services.generation_coordinator)
-    params = _coerce_params(services.deliveries.get_job_params(job))
+    params = services.deliveries.get_job_params(job).to_payload()
 
     delivery_read = DeliveryRead(
         id=job.id,

@@ -220,6 +220,14 @@ Read these before changing the matching subsystem:
   routes registered in `create_app()` are part of it; `app/main.py`'s
   `/frontend/settings` routes are not. A schema change ships with the
   regenerated file, or `ci:check` fails.
+- **Stored job payloads**: `DeliveryJob.params` and `DeliveryJob.result` are
+  JSON text, parsed and written only through `DeliveryJobParams` and
+  `DeliveryJobResult` (`backend/schemas/delivery_jobs.py`) by
+  `DeliveryJobMapper`. `DeliveryService.get_job_params` / `get_job_result`
+  return the models; read their fields (`failure_message`, `status_message`,
+  `generation_fields()`) instead of probing dict keys, and write failures as
+  `error_message`. Legacy keys are normalised in the model, nowhere else
+  ([Data model](docs/wiki/Data-Model.md#deliveryjob-deliveriespy)).
 - **Result images**: job results store saved images as `output://` file
   references (relative to `SDNEXT_OUTPUT_DIR`), never base64; the browser
   loads them from the keyless `GET /v1/generation/results/{job_id}/images/{index}`

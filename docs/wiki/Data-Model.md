@@ -46,6 +46,34 @@ Status semantics are on the [Generation pipeline](Generation-Pipeline.md#status-
 page. Generation history and results are this table; there is no separate
 results table.
 
+`params` and `result` are Text columns holding JSON objects, but code never
+reads or writes them as raw dicts: `DeliveryJobMapper`
+([`delivery_repository.py`](../../backend/services/delivery_repository.py))
+serialises and parses them through `DeliveryJobParams` and
+`DeliveryJobResult` ([`schemas/delivery_jobs.py`](../../backend/schemas/delivery_jobs.py)),
+and `DeliveryService.get_job_params` / `get_job_result` return those models.
+
+- `DeliveryJobParams`: `generation_params`, `backend`, `mode`, `save_images`,
+  `return_format`, `client_ref`. Other deliveries' keys (the HTTP backend's
+  `host`, ...) are kept as extras. Legacy rows that hold the generation fields
+  at the top level are covered by `generation_fields()`.
+- `DeliveryJobResult`: `status` (a string, or an HTTP status code from the
+  HTTP backend), `images`, `progress`, `error_message`, `message`, `detail`,
+  `generation_info`, `retries_left`, `image_url`, `thumbnail_url`; anything
+  else is kept as an extra. Failures are written as `error_message`.
+  `status_message` (`message`, else `detail`) and `failure_message`
+  (`error_message`, else `detail`, else `message`) are the derived texts the
+  API, the WebSocket, the webhook and analytics use.
+
+Both models are lenient so every stored row loads: a field of the wrong type
+reads as `None`, unknown keys survive a round trip, an empty or malformed
+column reads as empty params or no result. Rows written before the model
+existed are normalised on read: `error` becomes `error_message` (unless that is
+already set), percentage `progress` becomes a fraction
+(`to_progress_fraction`), a JSON-string `generation_info` is decoded and
+non-string `images` entries are dropped. Add a new stored key to the model
+rather than reading it from a dict.
+
 ### Recommendation tables ([`recommendations.py`](../../backend/models/recommendations.py))
 
 - `loraembedding`: per-adapter semantic, artistic and technical embeddings

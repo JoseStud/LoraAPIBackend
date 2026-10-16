@@ -12,7 +12,7 @@ import pytest
 from backend.delivery.base import DeliveryRegistry, GenerationBackend
 from backend.delivery.storage import remove_stored_images
 from backend.schemas import SDNextGenerationResult
-from backend.services.deliveries import DeliveryService
+from backend.services.deliveries import CANCELLED_RESULT, DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.generation import GenerationCoordinator, GenerationService
 from backend.services.job_recovery import (
@@ -120,7 +120,7 @@ def test_finish_job_keeps_cancelled_status(db_session):
     stored = service.get_job(job.id)
     assert stored.status == "cancelled"
     assert stored.finished_at is not None
-    assert service.get_job_result(stored) == {"status": "cancelled"}
+    assert service.get_job_result(stored) == CANCELLED_RESULT
 
 
 def test_finish_job_records_running_outcome(db_session):
@@ -131,7 +131,7 @@ def test_finish_job_records_running_outcome(db_session):
     finished = service.finish_job(job.id, "succeeded", {"status": "ok"})
     assert finished is not None and finished.status == "succeeded"
     assert finished.finished_at is not None
-    assert service.get_job_result(finished) == {"status": "ok"}
+    assert service.get_job_result(finished).to_payload() == {"status": "ok"}
 
 
 @pytest.mark.parametrize("status", ["pending", "retrying", "running"])
@@ -227,7 +227,7 @@ def test_cancel_during_run_discards_result(
     db_session.expire_all()
     stored = service.get_job(job.id)
     assert stored.status == "cancelled"
-    assert service.get_job_result(stored) == {"status": "cancelled"}
+    assert service.get_job_result(stored) == CANCELLED_RESULT
     assert not image.exists()
     assert notified == []
 
@@ -345,7 +345,7 @@ def test_recover_in_process_restart_fails_running_and_requeues(db_session):
     report = recover_jobs(service, at_startup=True, running_timeout=timedelta(hours=1))
 
     assert [job.job_id for job in report.failed] == [running.id]
-    assert report.failed[0].params == {"k": 1}
+    assert report.failed[0].params.to_payload() == {"k": 1}
     assert report.requeued == [first.id, second.id]
     # Requeued jobs go through the orchestrator's fallback (the in-process job
     # runner), never a separate scheduler.
