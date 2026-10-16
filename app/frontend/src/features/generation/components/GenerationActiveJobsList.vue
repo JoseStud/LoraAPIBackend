@@ -45,12 +45,12 @@
           <div v-if="job.status === 'processing'" class="mb-2">
             <div class="flex justify-between text-xs text-gray-600 mb-1">
               <span>Step {{ job.current_step || 0 }} of {{ job.total_steps || job.steps }}</span>
-              <span>{{ Math.round(job.progress || 0) }}%</span>
+              <span>{{ toProgressPercent(job.progress) }}%</span>
             </div>
             <div class="w-full bg-gray-200 rounded-full h-2">
               <div
                 class="bg-blue-600 h-2 rounded-full transition-all duration-500"
-                :style="{ width: `${job.progress || 0}%` }"
+                :style="{ width: `${toProgressPercent(job.progress)}%` }"
               ></div>
             </div>
           </div>
@@ -68,6 +68,8 @@
 
 <script setup lang="ts">
 import { toRefs } from 'vue'
+
+import { toProgressPercent } from '@/utils/progress'
 
 import type { UseGenerationStudioReturn } from '../composables/useGenerationStudio'
 import type { QueueItemView, ReadonlyQueue } from '@/features/generation/orchestrator'

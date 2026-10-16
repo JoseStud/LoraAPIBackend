@@ -7,7 +7,7 @@ This document details the WebSocket implementation for real-time progress monito
 The WebSocket implementation provides a way for clients to receive live updates about long-running tasks, such as image generation. It is built on FastAPI's WebSocket support and uses a subscription-based model to deliver targeted messages.
 
 **Key Features**:
--   **Real-Time Progress**: Clients get live progress updates (0-100%) for generation jobs.
+-   **Real-Time Progress**: Clients get live progress updates for generation jobs, as a fraction from 0 to 1 (1 is complete).
 -   **Subscription Model**: Clients can subscribe to updates for specific job IDs or all jobs.
 -   **Event-Driven**: The system sends structured messages for events like `generation_started`, `progress_update`, and `generation_complete`.
 -   **Decoupled**: The WebSocket logic is handled in a separate service, decoupled from the main API endpoints.

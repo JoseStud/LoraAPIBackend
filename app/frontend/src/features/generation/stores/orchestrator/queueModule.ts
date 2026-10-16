@@ -2,7 +2,7 @@
 import { computed, readonly, ref } from 'vue';
 
 import { GenerationJobStatusSchema } from '@/schemas';
-import { normalizeGenerationProgress } from '@/utils/progress';
+import { toProgressFraction } from '@/utils/progress';
 import { normalizeJobStatus } from '@/utils/status';
 import type { DeepReadonly } from '@/utils/freezeDeep';
 import type {
@@ -64,7 +64,7 @@ const toStoredJob = (job: GenerationJobInput): GenerationJob => {
     id: uiId,
     jobId: backendId,
     status: normalizeJobStatus(job.status),
-    progress: normalizeGenerationProgress(job.progress),
+    progress: toProgressFraction(job.progress),
     created_at: job.created_at ?? startTime,
     startTime,
   }) as GenerationJob;
@@ -75,7 +75,6 @@ const toStoredJob = (job: GenerationJobInput): GenerationJob => {
     jobId: backendId,
     uiId,
     backendId,
-    progress: normalizeGenerationProgress(parsed.progress),
   };
 };
 
@@ -237,7 +236,7 @@ export const createQueueModule = () => {
 
     const updates: Partial<GenerationJob> = {
       status,
-      progress: normalizeGenerationProgress(message.progress),
+      progress: toProgressFraction(message.progress),
       current_step: typeof message.current_step === 'number' ? message.current_step : job?.current_step,
       total_steps: typeof message.total_steps === 'number' ? message.total_steps : job?.total_steps,
       backendId: backendJobId,

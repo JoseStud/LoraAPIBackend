@@ -114,9 +114,11 @@ single conditional `UPDATE … WHERE status IN (…)` via
 | `finish_job` | `running` | `succeeded` / `failed` / `retrying` | Job was cancelled or failed by recovery while it ran. The runner deletes the images it just saved and sends no webhook. |
 | `cancel_job` | `running`, `pending`, `retrying` | `cancelled` | Job is not active. |
 
-Don't write `status` with `update_job_status` from a runner or the API. The
-conditional updates are what stop a runner and a cancel request from both
-winning.
+There is no unconditional status setter; don't add one. The conditional
+updates are what stop a runner and a cancel request from both winning. Tests
+that need a job in a given state use `set_job_status` from
+[`tests/util/delivery_jobs.py`](../../tests/util/delivery_jobs.py), which goes
+through the same guarded transition.
 
 The UI sees a normalised vocabulary ([`services/generation/statuses.py`](../../backend/services/generation/statuses.py)):
 `pending` → `queued`; `running`, `retrying` → `processing`;
@@ -229,6 +231,15 @@ polls every 2 seconds (its `poll_interval` default) and combines two sources:
 - SDNext's `/sdapi/v1/progress`, which is process-global and ignores the job
   id. Its value is used only while the persisted status is `running`; a queued
   job reports its stored progress or 0.
+
+Progress is a fraction in [0, 1] (1 is complete) on the socket and in the
+REST queue (`GET /v1/generation/jobs/active`) alike, and both report the same
+value for the same stored job. Stored and SDNext-reported values are
+normalized by `to_progress_fraction`
+([`utils/progress.py`](../../backend/utils/progress.py)): a value above 1 is a
+legacy stored percentage, and a completed job reports 1.0. The frontend turns
+the fraction into a percentage only for display (`toProgressPercent` in
+`app/frontend/src/utils/progress.ts`).
 
 Clients send `subscribe` and receive `connected`, `subscription_confirmed`,
 `generation_started`, `progress_update` and `generation_complete`, broadcast by the `ConnectionManager` to connections subscribed to

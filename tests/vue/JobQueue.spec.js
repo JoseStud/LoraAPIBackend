@@ -60,7 +60,7 @@ describe('JobQueue.vue', () => {
     queueState.jobs.value = [
       createJob({
         name: 'Test Generation',
-        progress: 25,
+        progress: 0.25,
         params: { width: 512, height: 512, steps: 20 },
         message: 'Processing...',
       }),
@@ -69,7 +69,7 @@ describe('JobQueue.vue', () => {
         uiId: 'job2',
         name: 'Another Job',
         status: 'completed',
-        progress: 100,
+        progress: 1,
         params: { width: 768, height: 768, steps: 30 },
       }),
     ];
@@ -81,6 +81,8 @@ describe('JobQueue.vue', () => {
     expect(wrapper.text()).toContain('512x512 • 20 steps');
     expect(wrapper.text()).toContain('768x768 • 30 steps');
     expect(wrapper.text()).toContain('25%');
+    expect(wrapper.text()).toContain('100%');
+    expect(wrapper.html()).toContain('width: 25%');
     expect(wrapper.text()).toContain('Processing...');
     expect(wrapper.text()).toContain('2 active');
     expect(wrapper.text()).not.toContain('No active generations');

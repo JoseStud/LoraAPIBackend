@@ -11,6 +11,7 @@ import structlog
 
 from backend.schemas import GenerationComplete, ProgressUpdate, SDNextGenerationResult
 from backend.utils.images import to_browser_image_src
+from backend.utils.progress import to_progress_fraction
 
 logger = structlog.get_logger(__name__)
 
@@ -179,7 +180,7 @@ class JobProgressMonitor:
                 result,
                 None,
                 _normalize_generation_status(result.status or "pending"),
-                self._normalize_progress(result.progress),
+                to_progress_fraction(result.progress),
                 result.error_message,
             )
 
@@ -252,7 +253,7 @@ class JobProgressMonitor:
         error_message: Optional[str] = None
         if live_result is not None:
             if progress_value is None:
-                progress_value = self._normalize_progress(live_result.progress)
+                progress_value = to_progress_fraction(live_result.progress)
             error_message = live_result.error_message
 
         if status_value == "completed" and (
@@ -271,7 +272,7 @@ class JobProgressMonitor:
     ) -> Optional[float]:
         if not isinstance(payload, dict):
             return None
-        return self._normalize_progress(payload.get("progress"))
+        return to_progress_fraction(payload.get("progress"))
 
     @staticmethod
     def _extract_error_message(
@@ -284,22 +285,6 @@ class JobProgressMonitor:
             if isinstance(value, str) and value:
                 return value
         return None
-
-    @staticmethod
-    def _normalize_progress(progress: Optional[Any]) -> Optional[float]:
-        if progress is None:
-            return None
-
-        try:
-            value = float(progress)
-        except (TypeError, ValueError):
-            return None
-
-        if value > 1.0:
-            value = value / 100.0
-        if value < 0.0:
-            value = 0.0
-        return min(value, 1.0)
 
     def _has_job_completed(
         self,

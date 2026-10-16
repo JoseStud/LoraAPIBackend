@@ -420,29 +420,6 @@ class DeliveryJobRepository:
         self._session.commit()
         return len(jobs)
 
-    def update_job_status(
-        self,
-        job_id: str,
-        status: str,
-        result: Optional[Dict[str, Any]] = None,
-        error: Optional[str] = None,
-    ) -> Optional[DeliveryJob]:
-        """Update stored job status/result fields and return the job."""
-        job = self.get_job(job_id)
-        if job is None:
-            return None
-
-        serialized_result = self._mapper.serialize_result(result, error)
-        if serialized_result is not None:
-            job.result = serialized_result
-
-        self._mapper.apply_status(job, status)
-
-        self._session.add(job)
-        self._session.commit()
-        self._session.refresh(job)
-        return job
-
     def transition_job_status(
         self,
         job_id: str,

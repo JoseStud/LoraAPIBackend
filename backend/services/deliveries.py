@@ -146,21 +146,6 @@ class DeliveryService:
         """Return a recent activity feed derived from delivery jobs."""
         return self._repository.get_recent_activity(limit=limit)
 
-    def update_job_status(
-        self,
-        job_id: str,
-        status: str,
-        result: Optional[Dict[str, Any]] = None,
-        error: Optional[str] = None,
-    ) -> Optional[DeliveryJob]:
-        """Update a delivery job's status and result."""
-        return self._repository.update_job_status(
-            job_id,
-            status,
-            result=result,
-            error=error,
-        )
-
     def claim_job(self, job_id: str) -> Optional[DeliveryJob]:
         """Mark a pending or retrying job as running.
 

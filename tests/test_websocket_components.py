@@ -23,6 +23,7 @@ from backend.services.websocket import (
     PersistedJobState,
 )
 from backend.services.websocket.persistence import DeliveryJobStateRepository
+from tests.util.delivery_jobs import set_job_status
 
 PNG_BASE64 = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQAB"
@@ -350,8 +351,9 @@ def test_delivery_job_state_repository_returns_persisted_state(
     delivery_service: DeliveryService,
 ) -> None:
     job = delivery_service.create_job("Prompt", "sdnext", {"foo": "bar"})
-    delivery_service.update_job_status(job.id, "running")
-    delivery_service.update_job_status(
+    set_job_status(delivery_service, job.id, "running")
+    set_job_status(
+        delivery_service,
         job.id,
         "succeeded",
         {"status": "completed", "progress": 0.8},

@@ -46,12 +46,12 @@
             <div class="space-y-1">
               <div class="flex justify-between text-xs">
                 <span :class="getStatusColorClass(job.status)">{{ job.status }}</span>
-                <span class="text-gray-600">{{ job.progress || 0 }}%</span>
+                <span class="text-gray-600">{{ toProgressPercent(job.progress) }}%</span>
               </div>
               <div class="progress-bar-bg">
                 <div
                   class="progress-bar-fg bg-blue-500"
-                  :style="{ width: `${job.progress || 0}%` }"
+                  :style="{ width: `${toProgressPercent(job.progress)}%` }"
                 />
               </div>
               <div class="flex justify-between text-xs text-gray-500">
@@ -79,6 +79,7 @@ import { computed } from 'vue';
 
 import { useJobQueue, useJobQueueActions } from '../composables/useJobQueueActions';
 import { formatElapsedTime } from '@/utils/format';
+import { toProgressPercent } from '@/utils/progress';
 
 import type { QueueItemView } from '@/features/generation/orchestrator';
 

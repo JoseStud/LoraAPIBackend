@@ -1,68 +1,91 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
-import { normalizeGenerationProgress } from '../../app/frontend/src/utils/progress.ts'
+import { GenerationJobStatusSchema, ProgressUpdateSchema } from '../../app/frontend/src/schemas/generation'
+import { toProgressFraction, toProgressPercent } from '../../app/frontend/src/utils/progress'
 import { useGenerationOrchestratorStore } from '../../app/frontend/src/features/generation/stores/useGenerationOrchestratorStore'
 
-describe('normalizeGenerationProgress', () => {
-  it('returns 0 for undefined and null values', () => {
-    expect(normalizeGenerationProgress()).toBe(0)
-    expect(normalizeGenerationProgress(null)).toBe(0)
+describe('toProgressPercent', () => {
+  it('converts API fractions to whole percentages', () => {
+    expect(toProgressPercent(0)).toBe(0)
+    expect(toProgressPercent(0.01)).toBe(1)
+    expect(toProgressPercent(0.25)).toBe(25)
+    expect(toProgressPercent(0.5)).toBe(50)
+    expect(toProgressPercent(1)).toBe(100)
   })
 
-  it('returns 0 for non-numeric values', () => {
-    expect(normalizeGenerationProgress(Number.NaN)).toBe(0)
+  it('never reads a fraction of 1 as 1 %', () => {
+    expect(toProgressPercent(1)).not.toBe(1)
+    expect(toProgressPercent(1.0)).toBe(100)
   })
 
-  it('normalizes fractional progress to percentages', () => {
-    expect(normalizeGenerationProgress(0.25)).toBe(25)
-    expect(normalizeGenerationProgress(0.5)).toBe(50)
-    expect(normalizeGenerationProgress(0.999)).toBe(100)
+  it('returns 0 for missing or non-numeric values', () => {
+    expect(toProgressPercent()).toBe(0)
+    expect(toProgressPercent(null)).toBe(0)
+    expect(toProgressPercent(Number.NaN)).toBe(0)
+    expect(toProgressPercent(Number.POSITIVE_INFINITY)).toBe(0)
   })
 
-  it('rounds numeric percentages above 1', () => {
-    expect(normalizeGenerationProgress(45.2)).toBe(45)
-    expect(normalizeGenerationProgress(99.6)).toBe(100)
-  })
-
-  it('clamps normalized progress between 0 and 100', () => {
-    expect(normalizeGenerationProgress(-0.2)).toBe(0)
-    expect(normalizeGenerationProgress(-15)).toBe(0)
-    expect(normalizeGenerationProgress(1.2)).toBe(1)
-    expect(normalizeGenerationProgress(150)).toBe(100)
+  it('clamps out-of-range values instead of guessing their scale', () => {
+    expect(toProgressPercent(-0.2)).toBe(0)
+    expect(toProgressPercent(1.2)).toBe(100)
+    expect(toProgressPercent(50)).toBe(100)
   })
 })
 
-describe('useGenerationQueueStore progress normalization', () => {
+describe('toProgressFraction', () => {
+  it('keeps fractions as they are and clamps to [0, 1]', () => {
+    expect(toProgressFraction(0)).toBe(0)
+    expect(toProgressFraction(0.01)).toBe(0.01)
+    expect(toProgressFraction(1)).toBe(1)
+    expect(toProgressFraction(-1)).toBe(0)
+    expect(toProgressFraction(3)).toBe(1)
+    expect(toProgressFraction(undefined)).toBe(0)
+  })
+})
+
+describe('progress schemas', () => {
+  const job = { id: 'job-1', status: 'running', created_at: '2026-01-01T00:00:00Z' }
+
+  it('accept fractions from 0 to 1', () => {
+    for (const progress of [0, 0.01, 1]) {
+      expect(GenerationJobStatusSchema.parse({ ...job, progress }).progress).toBe(progress)
+      expect(
+        ProgressUpdateSchema.parse({ job_id: 'job-1', status: 'running', progress }).progress,
+      ).toBe(progress)
+    }
+  })
+
+  it('reject values outside the fraction scale', () => {
+    expect(GenerationJobStatusSchema.safeParse({ ...job, progress: 50 }).success).toBe(false)
+    expect(
+      ProgressUpdateSchema.safeParse({ job_id: 'job-1', status: 'running', progress: 50 }).success,
+    ).toBe(false)
+  })
+})
+
+describe('orchestrator store progress', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
   })
 
-  it('clamps progress values above 100 received from progress messages', () => {
+  it('stores progress messages as fractions', () => {
     const store = useGenerationOrchestratorStore()
 
-    store.handleProgressMessage({
-      job_id: 'job-1',
-      progress: 150,
-      status: 'processing',
-    } as any)
+    store.handleProgressMessage({ job_id: 'job-1', progress: 1, status: 'processing' } as any)
 
     expect(store.jobs).toHaveLength(1)
-    expect(store.jobs[0]?.progress).toBe(100)
+    expect(store.jobs[0]?.progress).toBe(1)
   })
 
-  it('clamps progress values below 0 received from progress messages', () => {
+  it('clamps out-of-range progress messages to [0, 1]', () => {
     const store = useGenerationOrchestratorStore()
 
-    store.enqueueJob({ id: 'job-2', status: 'processing', progress: 25 })
+    store.enqueueJob({ id: 'job-2', status: 'processing', progress: 0.25 })
+    store.handleProgressMessage({ job_id: 'job-2', progress: -0.25, status: 'processing' } as any)
+    expect(store.jobs.find((item) => item.id === 'job-2')?.progress).toBe(0)
 
-    store.handleProgressMessage({
-      job_id: 'job-2',
-      progress: -0.25,
-      status: 'processing',
-    } as any)
-
-    const job = store.jobs.find((item) => item.id === 'job-2')
-    expect(job?.progress).toBe(0)
+    store.handleProgressMessage({ job_id: 'job-2', progress: 150, status: 'processing' } as any)
+    expect(store.jobs.find((item) => item.id === 'job-2')?.progress).toBe(1)
   })
 })

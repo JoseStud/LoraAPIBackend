@@ -27,7 +27,7 @@ describe('useJobQueue', () => {
         backendId: 'backend-1',
         jobId: 'backend-1',
         status: 'processing',
-        progress: 10,
+        progress: 0.1,
       }) as GenerationJobView,
     ]) as ReadonlyQueue;
     queueManagerActive.value = false;
@@ -38,7 +38,7 @@ describe('useJobQueue', () => {
     const { useJobQueue } = await import('@/features/generation/composables/useJobQueueActions');
     const queue = useJobQueue();
     expect(queue.jobs.value).toEqual([
-      expect.objectContaining({ id: 'job-1', status: 'processing', progress: 10 }),
+      expect.objectContaining({ id: 'job-1', status: 'processing', progress: 0.1 }),
     ]);
 
     sortedActiveJobs.value = Object.freeze([

@@ -15,7 +15,7 @@ describe('useGenerationOrchestratorFacade', () => {
     const first = useGenerationOrchestratorFacade();
     const second = useGenerationOrchestratorFacade();
 
-    store.enqueueJob({ id: 'job-1', status: 'processing', progress: 10 } as any);
+    store.enqueueJob({ id: 'job-1', status: 'processing', progress: 0.1 } as any);
     store.setResults([{ id: 'result-1', created_at: new Date().toISOString() } as any]);
 
     for (const facade of [first, second]) {

@@ -161,8 +161,9 @@ Read these before changing the matching subsystem:
   active status. Change status through `DeliveryService.claim_job`,
   `finish_job` and `cancel_job`, which are conditional single-statement
   updates (`DeliveryJobRepository.transition_job_status`), so a runner and a
-  cancel request cannot both win; don't write `status` with
-  `update_job_status` from the runner or the API. A runner that cannot claim a
+  cancel request cannot both win; there is no unconditional status setter, so
+  don't add one or write `status` any other way. Tests that need a job in a
+  given state use `tests/util/delivery_jobs.py`. A runner that cannot claim a
   job skips it, which makes re-enqueueing safe. Cancelling a running job goes
   through `GenerationCoordinator.cancel_job`, which also interrupts the
   backend. `retrying` means an RQ retry is pending: the runner sets it when
@@ -171,6 +172,16 @@ Read these before changing the matching subsystem:
   Claiming from `retrying` restarts `started_at`. A retry of a job that was
   cancelled, or that a killed attempt left `running`, skips it; job recovery
   fails the latter.
+- **Progress scale**: every `progress` the API emits (the REST queue's
+  `GenerationJobStatus`, `SDNextGenerationResult`, the WebSocket's
+  `ProgressUpdate`) is a fraction in [0, 1], where 1 means complete; the
+  schemas declare `ge=0, le=1`. Values entering from storage or a generation
+  backend go through `to_progress_fraction` (`backend/utils/progress.py`),
+  which reads values above 1 as legacy stored percentages. REST and the
+  WebSocket report the same fraction for the same stored job (completed jobs
+  report 1.0). The frontend keeps progress as a fraction and converts it to a
+  percentage only for display, with `toProgressPercent`
+  (`app/frontend/src/utils/progress.ts`); never guess the scale from the value.
 - **Job recovery**: `JobRecovery` (`backend/services/job_recovery.py`), started
   by the lifespan, fails jobs `running` longer than
   `JOB_RUNNING_TIMEOUT_SECONDS` (also the RQ job timeout) at startup and every
