@@ -55,7 +55,7 @@ fails.
 - Database: each test gets an in-memory SQLite session (`db_session` fixture
   in [`tests/conftest.py`](../../tests/conftest.py)).
 - Autouse fixtures give every test an isolated service container builder, stub
-  `JobRecovery.start`, and stop the in-process job runner afterwards.
+  `JobRecovery.start` and `JobProgressMonitor.start`, and stop the in-process job runner afterwards.
 - Useful fixtures: `client` (a `TestClient` wired to the test session),
   `adapter_service`, `delivery_service`, `compose_service`, `mock_storage`,
   and `in_process_jobs`, a gate for controlling when in-process jobs run.

@@ -5,7 +5,7 @@ from dataclasses import replace
 from datetime import datetime
 from types import SimpleNamespace
 from typing import Any, Dict
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import BackgroundTasks
@@ -25,7 +25,6 @@ from backend.services.queue import (
     QueueOrchestrator,
     create_queue_orchestrator,
 )
-from backend.services.websocket import WebSocketService
 from backend.workers.delivery_runner import DeliveryRunner
 from tests.util.delivery_jobs import set_job_status
 
@@ -36,16 +35,13 @@ def test_cancel_generation_job_succeeds(
     monkeypatch: pytest.MonkeyPatch,
     generation_params_factory,
 ):
-    """Cancelling an active job updates status and stops monitoring."""
+    """Cancelling an active job updates its status and interrupts the backend."""
     params = generation_params_factory("Prompt")
     job = delivery_service.create_job("Prompt", "sdnext", params)
     set_job_status(delivery_service, job.id, "running")
 
-    stop_mock = MagicMock()
-    monkeypatch.setattr(
-        "backend.services.websocket.websocket_service.stop_job_monitoring",
-        stop_mock,
-    )
+    interrupt_mock = AsyncMock(return_value=True)
+    monkeypatch.setattr(GenerationService, "interrupt", interrupt_mock)
 
     response = client.post(f"/api/v1/generation/jobs/{job.id}/cancel")
     assert response.status_code == 200
@@ -56,7 +52,7 @@ def test_cancel_generation_job_succeeds(
 
     updated = delivery_service.get_job(job.id)
     assert updated is not None and updated.status == "cancelled"
-    stop_mock.assert_called_once_with(job.id)
+    interrupt_mock.assert_awaited_once_with("sdnext")
 
 
 def test_cancel_generation_job_not_found(client: TestClient):
@@ -139,11 +135,7 @@ def test_serialize_generation_job_normalizes_payload(
         },
     )
 
-    coordinator = GenerationCoordinator(
-        delivery_service,
-        WebSocketService(),
-        GenerationService(),
-    )
+    coordinator = GenerationCoordinator(delivery_service, GenerationService())
 
     serialized = coordinator.serialize_delivery_job(job)
 
@@ -169,11 +161,7 @@ def test_generation_coordinator_schedule_generation_job(db_session):
     repository = DeliveryJobRepository(db_session)
     orchestrator = QueueOrchestrator(primary_backend=queue)
     deliveries = DeliveryService(repository, queue_orchestrator=orchestrator)
-    coordinator = GenerationCoordinator(
-        deliveries,
-        WebSocketService(),
-        GenerationService(),
-    )
+    coordinator = GenerationCoordinator(deliveries, GenerationService())
 
     params = SDNextGenerationParams(prompt="Prompt")
     background_tasks = BackgroundTasks()
@@ -236,11 +224,7 @@ def test_delivery_runner_uses_requested_generation_backend(
     repository = DeliveryJobRepository(db_session)
     orchestrator = QueueOrchestrator(primary_backend=queue)
     deliveries = DeliveryService(repository, queue_orchestrator=orchestrator)
-    coordinator = GenerationCoordinator(
-        deliveries,
-        WebSocketService(),
-        GenerationService(),
-    )
+    coordinator = GenerationCoordinator(deliveries, GenerationService())
 
     params = SDNextGenerationParams(prompt="Custom backend test")
     job = coordinator.schedule_generation_job(params, backend="custom-backend")
@@ -285,22 +269,16 @@ def test_compose_sdnext_uses_generation_coordinator(
     class RecordingCoordinator:
         def __init__(self) -> None:
             self.calls = []
-            self.broadcast_calls = []
 
         def schedule_generation_job(self, generation_params, **kwargs):
             self.calls.append((generation_params, kwargs))
             return SimpleNamespace(id="job-123", status="pending")
 
-        async def broadcast_job_started(self, job_id, params):
-            self.broadcast_calls.append((job_id, params))
-
     coordinator = RecordingCoordinator()
     builder = get_service_container_builder().with_overrides(
         factories=lambda factories: replace(
             factories,
-            generation_coordinator=lambda deliveries, websocket, generation: (
-                coordinator
-            ),
+            generation_coordinator=lambda deliveries, generation: coordinator,
         ),
     )
     services = builder.build(
@@ -346,8 +324,3 @@ def test_compose_sdnext_uses_generation_coordinator(
 
     delivery_info = body.get("delivery")
     assert delivery_info == {"id": "job-123", "status": "pending"}
-
-    assert coordinator.broadcast_calls
-    broadcast_job_id, broadcast_params = coordinator.broadcast_calls[0]
-    assert broadcast_job_id == "job-123"
-    assert broadcast_params.prompt == body["prompt"]

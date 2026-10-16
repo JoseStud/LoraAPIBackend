@@ -85,9 +85,9 @@ flowchart TD
   `ServiceFactories` dataclass. A default is the service class itself when
   the registry's arguments map straight onto its constructor, otherwise a
   `make_*` function in
-  [`service_registry.py`](../../backend/services/service_registry.py) (or in
-  [`backend/services/providers/`](../../backend/services/providers) for
-  generation and WebSocket).
+  [`service_registry.py`](../../backend/services/service_registry.py). The
+  `websocket` default is `get_websocket_service`, which returns the
+  process-wide `WebSocketService`.
 - **Builder**: [`ServiceContainerBuilder`](../../backend/services/service_container_builder.py)
   builds registries. `get_service_container_builder()`
   ([`backend/services/__init__.py`](../../backend/services/__init__.py)) returns
@@ -133,8 +133,8 @@ it never leaks across async tasks. It exists only for tests and scripts.
 | `ComposeService` | `services/composition.py` | Builds a prompt from the active adapters as `<lora:NAME:weight>` tokens, which SDNext resolves against file names. |
 | `DeliveryService` | `services/deliveries.py` | Job rows: create, schedule, `claim_job` / `finish_job` / `cancel_job`, results, ratings and favourites, archives and downloads. |
 | `GenerationService` | `services/generation/__init__.py` | Talks to a generation backend: generate, progress, interrupt, validate params. |
-| `GenerationCoordinator` | same module | Ties deliveries, WebSocket and generation together: schedule, serialise, cancel, broadcast start. |
-| `WebSocketService` | `services/websocket/` | Connection manager, subscriptions, `JobProgressMonitor`. Module-global instance. |
+| `GenerationCoordinator` | same module | Ties deliveries and generation together: schedule, serialise, cancel (with the backend interrupt). |
+| `WebSocketService` | `services/websocket/` | Connection manager and subscriptions. Module-global instance. The lifespan-owned `JobProgressMonitor` (same package) broadcasts through its manager; see [Generation pipeline](Generation-Pipeline.md#live-progress-over-websocket). |
 | `SystemService` | `services/system.py` | `/system/status` payload: queue counts, SDNext and importer health, thresholds. |
 | `AnalyticsService` | `services/analytics/` | KPIs, time series and insights from delivery history (via `AnalyticsRepository`). |
 | `ArchiveService`, `BackupService` | `services/archive/` | Export planning and streaming, import execution, backups. See [Library import](Library-Import.md). |

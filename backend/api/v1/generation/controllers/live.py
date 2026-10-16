@@ -54,20 +54,12 @@ async def _execute_generation_request(
         "return_format": return_format.value,
     }
 
-    result = await services.generation.generate_image(
+    return await services.generation.generate_image(
         generation_params.prompt,
         backend,
         generation_params,
         **params,
     )
-
-    if result.job_id and mode == GenerationMode.DEFERRED:
-        await services.generation_coordinator.broadcast_job_started(
-            result.job_id,
-            generation_params,
-        )
-
-    return result
 
 
 def list_generation_backends() -> Dict[str, bool]:

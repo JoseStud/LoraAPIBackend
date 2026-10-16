@@ -46,8 +46,9 @@ are required and startup fails without them
 ## Processes and why there is only one API process
 
 - **API**: exactly one uvicorn process, no `--workers`, no replicas. The
-  WebSocket `ConnectionManager` and the `JobProgressMonitor` tasks live in
-  module globals ([`backend/services/websocket/service.py`](../../backend/services/websocket/service.py)),
+  WebSocket `ConnectionManager` lives in a module global
+  ([`backend/services/websocket/service.py`](../../backend/services/websocket/service.py))
+  and the one lifespan-owned `JobProgressMonitor` loop broadcasts through it,
   so a second process would never see the first one's subscribers. The
   in-process job runner and `JobRecovery` also assume one API process.
 - **RQ workers**: separate processes, but run **one** worker on the `default`
@@ -94,12 +95,15 @@ docs/                    Documentation, including this wiki
    Importing `backend.delivery` registers nothing.
 4. `JobRecovery.start()`: fails stuck jobs and, without Redis, requeues
    waiting ones ([details](Generation-Pipeline.md#recovery)).
-5. Background task: `EmbeddingService.preload_models` in a thread (failure
+5. `JobProgressMonitor.start()`: the loop that turns persisted job state into
+   progress WebSocket messages
+   ([details](Generation-Pipeline.md#live-progress-over-websocket)).
+6. Background task: `EmbeddingService.preload_models` in a thread (failure
    only logs).
-6. Background task, if `IMPORT_ON_STARTUP`: one-shot library import from
+7. Background task, if `IMPORT_ON_STARTUP`: one-shot library import from
    `IMPORT_PATH`.
 
-On shutdown it stops job recovery, stops the in-process job runner, and waits
+On shutdown it stops the progress monitor and job recovery, stops the in-process job runner, and waits
 briefly for the startup tasks.
 
 `app/main.py` wraps this: its own lifespan enters the mounted backend's

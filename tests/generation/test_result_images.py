@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import asyncio
 import base64
 import json
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -22,13 +22,14 @@ from backend.delivery.storage import (
     FileSystemImageStorage,
     stored_return_format,
 )
-from backend.schemas import SDNextGenerationResult
+from backend.schemas import GenerationComplete, SDNextGenerationResult
 from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.storage import StorageService, get_storage_backend
 from backend.services.websocket.job_monitor import (
+    JobObservation,
     JobProgressMonitor,
-    PersistedJobState,
+    PersistedJob,
 )
 from backend.utils.images import (
     make_output_reference,
@@ -261,34 +262,53 @@ def test_results_list_emits_route_url_and_legacy_data_uri(
 
 @pytest.mark.anyio
 async def test_completion_message_points_at_image_route():
-    persisted = PersistedJobState(
+    finished_at = datetime.now(timezone.utc)
+    persisted = PersistedJob(
+        job_id="job-9",
         status="succeeded",
+        params={"generation_params": {"prompt": "Prompt"}},
         result={"status": "completed", "images": [make_output_reference("a.png")]},
-        started_at=None,
-        finished_at=None,
+        finished_at=finished_at,
     )
 
     class Repository:
-        def get_job_state(self, job_id: str) -> PersistedJobState:
-            return persisted
+        def load_jobs(self, *, finished_since, job_ids) -> JobObservation:
+            return JobObservation(observed_at=finished_at, jobs=[persisted])
+
+    class Broadcaster:
+        def __init__(self) -> None:
+            self.completions: List[GenerationComplete] = []
+
+        def has_subscribers(self) -> bool:
+            return True
+
+        async def broadcast_generation_started(self, job_id, started_data) -> None:
+            return None
+
+        async def broadcast_progress(self, job_id, progress_data) -> None:
+            return None
+
+        async def broadcast_generation_complete(self, job_id, complete_data) -> None:
+            self.completions.append(complete_data)
 
     class Idle:
-        async def check_progress(self, job_id: str) -> SDNextGenerationResult:
+        async def check_generation_progress(
+            self, job_id: str, backend_name: str = "sdnext"
+        ) -> SDNextGenerationResult:
             return SDNextGenerationResult(job_id=job_id, status="pending")
 
-    monitor = JobProgressMonitor(repository=Repository(), poll_interval=0.0)
-    completions = []
+    broadcaster = Broadcaster()
+    monitor = JobProgressMonitor(
+        broadcaster=broadcaster,
+        repository=Repository(),
+        generation=Idle(),
+        interval_seconds=0.0,
+    )
+    await monitor.tick()
 
-    async def on_progress(update) -> None:
-        return None
-
-    async def on_complete(message) -> None:
-        completions.append(message)
-
-    task = await monitor.start("job-9", Idle(), on_progress, on_complete)
-    await asyncio.wait_for(task, timeout=1.0)
-
-    assert completions[0].images == ["/api/v1/generation/results/job-9/images/0"]
+    assert broadcaster.completions[0].images == [
+        "/api/v1/generation/results/job-9/images/0"
+    ]
 
 
 # ---------------------------------------------------------------------------

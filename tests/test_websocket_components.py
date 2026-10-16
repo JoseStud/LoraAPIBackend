@@ -1,34 +1,18 @@
-"""Unit tests for WebSocket connection routing and job monitoring."""
+"""Unit tests for WebSocket connection routing and job state loading."""
 
 from __future__ import annotations
 
-import asyncio
 import json
-import threading
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import List
 
 import pytest
 
-from backend.schemas import (
-    ProgressUpdate,
-    SDNextGenerationResult,
-    WebSocketSubscription,
-)
+from backend.schemas import ProgressUpdate, WebSocketSubscription
 from backend.services.deliveries import DeliveryService
-from backend.services.websocket import (
-    ConnectionManager,
-    JobProgressMonitor,
-    PersistedJobState,
-)
-from backend.services.websocket.persistence import DeliveryJobStateRepository
+from backend.services.websocket import ConnectionManager, DeliveryJobStateRepository
 from tests.util.delivery_jobs import set_job_status
-
-PNG_BASE64 = (
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQAB"
-    "DQottAAAAABJRU5ErkJggg=="
-)
 
 
 class _FakeWebSocket:
@@ -84,292 +68,60 @@ async def test_connection_manager_routes_subscriptions() -> None:
 
 
 @pytest.mark.anyio
-async def test_job_progress_monitor_merges_persisted_state() -> None:
-    persisted = PersistedJobState(
-        status="succeeded",
-        result={
-            "status": "completed",
-            "progress": 1.0,
-            "images": [PNG_BASE64, "/app/outputs/job_0.png"],
-            "generation_info": {"duration": 1.2},
-        },
-        started_at=datetime.now(timezone.utc) - timedelta(seconds=5),
-        finished_at=datetime.now(timezone.utc),
+async def test_connection_manager_reports_subscribers() -> None:
+    manager = ConnectionManager()
+    assert manager.has_subscribers() is False
+
+    connection_id = await manager.connect(_FakeWebSocket())
+    # Connected but not subscribed: no job message would reach it.
+    assert manager.has_subscribers() is False
+
+    await manager.handle_subscription(
+        connection_id, WebSocketSubscription(job_ids=["job-1"])
     )
+    assert manager.has_subscribers() is True
 
-    class StubRepository:
-        def get_job_state(self, job_id: str) -> PersistedJobState:
-            assert job_id == "job-123"
-            return persisted
+    manager.disconnect(connection_id)
+    assert manager.has_subscribers() is False
 
-    class DummyGenerationService:
-        async def check_progress(self, job_id: str) -> SDNextGenerationResult:
-            return SDNextGenerationResult(job_id=job_id, status="running", progress=0.0)
 
-    monitor = JobProgressMonitor(repository=StubRepository(), poll_interval=0.0)
-
-    progress_updates: List[ProgressUpdate] = []
-    completions = []
-
-    async def on_progress(update: ProgressUpdate) -> None:
-        progress_updates.append(update)
-
-    async def on_complete(message):
-        completions.append(message)
-
-    task = await monitor.start(
-        "job-123",
-        DummyGenerationService(),
-        on_progress=on_progress,
-        on_complete=on_complete,
-    )
-    await asyncio.wait_for(task, timeout=0.1)
-
-    assert progress_updates
-    assert progress_updates[0].status == "completed"
-    assert progress_updates[0].progress == pytest.approx(1.0)
-
-    assert completions
-    assert completions[0].status == "completed"
-    assert completions[0].images == [f"data:image/png;base64,{PNG_BASE64}"]
-    assert completions[0].generation_info == {"duration": 1.2}
-    assert completions[0].total_duration is not None
-
-
-class _GlobalProgressClient:
-    """Fake SD.Next client: progress is global and ignores the job id."""
-
-    def __init__(self, progress: float) -> None:
-        self.progress = progress
-        self.calls: List[str] = []
-
-    async def check_progress(self, job_id: str) -> SDNextGenerationResult:
-        self.calls.append(job_id)
-        status = "running" if self.progress < 1.0 else "completed"
-        if self.progress == 0.0:
-            status = "pending"
-        return SDNextGenerationResult(
-            job_id=job_id, status=status, progress=self.progress
-        )
-
-
-class _FixedStateRepository:
-    def __init__(self, state: PersistedJobState | None) -> None:
-        self.state = state
-
-    def get_job_state(self, job_id: str) -> PersistedJobState | None:
-        return self.state
-
-
-def _persisted(status: str, result: dict | None = None) -> PersistedJobState:
-    return PersistedJobState(
-        status=status, result=result, started_at=None, finished_at=None
-    )
-
-
-async def _run_monitor(
-    repository: _FixedStateRepository | None,
-    client: _GlobalProgressClient,
-    *,
-    max_updates: int = 3,
-):
-    """Run the monitor until it completes or emits ``max_updates`` updates."""
-    monitor = JobProgressMonitor(repository=repository, poll_interval=0.0)
-    updates: List[ProgressUpdate] = []
-    completions = []
-
-    async def on_progress(update: ProgressUpdate) -> None:
-        updates.append(update)
-        if len(updates) >= max_updates:
-            monitor.stop("job-1")
-
-    async def on_complete(message) -> None:
-        completions.append(message)
-
-    task = await monitor.start("job-1", client, on_progress, on_complete)
-    await asyncio.wait_for(task, timeout=1.0)
-    return updates, completions
-
-
-@pytest.mark.anyio
-async def test_monitor_ignores_global_progress_for_queued_job() -> None:
-    client = _GlobalProgressClient(progress=0.6)
-
-    updates, completions = await _run_monitor(
-        _FixedStateRepository(_persisted("pending")), client
-    )
-
-    assert updates
-    assert all(u.status == "queued" for u in updates)
-    assert all(u.progress == 0.0 for u in updates)
-    assert completions == []
-    # SD.Next is not even asked while the job waits in the queue.
-    assert client.calls == []
-
-
-@pytest.mark.anyio
-async def test_monitor_reports_stored_progress_for_queued_job() -> None:
-    updates, _ = await _run_monitor(
-        _FixedStateRepository(_persisted("pending", {"progress": 0.2})),
-        _GlobalProgressClient(progress=0.6),
-        max_updates=1,
-    )
-
-    assert updates[0].status == "queued"
-    assert updates[0].progress == pytest.approx(0.2)
-
-
-@pytest.mark.anyio
-async def test_monitor_uses_live_progress_for_running_job() -> None:
-    updates, completions = await _run_monitor(
-        _FixedStateRepository(_persisted("running")),
-        _GlobalProgressClient(progress=0.6),
-    )
-
-    assert updates
-    assert all(u.status == "processing" for u in updates)
-    assert all(u.progress == pytest.approx(0.6) for u in updates)
-    assert completions == []
-
-
-@pytest.mark.anyio
-async def test_monitor_completes_from_persisted_state_when_sdnext_is_idle() -> None:
-    updates, completions = await _run_monitor(
-        _FixedStateRepository(_persisted("succeeded")),
-        _GlobalProgressClient(progress=0.0),
-    )
-
-    assert len(updates) == 1
-    assert updates[0].status == "completed"
-    assert updates[0].progress == pytest.approx(1.0)
-    assert len(completions) == 1
-    assert completions[0].status == "completed"
-
-
-@pytest.mark.anyio
-async def test_monitor_does_not_complete_queued_job_when_sdnext_finishes() -> None:
-    updates, completions = await _run_monitor(
-        _FixedStateRepository(_persisted("pending")),
-        _GlobalProgressClient(progress=1.0),
-    )
-
-    assert len(updates) == 3
-    assert all(u.status == "queued" for u in updates)
-    assert completions == []
-
-
-@pytest.mark.anyio
-async def test_monitor_does_not_complete_running_job_from_sdnext_alone() -> None:
-    updates, completions = await _run_monitor(
-        _FixedStateRepository(_persisted("running")),
-        _GlobalProgressClient(progress=1.0),
-    )
-
-    assert len(updates) == 3
-    assert all(u.status == "processing" for u in updates)
-    assert completions == []
-
-
-@pytest.mark.anyio
-async def test_monitor_skips_ticks_without_persisted_state() -> None:
-    client = _GlobalProgressClient(progress=0.6)
-    monitor = JobProgressMonitor(
-        repository=_FixedStateRepository(None), poll_interval=0.0
-    )
-    updates: List[ProgressUpdate] = []
-
-    async def on_progress(update: ProgressUpdate) -> None:
-        updates.append(update)
-
-    async def on_complete(message) -> None:  # pragma: no cover - must not run
-        raise AssertionError("unexpected completion")
-
-    task = await monitor.start("job-1", client, on_progress, on_complete)
-    for _ in range(5):
-        await asyncio.sleep(0)
-    monitor.stop("job-1")
-    await asyncio.wait_for(task, timeout=1.0)
-
-    assert updates == []
-    assert client.calls == []
-
-
-@pytest.mark.anyio
-async def test_monitor_loads_persisted_state_off_the_event_loop() -> None:
-    loop_thread = threading.get_ident()
-
-    class _ThreadRecordingRepository(_FixedStateRepository):
-        def __init__(self) -> None:
-            super().__init__(_persisted("succeeded"))
-            self.threads: List[int] = []
-
-        def get_job_state(self, job_id: str) -> PersistedJobState | None:
-            self.threads.append(threading.get_ident())
-            return super().get_job_state(job_id)
-
-    repository = _ThreadRecordingRepository()
-    _, completions = await _run_monitor(repository, _GlobalProgressClient(progress=0.0))
-
-    assert len(completions) == 1
-    assert repository.threads
-    assert loop_thread not in repository.threads
-
-
-@pytest.mark.anyio
-async def test_monitor_skips_tick_when_state_load_fails() -> None:
-    class _FailingOnceRepository(_FixedStateRepository):
-        def __init__(self) -> None:
-            super().__init__(_persisted("succeeded"))
-            self.calls = 0
-
-        def get_job_state(self, job_id: str) -> PersistedJobState | None:
-            self.calls += 1
-            if self.calls == 1:
-                raise RuntimeError("database unavailable")
-            return super().get_job_state(job_id)
-
-    repository = _FailingOnceRepository()
-    updates, completions = await _run_monitor(
-        repository, _GlobalProgressClient(progress=0.0)
-    )
-
-    assert repository.calls == 2
-    assert len(updates) == 1
-    assert len(completions) == 1
-
-
-@pytest.mark.anyio
-async def test_monitor_without_repository_trusts_backend() -> None:
-    updates, completions = await _run_monitor(None, _GlobalProgressClient(progress=1.0))
-
-    assert len(updates) == 1
-    assert updates[0].status == "completed"
-    assert len(completions) == 1
-
-
-def test_delivery_job_state_repository_returns_persisted_state(
+def test_delivery_job_state_repository_loads_monitored_jobs(
     delivery_service: DeliveryService,
 ) -> None:
-    job = delivery_service.create_job("Prompt", "sdnext", {"foo": "bar"})
-    set_job_status(delivery_service, job.id, "running")
+    finished = delivery_service.create_job("Prompt", "sdnext", {"foo": "bar"})
+    set_job_status(delivery_service, finished.id, "running")
     set_job_status(
         delivery_service,
-        job.id,
+        finished.id,
         "succeeded",
         {"status": "completed", "progress": 0.8},
     )
+    pending = delivery_service.create_job("Queued", "sdnext", {})
 
     @contextmanager
     def session_factory():
-        yield delivery_service.repository._session
+        yield delivery_service.repository.session
 
     repository = DeliveryJobStateRepository(session_factory=session_factory)
-    state = repository.get_job_state(job.id)
 
-    assert state is not None
+    active_only = repository.load_jobs(finished_since=None, job_ids=())
+    assert [job.job_id for job in active_only.jobs] == [pending.id]
+
+    named = repository.load_jobs(finished_since=None, job_ids=[finished.id])
+    state = next(job for job in named.jobs if job.job_id == finished.id)
     assert state.status == "succeeded"
+    assert state.mode == "sdnext"
+    assert state.params == {"foo": "bar"}
     assert state.result == {"status": "completed", "progress": 0.8}
     assert state.started_at is not None
     assert state.finished_at is not None
 
-    assert repository.get_job_state("missing") is None
+    recent = repository.load_jobs(
+        finished_since=active_only.observed_at - timedelta(minutes=1), job_ids=()
+    )
+    assert {job.job_id for job in recent.jobs} == {pending.id, finished.id}
+
+    later = repository.load_jobs(
+        finished_since=recent.observed_at + timedelta(minutes=1), job_ids=()
+    )
+    assert [job.job_id for job in later.jobs] == [pending.id]

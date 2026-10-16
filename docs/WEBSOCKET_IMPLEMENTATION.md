@@ -10,25 +10,32 @@ The WebSocket implementation provides a way for clients to receive live updates 
 -   **Real-Time Progress**: Clients get live progress updates for generation jobs, as a fraction from 0 to 1 (1 is complete).
 -   **Subscription Model**: Clients can subscribe to updates for specific job IDs or all jobs.
 -   **Event-Driven**: The system sends structured messages for events like `generation_started`, `progress_update`, and `generation_complete`.
--   **Decoupled**: The WebSocket logic is handled in a separate service, decoupled from the main API endpoints.
+-   **Decoupled**: Messages are produced from persisted job state by one background loop; API handlers and job runners never broadcast them.
 
 ---
 
 ## 2. Architecture
 
-The implementation consists of three main components:
+The implementation consists of four main components:
 
 1.  **`ConnectionManager` (`backend/services/websocket/connection_manager.py`)**:
     -   Manages all active WebSocket connections.
     -   Handles client subscriptions to specific job IDs.
-    -   Broadcasts messages to relevant subscribed clients.
+    -   Broadcasts messages to relevant subscribed clients, and reports
+        whether anyone is subscribed (`has_subscribers()`).
 
 2.  **`WebSocketService` (`backend/services/websocket/service.py`)**:
-    -   The core service that orchestrates WebSocket functionality.
-    -   Starts and stops background tasks to poll for job progress from the SD.Next API.
+    -   A module-global instance that owns the `ConnectionManager`.
     -   Handles incoming client messages (e.g., subscription requests).
 
-3.  **WebSocket Endpoint (`backend/api/v1/websocket.py`)**:
+3.  **`JobProgressMonitor` (`backend/services/websocket/job_monitor.py`)**:
+    -   One loop, started and stopped by the FastAPI lifespan (like
+        `JobRecovery`), that turns persisted delivery job state into
+        `generation_started`, `progress_update` and `generation_complete`
+        messages. It reads jobs through `DeliveryJobStateRepository`
+        (`persistence.py`).
+
+4.  **WebSocket Endpoint (`backend/api/v1/websocket.py`)**:
     -   Exposes the canonical `/api/v1/ws/progress` endpoint (via the main app's `/api` mount).
     -   Accepts new client connections and passes them to the `WebSocketService`.
 
@@ -42,10 +49,31 @@ The implementation consists of three main components:
       "job_ids": ["job-123"]
     }
     ```
-3.  When an image generation job is started via an API call, the `GenerationService` notifies the `WebSocketService`.
-4.  The `WebSocketService` starts a background task that polls the SD.Next `/sdapi/v1/progress` endpoint.
-5.  As progress updates are received, the service broadcasts `progress_update` messages to all subscribed clients.
-6.  When the job is complete, a `generation_complete` message is sent, and the polling task is stopped.
+3.  Every `SDNEXT_POLL_INTERVAL` seconds (default 2) the monitor ticks. With
+    no subscribed connection the tick does nothing: no database query and no
+    SD.Next call. Otherwise it loads, in one query in a worker thread, the
+    active jobs (`pending`/`retrying`/`running`), the jobs that finished since
+    the previous tick and the jobs it is tracking.
+4.  When it first sees a job `running` (a runner claimed it, from the API's
+    in-process runner or an RQ worker), it sends `generation_started` with the
+    job's stored generation parameters.
+5.  It sends `progress_update` for every active job. SD.Next's
+    `/sdapi/v1/progress` is process-global, so it is polled once per tick and
+    only for the `running` job; queued jobs report their stored progress or 0.
+6.  When a job leaves the active set as `succeeded` or `failed`, it sends a
+    final `progress_update` and `generation_complete`, built from the stored
+    row. A job that ran entirely between two ticks still gets
+    `generation_started` (if claimed), progress and completion.
+
+**Cancelled jobs** get no `generation_complete`: the monitor drops them
+silently. The client that cancelled a job removes it itself, and the SPA
+treats any `generation_complete` whose status is not `completed` as a
+failure. Other clients see the job leave `GET /v1/generation/jobs/active`.
+
+**Restarts**: the first tick after startup (or after a time with no
+subscribers) seeds the tracking from the active jobs only. Jobs already
+running get progress and completion; jobs that finished before that tick are
+not announced.
 
 ---
 
@@ -112,9 +140,10 @@ The following Pydantic schemas are used for WebSocket communication (`backend/sc
 1. Client connects to `/api/v1/ws/progress` (or `/v1/ws/progress` when addressing the backend service directly)
 2. Client sends subscription request
 3. Server confirms subscription
-4. When generation job starts → `generation_started` message
-5. Server polls SDNext progress → `progress_update` messages
-6. When job completes → `generation_complete` message
+4. When a runner claims a job → `generation_started` message
+5. Every monitor tick → `progress_update` messages for active jobs
+6. When the job succeeds or fails → `generation_complete` message (none for
+   a cancelled job)
 
 #### Architecture Benefits
 - **Non-blocking**: WebSocket monitoring doesn't interfere with API performance
@@ -131,15 +160,17 @@ The following Pydantic schemas are used for WebSocket communication (`backend/sc
 
 ## Current status
 
-The progress WebSocket works with the existing queue pipeline and SDNext
-monitor, but it should still be considered experimental until the surrounding
-delivery infrastructure is hardened.
+The progress WebSocket works with the existing queue pipeline, but it should
+still be considered experimental until the surrounding delivery
+infrastructure is hardened.
 
 - ✅ Endpoint wiring is complete: `/v1/ws/progress` (and `/api/v1/ws/progress`
   via the main app) delegate to the shared `WebSocketService`, which subscribes
   to delivery and generation updates.【F:backend/api/v1/websocket.py†L1-L43】
-- ✅ The service layer can start and stop job monitors, broadcasting structured
-  events as jobs transition states.【F:backend/services/websocket/service.py†L1-L95】【F:backend/services/websocket/job_monitor.py†L1-L120】
+- ✅ One lifespan-owned `JobProgressMonitor` broadcasts structured events as
+  persisted jobs change state, whichever process runs them
+  (`backend/services/websocket/job_monitor.py`, tested by
+  `tests/test_job_monitor.py`).
 - ⚠️ Load and failure-mode testing is limited; queue backpressure and
   disconnect handling still need real-world validation alongside the delivery
   worker.【F:backend/services/deliveries.py†L16-L205】

@@ -89,8 +89,8 @@ text-to-image generation and does not validate those other workflows, image
 quality, GPU throughput, multi-user isolation or crash recovery during inference.
 
 Run the API as a single uvicorn process (no `--workers`, no replicas): WebSocket
-connections and job progress monitors live in that process's memory, so another
-process would never see them. RQ workers are separate processes, but run one
+connections and the job progress monitor live in that process's memory, so
+another process would never see them. RQ workers are separate processes, but run one
 worker on the `default` queue: SDNext renders one job at a time and its progress
 and interrupt endpoints are global, so a second worker would overlap with the
 first.

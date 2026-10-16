@@ -75,9 +75,9 @@ npm run build
   service (an RQ worker) runs them; the API and worker share `./outputs` as
   `SDNEXT_OUTPUT_DIR`.
 - **Single API process**: the API runs as one uvicorn process (no `--workers`,
-  no replicas), because the WebSocket `ConnectionManager` and the
-  `JobProgressMonitor` tasks live in module globals
-  (`backend/services/websocket/service.py`). Run one RQ worker on the
+  no replicas), because the WebSocket `ConnectionManager` lives in a module
+  global (`backend/services/websocket/service.py`) and the one lifespan-owned
+  `JobProgressMonitor` loop broadcasts through it. Run one RQ worker on the
   `default` queue too: it carries generation and recommendation jobs, and
   SDNext renders one job at a time with global progress and interrupt
   endpoints, so a second worker would overlap with the first.
@@ -126,8 +126,9 @@ Read these before changing the matching subsystem:
   `services.storage`, ...). Each service is built by a field of the frozen
   `ServiceFactories` dataclass in the same file. A default is the service
   class itself when the registry's arguments map straight onto its
-  constructor, otherwise a `make_*` function (in `service_registry.py`, or in
-  `backend/services/providers/` for generation and WebSocket). Registries come
+  constructor, otherwise a `make_*` function in `service_registry.py`
+  (`get_websocket_service` returns the process-wide WebSocket service).
+  Registries come
   from `ServiceContainerBuilder`
   (`backend/services/service_container_builder.py`);
   `get_service_container_builder()` (`backend/services/__init__.py`) returns
@@ -196,6 +197,20 @@ Read these before changing the matching subsystem:
   startup and requeues the waiting ones, which lived only in the old process,
   through the orchestrator onto the same in-process runner as new requests.
   Tests stub `JobRecovery.start` (autouse fixture in `tests/conftest.py`).
+- **Progress WebSocket**: one `JobProgressMonitor`
+  (`backend/services/websocket/job_monitor.py`), started and stopped by the
+  lifespan, produces every `generation_started`, `progress_update` and
+  `generation_complete` from persisted job state; handlers and services never
+  broadcast job messages or start per-job monitoring. Each
+  `SDNEXT_POLL_INTERVAL` tick loads the active jobs, the recently finished
+  ones and the tracked ones in one query in a thread
+  (`DeliveryJobRepository.list_monitored_jobs`), sends `generation_started`
+  when it first sees a job `running` (a claim), polls SDNext's global progress
+  only for the running job, and sends `generation_complete` when a job leaves
+  the active set as `succeeded`/`failed`; a `cancelled` job is dropped without
+  one. With no subscribed connection a tick does nothing (no query, no SDNext
+  call). Tests stub `JobProgressMonitor.start` (autouse fixture in
+  `tests/conftest.py`) and drive `tick()` directly.
 - **Configuration**: runtime settings live only in `backend/core/config.py`, so
   startup validation and the frontend `/frontend/settings` payload stay
   consistent.

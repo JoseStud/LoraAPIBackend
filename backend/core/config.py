@@ -57,7 +57,9 @@ class Settings(BaseSettings):
     SDNEXT_USERNAME: Optional[str] = None  # for --auth mode
     SDNEXT_PASSWORD: Optional[str] = None  # for --auth mode
     SDNEXT_TIMEOUT: int = 120  # request timeout in seconds
-    SDNEXT_POLL_INTERVAL: int = 2  # polling interval for progress
+    # Seconds between ticks of the API's job progress monitor, which reads job
+    # state and SD.Next's progress for the progress WebSocket.
+    SDNEXT_POLL_INTERVAL: float = Field(default=2.0, gt=0)
     SDNEXT_DEFAULT_STEPS: int = 20
     SDNEXT_DEFAULT_SAMPLER: str = "DPM++ 2M"
     SDNEXT_DEFAULT_CFG_SCALE: float = 7.0

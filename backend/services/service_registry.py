@@ -18,12 +18,6 @@ from .composition import ComposeService
 from .deliveries import DeliveryService
 from .delivery_repository import DeliveryJobRepository
 from .generation import GenerationCoordinator, GenerationService
-from .providers.generation import (
-    make_compose_service,
-    make_generation_coordinator,
-    make_generation_service,
-)
-from .providers.websocket import default_websocket_service_factory
 from .queue import QueueOrchestrator
 from .recommendation_jobs import RecommendationJobService
 from .recommendations import (
@@ -34,7 +28,7 @@ from .recommendations import (
 )
 from .storage import StorageService, get_storage_backend
 from .system import SystemService
-from .websocket import WebSocketService
+from .websocket import WebSocketService, get_websocket_service
 
 
 def make_storage_service() -> StorageService:
@@ -81,13 +75,14 @@ class ServiceFactories:
     """The factory used to construct each service in a :class:`ServiceRegistry`.
 
     A default is the service class itself when the registry's arguments map
-    straight onto its constructor, otherwise a ``make_*`` function.
+    straight onto its constructor, otherwise a ``make_*`` function (or, for
+    the WebSocket service, the accessor of the process-wide instance).
     """
 
     storage: Callable[..., StorageService] = make_storage_service
     adapter: Callable[..., AdapterService] = make_adapter_service
-    compose: Callable[..., ComposeService] = make_compose_service
-    generation: Callable[..., GenerationService] = make_generation_service
+    compose: Callable[..., ComposeService] = ComposeService
+    generation: Callable[..., GenerationService] = GenerationService
     analytics: Callable[..., AnalyticsService] = AnalyticsService
     recommendation: Callable[..., RecommendationService] = make_recommendation_service
     recommendation_jobs: Callable[..., RecommendationJobService] = (
@@ -95,10 +90,8 @@ class ServiceFactories:
     )
     archive: Callable[..., ArchiveService] = ArchiveService
     delivery: Callable[..., DeliveryService] = DeliveryService
-    generation_coordinator: Callable[..., GenerationCoordinator] = (
-        make_generation_coordinator
-    )
-    websocket: Callable[..., WebSocketService] = default_websocket_service_factory
+    generation_coordinator: Callable[..., GenerationCoordinator] = GenerationCoordinator
+    websocket: Callable[..., WebSocketService] = get_websocket_service
     system: Callable[..., SystemService] = make_system_service
 
 
@@ -232,10 +225,9 @@ class ServiceRegistry:
 
     @cached_property
     def generation_coordinator(self) -> GenerationCoordinator:
-        """Return the coordinator tying deliveries, WebSocket and generation."""
+        """Return the coordinator tying deliveries and generation together."""
         return self._factories.generation_coordinator(
             self.deliveries,
-            self.websocket,
             self.generation,
         )
 

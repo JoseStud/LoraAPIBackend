@@ -84,6 +84,10 @@ class ConnectionManager:
         del self.active_connections[connection_id]
         logger.info("WebSocket disconnected", connection_id=connection_id)
 
+    def has_subscribers(self) -> bool:
+        """Return whether any connection would receive a job message."""
+        return bool(self.global_subscribers or self.job_subscriptions)
+
     async def handle_subscription(
         self,
         connection_id: str,

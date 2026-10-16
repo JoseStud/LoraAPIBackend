@@ -9,34 +9,27 @@ from typing import Optional
 import structlog
 from fastapi import WebSocket, WebSocketDisconnect
 
-from backend.schemas import (
-    GenerationComplete,
-    ProgressUpdate,
-    WebSocketMessage,
-    WebSocketSubscription,
-)
+from backend.schemas import WebSocketMessage, WebSocketSubscription
 
 from .connection_manager import ConnectionManager
-from .job_monitor import JobProgressMonitor
-from .persistence import DeliveryJobStateRepository
 
 logger = structlog.get_logger(__name__)
 
 
 class WebSocketService:
-    """Coordinate WebSocket connections with job monitoring fan-out."""
+    """Accept progress WebSocket connections and handle their subscriptions.
+
+    Job messages are sent through :attr:`manager` by the lifespan-owned
+    :class:`~backend.services.websocket.job_monitor.JobProgressMonitor`.
+    """
 
     def __init__(
         self,
         *,
         connection_manager: Optional[ConnectionManager] = None,
-        job_monitor: Optional[JobProgressMonitor] = None,
     ) -> None:
-        """Initialise WebSocket collaborators with sensible defaults."""
+        """Use ``connection_manager`` or a new one."""
         self.manager = connection_manager or ConnectionManager()
-        self.job_monitor = job_monitor or JobProgressMonitor(
-            repository=DeliveryJobStateRepository(),
-        )
 
     async def handle_connection(self, websocket: WebSocket) -> None:
         """Accept a WebSocket and process incoming messages."""
@@ -83,28 +76,15 @@ class WebSocketService:
         )
         await self.manager.send_message(connection_id, response.model_dump())
 
-    async def start_job_monitoring(self, job_id: str, generation_service) -> None:
-        """Begin monitoring a job and broadcasting updates."""
 
-        async def forward_progress(update: ProgressUpdate) -> None:
-            await self.manager.broadcast_progress(job_id, update)
-
-        async def forward_completion(message: GenerationComplete) -> None:
-            await self.manager.broadcast_generation_complete(job_id, message)
-
-        await self.job_monitor.start(
-            job_id,
-            generation_service,
-            on_progress=forward_progress,
-            on_complete=forward_completion,
-        )
-
-    def stop_job_monitoring(self, job_id: str) -> None:
-        """Stop monitoring a job."""
-        self.job_monitor.stop(job_id)
-
-
-# Global WebSocket service instance used by dependency injection
+# The process-wide service: its connections are what the job monitor reaches,
+# which is why the API runs as a single process.
 websocket_service = WebSocketService()
 
-__all__ = ["WebSocketService", "websocket_service"]
+
+def get_websocket_service() -> WebSocketService:
+    """Return the process-wide WebSocket service."""
+    return websocket_service
+
+
+__all__ = ["WebSocketService", "get_websocket_service", "websocket_service"]

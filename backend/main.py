@@ -31,6 +31,7 @@ from backend.services.in_process_jobs import get_in_process_job_runner
 from backend.services.job_recovery import JobRecovery
 from backend.services.queue import QueueUnavailableError
 from backend.services.recommendations import EmbeddingService
+from backend.services.websocket import JobProgressMonitor, websocket_service
 
 
 @asynccontextmanager
@@ -42,6 +43,8 @@ async def lifespan(app: FastAPI):
     ensure_delivery_system()
     job_recovery = JobRecovery.from_settings()
     job_recovery.start()
+    job_monitor = JobProgressMonitor.from_settings(websocket_service.manager)
+    job_monitor.start()
     startup_tasks = []
     recommendation_logger = logging.getLogger("lora.recommendations.startup")
 
@@ -111,6 +114,7 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        await job_monitor.stop()
         await job_recovery.stop()
         # Jobs that never started are requeued by recovery at the next start.
         await asyncio.to_thread(get_in_process_job_runner().stop)

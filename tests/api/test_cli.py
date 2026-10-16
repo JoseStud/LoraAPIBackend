@@ -133,9 +133,7 @@ async def test_queue_generation_job_uses_primary_queue_backend(
     primary_queue = TrackingQueue()
     fallback_queue = TrackingQueue()
 
-    start_mock = AsyncMock()
     broadcast_mock = AsyncMock()
-    monkeypatch.setattr(websocket_service, "start_job_monitoring", start_mock)
     monkeypatch.setattr(
         websocket_service.manager,
         "broadcast_generation_started",
@@ -174,15 +172,9 @@ async def test_queue_generation_job_uses_primary_queue_backend(
     assert primary_queue.calls[0]["background_tasks"] is not None
     assert fallback_queue.calls == []
 
-    start_mock.assert_awaited_once()
-    start_args, start_kwargs = start_mock.await_args
-    assert start_args[0] == job_id
-    assert start_kwargs == {}
-
-    broadcast_mock.assert_awaited_once()
-    broadcast_args, broadcast_kwargs = broadcast_mock.await_args
-    assert broadcast_args[0] == job_id
-    assert broadcast_kwargs == {}
+    # generation_started is sent by the job monitor once a runner claims the
+    # job, not by the request that queued it.
+    broadcast_mock.assert_not_awaited()
 
 
 @pytest.mark.anyio
@@ -193,10 +185,8 @@ async def test_queue_generation_job_reports_unavailable_queue(
     recording_queue_backend: RecordingQueueBackend,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """A failing primary queue gives a 503, a failed job and no job monitor."""
-    start_mock = AsyncMock()
+    """A failing primary queue gives a 503 and a failed job."""
     broadcast_mock = AsyncMock()
-    monkeypatch.setattr(websocket_service, "start_job_monitoring", start_mock)
     monkeypatch.setattr(
         websocket_service.manager,
         "broadcast_generation_started",
@@ -233,7 +223,6 @@ async def test_queue_generation_job_reports_unavailable_queue(
     assert failing_queue_backend.attempts == 1
     assert recording_queue_backend.calls == []
     _assert_single_failed_job(db_session)
-    start_mock.assert_not_awaited()
     broadcast_mock.assert_not_awaited()
 
 
@@ -241,14 +230,9 @@ async def test_queue_generation_job_reports_unavailable_queue(
 async def test_queue_generation_job_stores_client_ref(
     client: TestClient,
     db_session,
-    monkeypatch: pytest.MonkeyPatch,
 ):
     """``client_ref`` is kept with the job so the finished webhook can echo it."""
     queue = RecordingQueueBackend()
-    monkeypatch.setattr(websocket_service, "start_job_monitoring", AsyncMock())
-    monkeypatch.setattr(
-        websocket_service.manager, "broadcast_generation_started", AsyncMock()
-    )
 
     def override_service_container():
         builder = get_service_container_builder()

@@ -11,12 +11,6 @@ from backend.services.composition import ComposeService
 from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.generation import GenerationCoordinator, GenerationService
-from backend.services.providers.generation import (
-    make_compose_service,
-    make_generation_coordinator,
-    make_generation_service,
-)
-from backend.services.providers.websocket import make_websocket_service
 from backend.services.queue import QueueOrchestrator
 from backend.services.recommendations import EmbeddingService, RecommendationService
 from backend.services.service_registry import (
@@ -53,32 +47,6 @@ def test_make_adapter_service_respects_storage_backend():
     assert isinstance(service, AdapterService)
     assert service.db_session is session
     assert service.storage_backend is storage_backend
-
-
-def test_make_compose_service_returns_instance():
-    assert isinstance(make_compose_service(), ComposeService)
-
-
-def test_make_generation_service_returns_instance():
-    assert isinstance(make_generation_service(), GenerationService)
-
-
-def test_make_generation_coordinator_uses_dependencies():
-    deliveries = MagicMock()
-    websocket = MagicMock(spec=WebSocketService)
-    generation = MagicMock(spec=GenerationService)
-
-    coordinator = make_generation_coordinator(deliveries, websocket, generation)
-
-    assert isinstance(coordinator, GenerationCoordinator)
-    assert coordinator._deliveries is deliveries
-    assert coordinator._websocket is websocket
-    assert coordinator._generation_service is generation
-
-
-def test_make_websocket_service_returns_existing_instance():
-    instance = WebSocketService()
-    assert make_websocket_service(service=instance) is instance
 
 
 def test_make_system_service_wires_delivery_service():
@@ -201,6 +169,5 @@ def test_service_container_uses_custom_providers(db_session):
     assert registry.generation_coordinator is generation_coordinator
     generation_coordinator_provider.assert_called_once_with(
         delivery_service,
-        websocket_service,
         generation_service,
     )

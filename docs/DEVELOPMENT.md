@@ -37,7 +37,7 @@ backend/
 ├── core/                   # Configuration, DB session helpers, security
 ├── models/                 # SQLModel entities for adapters and deliveries
 ├── schemas/                # Pydantic request/response models
-├── services/               # Service container, facades, and providers
+├── services/               # Service container and domain services
 ├── delivery/               # Pluggable delivery backends (SDNext, HTTP, storage)
 └── workers/                # RQ worker utilities and background tasks
 ```
@@ -50,8 +50,8 @@ Key concepts:
   `services.deliveries`, `services.storage`, ...). Each service is built by a
   field of the frozen `ServiceFactories` dataclass in the same file. A default
   is the service class itself when the registry's arguments map straight onto
-  its constructor, otherwise a `make_*` function (in `service_registry.py`, or
-  in `backend/services/providers/` for generation and WebSocket).
+  its constructor, otherwise a `make_*` function in `service_registry.py`
+  (`get_websocket_service` for the process-wide WebSocket service).
 - `ServiceContainerBuilder` (`backend/services/service_container_builder.py`)
   builds registries. `get_service_container_builder()`
   (`backend/services/__init__.py`) returns one process-wide builder, so its

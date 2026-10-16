@@ -1,400 +1,402 @@
-"""Job progress monitoring utilities for WebSocket fan-out."""
+"""The progress WebSocket's single job monitor loop.
+
+One :class:`JobProgressMonitor`, started and stopped by the FastAPI lifespan,
+turns persisted delivery job state into progress WebSocket messages. It does
+not depend on the request that created a job: jobs run by the RQ worker,
+jobs that job recovery requeued and jobs that were already running when the
+API restarted are all reported the same way.
+
+Every ``SDNEXT_POLL_INTERVAL`` seconds, while at least one WebSocket
+connection is subscribed, a tick:
+
+1. loads, in one query in a worker thread, the active generation jobs
+   (``pending``/``retrying``/``running``), the jobs that finished since the
+   previous tick and the jobs it is tracking;
+2. sends ``generation_started`` for a job it sees ``running`` that it last
+   saw in another status or not at all (a runner claimed it; a retry that is
+   claimed again starts again);
+3. sends ``progress_update`` for every active job. SD.Next's progress
+   endpoint is process-global: it reports whatever SD.Next is rendering and
+   ignores the job id it is asked about. Only the job whose persisted status
+   is ``running`` (the most recently started one, should several be) gets
+   SD.Next's live progress; queued jobs report their stored progress, or 0;
+4. sends a final ``progress_update`` and ``generation_complete`` for a job
+   that left the active set as ``succeeded`` or ``failed``, built from its
+   stored row. A job that finished between two ticks without being seen
+   ``running`` gets ``generation_started`` first if a runner claimed it
+   (``started_at`` is set). A ``cancelled`` job is dropped silently: the
+   client that cancelled it removed it itself, and the SPA reads any
+   ``generation_complete`` that is not ``completed`` as a failure.
+
+The first tick (after startup, or after a period without subscribers) seeds
+the tracking from the active jobs alone, so jobs already running get
+progress and completion without needing a request. With no subscribers the
+tick does nothing, not even the database query, and forgets what it tracked.
+"""
 
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Awaitable, Callable, Dict, Optional, Protocol, Tuple
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Protocol, Sequence, Set
 
 import structlog
+from pydantic import ValidationError
 
-from backend.schemas import GenerationComplete, ProgressUpdate, SDNextGenerationResult
+from backend.schemas import (
+    GenerationComplete,
+    GenerationStarted,
+    ProgressUpdate,
+    SDNextGenerationParams,
+    SDNextGenerationResult,
+)
 from backend.utils.images import to_browser_image_src
 from backend.utils.progress import to_progress_fraction
 
 logger = structlog.get_logger(__name__)
 
+ACTIVE_STATUSES = frozenset({"pending", "retrying", "running"})
+"""Delivery statuses of a job that has not finished."""
+
+FINISHED_OVERLAP = timedelta(seconds=5)
+"""How far back each tick looks for finished jobs beyond the previous tick.
+
+Covers a runner that stamped ``finished_at`` just before the previous query
+but committed just after it. Jobs found twice are reported once.
+"""
+
 
 class GenerationProgressClient(Protocol):
-    """Protocol describing the subset of generation service APIs used."""
-
-    async def check_progress(self, job_id: str) -> SDNextGenerationResult: ...
+    """The part of :class:`GenerationService` the monitor uses."""
 
     async def check_generation_progress(
-        self, job_id: str
-    ) -> SDNextGenerationResult: ...
-
-
-@dataclass
-class PersistedJobState:
-    """Persisted metadata about a delivery job."""
-
-    status: Optional[str]
-    result: Optional[Dict[str, Any]]
-    started_at: Optional[datetime]
-    finished_at: Optional[datetime]
-
-
-class JobStateRepository(Protocol):
-    """Protocol for loading persisted job state.
-
-    Implementations are synchronous; the monitor calls them in a worker thread.
-    """
-
-    def get_job_state(self, job_id: str) -> Optional[PersistedJobState]:
-        """Return persisted state for ``job_id`` if available."""
+        self, job_id: str, backend_name: str = "sdnext"
+    ) -> SDNextGenerationResult:
+        """Return the backend's current (process-global) progress."""
         ...
 
 
-ProgressCallback = Callable[[ProgressUpdate], Awaitable[None]]
-CompletionCallback = Callable[[GenerationComplete], Awaitable[None]]
+@dataclass(frozen=True)
+class PersistedJob:
+    """A delivery job row as the monitor sees it."""
 
-# (backend result, persisted state, status, progress, error message)
-_Observation = Tuple[
-    SDNextGenerationResult,
-    Optional[PersistedJobState],
-    str,
-    Optional[float],
-    Optional[str],
-]
+    job_id: str
+    status: str
+    mode: Optional[str] = None
+    params: Dict[str, Any] = field(default_factory=dict)
+    result: Optional[Dict[str, Any]] = None
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+
+
+@dataclass(frozen=True)
+class JobObservation:
+    """The jobs one tick loaded, and when it loaded them (the store's clock)."""
+
+    observed_at: datetime
+    jobs: List[PersistedJob]
+
+
+class JobStateRepository(Protocol):
+    """Synchronous job loader; the monitor calls it in a worker thread."""
+
+    def load_jobs(
+        self,
+        *,
+        finished_since: Optional[datetime],
+        job_ids: Sequence[str],
+    ) -> JobObservation:
+        """Return active jobs, jobs finished since a time and ``job_ids``."""
+        ...
+
+
+class ProgressBroadcaster(Protocol):
+    """Where the monitor sends messages: the WebSocket ``ConnectionManager``."""
+
+    def has_subscribers(self) -> bool:
+        """Return whether any connection would receive a job message."""
+        ...
+
+    async def broadcast_generation_started(
+        self, job_id: str, started_data: GenerationStarted
+    ) -> None:
+        """Send ``generation_started``."""
+        ...
+
+    async def broadcast_progress(
+        self, job_id: str, progress_data: ProgressUpdate
+    ) -> None:
+        """Send ``progress_update``."""
+        ...
+
+    async def broadcast_generation_complete(
+        self, job_id: str, complete_data: GenerationComplete
+    ) -> None:
+        """Send ``generation_complete``."""
+        ...
 
 
 class JobProgressMonitor:
-    """Poll generation backends and combine progress with persisted state.
-
-    SD.Next's progress endpoint is process-global: it reports whatever SD.Next
-    is rendering right now and ignores the job id it is asked about. Its value
-    is therefore only meaningful for the job that is actually running. When a
-    repository is configured, the persisted delivery job is authoritative:
-    live progress is read only while that job's persisted status normalizes
-    to ``processing``, queued jobs report their stored progress (or 0), and
-    completion is decided from the persisted status alone. Without a
-    repository the monitor trusts the generation backend's response.
-    """
+    """Report delivery job progress over the WebSocket from one loop."""
 
     def __init__(
         self,
         *,
-        repository: Optional[JobStateRepository] = None,
-        poll_interval: float = 2.0,
+        broadcaster: ProgressBroadcaster,
+        repository: JobStateRepository,
+        generation: GenerationProgressClient,
+        interval_seconds: float,
     ) -> None:
-        """Configure the repository and polling interval."""
+        """Store collaborators; nothing runs until :meth:`start`."""
+        self._broadcaster = broadcaster
         self._repository = repository
-        self._poll_interval = poll_interval
-        self._tasks: Dict[str, asyncio.Task[None]] = {}
+        self._generation = generation
+        self._interval_seconds = interval_seconds
+        self._task: Optional[asyncio.Task[None]] = None
+        self._reset()
 
-    async def start(
-        self,
-        job_id: str,
-        generation_service: GenerationProgressClient,
-        on_progress: ProgressCallback,
-        on_complete: CompletionCallback,
-    ) -> asyncio.Task[None]:
-        """Begin monitoring a job, returning the created polling task."""
-        if job_id in self._tasks:
-            return self._tasks[job_id]
+    @classmethod
+    def from_settings(cls, broadcaster: ProgressBroadcaster) -> "JobProgressMonitor":
+        """Build the monitor on the application database and settings."""
+        from backend.core.config import settings
+        from backend.services.generation import GenerationService
 
-        task = asyncio.create_task(
-            self._monitor_job(job_id, generation_service, on_progress, on_complete),
+        from .persistence import DeliveryJobStateRepository
+
+        return cls(
+            broadcaster=broadcaster,
+            repository=DeliveryJobStateRepository(),
+            generation=GenerationService(),
+            interval_seconds=settings.SDNEXT_POLL_INTERVAL,
         )
-        self._tasks[job_id] = task
-        logger.info("Started job monitoring", job_id=job_id)
-        return task
 
-    def stop(self, job_id: str) -> None:
-        """Cancel monitoring for a job if it is running."""
-        task = self._tasks.pop(job_id, None)
-        if task is None:
+    def start(self) -> None:
+        """Start the loop on the running event loop."""
+        if self._task is None:
+            self._task = asyncio.create_task(self._run())
+
+    async def stop(self) -> None:
+        """Stop the loop."""
+        task, self._task = self._task, None
+        if task is not None:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+    async def tick(self) -> None:
+        """Load job state once and send the messages it calls for."""
+        if not self._broadcaster.has_subscribers():
+            self._reset()
             return
 
-        task.cancel()
-        logger.info("Stopped job monitoring", job_id=job_id)
+        observation = await asyncio.to_thread(
+            self._repository.load_jobs,
+            finished_since=self._finished_since,
+            job_ids=tuple(self._statuses),
+        )
+        if self._seeded_at is None:
+            self._seeded_at = observation.observed_at
 
-    async def _monitor_job(
-        self,
-        job_id: str,
-        generation_service: GenerationProgressClient,
-        on_progress: ProgressCallback,
-        on_complete: CompletionCallback,
-    ) -> None:
-        try:
-            while True:
-                observation = await self._observe(job_id, generation_service)
-                if observation is None:
-                    await asyncio.sleep(self._poll_interval)
-                    continue
+        jobs = [job for job in observation.jobs if _generation_params(job) is not None]
+        active = [job for job in jobs if job.status in ACTIVE_STATUSES]
+        finished = [job for job in jobs if job.status not in ACTIVE_STATUSES]
 
-                (
-                    result,
-                    persisted_state,
-                    status_value,
-                    progress_value,
-                    error_message,
-                ) = observation
+        live_job = _live_job(active)
+        live_result = await self._check_live_progress(live_job) if live_job else None
 
-                if progress_value is None:
-                    progress_value = 0.0
+        for job in active:
+            if job.status == "running" and self._statuses.get(job.job_id) != "running":
+                await self._send_started(job)
+            self._statuses[job.job_id] = job.status
+            update = _progress_update(job, live_result if job is live_job else None)
+            await self._broadcaster.broadcast_progress(job.job_id, update)
 
-                progress_update = ProgressUpdate(
-                    job_id=job_id,
-                    progress=progress_value,
-                    status=status_value,
-                    error_message=error_message,
-                )
-                await on_progress(progress_update)
-
-                if self._has_job_completed(status_value, persisted_state):
-                    completion_payload = self._build_completion_payload(
-                        job_id,
-                        status_value,
-                        result,
-                        persisted_state,
-                        error_message,
-                    )
-                    await on_complete(completion_payload)
-                    break
-
-                await asyncio.sleep(self._poll_interval)
-        except asyncio.CancelledError:
-            logger.info("Job monitoring cancelled", job_id=job_id)
-        except Exception as exc:  # pragma: no cover - defensive logging
-            logger.error("Job monitoring error", job_id=job_id, error=str(exc))
-        finally:
-            self._tasks.pop(job_id, None)
-
-    async def _observe(
-        self,
-        job_id: str,
-        generation_service: GenerationProgressClient,
-    ) -> Optional[_Observation]:
-        """Poll once and return the state to broadcast for ``job_id``.
-
-        Returns ``None`` when a repository is configured but the job's state
-        could not be loaded; the caller skips that tick rather than report
-        SD.Next's global progress, which may belong to another job.
-        """
-        if self._repository is None:
-            result = await self._call_generation_progress(generation_service, job_id)
-            return (
-                result,
-                None,
-                _normalize_generation_status(result.status or "pending"),
-                to_progress_fraction(result.progress),
-                result.error_message,
+        announced: Set[str] = set()
+        for job in finished:
+            announced.add(job.job_id)
+            if job.job_id in self._announced:
+                continue
+            previous = self._statuses.pop(job.job_id, None)
+            if job.status == "cancelled":
+                continue
+            if previous != "running" and job.started_at is not None:
+                await self._send_started(job)
+            await self._broadcaster.broadcast_progress(
+                job.job_id, _progress_update(job, None)
+            )
+            await self._broadcaster.broadcast_generation_complete(
+                job.job_id, _completion(job)
             )
 
-        persisted_state = await self._safe_load_state(job_id)
-        if persisted_state is None:
-            logger.debug("No persisted state for monitored job", job_id=job_id)
-            return None
+        # A tracked job missing from the result was deleted.
+        loaded = {job.job_id for job in observation.jobs}
+        for job_id in [job_id for job_id in self._statuses if job_id not in loaded]:
+            del self._statuses[job_id]
 
-        live_result: Optional[SDNextGenerationResult] = None
-        stored_status = _normalize_generation_status(_stored_status(persisted_state))
-        if stored_status == "processing":
-            live_result = await self._call_generation_progress(
-                generation_service, job_id
-            )
-
-        status_value, progress_value, error_message = self._merge_persisted_state(
-            persisted_state, live_result
-        )
-        result = live_result or SDNextGenerationResult(
-            job_id=job_id, status=status_value
-        )
-        return result, persisted_state, status_value, progress_value, error_message
-
-    async def _call_generation_progress(
-        self,
-        generation_service: GenerationProgressClient,
-        job_id: str,
-    ) -> SDNextGenerationResult:
-        if hasattr(generation_service, "check_progress"):
-            return await generation_service.check_progress(job_id)
-
-        if hasattr(generation_service, "check_generation_progress"):
-            return await generation_service.check_generation_progress(job_id)
-
-        raise AttributeError(
-            "Generation service does not expose a progress check method",
+        self._announced = announced
+        self._finished_since = max(
+            observation.observed_at - FINISHED_OVERLAP, self._seeded_at
         )
 
-    async def _safe_load_state(self, job_id: str) -> Optional[PersistedJobState]:
-        if self._repository is None:
-            return None
+    def _reset(self) -> None:
+        # Last status seen per active job, and finished jobs already handled.
+        self._statuses: Dict[str, str] = {}
+        self._announced: Set[str] = set()
+        self._finished_since: Optional[datetime] = None
+        self._seeded_at: Optional[datetime] = None
 
-        # Repositories are synchronous and may query the database, so the load
-        # runs in a worker thread rather than blocking the event loop.
+    async def _run(self) -> None:
+        while True:
+            try:
+                await self.tick()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception("Job progress monitor tick failed")
+            await asyncio.sleep(self._interval_seconds)
+
+    async def _check_live_progress(
+        self, job: PersistedJob
+    ) -> Optional[SDNextGenerationResult]:
+        backend = job.params.get("backend") or job.mode or "sdnext"
         try:
-            return await asyncio.to_thread(self._repository.get_job_state, job_id)
+            return await self._generation.check_generation_progress(job.job_id, backend)
         except Exception as exc:
             logger.warning(
-                "Failed to load persisted job state",
-                job_id=job_id,
+                "Could not read live generation progress",
+                job_id=job.job_id,
                 error=str(exc),
             )
             return None
 
-    def _merge_persisted_state(
-        self,
-        persisted_state: PersistedJobState,
-        live_result: Optional[SDNextGenerationResult],
-    ) -> tuple[str, Optional[float], Optional[str]]:
-        """Derive status, progress and error with persisted state in charge.
-
-        ``live_result`` is supplied only while the persisted status is
-        ``processing``. For any other status SD.Next's global progress belongs
-        to a different job (or none) and is ignored.
-        """
-        result_payload = persisted_state.result
-        status_value = _normalize_generation_status(_stored_status(persisted_state))
-
-        progress_value = self._extract_progress_from_payload(result_payload)
-        error_message: Optional[str] = None
-        if live_result is not None:
-            if progress_value is None:
-                progress_value = to_progress_fraction(live_result.progress)
-            error_message = live_result.error_message
-
-        if status_value == "completed" and (
-            progress_value is None or progress_value < 1.0
-        ):
-            progress_value = 1.0
-
-        if error_message is None:
-            error_message = self._extract_error_message(result_payload)
-
-        return status_value, progress_value, error_message
-
-    def _extract_progress_from_payload(
-        self,
-        payload: Optional[Dict[str, Any]],
-    ) -> Optional[float]:
-        if not isinstance(payload, dict):
-            return None
-        return to_progress_fraction(payload.get("progress"))
-
-    @staticmethod
-    def _extract_error_message(
-        payload: Optional[Dict[str, Any]],
-    ) -> Optional[str]:
-        if not isinstance(payload, dict):
-            return None
-        for key in ("error_message", "error", "detail", "message"):
-            value = payload.get(key)
-            if isinstance(value, str) and value:
-                return value
-        return None
-
-    def _has_job_completed(
-        self,
-        status: str,
-        persisted_state: Optional[PersistedJobState],
-    ) -> bool:
-        if status in {"completed", "failed"}:
-            return True
-
-        if not persisted_state:
-            return False
-
-        stored_status = _stored_status(persisted_state)
-        if not stored_status:
-            return False
-
-        normalized = _normalize_generation_status(stored_status)
-        return normalized in {"completed", "failed"}
-
-    def _build_completion_payload(
-        self,
-        job_id: str,
-        status: str,
-        progress_result: SDNextGenerationResult,
-        persisted_state: Optional[PersistedJobState],
-        error_message: Optional[str],
-    ) -> GenerationComplete:
-        images = progress_result.images
-        generation_info = progress_result.generation_info
-        payload: Optional[Dict[str, Any]] = None
-
-        if persisted_state is not None:
-            payload = persisted_state.result
-
-        if (not images) and isinstance(payload, dict):
-            stored_images = payload.get("images")
-            if isinstance(stored_images, list) and stored_images:
-                images = stored_images
-
-        if generation_info is None and isinstance(payload, dict):
-            stored_info = payload.get("generation_info")
-            if isinstance(stored_info, dict) and stored_info:
-                generation_info = stored_info
-
-        final_error = error_message or progress_result.error_message
-        if final_error is None and isinstance(payload, dict):
-            final_error = self._extract_error_message(payload)
-
-        total_duration: Optional[float] = None
-        if persisted_state is not None:
-            total_duration = self._calculate_total_duration(
-                persisted_state.started_at,
-                persisted_state.finished_at,
-            )
-
-        if images:
-            # Clients render these directly, so send loadable sources only.
-            sources = (
-                to_browser_image_src(image, job_id=job_id, index=index)
-                for index, image in enumerate(images)
-                if isinstance(image, str)
-            )
-            images = [src for src in sources if src] or None
-        else:
-            images = None
-
-        return GenerationComplete(
-            job_id=job_id,
-            status=status,
-            images=images,
-            error_message=final_error,
-            total_duration=total_duration,
-            generation_info=generation_info,
+    async def _send_started(self, job: PersistedJob) -> None:
+        try:
+            params = SDNextGenerationParams.model_validate(_generation_params(job))
+        except ValidationError:
+            logger.warning("Stored generation params are invalid", job_id=job.job_id)
+            return
+        await self._broadcaster.broadcast_generation_started(
+            job.job_id, GenerationStarted(job_id=job.job_id, params=params)
         )
 
-    @staticmethod
-    def _calculate_total_duration(
-        started_at: Optional[datetime],
-        finished_at: Optional[datetime],
-    ) -> Optional[float]:
-        if started_at is None or finished_at is None:
-            return None
-        try:
-            return float((finished_at - started_at).total_seconds())
-        except Exception:  # pragma: no cover - defensive branch
-            return None
+
+def _generation_params(job: PersistedJob) -> Optional[Dict[str, Any]]:
+    """Return the job's generation parameters; ``None`` for other deliveries."""
+    value = job.params.get("generation_params") if job.params else None
+    return value if isinstance(value, dict) else None
 
 
-__all__ = [
-    "CompletionCallback",
-    "JobProgressMonitor",
-    "JobStateRepository",
-    "PersistedJobState",
-    "ProgressCallback",
-]
+def _live_job(active: List[PersistedJob]) -> Optional[PersistedJob]:
+    """Return the running job SD.Next's global progress belongs to."""
+    running = [job for job in active if job.status == "running"]
+    if not running:
+        return None
+    return max(
+        running,
+        key=lambda job: (job.started_at is not None, job.started_at or 0),
+    )
 
 
-def _normalize_generation_status(status: Optional[str]) -> str:
+def _normalized_status(job: PersistedJob) -> str:
     from backend.services.generation.statuses import normalize_status
 
-    return normalize_status(status).value
+    return normalize_status(job.status).value
 
 
-def _stored_status(persisted_state: PersistedJobState) -> Optional[str]:
-    """Return the persisted status, falling back to the result payload's."""
-    if persisted_state.status:
-        return persisted_state.status
-    payload = persisted_state.result
-    if isinstance(payload, dict):
-        value = payload.get("status")
+def _progress_update(
+    job: PersistedJob, live_result: Optional[SDNextGenerationResult]
+) -> ProgressUpdate:
+    """Combine stored state with SD.Next's progress for the running job.
+
+    The stored progress wins over the live value, and a completed job reports
+    1.0, the same rule the REST queue applies.
+    """
+    status = _normalized_status(job)
+    progress = _stored_progress(job.result)
+    error_message: Optional[str] = None
+    if live_result is not None:
+        if progress is None:
+            progress = to_progress_fraction(live_result.progress)
+        error_message = live_result.error_message
+
+    if status == "completed":
+        progress = 1.0
+    if error_message is None:
+        error_message = _stored_error_message(job.result)
+
+    return ProgressUpdate(
+        job_id=job.job_id,
+        progress=progress if progress is not None else 0.0,
+        status=status,
+        error_message=error_message,
+    )
+
+
+def _completion(job: PersistedJob) -> GenerationComplete:
+    """Build the completion message for a finished job from its stored row."""
+    payload = job.result if isinstance(job.result, dict) else {}
+
+    images: Optional[List[str]] = None
+    stored_images = payload.get("images")
+    if isinstance(stored_images, list):
+        # Clients render these directly, so send loadable sources only.
+        sources = (
+            to_browser_image_src(image, job_id=job.job_id, index=index)
+            for index, image in enumerate(stored_images)
+            if isinstance(image, str)
+        )
+        images = [src for src in sources if src] or None
+
+    generation_info = payload.get("generation_info")
+    if not isinstance(generation_info, dict) or not generation_info:
+        generation_info = None
+
+    return GenerationComplete(
+        job_id=job.job_id,
+        status=_normalized_status(job),
+        images=images,
+        error_message=_stored_error_message(payload),
+        total_duration=_total_duration(job.started_at, job.finished_at),
+        generation_info=generation_info,
+    )
+
+
+def _stored_progress(payload: Optional[Dict[str, Any]]) -> Optional[float]:
+    if not isinstance(payload, dict):
+        return None
+    return to_progress_fraction(payload.get("progress"))
+
+
+def _stored_error_message(payload: Optional[Dict[str, Any]]) -> Optional[str]:
+    if not isinstance(payload, dict):
+        return None
+    for key in ("error_message", "error", "detail", "message"):
+        value = payload.get(key)
         if isinstance(value, str) and value:
             return value
     return None
+
+
+def _total_duration(
+    started_at: Optional[datetime], finished_at: Optional[datetime]
+) -> Optional[float]:
+    if started_at is None or finished_at is None:
+        return None
+    try:
+        return float((finished_at - started_at).total_seconds())
+    except TypeError:  # one aware and one naive timestamp
+        return None
+
+
+__all__ = [
+    "ACTIVE_STATUSES",
+    "GenerationProgressClient",
+    "JobObservation",
+    "JobProgressMonitor",
+    "JobStateRepository",
+    "PersistedJob",
+    "ProgressBroadcaster",
+]
