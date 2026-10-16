@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GenerationRequestPayload } from '@/types'
 
 import {
@@ -24,11 +24,39 @@ const createGenerationPayload = (): GenerationRequestPayload => ({
   denoising_strength: null,
 })
 
+const jsonResponse = (payload: unknown, status = 200): Response =>
+  new Response(JSON.stringify(payload), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+
+// Answers the generation endpoints these tests call, whatever base URL they resolve against.
+const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+  const method = init?.method ?? 'GET'
+
+  if (method === 'POST' && url.endsWith('/generation/queue-generation')) {
+    return jsonResponse({ delivery_id: 'job-1' })
+  }
+  if (method === 'POST' && /\/generation\/jobs\/[^/]+\/cancel$/.test(url)) {
+    return jsonResponse({ success: true, status: 'cancelled' })
+  }
+  if (method === 'DELETE' && /\/generation\/results\/[^/]+$/.test(url)) {
+    return new Response(null, { status: 204 })
+  }
+  return jsonResponse({ detail: `Unhandled ${method} ${url}` }, 404)
+})
+
 beforeEach(() => {
   const settingsStore = useSettingsStore()
   settingsStore.reset()
 
-  fetch.mockClear()
+  fetchMock.mockClear()
+  vi.stubGlobal('fetch', fetchMock)
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
 })
 
 describe('resolveBackendUrl', () => {
@@ -92,7 +120,7 @@ describe('generationService URL resolution', () => {
     const payload = createGenerationPayload()
     await startGeneration(payload)
 
-    expect(fetch).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
       'https://configured.example/api/generation/queue-generation',
       expect.objectContaining({ method: 'POST', body: JSON.stringify(payload) }),
     )
@@ -101,7 +129,7 @@ describe('generationService URL resolution', () => {
   it('queues the job and reports it as queued', async () => {
     const response = await startGeneration(createGenerationPayload(), '/api')
 
-    expect(fetch).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
       '/api/generation/queue-generation',
       expect.objectContaining({ method: 'POST' }),
     )
@@ -111,7 +139,7 @@ describe('generationService URL resolution', () => {
   it('resolves cancelGenerationJob with override', async () => {
     await cancelGenerationJob('job-123', '/custom/api')
 
-    expect(fetch).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
       '/custom/api/generation/jobs/job-123/cancel',
       expect.objectContaining({ method: 'POST' }),
     )
@@ -123,7 +151,7 @@ describe('generationService URL resolution', () => {
 
     await deleteGenerationResult('result-9')
 
-    expect(fetch).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
       '/prefixed/api/generation/results/result-9',
       expect.objectContaining({ method: 'DELETE' }),
     )

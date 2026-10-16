@@ -6,6 +6,30 @@ import { useAppStore } from '../../app/frontend/src/stores/app';
 import { useAdapterCatalogStore } from '@/features/lora/stores/adapterCatalog';
 import { createAdapterFixture } from '../fixtures/adapters';
 
+// Generating acquires the generation orchestrator, whose transport opens the progress socket.
+// This spec covers the composer, so the socket is an inert stand-in that never connects.
+class InertWebSocket {
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSING = 2;
+  static CLOSED = 3;
+
+  constructor(url) {
+    this.url = url;
+    this.readyState = InertWebSocket.CONNECTING;
+    this.onopen = null;
+    this.onmessage = null;
+    this.onerror = null;
+    this.onclose = null;
+  }
+
+  send() {}
+
+  close() {
+    this.readyState = InertWebSocket.CLOSED;
+  }
+}
+
 const flush = async () => {
   await Promise.resolve();
   await nextTick();
@@ -15,6 +39,7 @@ const flush = async () => {
 
 describe('PromptComposer.vue', () => {
   beforeEach(() => {
+    vi.stubGlobal('WebSocket', InertWebSocket);
     useAppStore().$reset();
     useAdapterCatalogStore().reset();
     const jsonResponse = (payload) => ({
@@ -54,6 +79,10 @@ describe('PromptComposer.vue', () => {
 
     // Clean storage
     localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('renders and loads available LoRAs', async () => {
