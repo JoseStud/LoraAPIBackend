@@ -47,7 +47,6 @@
                   <input
                     type="checkbox"
                     v-model="autoRefresh"
-                    @change="handleAutoRefreshToggle"
                     class="form-checkbox mr-2"
                   >
                   Auto-refresh
@@ -212,7 +211,6 @@ const {
   isInitialized,
   ensureLoaded,
   loadAllData,
-  toggleAutoRefresh,
   formatDuration,
   cleanup,
   exportAnalytics,
@@ -220,10 +218,6 @@ const {
 
 const handleTimeRangeChange = async () => {
   await loadAllData();
-};
-
-const handleAutoRefreshToggle = () => {
-  toggleAutoRefresh();
 };
 
 const handleRefresh = async () => {
