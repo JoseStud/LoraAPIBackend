@@ -6,7 +6,6 @@
  * shared `stores/systemStatusController.ts` owns it.
  */
 import type {
-  CompositionEntry,
   DeliveryCreateResponse,
   GenerationCancelResponse,
   GenerationDownloadMetadata,
@@ -16,7 +15,6 @@ import type {
   GenerationResult,
   GenerationStartResponse,
   SDNextGenerationParams,
-  SDNextGenerationResult,
 } from '@/types';
 import {
   createBackendPathResolver,
@@ -34,10 +32,6 @@ import { parseGenerationJobStatuses, parseGenerationResults } from './validation
 export type GenerationParamOverrides =
   & Pick<SDNextGenerationParams, 'prompt'>
   & Partial<Omit<SDNextGenerationParams, 'prompt'>>;
-
-export type GenerationRequestBody = SDNextGenerationParams & {
-  loras?: CompositionEntry[];
-};
 
 type GenerationClientInput = BackendHttpClientInput;
 
@@ -69,23 +63,6 @@ export const createGenerationParams = (
     n_iter: overrides.n_iter ?? 1,
     denoising_strength: overrides.denoising_strength,
   });
-
-export const requestGeneration = async (
-  payload: GenerationRequestBody,
-  input?: GenerationClientInput,
-): Promise<SDNextGenerationResult | null> => {
-  const backend = resolveClient(input);
-  const normalizedPayload = {
-    ...payload,
-    ...GenerationRequestPayloadSchema.parse(payload),
-  };
-  const { data } = await backend.postJson<SDNextGenerationResult, GenerationRequestBody>(
-    generationPath('generate'),
-    normalizedPayload,
-    withSameOrigin(),
-  );
-  return data ?? null;
-};
 
 /** `GET /generation/jobs/active`; malformed records are logged and dropped. */
 export const fetchActiveGenerationJobs = async (

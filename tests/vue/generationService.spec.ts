@@ -1,14 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import type {
-  GenerationRequestBody,
-  GenerationRequestPayload,
-} from '../../app/frontend/src/types'
+import type { GenerationRequestPayload } from '@/types'
 
 import {
   cancelGenerationJob,
   deleteGenerationResult,
   downloadGenerationResult,
-  requestGeneration,
   resolveBackendUrl,
   resolveGenerationBaseUrl,
   startGeneration,
@@ -27,10 +23,6 @@ const createGenerationPayload = (): GenerationRequestPayload => ({
   batch_size: 1,
   n_iter: 1,
   denoising_strength: null,
-})
-
-const createGenerationRequestBody = (): GenerationRequestBody => ({
-  ...createGenerationPayload(),
 })
 
 beforeEach(() => {
@@ -94,17 +86,6 @@ describe('resolveBackendUrl', () => {
 })
 
 describe('generationService URL resolution', () => {
-  it('uses the provided override for requestGeneration', async () => {
-    const body = createGenerationRequestBody()
-
-    await requestGeneration(body, 'https://external.example/api')
-
-    expect(fetch).toHaveBeenCalledWith(
-      'https://external.example/api/generation/generate',
-      expect.objectContaining({ method: 'POST', body: JSON.stringify(body) }),
-    )
-  })
-
   it('honours the configured backend URL for startGeneration', async () => {
     const store = useSettingsStore()
     store.setSettings({ backendUrl: 'https://configured.example/api' })
