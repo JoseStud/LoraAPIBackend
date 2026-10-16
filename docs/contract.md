@@ -1,9 +1,11 @@
 # API contract – current implementation
 
 This document describes the API that ships with the repository today. The
-backend is a FastAPI application mounted at `/api/v1` (or `/v1` when the backend
-service runs without the wrapper in `app/main.py`). Routes are implemented under
-`backend/api/v1`, with service logic living in the `backend/services` package.
+backend is the FastAPI application from `backend.main.create_app()`, which
+`app/main.py` (`uvicorn app.main:app`, the only entry point) mounts at `/api`,
+so the `/v1/...` paths below are served as `/api/v1/...`. Routes are
+implemented under `backend/api/v1`, with service logic living in the
+`backend/services` package.
 
 ## Implementation summary
 
@@ -204,12 +206,35 @@ memory, so it is lost on restart. Finished jobs can be polled for 24 hours.
 - `GET /v1/system/status` – Report health information including GPU detection,
   queue connectivity, and disk usage.
 
-### WebSocket progress (`/v1/ws/progress` or `/api/v1/ws/progress`)
+### Frontend settings (`/v1/frontend`)
+
+- `GET /v1/frontend/settings` – Keyless. Returns `FrontendSettings`:
+  `backendUrl` (from `BACKEND_URL`, default `/api/v1`), `backendApiKey` (the
+  `API_KEY`, or `null`) and `generationPolling` (`queueMs`,
+  `websocketRetryMs`, `systemStatusMs`). The SPA loads it before any other
+  request.
+
+### WebSocket progress (`/v1/ws/progress`)
 
 - `WebSocket /ws/progress` – Clients subscribe to generation and delivery
   progress by sending a `subscribe` message after connecting. The
   `WebSocketService` manages subscriptions and broadcasts updates from the
   generation coordinator.
+
+## Errors
+
+Errors are RFC 7807 problem documents with `type` (`about:blank`), `title`
+and `status`:
+
+- Every `HTTPException`, including the router's own 404 (unknown path) and 405
+  (wrong method, with its `Allow` header): a string `detail` becomes the
+  `title`; any other `detail` is returned unchanged in `errors`, with the
+  HTTP status phrase as the `title`. The exception's headers are kept.
+- 503 `Job queue unavailable` and 504 `Generation still running` add a
+  `detail` sentence (the 504 also `job_id` and `job_url`).
+- Any other exception is a generic 500 whose body never contains the
+  exception text.
+- Request validation errors (422) keep FastAPI's `{"detail": [...]}` body.
 
 ---
 

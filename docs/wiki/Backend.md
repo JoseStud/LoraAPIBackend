@@ -175,8 +175,12 @@ To add a backend, implement the base class in
 
 ## Errors, logging and auth
 
-- `HTTPException` becomes an RFC 7807 problem document (`type`, `title`,
-  `status`).
+- Every `HTTPException`, including Starlette's own (the router's 404 and 405),
+  becomes an RFC 7807 problem document (`type`, `title`, `status`). A string
+  `detail` is the `title`; any other `detail` stays structured in `errors`
+  under the status phrase as the title. The exception's headers (`Allow`,
+  `WWW-Authenticate`) are kept. Request validation errors (422) still use
+  FastAPI's `{"detail": [...]}` body.
 - Any other exception is logged with its traceback by the `lora.api` logger and
   returned as a generic 500. **Never return exception text to clients**; it can
   contain paths, SQL or configuration.

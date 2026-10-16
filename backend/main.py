@@ -4,10 +4,15 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from http import HTTPStatus
+from typing import Any, Dict
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from fastapi.utils import is_body_allowed_for_status_code
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend.api.v1 import (
     adapters,
@@ -199,15 +204,9 @@ def create_app() -> FastAPI:
         """Return a simple health status used by tests and readiness checks."""
         return {"status": "ok"}
 
-    @app.exception_handler(HTTPException)
-    async def http_exception_handler(request: Request, exc: HTTPException):
-        """Format HTTPException as an RFC7807 problem detail response."""
-        problem = {
-            "type": "about:blank",
-            "title": exc.detail if isinstance(exc.detail, str) else "HTTP error",
-            "status": exc.status_code,
-        }
-        return JSONResponse(status_code=exc.status_code, content=problem)
+    # Registered for Starlette's HTTPException (FastAPI's subclasses it), so
+    # the router's own 404/405 get the same shape as the handlers' errors.
+    app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 
     @app.exception_handler(QueueUnavailableError)
     async def queue_unavailable_handler(request: Request, exc: QueueUnavailableError):
@@ -268,6 +267,38 @@ def create_app() -> FastAPI:
         return JSONResponse(status_code=500, content=problem)
 
     return app
+
+
+def _status_phrase(status_code: int) -> str:
+    try:
+        return HTTPStatus(status_code).phrase
+    except ValueError:
+        return "HTTP error"
+
+
+async def http_exception_handler(
+    request: Request, exc: StarletteHTTPException
+) -> Response:
+    """Format an HTTPException as an RFC 7807 problem detail response.
+
+    A string ``detail`` is the problem's ``title``. Any other ``detail`` (a
+    list or dict a handler raised on purpose) keeps its structure in the
+    ``errors`` member, under the status phrase as the title. The exception's
+    headers (``Allow`` on a 405, ``WWW-Authenticate``) are kept, and statuses
+    that forbid a body (204, 304) get none.
+    """
+    headers = getattr(exc, "headers", None)
+    if not is_body_allowed_for_status_code(exc.status_code):
+        return Response(status_code=exc.status_code, headers=headers)
+
+    problem: Dict[str, Any] = {"type": "about:blank", "status": exc.status_code}
+    if isinstance(exc.detail, str) and exc.detail:
+        problem["title"] = exc.detail
+    else:
+        problem["title"] = _status_phrase(exc.status_code)
+        if exc.detail is not None:
+            problem["errors"] = jsonable_encoder(exc.detail)
+    return JSONResponse(status_code=exc.status_code, content=problem, headers=headers)
 
 
 def app() -> FastAPI:
