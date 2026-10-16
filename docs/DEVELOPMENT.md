@@ -16,9 +16,11 @@ implementation rather than an aspirational future state.
 - **Persistence** – SQLModel models back the API. The default configuration
   creates an on-disk SQLite database, but any SQLAlchemy-compatible engine can
   be supplied through `DATABASE_URL`.【F:backend/models/adapters.py†L1-L46】【F:backend/core/database.py†L14-L61】
-- **Background work** – The queue orchestrator uses Redis/RQ when configured and
-  falls back to FastAPI background tasks. A `DeliveryRunner` bridges queued jobs
-  to delivery backends.【F:backend/services/queue.py†L15-L129】
+- **Background work** – The queue orchestrator uses Redis/RQ when `REDIS_URL` is
+  set and otherwise runs jobs one at a time on an in-process runner. When Redis
+  is configured but unreachable, enqueueing fails the job and returns 503 rather
+  than running it in-process. A `DeliveryRunner` bridges queued jobs to delivery
+  backends.【F:backend/services/queue.py†L15-L129】
 - **External services** – SDNext powers image generation, and the recommendation
   system loads optional ML dependencies for embedding workflows. Both degrade
   gracefully when unavailable but return limited results.【F:backend/delivery/sdnext.py†L17-L138】【F:backend/services/recommendations/embeddings.py†L24-L96】
@@ -218,8 +220,8 @@ commit, matching the CI environment.【F:.pre-commit-config.yaml†L1-L11】
 
 - Authentication currently relies on a single API key header; multi-user support
   is not implemented yet.【F:backend/core/security.py†L1-L17】
-- Delivery queue resilience depends on external Redis; production deployments
-  should configure the primary backend instead of relying on the fallback.
+- Delivery jobs survive restarts only with Redis; without `REDIS_URL` they run
+  in the API process and recovery requeues waiting jobs at startup.
 - SDNext coverage focuses on txt2img; img2img, ControlNet, and additional
   pipelines remain future enhancements.【F:backend/delivery/sdnext.py†L17-L138】
 - Recommendation workflows assume optional ML dependencies; expect degraded

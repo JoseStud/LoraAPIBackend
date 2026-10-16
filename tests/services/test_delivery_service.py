@@ -10,12 +10,16 @@ from backend.services import (
     get_service_container_builder,
     service_container_builder_scope,
 )
-from backend.services.deliveries import DeliveryService
+from backend.services.deliveries import QUEUE_UNAVAILABLE_RESULT, DeliveryService
 from backend.services.delivery_repository import (
     DeliveryJobMapper,
     DeliveryJobRepository,
 )
-from backend.services.queue import QueueBackend, QueueOrchestrator
+from backend.services.queue import (
+    QueueBackend,
+    QueueOrchestrator,
+    QueueUnavailableError,
+)
 from backend.workers.delivery_runner import DeliveryRunner
 
 
@@ -83,8 +87,8 @@ class TestDeliveryService:
         assert job.id == primary.enqueued[0][0]
         assert fallback.enqueued == []
 
-    def test_schedule_job_falls_back_when_primary_fails(self, db_session):
-        """Fallback queue is invoked when the primary queue raises."""
+    def test_schedule_job_fails_job_when_primary_fails(self, db_session):
+        """A rejected job is failed and reported; the fallback never runs it."""
         primary = self.DummyQueue(should_fail=True)
         fallback = self.DummyQueue()
         repository = DeliveryJobRepository(db_session)
@@ -97,10 +101,32 @@ class TestDeliveryService:
             queue_orchestrator=orchestrator,
         )
 
-        job = service.schedule_job("prompt", "cli", {"bar": 1})
+        with pytest.raises(QueueUnavailableError):
+            service.schedule_job("prompt", "cli", {"bar": 1})
 
-        assert job.id == fallback.enqueued[0][0]
-        assert primary.enqueued == []
+        assert fallback.enqueued == []
+        (job,) = service.list_jobs()
+        assert job.status == "failed"
+        assert job.finished_at is not None
+        assert service.get_job_result(job) == QUEUE_UNAVAILABLE_RESULT
+
+    def test_enqueue_job_keeps_status_once_job_left_pending(self, db_session):
+        """A job a worker already claimed keeps its status when enqueueing fails."""
+        repository = DeliveryJobRepository(db_session)
+        service = DeliveryService(
+            repository,
+            queue_orchestrator=QueueOrchestrator(
+                primary_backend=self.DummyQueue(should_fail=True),
+                fallback_backend=self.DummyQueue(),
+            ),
+        )
+        job = service.create_job("prompt", "cli", {})
+        assert service.claim_job(job.id) is not None
+
+        with pytest.raises(QueueUnavailableError):
+            service.enqueue_job(job.id)
+
+        assert service.get_job(job.id).status == "running"
 
     def test_list_jobs_by_statuses_filters_and_orders(
         self, delivery_service: DeliveryService, db_session

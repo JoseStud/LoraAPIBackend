@@ -29,7 +29,7 @@ class RecordingQueueBackend(QueueBackend):
 
 
 class FailingQueueBackend(QueueBackend):
-    """Queue backend that always raises to force fallback usage."""
+    """Queue backend that always raises, like an unreachable Redis."""
 
     def __init__(self) -> None:
         self.attempts = 0

@@ -40,7 +40,8 @@ npm run build
 
 ## Stack
 
-- **Backend**: FastAPI, SQLModel, Alembic, Redis/RQ with an in-process fallback.
+- **Backend**: FastAPI, SQLModel, Alembic, Redis/RQ (in-process runner when
+  `REDIS_URL` is unset).
   Python 3.11.
 - **Frontend**: Vue 3 + TypeScript, Pinia, Vue Router, Vite, Zod.
 - **Generation**: an external SDNext install on the host (see
@@ -126,9 +127,14 @@ Read these before changing the matching subsystem:
   directly; direct instantiation skips the locking and cache invalidation that
   protect long-running workers.
 - **Queue orchestration**: `QueueOrchestrator` (`backend/services/queue.py`)
-  picks Redis/RQ when available and falls back to `BackgroundTaskQueueBackend`.
-  Enqueue through `QueueOrchestrator.enqueue_delivery()` so the fallback keeps
-  working. The fallback hands every job to the process-wide
+  sends jobs to Redis/RQ when `REDIS_URL` is set and to
+  `BackgroundTaskQueueBackend` only when it is not. Enqueue through
+  `QueueOrchestrator.enqueue_delivery()` (or `DeliveryService.enqueue_job`).
+  With Redis configured a failed enqueue never moves the job in-process, where
+  it would run beside the RQ worker and recovery would never requeue it: the
+  orchestrator raises `QueueUnavailableError`, `DeliveryService.enqueue_job`
+  fails the still-pending job, and the API answers 503. The fallback hands
+  every job to the process-wide
   `InProcessJobRunner` (`backend/services/in_process_jobs.py`): one thread with
   one long-lived event loop that runs jobs one at a time in FIFO order, because
   SDNext renders one job at a time and its progress and interrupt endpoints are

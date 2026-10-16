@@ -8,6 +8,7 @@ import threading
 import types
 from unittest.mock import MagicMock
 
+import pytest
 from redis.exceptions import ConnectionError as RedisConnectionError
 
 from backend.core.config import settings
@@ -19,6 +20,7 @@ from backend.services.queue import (
     BackgroundTaskQueueBackend,
     QueueBackend,
     QueueOrchestrator,
+    QueueUnavailableError,
     RedisQueueBackend,
 )
 from backend.workers import tasks as worker_tasks
@@ -172,14 +174,11 @@ def test_background_queue_ignores_request_background_tasks() -> None:
     background_tasks.add_task.assert_not_called()
 
 
-def test_orchestrator_logs_warning_when_primary_errors(capsys) -> None:
-    """Fallback queue usage should emit a warning with the original error."""
+def test_orchestrator_raises_when_primary_errors(capsys) -> None:
+    """A failing primary queue is reported; the job never runs in-process."""
     executed: list[str] = []
-
-    def record_job(job_id: str) -> None:
-        executed.append(job_id)
-
-    fallback = BackgroundTaskQueueBackend(record_job)
+    job_runner = InProcessJobRunner()
+    fallback = BackgroundTaskQueueBackend(executed.append, job_runner=job_runner)
     primary = MagicMock(spec=QueueBackend)
     primary.enqueue_delivery.side_effect = RuntimeError("primary exploded")
 
@@ -188,25 +187,26 @@ def test_orchestrator_logs_warning_when_primary_errors(capsys) -> None:
         fallback_backend=fallback,
     )
 
-    orchestrator.enqueue_delivery("job-error").result(timeout=5)
+    try:
+        with pytest.raises(QueueUnavailableError) as excinfo:
+            orchestrator.enqueue_delivery("job-error")
+    finally:
+        job_runner.stop()
 
     out = capsys.readouterr().out
 
-    assert executed == ["job-error"]
-    assert "queue_orchestrator.fallback" in out
-    assert "reason=primary_error" in out
+    assert executed == []
+    assert isinstance(excinfo.value.__cause__, RuntimeError)
+    assert "queue_orchestrator.primary_error" in out
     assert "error_type=RuntimeError" in out
     assert "primary exploded" in out
 
 
 def test_orchestrator_reports_missing_redis_dependency(capsys, monkeypatch) -> None:
-    """Missing optional Redis modules should trigger a guided fallback warning."""
+    """With REDIS_URL set, missing Redis modules are an error, not a fallback."""
     executed: list[str] = []
-
-    def record_job(job_id: str) -> None:
-        executed.append(job_id)
-
-    fallback = BackgroundTaskQueueBackend(record_job)
+    job_runner = InProcessJobRunner()
+    fallback = BackgroundTaskQueueBackend(executed.append, job_runner=job_runner)
     orchestrator = QueueOrchestrator(
         fallback_backend=fallback,
         redis_url_factory=lambda: "redis://localhost:6379/0",
@@ -221,32 +221,40 @@ def test_orchestrator_reports_missing_redis_dependency(capsys, monkeypatch) -> N
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
 
-    orchestrator.enqueue_delivery("job-missing-redis").result(timeout=5)
+    try:
+        with pytest.raises(QueueUnavailableError):
+            orchestrator.enqueue_delivery("job-missing-redis")
+    finally:
+        job_runner.stop()
 
     out = capsys.readouterr().out
 
-    assert executed == ["job-missing-redis"]
-    assert "queue_orchestrator.fallback" in out
-    assert "reason=primary_error" in out
+    assert executed == []
+    assert orchestrator.has_durable_queue()
+    assert "queue_orchestrator.primary_error" in out
     assert "error_type=RuntimeError" in out
     assert "optional 'redis' package" in out
 
 
-def test_orchestrator_logs_redis_outage_warning(capsys, monkeypatch) -> None:
-    """Redis outages should fall back with actionable diagnostics."""
+def test_orchestrator_reports_redis_outage(capsys, monkeypatch) -> None:
+    """A Redis outage is retried once by the backend, then reported."""
     executed: list[str] = []
 
     def record_job(job_id: str) -> None:
         executed.append(job_id)
 
-    fallback = BackgroundTaskQueueBackend(record_job)
+    job_runner = InProcessJobRunner()
+    fallback = BackgroundTaskQueueBackend(record_job, job_runner=job_runner)
     backend = RedisQueueBackend("redis://localhost:6379/0")
+
+    attempts: list[tuple] = []
 
     class AlwaysFailQueue:
         def __init__(self) -> None:
             self.connection = None
 
         def enqueue(self, *args, **kwargs):
+            attempts.append(args)
             raise RedisConnectionError("redis unavailable")
 
     def fake_get_queue(self):
@@ -265,13 +273,18 @@ def test_orchestrator_logs_redis_outage_warning(capsys, monkeypatch) -> None:
         fallback_backend=fallback,
     )
 
-    orchestrator.enqueue_delivery("job-redis-outage").result(timeout=5)
+    try:
+        with pytest.raises(QueueUnavailableError):
+            orchestrator.enqueue_delivery("job-redis-outage")
+    finally:
+        job_runner.stop()
 
     out = capsys.readouterr().out
 
-    assert executed == ["job-redis-outage"]
-    assert "queue_orchestrator.fallback" in out
-    assert "reason=primary_error" in out
+    assert executed == []
+    # The backend resets its connection and retries once before giving up.
+    assert len(attempts) == 2
+    assert "queue_orchestrator.primary_error" in out
     assert f"error_type={RedisConnectionError.__name__}" in out
     assert "redis unavailable" in out
 
