@@ -90,6 +90,10 @@ class SDNextGenerationBackend(GenerationBackend):
         """Close HTTP session."""
         await self._session.close()
 
+    async def release_loop_resources(self) -> None:
+        """Close the HTTP session owned by the running event loop."""
+        await self._session.close_loop_session()
+
     def is_available(self) -> bool:
         """Check if SDNext backend is configured and available."""
         return self._session.is_configured()

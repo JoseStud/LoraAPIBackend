@@ -1,9 +1,12 @@
 """Abstract base classes and interfaces for delivery system."""
 
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
 from backend.schemas.generation import SDNextGenerationResult
+
+logger = logging.getLogger(__name__)
 
 
 class DeliveryBackend(ABC):
@@ -70,6 +73,14 @@ class GenerationBackend(ABC):
         """Stop the generation in progress; ``False`` when not supported."""
         return False
 
+    async def release_loop_resources(self) -> None:
+        """Release resources bound to the running event loop (HTTP sessions).
+
+        Called before a short-lived loop (an ``asyncio.run`` in a worker)
+        ends. Backends without loop-bound resources keep this no-op.
+        """
+        return None
+
 
 class DeliveryRegistry:
     """Registry for delivery and generation backends."""
@@ -124,6 +135,16 @@ class DeliveryRegistry:
 
         """
         return self._generation_backends.get(name)
+
+    async def release_loop_resources(self) -> None:
+        """Let every generation backend release what it holds for this loop."""
+        for name, backend in list(self._generation_backends.items()):
+            try:
+                await backend.release_loop_resources()
+            except Exception:  # pragma: no cover - defensive guard
+                logger.warning(
+                    "Releasing loop resources of %s failed", name, exc_info=True
+                )
 
     def list_available_backends(self) -> Dict[str, Dict[str, bool]]:
         """List all registered backends and their availability.

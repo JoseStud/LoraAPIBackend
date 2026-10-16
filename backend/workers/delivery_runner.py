@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Set
 from sqlmodel import Session
 
 from backend.core.database import get_session_context
+from backend.delivery import run_with_fresh_loop
 from backend.delivery.base import DeliveryRegistry
 from backend.delivery.storage import remove_stored_images, stored_return_format
 from backend.schemas import (
@@ -98,7 +99,8 @@ class DeliveryRunner:
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
-            asyncio.run(runner())
+            # A loop per job: close the sessions it opened before it ends.
+            run_with_fresh_loop(runner(), registry=self._delivery_registry)
             return None
 
         if raise_on_error:

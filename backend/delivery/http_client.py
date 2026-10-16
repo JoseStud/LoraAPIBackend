@@ -120,6 +120,20 @@ class DeliveryHTTPClient:
         except (asyncio.TimeoutError, aiohttp.ClientError, RuntimeError):
             return False
 
+    async def close_loop_session(self) -> None:
+        """Close the running loop's session and drop those of closed loops.
+
+        Sessions of other live loops are left alone. Call this before a loop
+        that used the client ends (each ``asyncio.run`` in an RQ worker), so
+        the session shuts down on its own loop instead of being left open.
+        """
+        loop = asyncio.get_running_loop()
+        with self._sessions_lock:
+            closable = self._pop_sessions(
+                lambda other: other is loop or other.is_closed()
+            )
+        await self._close_sessions(closable.values())
+
     async def close(self) -> None:
         """Close the session of the running loop and those of closed loops.
 

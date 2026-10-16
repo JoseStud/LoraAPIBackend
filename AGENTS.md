@@ -163,7 +163,11 @@ Read these before changing the matching subsystem:
   in-process fallback runs each job once. Don't build a separate retry policy
   at call sites. `DeliveryHTTPClient` keeps one aiohttp session per event loop, so
   the shared SDNext client works from the API loop, the runner loop and RQ
-  workers alike.
+  workers alike. RQ tasks run each job on a fresh loop on the worker's main
+  thread (RQ's job timeout is a SIGALRM there) through `run_with_fresh_loop`
+  (`backend/delivery`), which closes the sessions the generation backends
+  opened on that loop before it ends; use it rather than a bare `asyncio.run`
+  in worker code.
 - **Job status transitions**: a delivery job moves `pending`/`retrying` →
   `running` → `succeeded`/`failed`/`retrying`, or to `cancelled` from any
   active status. Change status through `DeliveryService.claim_job`,

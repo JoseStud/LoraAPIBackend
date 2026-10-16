@@ -8,7 +8,11 @@ from typing import Any, Callable, Coroutine, Optional, TypeVar
 
 from sqlmodel import Session
 
-from backend.delivery import ensure_delivery_system, get_delivery_registry
+from backend.delivery import (
+    ensure_delivery_system,
+    get_delivery_registry,
+    run_with_fresh_loop,
+)
 from backend.services import (
     DeliveryService,
     ServiceRegistry,
@@ -30,11 +34,14 @@ AsyncRunner = Callable[[Coroutine[Any, Any, T]], T]
 
 
 def _default_async_runner(coro: Coroutine[Any, Any, T]) -> T:
-    """Execute a coroutine to completion using ``asyncio.run``."""
+    """Execute a coroutine to completion on a fresh event loop.
+
+    The loop's delivery HTTP sessions are closed before it ends.
+    """
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        return asyncio.run(coro)
+        return run_with_fresh_loop(coro)
     raise RuntimeError(
         "An event loop is already running; provide a custom async_runner to the "
         "WorkerContext to schedule background work.",

@@ -52,6 +52,10 @@ class SDNextSession:
         """Close the underlying HTTP client."""
         await self._http_client.close()
 
+    async def close_loop_session(self) -> None:
+        """Close the HTTP session owned by the running event loop."""
+        await self._http_client.close_loop_session()
+
     async def health_check(self) -> bool:
         """Perform a health check against the SDNext API."""
         return await self._http_client.health_check()
