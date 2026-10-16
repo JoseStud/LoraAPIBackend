@@ -25,6 +25,7 @@ FastAPI + SQLModel backend with an RQ worker, and a Vue 3 + Pinia SPA.
 | [Frontend](Frontend.md) | Find your way around the SPA: features, boundaries, the generation orchestrator, HTTP |
 | [Recommendations](Recommendations.md) | Work on embeddings, similarity search or the optional ML stack |
 | [Library import and archives](Library-Import.md) | Understand how adapters get into the database, and export/import/backups |
+| [JSON import flow](JSON-Import-Flow.md) | Look up how a Civitai JSON field ends up on an adapter |
 | [Configuration](Configuration.md) | Look up an environment variable |
 | [Testing and CI](Testing-and-CI.md) | Know what `npm run ci:check` runs and how to write tests that fit |
 | [Contributing recipes](Contributing.md) | Add an endpoint, a service, a migration, a poller or a feature export the expected way |
@@ -57,7 +58,6 @@ The wiki links to these rather than repeating them:
 - [WebSocket implementation](../WEBSOCKET_IMPLEMENTATION.md).
 - [Recommendation model design](../RECOMMENDATION_MODEL_DESIGN.md) (design
   document; the code implements a subset).
-- [JSON import flow](../../JSON_IMPORT_FLOW.md).
 - Frontend: [ADR 007](../architecture/adr-generation-orchestrator-thin-facade.md),
   [effect scope ownership playbook](../frontend/effect-scope-ownership-playbook.md),
   [generation architecture acceptance checklist](../frontend/generation-architecture-acceptance.md),
