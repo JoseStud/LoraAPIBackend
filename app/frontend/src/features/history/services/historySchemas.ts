@@ -3,7 +3,6 @@ import { z, type ZodIssue } from 'zod';
 import { JsonObjectSchema } from '@/schemas/json';
 import type {
   GenerationHistoryListPayload,
-  GenerationHistoryListResponse,
   GenerationHistoryResult,
   GenerationHistoryStats,
   GenerationLoraReference,

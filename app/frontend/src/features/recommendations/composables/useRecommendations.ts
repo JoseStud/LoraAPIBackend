@@ -14,8 +14,7 @@ import {
 import type { AdapterSummary, RecommendationItem } from '@/types';
 import { debounce, type DebouncedFunction } from '@/utils/async';
 
-const WEIGHT_KEYS = ['semantic', 'artistic', 'technical'] as const;
-type WeightKey = (typeof WEIGHT_KEYS)[number];
+type WeightKey = 'semantic' | 'artistic' | 'technical';
 export type WeightState = Record<WeightKey, number>;
 
 const DEFAULT_WEIGHTS: Readonly<WeightState> = {
