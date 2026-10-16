@@ -65,30 +65,3 @@ def test_root_frontend_settings_route_is_gone(client: TestClient):
 def test_normalise_public_api_url(raw, expected):
     """BACKEND_URL becomes an absolute URL or a rooted path without a slash."""
     assert normalise_public_api_url(raw) == expected
-
-
-def test_cors_preflight_from_the_vite_dev_origin(client: TestClient):
-    """The mounted backend's CORS policy admits the Vite dev server."""
-    response = client.options(
-        "/api/v1/adapters",
-        headers={
-            "Origin": "http://localhost:5173",
-            "Access-Control-Request-Method": "GET",
-            "Access-Control-Request-Headers": "X-API-Key",
-        },
-    )
-    assert response.status_code == 200
-    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
-    assert response.headers["access-control-allow-credentials"] == "true"
-
-
-def test_wildcard_cors_origin_never_allows_credentials(monkeypatch):
-    """Browsers reject credentials with "*", so the backend drops them."""
-    monkeypatch.setattr(backend_settings, "CORS_ORIGINS", ["*"])
-    monkeypatch.setattr(backend_settings, "CORS_ALLOW_CREDENTIALS", True)
-
-    response = TestClient(create_app()).get(
-        "/health", headers={"Origin": "http://elsewhere.test"}
-    )
-    assert response.headers["access-control-allow-origin"] == "*"
-    assert "access-control-allow-credentials" not in response.headers

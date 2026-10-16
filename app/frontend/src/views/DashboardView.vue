@@ -76,7 +76,10 @@ import DashboardLazyModuleCard from '@/components/dashboard/DashboardLazyModuleC
 import DashboardLoraSummary from '@/components/dashboard/DashboardLoraSummary.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { RecommendationsPanel } from '@/features/recommendations/public';
-import { usePerformanceAnalyticsStore } from '@/features/analytics/public';
+
+// Loaded on demand: the analytics public module pulls in Chart.js (~200kb), which the dashboard
+// needs only once the analytics panel is opened.
+const loadAnalytics = () => import('@/features/analytics/public');
 
 const loadGenerationWidgets = () => import('@/features/generation/public/widgets');
 
@@ -193,8 +196,6 @@ const panels = panelConfigs.map((panel) => ({
   component: defineAsyncComponent(panel.loader),
 }));
 
-const performanceAnalyticsStore = usePerformanceAnalyticsStore();
-
 const panelStates = reactive<Record<PanelKey, PanelState>>(
   panels.reduce((state, panel) => {
     state[panel.key] = { active: false, loading: false, hasEverLoaded: false };
@@ -224,11 +225,13 @@ const handlePanelToggle = (key: PanelKey) => {
   setPanelState(key, { active: true, loading: !state.hasEverLoaded });
 
   if (key === 'analytics') {
-    void performanceAnalyticsStore.ensureLoaded().catch((error: unknown) => {
-      if (import.meta.env.DEV) {
-        console.error('[DashboardView] Failed to prefetch analytics data', error);
-      }
-    });
+    void loadAnalytics()
+      .then(({ usePerformanceAnalyticsStore }) => usePerformanceAnalyticsStore().ensureLoaded())
+      .catch((error: unknown) => {
+        if (import.meta.env.DEV) {
+          console.error('[DashboardView] Failed to prefetch analytics data', error);
+        }
+      });
   }
 };
 </script>

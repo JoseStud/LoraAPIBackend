@@ -186,7 +186,6 @@ flags are applied consistently across shells.【F:package.json†L12-L24】
 
 - Python tests: `pytest`
 - Frontend unit tests: `npm run test:unit`
-- Frontend integration tests: `npm run test:integration`
 - Playwright E2E tests: `npm run test:e2e`
 
 Some suites depend on Redis, SDNext, or browser binaries. Refer to

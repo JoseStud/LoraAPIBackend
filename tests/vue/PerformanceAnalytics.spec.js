@@ -5,6 +5,7 @@ import { createPinia, setActivePinia } from 'pinia';
 
 import PerformanceAnalyticsPage from '../../app/frontend/src/views/analytics/PerformanceAnalyticsPage.vue';
 import { useSettingsStore } from '../../app/frontend/src/stores/settings';
+import { usePerformanceAnalyticsStore } from '../../app/frontend/src/features/analytics/public';
 import { createAdapterFixture } from '../fixtures/adapters';
 
 const notificationSpies = vi.hoisted(() => ({
@@ -327,5 +328,23 @@ describe('PerformanceAnalyticsPage.vue', () => {
     expect(blobArg).toMatchObject({ size: expect.any(Number), type: 'text/csv' });
     expect(filenameArg).toBe('analytics.csv');
     expect(notificationSpies.showSuccess).toHaveBeenCalledWith('Export completed successfully');
+  });
+  it('turns auto-refresh on and off from the checkbox', async () => {
+    wrapper = mountPage();
+
+    await flushPromises();
+    await wrapper.vm.$nextTick();
+
+    const store = usePerformanceAnalyticsStore();
+    const checkbox = wrapper.find('input[type="checkbox"]');
+    expect(store.autoRefresh).toBe(false);
+
+    await checkbox.setValue(true);
+    expect(store.autoRefresh).toBe(true);
+    expect(checkbox.element.checked).toBe(true);
+
+    await checkbox.setValue(false);
+    expect(store.autoRefresh).toBe(false);
+    expect(checkbox.element.checked).toBe(false);
   });
 });

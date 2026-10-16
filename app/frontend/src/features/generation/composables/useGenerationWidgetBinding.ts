@@ -18,6 +18,7 @@ const createConsoleNotifier = (label: string): GenerationNotificationAdapter => 
     }
   },
   debug: (...args: unknown[]) => {
+    // eslint-disable-next-line no-console -- widgets send transport debug output to the console by design
     console.debug(`[${label}]`, ...args);
   },
 });

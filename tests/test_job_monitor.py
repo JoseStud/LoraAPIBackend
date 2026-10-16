@@ -226,6 +226,33 @@ async def test_failed_job_gets_completion_with_its_error(harness: _Harness) -> N
 
 
 @pytest.mark.anyio
+async def test_retried_job_does_not_carry_the_previous_attempts_error(
+    harness: _Harness,
+) -> None:
+    """A retry claimed from ``retrying`` streams progress without the old error."""
+    job_id = harness.create_job()
+    harness.deliveries.claim_job(job_id)
+    await harness.tick()
+    harness.deliveries.finish_job(
+        job_id,
+        "retrying",
+        {"error_message": "SDNext API not available", "retries_left": 2},
+    )
+
+    waiting = await harness.tick()
+    update = _data(waiting, "progress_update", job_id)
+    assert update["error_message"] == "SDNext API not available"
+
+    harness.deliveries.claim_job(job_id)
+    retried = await harness.tick()
+
+    assert _types(retried, job_id) == ["generation_started", "progress_update"]
+    update = _data(retried, "progress_update", job_id)
+    assert update["status"] == "processing"
+    assert update["error_message"] is None
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize("claimed", [True, False])
 async def test_cancelled_job_is_dropped_without_a_completion(
     harness: _Harness, claimed: bool

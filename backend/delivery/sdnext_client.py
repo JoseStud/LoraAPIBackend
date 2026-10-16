@@ -6,6 +6,8 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
+import aiohttp
+
 from backend.core.config import settings
 from backend.core.logging import get_logger
 
@@ -16,12 +18,23 @@ logger = get_logger(__name__)
 
 @dataclass
 class SDNextResponse:
-    """Structured response returned by :class:`SDNextSession`."""
+    """Structured response returned by :class:`SDNextSession`.
+
+    ``error`` is fixed text, never upstream response bodies or exception
+    messages. ``transient`` marks failures another attempt may not repeat:
+    timeouts, connection errors, HTTP 429 and 5xx.
+    """
 
     ok: bool
     status: Optional[int]
     data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
+    transient: bool = False
+
+
+def _is_transient_status(status: int) -> bool:
+    """Return whether an HTTP error status is worth retrying."""
+    return status == 429 or status >= 500
 
 
 class SDNextSession:
@@ -101,11 +114,18 @@ class SDNextSession:
                         "SDNext returned HTTP %s: %s", status, await response.text()
                     )
                     return SDNextResponse(
-                        False, status, error=f"SDNext returned HTTP {status}"
+                        False,
+                        status,
+                        error=f"SDNext returned HTTP {status}",
+                        transient=_is_transient_status(status),
                     )
                 if not expect_json:
                     return SDNextResponse(True, status)
-                data = await response.json()
+                try:
+                    data = await response.json()
+                except (aiohttp.ContentTypeError, ValueError):
+                    logger.warning("SDNext returned a non-JSON body", exc_info=True)
+                    data = None
                 if not isinstance(data, dict):
                     return SDNextResponse(
                         False, status, error="Invalid SDNext response"
@@ -113,7 +133,15 @@ class SDNextSession:
                 return SDNextResponse(True, status, data=data)
         except asyncio.TimeoutError:
             logger.warning("SDNext request timed out", exc_info=True)
-            return SDNextResponse(False, None, error="SDNext request timed out")
+            return SDNextResponse(
+                False, None, error="SDNext request timed out", transient=True
+            )
+        except (aiohttp.ClientError, OSError):
+            # Refused or dropped connections, DNS failures, truncated bodies.
+            logger.warning("SDNext request failed", exc_info=True)
+            return SDNextResponse(
+                False, None, error="SDNext request failed", transient=True
+            )
         except Exception:
             logger.exception("SDNext request failed")
             return SDNextResponse(False, None, error="SDNext request failed")

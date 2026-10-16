@@ -9,6 +9,23 @@ from backend.schemas.generation import SDNextGenerationResult
 logger = get_logger(__name__)
 
 
+class TransientGenerationError(Exception):
+    """A generation failed in a way a later attempt may not (SDNext unreachable).
+
+    Raised by :meth:`GenerationBackend.generate_image` instead of returning a
+    failed result, so the queue's retry policy applies: the delivery runner
+    leaves the job ``retrying`` while RQ has retries left, otherwise ``failed``
+    with :attr:`message` as its ``error_message``. ``message`` is fixed text
+    written by the backend, safe to show to users; never put third-party
+    exception text in it.
+    """
+
+    def __init__(self, message: str) -> None:
+        """Store the user-facing ``message``."""
+        super().__init__(message)
+        self.message = message
+
+
 class DeliveryBackend(ABC):
     """Abstract base class for delivery backends."""
 
@@ -46,7 +63,13 @@ class GenerationBackend(ABC):
             params: Generation parameters
 
         Returns:
-            SDNextGenerationResult with job status and results
+            SDNextGenerationResult with job status and results; a failure
+            that another attempt would repeat (bad request, misconfiguration)
+            is a result with ``status`` ``failed``.
+
+        Raises:
+            TransientGenerationError: the backend is unreachable or
+                overloaded, or aborted the job; the queue may retry it.
 
         """
         pass

@@ -23,6 +23,7 @@ from backend.services.queue import (
     QueueOrchestrator,
     QueueUnavailableError,
     RedisQueueBackend,
+    rq_job_id,
 )
 from backend.workers import tasks as worker_tasks
 from backend.workers.tasks import reset_worker_context, set_worker_context
@@ -125,11 +126,11 @@ def test_redis_backend_recovers_from_connection_error(monkeypatch) -> None:
             self.idx = idx
             self.enqueued: list[tuple[str, str, dict]] = []
 
-        def enqueue(self, task_name: str, job_id: str, **kwargs):
+        def enqueue(self, task_name: str, delivery_id: str, **kwargs):
             if self.idx == 0:
                 raise RedisConnectionError("redis unavailable")
-            self.enqueued.append((task_name, job_id, kwargs))
-            return {"job_id": job_id}
+            self.enqueued.append((task_name, delivery_id, kwargs))
+            return {"job_id": delivery_id}
 
     def fake_get_queue(self):  # pragma: no cover - exercised in test
         if self._queue is None:
@@ -313,6 +314,29 @@ def test_redis_backend_applies_job_timeout(monkeypatch) -> None:
     assert second.kwargs["job_timeout"] == 30
 
 
+def test_redis_backend_uses_deterministic_job_id(monkeypatch) -> None:
+    """Each delivery's RQ job id derives from the delivery id, whatever is passed."""
+    backend = RedisQueueBackend("redis://localhost:6379/0")
+    queue = MagicMock()
+    monkeypatch.setattr(backend, "_get_queue", lambda: queue)
+
+    backend.enqueue_delivery("job-a")
+
+    (call,) = queue.enqueue.call_args_list
+    assert call.args == (backend.task_name, "job-a")
+    assert call.kwargs["job_id"] == rq_job_id("job-a") == "delivery-job-a"
+
+
+def test_job_deadline_expires_before_rq_and_recovery_timeouts(monkeypatch) -> None:
+    """In-loop deadline < RQ job timeout <= recovery's running timeout."""
+    for timeout in (1, 2, 61, 270, 3600):
+        monkeypatch.setattr(settings, "JOB_RUNNING_TIMEOUT_SECONDS", timeout)
+        assert 0 < settings.job_deadline_seconds < settings.rq_job_timeout_seconds
+        assert settings.rq_job_timeout_seconds <= settings.job_running_timeout_seconds
+    monkeypatch.setattr(settings, "JOB_RUNNING_TIMEOUT_SECONDS", 600)
+    assert settings.job_deadline_seconds == 600 - settings.JOB_DEADLINE_MARGIN_SECONDS
+
+
 def test_redis_backend_applies_retry_policy(monkeypatch) -> None:
     """Jobs get the configured RQ retry policy unless the caller sets one."""
     backend = RedisQueueBackend(
@@ -354,7 +378,7 @@ def test_orchestrator_configures_retries_from_settings(monkeypatch) -> None:
     assert isinstance(primary, RedisQueueBackend)
     assert primary.max_retries == 3
     assert primary.retry_intervals == [5, 10, 20]
-    assert primary.job_timeout == settings.job_running_timeout_seconds
+    assert primary.job_timeout == settings.rq_job_timeout_seconds
 
 
 def test_in_process_backend_ignores_retry_policy() -> None:

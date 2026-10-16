@@ -12,7 +12,7 @@ jobs. This page is a map; the job machinery has its own page,
 | --- | --- |
 | [`backend/main.py`](../../backend/main.py) | `create_app()`: CORS, router mounting, lifespan, exception handlers. [`app/main.py`](../../app/main.py) mounts it at `/api` and serves the SPA. |
 | [`backend/api/v1/`](../../backend/api/v1) | Routers: `adapters`, `analytics`, `compose`, `dashboard`, `deliveries`, `frontend`, `generation/` (package), `import_export`, `recommendations`, `system`, `websocket`. |
-| [`backend/core/`](../../backend/core) | `config.py` (all settings), `database.py` (engine, sessions), `migrations.py` (runs Alembic), `security.py` (`X-API-Key`), `dependencies.py` (`get_services`), `logging.py` (structlog JSON), `gpu.py`. |
+| [`backend/core/`](../../backend/core) | `config.py` (all settings), `database.py` (engine, sessions), `migrations.py` (runs Alembic), `security.py` (`X-API-Key`), `cors.py` (the one CORS policy, installed by `create_app()`), `dependencies.py` (`get_services`), `logging.py` (structlog JSON), `gpu.py`. |
 | [`backend/models/`](../../backend/models) | SQLModel tables; see [Data model](Data-Model.md). |
 | [`backend/schemas/`](../../backend/schemas) | Pydantic request/response models, one module per area. |
 | [`backend/services/`](../../backend/services) | `ServiceRegistry`, its builder, and every domain service. |

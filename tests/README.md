@@ -10,9 +10,12 @@ the dependencies that may be required.
   and worker helpers. Fixtures live in `tests/conftest.py` and rely on in-memory
   SQLite databases by default.【F:tests/conftest.py†L1-L120】
 - **Vitest** – Runs component, composable, and store tests under
-  `tests/vue`.
-- **Integration tests** – Additional Vitest suites under `tests/integration`
-  exercise frontend logic that talks to the backend API via mocked HTTP calls.
+  `tests/vue`. The global setup (`tests/setup/vitest.setup.js`) replaces
+  `fetch` and `WebSocket` with guards that fail the test on any call, so a spec
+  that talks to the backend must mock the service module the code imports or
+  stub `fetch` / `WebSocket` itself (`vi.stubGlobal`).
+- **Backend integration tests** – pytest suites under `tests/integration`
+  exercise the API routers through FastAPI's `TestClient`.
 - **Playwright** – End-to-end browser tests under `tests/e2e` simulate user
   flows through the SPA.
 - **Performance/Lighthouse** – Optional audits located in `tests/performance`.
@@ -51,10 +54,9 @@ the dependencies that may be required.
    The default `npm run test` shortcut executes the same Vitest suite without
    any of the Playwright overhead, which keeps local feedback cycles fast.
 
-4. **Run integration or end-to-end suites as needed**
+4. **Run end-to-end suites as needed**
 
    ```bash
-   npm run test:integration   # mocked API workflows
    npm run test:e2e           # Playwright browser tests
    ```
 
@@ -74,12 +76,12 @@ the dependencies that may be required.
 ```
 tests/
 ├── vue/             # Vue component tests
-├── integration/     # Frontend integration suites
+├── integration/     # Backend API integration suites (pytest)
 ├── e2e/             # Playwright scenarios
 ├── performance/     # Lighthouse CI configuration
 ├── generation/      # Backend generation helpers
 ├── recommendations/ # Recommendation service tests
-└── mocks/           # Shared fixtures and HTTP mocks
+└── mocks/           # Shared test doubles (page environment, virtual scroller)
 ```
 
 Refer to the individual test files for scenario specifics. Several suites are

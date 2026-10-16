@@ -55,6 +55,7 @@ export const usePromptComposerGeneration = ({
         },
         debug: (...args: unknown[]) => {
           if (import.meta.env.DEV) {
+            // eslint-disable-next-line no-console -- dev-only debug sink for the orchestrator binding
             console.debug('[prompt-composer]', ...args);
           }
         },

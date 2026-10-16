@@ -46,10 +46,10 @@ In Docker, values come from `.env.docker` (or `.env.docker.example`) through
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `JOB_RUNNING_TIMEOUT_SECONDS` | unset → `SDNEXT_TIMEOUT + SDNEXT_PRE_GENERATE_TIMEOUT + 120` | A job `running` longer than this has lost its runner and is failed by recovery. Also the RQ job timeout. |
+| `JOB_RUNNING_TIMEOUT_SECONDS` | unset → `SDNEXT_TIMEOUT + SDNEXT_PRE_GENERATE_TIMEOUT + 120` | How long one attempt may run. The runner times the attempt out 30 s earlier (interrupting SDNext, no retry); RQ's job timeout is this value, as a backstop; a job `running` longer than this has lost its runner and is failed by recovery. See [Timeouts](Generation-Pipeline.md#timeouts). |
 | `JOB_RECOVERY_INTERVAL_SECONDS` | `60` | How often recovery runs; `0` runs it only at startup. |
 | `GENERATION_WAIT_TIMEOUT_SECONDS` | unset → `2 × JOB_RUNNING_TIMEOUT_SECONDS` | How long `POST /generation/generate` and `/compose-and-generate` wait for their queued job before answering 504 with the job id. The job keeps running. |
-| `DELIVERY_MAX_RETRIES` | `2` | RQ retries when the runner raises. `0` disables. In-process jobs never retry. |
+| `DELIVERY_MAX_RETRIES` | `2` | RQ retries when the runner raises: a transient SDNext failure (unreachable, timing out, HTTP 429/5xx, no images) or a crash. Permanent failures and timeouts are final. `0` disables. In-process jobs never retry. |
 | `DELIVERY_RETRY_INTERVAL_SECONDS` | `10` | Retry *n* waits this × 2^(n-1). Above 0 needs `rq worker --with-scheduler`. |
 
 Details: [Generation pipeline](Generation-Pipeline.md#retries).

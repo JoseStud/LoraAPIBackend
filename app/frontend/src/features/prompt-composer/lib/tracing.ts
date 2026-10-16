@@ -10,6 +10,7 @@ export type PromptComposerTraceEmitter = (event: PromptComposerTraceEvent) => vo
 
 const defaultEmitter: PromptComposerTraceEmitter = (event) => {
   if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console -- the default trace emitter writes to the console in dev builds
     console.debug('[prompt-composer]', event);
   }
 };
