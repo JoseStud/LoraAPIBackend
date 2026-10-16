@@ -286,10 +286,3 @@ def rebuild_similarity_index(
     """Run :func:`rebuild_similarity_index_async` synchronously."""
     ctx = context or get_worker_context()
     return ctx.run_async(rebuild_similarity_index_async(force=force, context=ctx))
-
-
-if __name__ == "__main__":
-    print(
-        "Queue ready. Run workers with: "
-        "rq worker --with-scheduler --url $REDIS_URL default"
-    )
