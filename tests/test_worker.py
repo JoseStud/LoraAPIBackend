@@ -6,6 +6,7 @@ orchestrator with the Redis backend's retry policy and executed by
 ``backend.workers.tasks.process_delivery``.
 """
 
+import asyncio
 from datetime import timedelta
 from typing import Iterator, List, Optional
 
@@ -17,9 +18,15 @@ from rq.job import JobStatus  # noqa: E402
 from rq.timeouts import JobTimeoutException  # noqa: E402
 
 from backend.core.database import get_session_context  # noqa: E402
+from backend.delivery.base import TransientGenerationError  # noqa: E402
 from backend.models.deliveries import DeliveryJob  # noqa: E402
+from backend.schemas import DeliveryJobResult  # noqa: E402
 from backend.services.job_recovery import recover_jobs  # noqa: E402
-from backend.services.queue import QueueOrchestrator, RedisQueueBackend  # noqa: E402
+from backend.services.queue import (  # noqa: E402
+    QueueOrchestrator,
+    RedisQueueBackend,
+    rq_job_id,
+)
 from backend.workers import tasks as worker_tasks  # noqa: E402
 from backend.workers.context import WorkerContext  # noqa: E402
 from backend.workers.tasks import reset_worker_context, set_worker_context  # noqa: E402
@@ -36,6 +43,8 @@ class Harness:
         self.script: List[Optional[BaseException]] = []
         self.calls: List[Optional[int]] = []
         self.statuses: List[str] = []
+        # The stored result each attempt starts from (after its claim).
+        self.results_at_start: List[Optional[str]] = []
 
     def create_job(self) -> str:
         with get_session_context() as sess:
@@ -54,10 +63,24 @@ class Harness:
             )
 
     def status(self, job_id: str) -> str:
+        return self.row(job_id).status
+
+    def row(self, job_id: str) -> DeliveryJob:
         with get_session_context() as sess:
             job = sess.get(DeliveryJob, job_id)
             assert job is not None
-            return job.status
+            sess.expunge(job)
+            return job
+
+    def result(self, job_id: str) -> Optional[DeliveryJobResult]:
+        return DeliveryJobResult.parse_json(self.row(job_id).result)
+
+    def recover(self, *, at_startup: bool):
+        with get_session_context() as sess:
+            deliveries = self.context.create_service_container(sess).deliveries
+            return recover_jobs(
+                deliveries, at_startup=at_startup, running_timeout=timedelta(hours=1)
+            )
 
     def cancel(self, job_id: str) -> Optional[str]:
         with get_session_context() as sess:
@@ -102,6 +125,7 @@ def harness(db_session, monkeypatch) -> Iterator[Harness]:
 
     async def execute(prompt, mode, params):
         h.calls.append(_current_retries_left())
+        h.results_at_start.append(h.row(_current_delivery_id()).result)
         outcome = h.script.pop(0) if h.script else None
         if outcome is not None:
             raise outcome
@@ -121,6 +145,12 @@ def _current_retries_left() -> Optional[int]:
     from rq import get_current_job
 
     return getattr(get_current_job(), "retries_left", None)
+
+
+def _current_delivery_id() -> str:
+    from rq import get_current_job
+
+    return get_current_job().args[0]
 
 
 def test_worker_process_cycle(harness):
@@ -161,6 +191,34 @@ def test_last_attempt_fails_job(harness):
     assert harness.calls == [2, 1, 0]
     assert harness.statuses == ["retrying", "retrying", "failed"]
     assert rq_job.get_status(refresh=True) == JobStatus.FAILED
+
+
+def test_transient_generation_error_is_retried_with_its_message(harness):
+    """SDNext being down is retried; each retry starts without the old error."""
+    harness.script = [TransientGenerationError("SDNext API not available")] * 3
+    job_id = harness.create_job()
+    rq_job = harness.enqueue(job_id)
+
+    harness.work()
+
+    assert harness.calls == [2, 1, 0]
+    assert harness.statuses == ["retrying", "retrying", "failed"]
+    assert harness.results_at_start == [None, None, None]
+    result = harness.result(job_id)
+    assert result.error_message == "SDNext API not available"
+    assert result.retries_left is None
+    assert rq_job.get_status(refresh=True) == JobStatus.FAILED
+
+
+def test_transient_error_then_success(harness):
+    harness.script = [TransientGenerationError("SDNext request timed out")]
+    job_id = harness.create_job()
+    harness.enqueue(job_id)
+
+    harness.work()
+
+    assert harness.statuses == ["retrying", "succeeded"]
+    assert harness.result(job_id).failure_message is None
 
 
 def test_cancelled_retrying_job_is_not_resurrected(harness):
@@ -219,6 +277,89 @@ def test_retry_after_killed_attempt_leaves_job_to_recovery(harness):
         )
     assert [job.job_id for job in report.failed] == [job_id]
     assert harness.status(job_id) == "failed"
+
+
+def test_rq_job_id_is_deterministic_across_retries(harness):
+    harness.script = [ConnectionError("down")]
+    job_id = harness.create_job()
+
+    rq_job = harness.enqueue(job_id)
+    assert rq_job.id == rq_job_id(job_id)
+    harness.work()
+
+    assert harness.statuses == ["retrying", "succeeded"]
+    assert harness.queue.fetch_job(rq_job_id(job_id)) is not None
+
+
+def test_has_pending_follows_the_rq_job(harness):
+    backend = harness.context.queue_orchestrator.get_backends()[0]
+    job_id = harness.create_job()
+    assert backend.has_pending(job_id) is False
+
+    harness.enqueue(job_id)
+    assert backend.has_pending(job_id) is True
+    assert harness.context.queue_orchestrator.has_pending(job_id) is True
+
+    harness.work()
+    assert backend.has_pending(job_id) is False
+
+
+def test_recovery_requeues_jobs_lost_with_a_flushed_redis(harness):
+    """Redis restarted empty: recovery queues the waiting job again, once."""
+    job_id = harness.create_job()
+    harness.enqueue(job_id)
+    harness.redis.flushall()
+
+    report = harness.recover(at_startup=True)
+
+    assert report.requeued == [job_id]
+    again = harness.recover(at_startup=True)
+    assert again.requeued == [], "the requeued job is pending in Redis"
+    assert harness.queue.count == 1
+
+    harness.work()
+    assert harness.status(job_id) == "succeeded"
+    assert harness.calls == [2]
+
+
+def test_recovery_leaves_queued_jobs_alone(harness):
+    job_id = harness.create_job()
+    harness.enqueue(job_id)
+
+    report = harness.recover(at_startup=True)
+
+    assert report.requeued == []
+    assert harness.queue.count == 1
+
+
+def test_rq_timeout_while_awaiting_io_fails_job_as_timed_out(harness, monkeypatch):
+    """RQ's SIGALRM fires while the event loop waits on the backend.
+
+    The runner's deadline is far away, so RQ's backstop fires first; the
+    job is still failed as timed out and RQ's retry does not run it again.
+    """
+    runner = harness.context.delivery_runner
+    calls: List[str] = []
+
+    async def hang(prompt, mode, params):
+        calls.append(prompt)
+        await asyncio.sleep(30)
+
+    monkeypatch.setattr(runner, "_execute_delivery_backend", hang)
+    job_id = harness.create_job()
+    rq_job = harness.enqueue(job_id, job_timeout=1)
+
+    harness.work()
+
+    assert calls == ["hello"]
+    # The first entry is recorded while asyncio.run cancels the interrupted
+    # attempt, before the backstop fails the job; the second is RQ's retry,
+    # which cannot claim the failed job.
+    assert harness.statuses == ["running", "failed"]
+    assert harness.status(job_id) == "failed"
+    assert harness.result(job_id).error_message == "Delivery timed out"
+    rq_job.refresh()
+    assert rq_job.retries_left == 1, "RQ retried the task, which skipped the job"
 
 
 def test_retry_waits_for_interval(db_session, monkeypatch):

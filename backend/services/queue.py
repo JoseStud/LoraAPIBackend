@@ -65,6 +65,25 @@ class QueueBackend(ABC):
     ) -> Any:
         """Enqueue a delivery job for processing."""
 
+    def has_pending(self, job_id: str) -> bool:
+        """Return whether ``job_id`` is still queued or running on this queue.
+
+        Job recovery requeues a waiting job whose queue entry is gone. A
+        backend that cannot tell answers ``True``, so its jobs are never
+        requeued on a guess.
+        """
+        return True
+
+
+def rq_job_id(delivery_id: str) -> str:
+    """Return the RQ job id of delivery ``delivery_id``.
+
+    Deterministic, so job recovery can look the queue entry up, and RQ keeps
+    the id across its retries of the job. RQ allows only letters, digits,
+    ``_`` and ``-`` in job ids.
+    """
+    return f"delivery-{delivery_id}"
+
 
 class RedisQueueBackend(QueueBackend):
     """Redis-backed queue implementation using RQ.
@@ -75,7 +94,20 @@ class RedisQueueBackend(QueueBackend):
     attempt can claim it again. A retry of a job that was cancelled meanwhile,
     or that a timed-out attempt left ``running``, cannot claim it and does
     nothing.
+
+    Each delivery's RQ job id is :func:`rq_job_id`, so :meth:`has_pending`
+    can tell whether Redis still holds the job (it does not after a flush or
+    a restart without persistence).
     """
+
+    PENDING_STATUSES = frozenset({
+        "created",
+        "queued",
+        "started",
+        "deferred",
+        "scheduled",
+    })
+    """RQ job statuses in which RQ still runs, or retries, the job."""
 
     def __init__(
         self,
@@ -212,7 +244,10 @@ class RedisQueueBackend(QueueBackend):
 
         The backend's job timeout and retry policy apply unless the caller
         passes ``job_timeout`` or ``retry`` (``retry=None`` disables retries).
+        The RQ job id is always :func:`rq_job_id` of ``job_id``; enqueueing
+        it again replaces the RQ job of that id.
         """
+        enqueue_kwargs["job_id"] = rq_job_id(job_id)
         if self.job_timeout is not None:
             enqueue_kwargs.setdefault("job_timeout", self.job_timeout)
         if "retry" not in enqueue_kwargs:
@@ -229,6 +264,20 @@ class RedisQueueBackend(QueueBackend):
             self._reset_queue()
             queue = self._get_queue()
             return queue.enqueue(self.task_name, job_id, **enqueue_kwargs)
+
+    def has_pending(self, job_id: str) -> bool:
+        """Return whether Redis holds delivery ``job_id``'s RQ job, unfinished.
+
+        ``False`` when the RQ job is gone (Redis flushed or restarted without
+        persistence) or finished, failed, stopped or cancelled. Redis errors
+        propagate: an unreachable Redis says nothing about the job.
+        """
+        job = self._get_queue().fetch_job(rq_job_id(job_id))
+        if job is None:
+            return False
+        # ``JobStatus`` is a str enum whose hash differs from its value's.
+        status = getattr(job.get_status(refresh=False), "value", None)
+        return status in self.PENDING_STATUSES
 
 
 class BackgroundTaskQueueBackend(QueueBackend):
@@ -367,6 +416,17 @@ class QueueOrchestrator:
                 f"Could not enqueue job {job_id} on {type(primary).__name__}"
             ) from exc
 
+    def has_pending(self, job_id: str) -> bool:
+        """Return whether the durable queue still holds ``job_id``, unfinished.
+
+        Without a durable queue nothing outlives the process, so this answers
+        ``False``. Errors reaching the queue propagate.
+        """
+        primary = self._ensure_primary_backend()
+        if primary is None:
+            return False
+        return primary.has_pending(job_id)
+
     def has_durable_queue(self) -> bool:
         """Return whether jobs go to a queue that outlives this process.
 
@@ -397,7 +457,7 @@ class QueueOrchestrator:
         if redis_url:
             self._primary_backend = RedisQueueBackend(
                 redis_url,
-                job_timeout=settings.job_running_timeout_seconds,
+                job_timeout=settings.rq_job_timeout_seconds,
                 max_retries=settings.DELIVERY_MAX_RETRIES,
                 retry_intervals=settings.delivery_retry_intervals,
             )

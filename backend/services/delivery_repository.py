@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
-from sqlalchemy import Integer, case, func, or_, update
+from sqlalchemy import Integer, case, func, null, or_, update
 from sqlmodel import Session, select
 
 from backend.models import DeliveryJob
@@ -55,7 +55,10 @@ class DeliveryJobMapper:
         previous = job.status
         job.status = status
         now = self._now()
-        if status == "running" and (job.started_at is None or previous == "retrying"):
+        if status == "running" and previous == "retrying":
+            job.started_at = now
+            job.result = None
+        elif status == "running" and job.started_at is None:
             job.started_at = now
         elif status in _FINISHED_STATUSES and job.finished_at is None:
             job.finished_at = now
@@ -65,15 +68,20 @@ class DeliveryJobMapper:
 
         Mirrors :meth:`apply_status`: a timestamp that is already set is kept,
         except that a retry (``retrying`` → ``running``) restarts
-        ``started_at``, which job recovery measures the running time from.
+        ``started_at``, which job recovery measures the running time from,
+        and clears the previous attempt's ``result`` (its error), so the
+        progress WebSocket and the REST queue do not report it for the new
+        attempt.
         """
         values: Dict[str, Any] = {"status": status}
         now = self._now()
         if status == "running":
+            retried = DeliveryJob.status == "retrying"
             values["started_at"] = case(
-                (DeliveryJob.status == "retrying", now),
+                (retried, now),
                 else_=func.coalesce(DeliveryJob.started_at, now),
             )
+            values["result"] = case((retried, null()), else_=DeliveryJob.result)
         elif status in _FINISHED_STATUSES:
             values["finished_at"] = func.coalesce(DeliveryJob.finished_at, now)
         return values
@@ -419,6 +427,22 @@ class DeliveryJobRepository:
             select(DeliveryJob)
             .where(DeliveryJob.status == status)
             .where(DeliveryJob.started_at < cutoff)
+        )
+        return list(self._session.exec(query).all())
+
+    def list_jobs_created_before(
+        self, statuses: Sequence[str], cutoff: datetime, *, limit: int
+    ) -> List[DeliveryJob]:
+        """Return up to ``limit`` jobs in ``statuses`` created before ``cutoff``.
+
+        Oldest first.
+        """
+        query = (
+            select(DeliveryJob)
+            .where(DeliveryJob.status.in_(tuple(statuses)))
+            .where(DeliveryJob.created_at < cutoff)
+            .order_by(DeliveryJob.created_at)
+            .limit(limit)
         )
         return list(self._session.exec(query).all())
 

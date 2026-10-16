@@ -12,6 +12,17 @@ Without Redis the API process is the only runner, so at startup every
 queued again; they lived only in the previous process. They go through the
 queue orchestrator to the same in-process job runner as new requests, so
 recovered and new jobs still run one at a time.
+
+With Redis, a waiting (``pending``/``retrying``) job whose RQ job is gone,
+because Redis was flushed or restarted without persistence, or whose RQ job
+already finished, would never run. Every pass (at startup and periodically)
+asks the queue (:meth:`QueueOrchestrator.has_pending`) about each waiting job
+and queues the lost ones again through the orchestrator.
+RQ job ids are deterministic per delivery, so a job RQ still holds is never
+queued twice; periodic passes skip jobs younger than
+:data:`LOST_JOB_GRACE`, which a request may be enqueueing right now. A
+duplicate that slips through anyway is harmless: claiming is conditional, so
+the second run skips the job.
 """
 
 from __future__ import annotations
@@ -28,6 +39,7 @@ from backend.schemas.delivery_jobs import DeliveryJobParams, DeliveryJobResult
 
 from .deliveries import DeliveryService
 from .job_webhooks import JobWebhookNotifier
+from .queue import QueueOrchestrator, QueueUnavailableError
 
 logger = get_logger(__name__)
 
@@ -38,6 +50,14 @@ INTERRUPTED_RESULT = DeliveryJobResult(
         "the job timed out)"
     ),
 )
+
+
+LOST_JOB_GRACE = timedelta(seconds=30)
+"""How old a waiting job must be before a periodic pass may requeue it.
+
+A request creates the job row before it enqueues the job, so a younger job
+may simply not be enqueued yet.
+"""
 
 
 @dataclass(frozen=True)
@@ -63,7 +83,11 @@ def recover_jobs(
     at_startup: bool,
     running_timeout: timedelta,
 ) -> RecoveryReport:
-    """Fail jobs that lost their runner and, after an in-process restart, requeue."""
+    """Fail jobs that lost their runner and requeue waiting jobs the queue lost.
+
+    In-process, waiting jobs are requeued only at startup. With a durable
+    queue every pass requeues the waiting jobs it no longer holds.
+    """
     orchestrator = deliveries.queue_orchestrator
     in_process = orchestrator is None or not orchestrator.has_durable_queue()
     restarted_in_process = at_startup and in_process
@@ -80,8 +104,41 @@ def recover_jobs(
         for job in deliveries.list_claimable_jobs():
             deliveries.enqueue_job(job.id)
             report.requeued.append(job.id)
+    elif orchestrator is not None and not in_process:
+        report.requeued.extend(
+            _requeue_lost_jobs(deliveries, orchestrator, at_startup=at_startup)
+        )
 
     return report
+
+
+def _requeue_lost_jobs(
+    deliveries: DeliveryService,
+    orchestrator: QueueOrchestrator,
+    *,
+    at_startup: bool,
+) -> List[str]:
+    """Queue again the waiting jobs the durable queue no longer holds.
+
+    Stops at the first queue error and leaves the jobs waiting: the queue is
+    down, and the next pass tries again. (Unlike a request's enqueue, which
+    fails a job the queue rejects, since nothing else would retry it.)
+    """
+    requeued: List[str] = []
+    older_than = None if at_startup else LOST_JOB_GRACE
+    for job in deliveries.list_claimable_jobs(older_than=older_than):
+        try:
+            if orchestrator.has_pending(job.id):
+                continue
+            orchestrator.enqueue_delivery(job.id)
+        except QueueUnavailableError:
+            logger.warning("Queue rejected recovered job %s", job.id)
+            break
+        except Exception:
+            logger.warning("Could not check queued job %s", job.id, exc_info=True)
+            break
+        requeued.append(job.id)
+    return requeued
 
 
 class JobRecovery:
@@ -147,7 +204,11 @@ class JobRecovery:
             )
             await self._notify(report.failed)
         if report.requeued:
-            logger.info("Requeued %d job(s) after restart", len(report.requeued))
+            logger.warning(
+                "Requeued %d job(s) the queue had lost: %s",
+                len(report.requeued),
+                ", ".join(report.requeued),
+            )
         return report
 
     async def _run(self) -> None:
@@ -186,6 +247,7 @@ __all__ = [
     "FailedJob",
     "INTERRUPTED_RESULT",
     "JobRecovery",
+    "LOST_JOB_GRACE",
     "RecoveryReport",
     "recover_jobs",
 ]

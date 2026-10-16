@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Set
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Set, Tuple
 
 from sqlmodel import Session
 
+from backend.core.config import settings
 from backend.core.database import get_session_context
 from backend.core.logging import get_logger
 from backend.delivery import run_with_fresh_loop
-from backend.delivery.base import DeliveryRegistry
+from backend.delivery.base import (
+    DeliveryRegistry,
+    GenerationBackend,
+    TransientGenerationError,
+)
 from backend.delivery.storage import remove_stored_images, stored_return_format
 from backend.schemas import (
     DeliveryJobParams,
@@ -24,6 +29,15 @@ if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
 
 _SUCCESS_STATUSES = {"ok", "completed", 200}
 logger = get_logger(__name__)
+
+PROCESSING_FAILED_MESSAGE = "Delivery processing failed"
+"""Stored for an unexpected runner error; its text is only logged."""
+
+TIMED_OUT_RESULT = DeliveryJobResult(error_message="Delivery timed out")
+"""Stored for a job that hit its deadline (or RQ's job timeout)."""
+
+INTERRUPT_TIMEOUT_SECONDS = 10.0
+"""How long the runner waits for the backend's interrupt after a timeout."""
 
 DeliveryServiceFactory = Callable[[Session], "DeliveryService"]
 
@@ -57,6 +71,7 @@ class DeliveryRunner:
         *,
         webhook_notifier: Optional[JobWebhookNotifier] = None,
         delivery_service_factory: Optional[DeliveryServiceFactory] = None,
+        deadline_seconds: Optional[float] = None,
     ) -> None:
         """Store the registry, the delivery service factory and a webhook notifier.
 
@@ -64,13 +79,16 @@ class DeliveryRunner:
         read and update job state for a given session; by default it goes
         through the shared service container. Without an explicit notifier,
         one is built from settings per job, so a missing ``JOB_WEBHOOK_URL``
-        simply disables the webhook.
+        simply disables the webhook. ``deadline_seconds`` is how long one
+        attempt may run; by default ``settings.job_deadline_seconds``, which
+        expires before RQ's job timeout.
         """
         self._delivery_registry = delivery_registry
         self._webhook_notifier = webhook_notifier
         self._delivery_service_factory = (
             delivery_service_factory or _container_delivery_service
         )
+        self._deadline_seconds = deadline_seconds
         # Tasks scheduled on an already running loop; held so they are not
         # garbage collected before they finish.
         self._pending_tasks: Set[asyncio.Task[None]] = set()
@@ -87,6 +105,13 @@ class DeliveryRunner:
         Without a running event loop (an RQ worker) the job runs to completion
         before this returns. On a running loop (the in-process job runner) it
         is scheduled as a task, which is returned.
+
+        RQ's job timeout is a SIGALRM-raised ``JobTimeoutException``. The
+        runner's own deadline normally expires first; if RQ's backstop fires
+        anyway while the loop waits on I/O, the exception escapes the loop
+        and the coroutine is cancelled without recording anything. The job
+        is then failed as timed out (and the backend interrupted) here before
+        the exception is re-raised to RQ.
         """
 
         async def runner() -> None:
@@ -97,10 +122,18 @@ class DeliveryRunner:
             )
 
         try:
-            loop = asyncio.get_running_loop()
+            loop: Optional[asyncio.AbstractEventLoop] = asyncio.get_running_loop()
         except RuntimeError:
-            # A loop per job: close the sessions it opened before it ends.
-            run_with_fresh_loop(runner(), registry=self._delivery_registry)
+            loop = None
+
+        if loop is None:
+            try:
+                # A loop per job: close the sessions it opened before it ends.
+                run_with_fresh_loop(runner(), registry=self._delivery_registry)
+            except BaseException as exc:
+                if _is_job_timeout(exc):
+                    self._record_backstop_timeout(job_id)
+                raise
             return None
 
         if raise_on_error:
@@ -126,7 +159,13 @@ class DeliveryRunner:
         raises (RQ's ``Job.retries_left``, which RQ decrements only when it
         schedules the retry); ``None`` means the queue does not retry. When
         the backend raises and retries are left the job is left ``retrying``
-        for the next attempt to claim, otherwise it is ``failed``.
+        for the next attempt to claim, otherwise it is ``failed``. The stored
+        ``error_message`` is a :class:`TransientGenerationError`'s message,
+        or a fixed text for any other exception.
+
+        The backend call runs under the job deadline. When it expires the
+        backend is interrupted and the job fails as timed out, without a
+        retry (the backend may still be busy with it) and without raising.
         """
         prompt: str
         mode: str
@@ -151,30 +190,35 @@ class DeliveryRunner:
             mode = job.mode
             params = service.get_job_params(job)
 
+        deadline_seconds = self._job_deadline_seconds()
+        deadline = asyncio.timeout(deadline_seconds)
         try:
-            result = DeliveryJobResult.coerce(
-                await self._execute_delivery_backend(prompt, mode, params)
-            )
+            async with deadline:
+                outcome = await self._execute_delivery_backend(prompt, mode, params)
+            result = DeliveryJobResult.coerce(outcome)
             status = "succeeded" if result.status in _SUCCESS_STATUSES else "failed"
         except Exception as exc:
-            error = exc
-            logger.exception("Delivery %s failed", job_id)
-            if _is_job_timeout(exc):
+            deadline_expired = isinstance(exc, TimeoutError) and deadline.expired()
+            if deadline_expired or _is_job_timeout(exc):
                 # The backend may still be busy with this job; another
-                # attempt would pile onto it, so a timeout is final.
-                result = DeliveryJobResult(error_message="Delivery timed out")
+                # attempt would pile onto it, so a timeout is final. The
+                # runner's own deadline is not an error: the job is failed
+                # and RQ has nothing to retry. RQ's timeout is re-raised.
+                if deadline_expired:
+                    logger.warning(
+                        "Delivery %s timed out after %ss",
+                        job_id,
+                        f"{deadline_seconds:g}",
+                    )
+                else:
+                    error = exc
+                    logger.warning("Delivery %s hit RQ's job timeout", job_id)
+                await self._interrupt_backend(mode, params)
+                result = TIMED_OUT_RESULT
                 status = "failed"
-            elif retries_left is not None and retries_left > 0:
-                # RQ runs the task again; that attempt claims the job back
-                # from ``retrying`` unless it was cancelled meanwhile.
-                result = DeliveryJobResult(
-                    error_message="Delivery processing failed",
-                    retries_left=retries_left,
-                )
-                status = "retrying"
             else:
-                result = DeliveryJobResult(error_message="Delivery processing failed")
-                status = "failed"
+                error = exc
+                result, status = self._failure_outcome(job_id, exc, retries_left)
 
         with get_session_context() as session:
             service = self._delivery_service_factory(session)
@@ -194,6 +238,79 @@ class DeliveryRunner:
         if error is not None and raise_on_error:
             raise error
 
+    def _job_deadline_seconds(self) -> float:
+        """Return how long one attempt may run (read per job, for settings)."""
+        if self._deadline_seconds is not None:
+            return self._deadline_seconds
+        return settings.job_deadline_seconds
+
+    @staticmethod
+    def _failure_outcome(
+        job_id: str, exc: Exception, retries_left: Optional[int]
+    ) -> Tuple[DeliveryJobResult, str]:
+        """Return the result and status to store after the backend raised.
+
+        Only a :class:`TransientGenerationError`'s fixed message is stored;
+        any other exception's text stays in the log.
+        """
+        if isinstance(exc, TransientGenerationError):
+            logger.warning("Delivery %s failed: %s", job_id, exc.message)
+            message = exc.message
+        else:
+            logger.exception("Delivery %s failed", job_id)
+            message = PROCESSING_FAILED_MESSAGE
+        if retries_left is not None and retries_left > 0:
+            # RQ runs the task again; that attempt claims the job back from
+            # ``retrying`` unless it was cancelled meanwhile.
+            return (
+                DeliveryJobResult(error_message=message, retries_left=retries_left),
+                "retrying",
+            )
+        return DeliveryJobResult(error_message=message), "failed"
+
+    async def _interrupt_backend(self, mode: str, params: DeliveryJobParams) -> None:
+        """Ask the job's generation backend to stop rendering, best-effort."""
+        resolved = self._resolve_generation_backend(mode, params)
+        if resolved is None:
+            return
+        name, backend = resolved
+        try:
+            async with asyncio.timeout(INTERRUPT_TIMEOUT_SECONDS):
+                await backend.interrupt()
+        except Exception:
+            logger.warning(
+                "Interrupting %s after a timeout failed", name, exc_info=True
+            )
+
+    def _record_backstop_timeout(self, job_id: str) -> None:
+        """Fail a job whose attempt RQ's job timeout killed outside the runner.
+
+        Runs after the job's event loop is gone: the status write is
+        synchronous, and the interrupt and webhook get a fresh loop. Never
+        raises, so RQ still sees its own timeout exception.
+        """
+        try:
+            with get_session_context() as session:
+                service = self._delivery_service_factory(session)
+                finished = service.finish_job(job_id, "failed", TIMED_OUT_RESULT)
+                if finished is None:
+                    # Already finished, cancelled or failed by recovery.
+                    return
+                prompt = finished.prompt
+                mode = finished.mode
+                params = service.get_job_params(finished)
+            logger.warning("Delivery %s hit RQ's job timeout", job_id)
+
+            async def after_timeout() -> None:
+                await self._interrupt_backend(mode, params)
+                await self._notify_finished(
+                    job_id, "failed", prompt, params, TIMED_OUT_RESULT
+                )
+
+            run_with_fresh_loop(after_timeout(), registry=self._delivery_registry)
+        except Exception:
+            logger.exception("Recording the timeout of delivery %s failed", job_id)
+
     async def _notify_finished(
         self,
         job_id: str,
@@ -209,6 +326,26 @@ class DeliveryRunner:
         payload = notifier.build_payload(job_id, status, prompt, params, result)
         await notifier.send(payload)
 
+    def _resolve_generation_backend(
+        self, mode: str, params: DeliveryJobParams
+    ) -> Optional[Tuple[str, GenerationBackend]]:
+        """Return the job's generation backend and its name, if it has one.
+
+        The params' ``backend`` wins over the job mode; a mode with no
+        generation backend is a plain delivery backend.
+        """
+        candidate_names = []
+        if params.backend:
+            candidate_names.append(params.backend)
+        if isinstance(mode, str) and mode not in candidate_names:
+            candidate_names.append(mode)
+
+        for candidate in candidate_names:
+            backend = self._delivery_registry.get_generation_backend(candidate)
+            if backend is not None:
+                return candidate, backend
+        return None
+
     async def _execute_delivery_backend(
         self,
         prompt: str,
@@ -216,22 +353,9 @@ class DeliveryRunner:
         params: DeliveryJobParams,
     ) -> Dict[str, Any]:
         """Execute the delivery backend associated with the job mode."""
-        backend_name = params.backend
-        generation_backend = None
-        candidate_names = []
-        if backend_name:
-            candidate_names.append(backend_name)
-        if isinstance(mode, str) and mode not in candidate_names:
-            candidate_names.append(mode)
-
-        for candidate in candidate_names:
-            backend = self._delivery_registry.get_generation_backend(candidate)
-            if backend is not None:
-                generation_backend = backend
-                backend_name = candidate
-                break
-
-        if generation_backend is not None:
+        resolved = self._resolve_generation_backend(mode, params)
+        if resolved is not None:
+            backend_name, generation_backend = resolved
             gen_params_dict: Dict[str, Any] = dict(params.generation_params or {})
             gen_params_dict["prompt"] = prompt
 
@@ -249,8 +373,7 @@ class DeliveryRunner:
                     return_format=params.return_format or "base64",
                 ),
             }
-            if backend_name:
-                full_params["backend"] = backend_name
+            full_params["backend"] = backend_name
 
             result_obj = await generation_backend.generate_image(prompt, full_params)
             return result_obj.model_dump()

@@ -15,6 +15,13 @@ class Settings(BaseSettings):
         env_prefix="", case_sensitive=False, extra="ignore"
     )
 
+    JOB_DEADLINE_MARGIN_SECONDS: ClassVar[int] = 30
+    """How long before RQ's job timeout the runner's own deadline expires.
+
+    Leaves the runner time to interrupt the backend, record the timeout and
+    send the webhook before RQ's backstop fires.
+    """
+
     REQUIRED_PRODUCTION_SETTINGS: ClassVar[Sequence[str]] = (
         "DATABASE_URL",
         "REDIS_URL",
@@ -77,10 +84,17 @@ class Settings(BaseSettings):
     JOB_WEBHOOK_TOKEN_HEADER: str = "X-LoRA-Manager-Token"
     JOB_WEBHOOK_TIMEOUT: float = Field(default=5.0, gt=0)
 
-    # A job still "running" after this many seconds has lost its runner (worker
-    # killed, API restarted mid-job) and is failed by the API's job recovery.
-    # RQ also kills the job after this long. Unset derives it from the SDNext
-    # timeouts plus a margin.
+    # How long one attempt of a delivery job may run. Three limits derive
+    # from it, each strictly inside the next (see job_deadline_seconds):
+    #   1. the runner's own deadline, JOB_DEADLINE_MARGIN_SECONDS earlier: the
+    #      runner interrupts the generation backend and fails the job with
+    #      "Delivery timed out" (not retried), in RQ workers and in-process;
+    #   2. RQ's job timeout (this value), a hard backstop for a runner stuck
+    #      outside the event loop; the runner still records the timeout;
+    #   3. job recovery fails a job "running" for longer than this value
+    #      (measured from its claim, so after RQ's timeout has fired): its
+    #      runner is gone (worker killed, API restarted mid-job).
+    # Unset derives it from the SDNext timeouts plus a margin.
     JOB_RUNNING_TIMEOUT_SECONDS: Optional[int] = Field(default=None, gt=0)
     # How often the API looks for such jobs; 0 checks only at startup.
     JOB_RECOVERY_INTERVAL_SECONDS: int = Field(default=60, ge=0)
@@ -89,8 +103,10 @@ class Settings(BaseSettings):
     # (the job keeps running). Unset allows one job ahead in the queue plus
     # this one: twice JOB_RUNNING_TIMEOUT_SECONDS.
     GENERATION_WAIT_TIMEOUT_SECONDS: Optional[int] = Field(default=None, gt=0)
-    # RQ retries of a queued job whose runner raised (network error, crash);
-    # a generation SDNext reports as failed is not retried. Retry n waits
+    # RQ retries of a queued job whose runner raised: a transient generation
+    # failure (SDNext unreachable or timing out, HTTP 429/5xx, no images
+    # returned) or a crash. A generation that failed for good (bad request,
+    # unsaved images) and a timed-out job are not retried. Retry n waits
     # DELIVERY_RETRY_INTERVAL_SECONDS * 2**(n-1); an interval above 0 needs
     # the worker's scheduler (`rq worker --with-scheduler`). 0 retries
     # disables retrying. In-process jobs (no Redis) are never retried.
@@ -159,6 +175,26 @@ class Settings(BaseSettings):
         if self.JOB_RUNNING_TIMEOUT_SECONDS is not None:
             return self.JOB_RUNNING_TIMEOUT_SECONDS
         return self.SDNEXT_TIMEOUT + self.SDNEXT_PRE_GENERATE_TIMEOUT + 120
+
+    @property
+    def rq_job_timeout_seconds(self) -> int:
+        """Return RQ's job timeout: the hard backstop for one attempt.
+
+        Never above :attr:`job_running_timeout_seconds`, so job recovery does
+        not fail a job that RQ still lets run.
+        """
+        return self.job_running_timeout_seconds
+
+    @property
+    def job_deadline_seconds(self) -> float:
+        """Return how long the runner lets one attempt run before timing it out.
+
+        Strictly below :attr:`rq_job_timeout_seconds`, by
+        ``JOB_DEADLINE_MARGIN_SECONDS`` (at most half the timeout), so the
+        runner's deadline fires first and RQ's timeout is only a backstop.
+        """
+        timeout = self.rq_job_timeout_seconds
+        return timeout - min(self.JOB_DEADLINE_MARGIN_SECONDS, timeout / 2)
 
     @property
     def generation_wait_timeout_seconds(self) -> int:
