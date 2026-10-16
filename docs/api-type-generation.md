@@ -36,9 +36,9 @@ The main entry point is `backend.ts`, which contains the full set of `paths`,
 `app/frontend/src/types/generated/index.ts` re-exports these symbols and
 exposes a `BackendSchemas` helper alias.
 
-Only routes registered by `create_app()` appear in the schema. The
-`/frontend/settings` routes that `app/main.py` adds when it wraps the backend
-for the SPA are not part of it.
+Only routes registered by `create_app()` appear in the schema, which is every
+API route, `GET /v1/frontend/settings` (`FrontendSettings`) included.
+`app/main.py` adds only the SPA files and its liveness `/health`.
 
 ## Updating Frontend Types
 

@@ -15,6 +15,7 @@ from backend.api.v1 import (
     compose,
     dashboard,
     deliveries,
+    frontend,
     generation,
     import_export,
     recommendations,
@@ -147,10 +148,13 @@ def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(title="LoRA Manager Backend (MVP)", lifespan=lifespan)
 
+    # The only CORS configuration: app.main mounts this app at /api and its
+    # SPA files are same-origin. Credentials cannot go with a wildcard origin.
+    cors_origins = list(settings.CORS_ORIGINS)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
-        allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+        allow_origins=cors_origins,
+        allow_credentials=settings.CORS_ALLOW_CREDENTIALS and "*" not in cors_origins,
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -178,6 +182,9 @@ def create_app() -> FastAPI:
         import_export.router, prefix="/v1", dependencies=[Depends(get_api_key)]
     )
     app.include_router(dashboard.router, prefix="/v1")
+    # Keyless: the SPA loads its settings, the key included, before any
+    # authenticated request (README, "Security model").
+    app.include_router(frontend.router, prefix="/v1")
     app.include_router(system.router, prefix="/v1")
     # Keyless: <img> tags cannot send X-API-Key (README, "Security model").
     app.include_router(generation_images.router, prefix="/v1")

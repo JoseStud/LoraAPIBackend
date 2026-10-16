@@ -66,7 +66,7 @@ are required and startup fails without them
 ## Repository layout
 
 ```
-app/main.py              SPA host: mounts the backend at /api, serves app/dist/, /frontend/settings
+app/main.py              Composition root: mounts create_app() at /api, serves app/dist/
 app/frontend/            Vue SPA (src/, static/, containers/)
 backend/
   main.py                create_app(): routers, lifespan, error handlers

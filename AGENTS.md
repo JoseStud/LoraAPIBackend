@@ -82,7 +82,7 @@ npm run build
   SDNext renders one job at a time with global progress and interrupt
   endpoints, so a second worker would overlap with the first.
 - **Security**: single-user, trusted-LAN tool. The API key is served to the
-  browser by `/frontend/settings` and is not an access control (README,
+  browser by `/api/v1/frontend/settings` and is not an access control (README,
   "Security model"). Don't build features that assume real authentication, and
   never return exception text to clients.
 
@@ -102,8 +102,11 @@ Read these before changing the matching subsystem:
 
 ### Backend contract map
 
-- **Composition and startup**: `backend/main.py` mounts every public router
-  under `/v1`. Its lifespan runs `init_db()` (Alembic migrations), preloads the
+- **Composition and startup**: `app/main.py` (`uvicorn app.main:app`) is the
+  one composition root: it mounts `create_app()` at `/api` and adds only the
+  SPA files and a liveness `/health`. `backend/main.py` `create_app()` mounts
+  every public router under `/v1` and owns the only CORS middleware and the
+  exception handlers. Its lifespan runs `init_db()` (Alembic migrations), preloads the
   recommendation models in the background, and runs the optional startup
   importer (`IMPORT_ON_STARTUP`). Delivery and generation backends (SDNext
   included) are registered by `ensure_delivery_system()` (`backend/delivery`),
@@ -218,14 +221,16 @@ Read these before changing the matching subsystem:
   call). Tests stub `JobProgressMonitor.start` (autouse fixture in
   `tests/conftest.py`) and drive `tick()` directly.
 - **Configuration**: runtime settings live only in `backend/core/config.py`, so
-  startup validation and the frontend `/frontend/settings` payload stay
+  startup validation and the frontend settings payload
+  (`GET /v1/frontend/settings`, `backend/api/v1/frontend.py`, keyless) stay
   consistent.
 - **Generated API types**: `app/frontend/src/types/generated/backend.ts` is
   generated from `backend.main.create_app().openapi()`, exported without a
   server by `scripts/export_openapi.py` (`npm run generate:api-types`). Only
-  routes registered in `create_app()` are part of it; `app/main.py`'s
-  `/frontend/settings` routes are not. A schema change ships with the
-  regenerated file, or `ci:check` fails.
+  routes registered in `create_app()` are part of it, so every API route,
+  `/v1/frontend/settings` included, belongs in a router there, never in
+  `app/main.py`. A schema change ships with the regenerated file, or
+  `ci:check` fails.
 - **Stored job payloads**: `DeliveryJob.params` and `DeliveryJob.result` are
   JSON text, parsed and written only through `DeliveryJobParams` and
   `DeliveryJobResult` (`backend/schemas/delivery_jobs.py`) by

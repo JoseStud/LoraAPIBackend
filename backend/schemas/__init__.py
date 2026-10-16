@@ -35,6 +35,7 @@ from .deliveries import (
     DeliveryWrapper,
 )
 from .delivery_jobs import DeliveryJobParams, DeliveryJobResult
+from .frontend import FrontendSettings, GenerationPollingSettings
 from .generation import (
     ComposeDeliverySDNext,
     GenerationBulkDeleteRequest,
@@ -108,6 +109,8 @@ __all__ = [
     "ComposeDeliverySDNext",
     "DeliveryJobParams",
     "DeliveryJobResult",
+    "FrontendSettings",
+    "GenerationPollingSettings",
     # Generation
     "GenerationMode",
     "GenerationResultFormat",

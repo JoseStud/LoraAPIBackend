@@ -10,8 +10,8 @@ jobs. This page is a map; the job machinery has its own page,
 
 | Package | Contents |
 | --- | --- |
-| [`backend/main.py`](../../backend/main.py) | `create_app()`: CORS, router mounting, lifespan, exception handlers. |
-| [`backend/api/v1/`](../../backend/api/v1) | Routers: `adapters`, `analytics`, `compose`, `dashboard`, `deliveries`, `generation/` (package), `import_export`, `recommendations`, `system`, `websocket`. |
+| [`backend/main.py`](../../backend/main.py) | `create_app()`: CORS, router mounting, lifespan, exception handlers. [`app/main.py`](../../app/main.py) mounts it at `/api` and serves the SPA. |
+| [`backend/api/v1/`](../../backend/api/v1) | Routers: `adapters`, `analytics`, `compose`, `dashboard`, `deliveries`, `frontend`, `generation/` (package), `import_export`, `recommendations`, `system`, `websocket`. |
 | [`backend/core/`](../../backend/core) | `config.py` (all settings), `database.py` (engine, sessions), `migrations.py` (runs Alembic), `security.py` (`X-API-Key`), `dependencies.py` (`get_services`), `logging.py` (structlog JSON), `gpu.py`. |
 | [`backend/models/`](../../backend/models) | SQLModel tables; see [Data model](Data-Model.md). |
 | [`backend/schemas/`](../../backend/schemas) | Pydantic request/response models, one module per area. |
@@ -26,6 +26,8 @@ All routers are mounted under `/v1` in `create_app()`. Most carry
 `Depends(get_api_key)`; these do not:
 
 - `dashboard` and `system` (`/v1/dashboard/*`, `/v1/system/status`),
+- `frontend` (`/v1/frontend/settings`), because the SPA reads the key from it
+  before it can send one,
 - the result image route `GET /v1/generation/results/{job_id}/images/{index}`
   ([`generation/images.py`](../../backend/api/v1/generation/images.py)), because
   `<img>` tags cannot send headers,
@@ -189,7 +191,7 @@ To add a backend, implement the base class in
 Every runtime setting is a field on `Settings` in
 [`backend/core/config.py`](../../backend/core/config.py), read from the
 environment. Don't read `os.environ` elsewhere; startup validation and the
-`/frontend/settings` payload depend on this being the single source. Full list:
+`/v1/frontend/settings` payload depend on this being the single source. Full list:
 [Configuration](Configuration.md).
 
 Next: [Generation pipeline](Generation-Pipeline.md).

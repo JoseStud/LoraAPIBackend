@@ -90,7 +90,7 @@ need a build.
 
 ### The SPA can't reach the API
 
-- `/frontend/settings` decides the base URL the SPA uses. If `BACKEND_URL` is
+- `/api/v1/frontend/settings` decides the base URL the SPA uses. If `BACKEND_URL` is
   absolute, it must be reachable **from the browser**, not from a container.
 - In the Vite dev server, `BACKEND_URL` or `VITE_BACKEND_URL` sets the proxy
   target for `/api` (and `WEBSOCKET_URL`/`VITE_WEBSOCKET_URL` for `/ws`).

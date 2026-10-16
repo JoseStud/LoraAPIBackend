@@ -1098,6 +1098,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/frontend/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Frontend Settings
+         * @description Expose the runtime configuration the SPA bootstraps from.
+         */
+        get: operations["get_frontend_settings_v1_frontend_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/system/status": {
         parameters: {
             query?: never;
@@ -1799,6 +1819,23 @@ export interface components {
             time: string;
         };
         /**
+         * FrontendSettings
+         * @description Configuration served to the SPA by ``GET /v1/frontend/settings``.
+         */
+        FrontendSettings: {
+            /**
+             * Backendurl
+             * @description API base URL the SPA uses: absolute, or a path such as /api/v1.
+             */
+            backendUrl: string;
+            /**
+             * Backendapikey
+             * @description The configured API_KEY, for the X-API-Key header. Served to any caller: it is not an access control (README, Security model).
+             */
+            backendApiKey?: string | null;
+            generationPolling: components["schemas"]["GenerationPollingSettings"];
+        };
+        /**
          * GenerationBulkDeleteRequest
          * @description Request payload for bulk deletion of generation results.
          */
@@ -1881,6 +1918,27 @@ export interface components {
          * @enum {string}
          */
         GenerationMode: "immediate" | "deferred";
+        /**
+         * GenerationPollingSettings
+         * @description Polling intervals for the generation views, in milliseconds.
+         */
+        GenerationPollingSettings: {
+            /**
+             * Queuems
+             * @description Active-job queue polling interval.
+             */
+            queueMs: number;
+            /**
+             * Websocketretryms
+             * @description Delay before reconnecting the socket.
+             */
+            websocketRetryMs: number;
+            /**
+             * Systemstatusms
+             * @description System status polling interval.
+             */
+            systemStatusMs: number;
+        };
         /**
          * GenerationResultFormat
          * @description Accepted result serialization strategies for generation responses.
@@ -4066,6 +4124,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_frontend_settings_v1_frontend_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FrontendSettings"];
                 };
             };
         };
