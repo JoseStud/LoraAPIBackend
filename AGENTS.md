@@ -54,9 +54,10 @@ npm run build
 - **Python deps**: `requirements.txt` and `dev-requirements.txt` are lockfiles.
   Edit `requirements.in` / `dev-requirements.in`, then run `make deps-lock`
   (needs `uv`). `requirements-ml.txt` is the optional ML stack, constrained by
-  the core lock. `sqlmodel` is held below 0.0.45: newer releases need
-  timezone-aware datetimes and `TIMESTAMPTZ` columns, which requires its own
-  migration.
+  the core lock. `sqlmodel` is held below 0.0.45, whose new `UTCDateTime`
+  default changes how plain `datetime` fields behave; bump it only in its own
+  PR. Datetime columns declare `sa_type=DateTime(timezone=True)`, which that
+  change leaves alone ([Data model](docs/wiki/Data-Model.md#version-constraints)).
 - **Migrations**: `backend/migrations` is the only Alembic tree (root
   `alembic.ini`); the app runs it on startup via `backend/core/migrations.py`.
   Add a revision there for every schema change and check with
@@ -69,7 +70,10 @@ npm run build
 - **Single API process**: the API runs as one uvicorn process (no `--workers`,
   no replicas), because the WebSocket `ConnectionManager` and the
   `JobProgressMonitor` tasks live in module globals
-  (`backend/services/websocket/service.py`); only RQ workers scale out.
+  (`backend/services/websocket/service.py`). Run one RQ worker on the
+  `default` queue too: it carries generation and recommendation jobs, and
+  SDNext renders one job at a time with global progress and interrupt
+  endpoints, so a second worker would overlap with the first.
 - **Security**: single-user, trusted-LAN tool. The API key is served to the
   browser by `/frontend/settings` and is not an access control (README,
   "Security model"). Don't build features that assume real authentication, and

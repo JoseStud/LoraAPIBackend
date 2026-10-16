@@ -50,8 +50,13 @@ are required and startup fails without them
   module globals ([`backend/services/websocket/service.py`](../../backend/services/websocket/service.py)),
   so a second process would never see the first one's subscribers. The
   in-process job runner and `JobRecovery` also assume one API process.
-- **RQ workers**: scale freely. Each runs `backend.workers.tasks.process_delivery`
-  (and the recommendation tasks) against the shared database.
+- **RQ workers**: separate processes, but run **one** worker on the `default`
+  queue. Each worker runs `backend.workers.tasks.process_delivery` and the
+  recommendation tasks from that one queue, and nothing stops two workers from
+  driving SDNext at once. Both jobs would then be `running`, report the same
+  global progress, and a cancel could interrupt the wrong one; recommendation
+  jobs on a second worker would also share the GPU with generation
+  ([#453](https://github.com/JoseStud/LoraAPIBackend/issues/453)).
 - **SDNext**: renders one image at a time, and its progress and interrupt
   endpoints are process-global. That is why the in-process fallback runs jobs
   strictly serially, and why live progress is only trusted for the job the

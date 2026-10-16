@@ -97,9 +97,14 @@ results table.
 
 ### Version constraints
 
-`sqlmodel` is held below 0.0.45 in `requirements.in`. Newer releases require
-timezone-aware datetimes everywhere and `TIMESTAMPTZ` columns, which needs its
-own migration. Don't bump it as part of an unrelated change.
+`sqlmodel` is held below 0.0.45 in `requirements.in`. From 0.0.45, a plain
+`datetime` field gets SQLModel's `UTCDateTime` column type, which rejects
+naive values. Every datetime column here already declares
+`sa_type=DateTime(timezone=True)` (`TIMESTAMPTZ` on PostgreSQL), and that
+change leaves explicit types alone, so the schema needs no migration for it.
+Declare new datetime fields the same way. The pin keeps the upgrade a
+deliberate change: bump it in its own PR, with `pytest` and `alembic check`
+run against PostgreSQL as well as SQLite.
 
 ## Sessions
 

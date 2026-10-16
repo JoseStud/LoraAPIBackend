@@ -146,8 +146,12 @@ kinds of plug-in:
   ([`sdnext.py`](../../backend/delivery/sdnext.py)), built from an
   `SDNextSession` over a shared `DeliveryHTTPClient` and a
   `FileSystemImageStorage`.
-- **Delivery backends** (`DeliveryBackend.deliver`): `http` (POST the prompt
-  somewhere) and `cli` (run a command). Used by `POST /v1/deliveries` with a
+- **Delivery backends** (`DeliveryBackend.deliver`): `http`
+  ([`http.py`](../../backend/delivery/http.py)) POSTs `{"prompt": …}` to the
+  `host`, `port` and `path` in the job's params; `cli`
+  ([`cli.py`](../../backend/delivery/cli.py)) writes the prompt, optionally
+  through a `{prompt}` template, to a temporary file on the runner and returns
+  its path. Neither runs a command. Used by `POST /v1/deliveries` with a
   non-generation `mode`.
 
 `ensure_delivery_system()` registers them once per process (lifespan and
