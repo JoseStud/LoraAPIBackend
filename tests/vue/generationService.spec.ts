@@ -4,7 +4,6 @@ import type { GenerationRequestPayload } from '@/types'
 import {
   cancelGenerationJob,
   deleteGenerationResult,
-  downloadGenerationResult,
   resolveBackendUrl,
   resolveGenerationBaseUrl,
   startGeneration,
@@ -127,15 +126,6 @@ describe('generationService URL resolution', () => {
     expect(fetch).toHaveBeenCalledWith(
       '/prefixed/api/generation/results/result-9',
       expect.objectContaining({ method: 'DELETE' }),
-    )
-  })
-
-  it('resolves downloadGenerationResult using overrides', async () => {
-    await downloadGenerationResult(5, undefined, 'https://download.example/api')
-
-    expect(fetch).toHaveBeenCalledWith(
-      'https://download.example/api/generation/results/5/download',
-      expect.objectContaining({ method: 'GET' }),
     )
   })
 })

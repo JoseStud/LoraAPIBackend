@@ -8,7 +8,6 @@
 import type {
   DeliveryCreateResponse,
   GenerationCancelResponse,
-  GenerationDownloadMetadata,
   GenerationFormState,
   GenerationJobStatus,
   GenerationRequestPayload,
@@ -19,7 +18,6 @@ import type {
 import {
   createBackendPathResolver,
   ensureData,
-  getFilenameFromContentDisposition,
   resolveBackendClient as resolveClient,
   resolveBackendPath,
   type BackendHttpClient,
@@ -43,9 +41,6 @@ export const resolveGenerationBaseUrl = (input?: GenerationClientInput): string 
 
 export const resolveBackendUrl = (path: string, input?: GenerationClientInput): string =>
   resolveBackendPath(path, input);
-
-export const resolveGenerationRoute = (path: string, input?: GenerationClientInput): string =>
-  generationPaths.resolve(path, input);
 
 export const createGenerationParams = (
   overrides: GenerationParamOverrides,
@@ -145,26 +140,6 @@ export const deleteGenerationResult = async (
 ): Promise<void> => {
   const backend = resolveClient(input);
   await backend.delete(generationPath(`results/${resultId}`), withSameOrigin());
-};
-
-export const downloadGenerationResult = async (
-  resultId: string | number,
-  fallbackName = `generation-${resultId}`,
-  input?: GenerationClientInput,
-): Promise<GenerationDownloadMetadata> => {
-  const backend = resolveClient(input);
-  const { blob, response } = await backend.requestBlob(
-    generationPath(`results/${resultId}/download`),
-    withSameOrigin({ method: 'GET' }),
-  );
-  return {
-    blob,
-    filename:
-      getFilenameFromContentDisposition(response.headers.get('content-disposition'))
-      ?? `${fallbackName}.png`,
-    contentType: response.headers.get('content-type'),
-    size: blob.size,
-  };
 };
 
 /** The generation requests the orchestrator transport needs, bound to one backend. */
