@@ -21,7 +21,6 @@ from backend.services.job_recovery import (
     recover_jobs,
 )
 from backend.services.queue import QueueBackend, QueueOrchestrator
-from backend.services.websocket import WebSocketService
 from backend.workers.delivery_runner import DeliveryRunner
 from tests.util.delivery_jobs import set_job_status
 
@@ -312,14 +311,10 @@ async def test_coordinator_interrupts_only_running_jobs(
     deliveries = _service(db_session)
     job = deliveries.create_job("p", "sdnext", {})
     set_job_status(deliveries, job.id, status)
-    websocket = WebSocketService()
-    stopped = []
-    monkeypatch.setattr(websocket, "stop_job_monitoring", stopped.append)
-    coordinator = GenerationCoordinator(deliveries, websocket, GenerationService())
+    coordinator = GenerationCoordinator(deliveries, GenerationService())
 
     assert await coordinator.cancel_job(job.id) is True
     assert backend.interrupts == interrupts
-    assert stopped == [job.id]
     assert await coordinator.cancel_job(job.id) is False
     assert backend.interrupts == interrupts
 

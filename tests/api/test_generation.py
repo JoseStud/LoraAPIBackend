@@ -105,9 +105,6 @@ def test_compose_and_generate_uses_shared_orchestration(client: TestClient):
         validate_generation_params=AsyncMock(return_value=[]),
         generate_image=AsyncMock(return_value=generation_result),
     )
-    stub_services.generation_coordinator = SimpleNamespace(
-        broadcast_job_started=AsyncMock(),
-    )
 
     backend_app.dependency_overrides[get_services] = lambda: stub_services
 
@@ -132,8 +129,3 @@ def test_compose_and_generate_uses_shared_orchestration(client: TestClient):
     assert generate_call.kwargs["mode"] == "deferred"
     assert generate_call.kwargs["return_format"] == "url"
     assert generate_call.kwargs["save_images"] is False
-
-    stub_services.generation_coordinator.broadcast_job_started.assert_awaited_once_with(
-        "job-123",
-        validate_call.args[0],
-    )

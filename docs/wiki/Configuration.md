@@ -36,7 +36,7 @@ In Docker, values come from `.env.docker` (or `.env.docker.example`) through
 | `SDNEXT_BASE_URL` | unset → generation disabled | e.g. `http://host.docker.internal:7860` (SDNext on the host, started with `--listen`) or `http://sdnext:7860` (`make dev-ml`). See [CUSTOM_SETUP.md](../CUSTOM_SETUP.md). |
 | `SDNEXT_USERNAME`, `SDNEXT_PASSWORD` | unset | For SDNext started with `--auth`. |
 | `SDNEXT_TIMEOUT` | `120` | Request timeout in seconds. |
-| `SDNEXT_POLL_INTERVAL` | `2` | Seconds between progress polls in the SDNext backend. |
+| `SDNEXT_POLL_INTERVAL` | `2` | Seconds between ticks of the API's WebSocket job progress monitor (each tick reads job state and, for the running job, SDNext's progress). |
 | `SDNEXT_DEFAULT_STEPS`, `SDNEXT_DEFAULT_SAMPLER`, `SDNEXT_DEFAULT_CFG_SCALE` | `20`, `DPM++ 2M`, `7.0` | Generation defaults. |
 | `SDNEXT_OUTPUT_DIR` | unset | Where generated images are written and served from. API and worker must share it (`./outputs` in Docker). |
 | `SDNEXT_PRE_GENERATE_COMMAND` | unset | Shell command run and awaited before each generation, e.g. to free the GPU. Failures are logged, not fatal. |

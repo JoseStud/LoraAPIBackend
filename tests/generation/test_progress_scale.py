@@ -7,10 +7,9 @@ fraction 1.0 (complete), never 1 %; values above 1 are legacy percentages.
 
 from __future__ import annotations
 
-import asyncio
 import math
 from contextlib import contextmanager
-from typing import Any, List, Optional
+from typing import Any, Callable, List, Optional
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,9 +18,10 @@ from backend.api.v1.generation.presenters.jobs import build_active_job
 from backend.schemas import ProgressUpdate, SDNextGenerationResult
 from backend.services.deliveries import DeliveryService
 from backend.services.generation import GenerationCoordinator, GenerationService
-from backend.services.websocket import WebSocketService
-from backend.services.websocket.job_monitor import JobProgressMonitor
-from backend.services.websocket.persistence import DeliveryJobStateRepository
+from backend.services.websocket import (
+    DeliveryJobStateRepository,
+    JobProgressMonitor,
+)
 from backend.utils.progress import to_progress_fraction
 from tests.util.delivery_jobs import set_job_status
 
@@ -54,38 +54,57 @@ def test_to_progress_fraction_rejects_non_numbers(value: Any) -> None:
 class _LiveProgressClient:
     """Fake SD.Next whose global progress belongs to some other job."""
 
-    async def check_progress(self, job_id: str) -> SDNextGenerationResult:
+    async def check_generation_progress(
+        self, job_id: str, backend_name: str = "sdnext"
+    ) -> SDNextGenerationResult:
         return SDNextGenerationResult(job_id=job_id, status="running", progress=0.3)
 
 
-async def _first_websocket_progress(
-    delivery_service: DeliveryService, job_id: str
+class _RecordingBroadcaster:
+    def __init__(self) -> None:
+        self.updates: List[ProgressUpdate] = []
+
+    def has_subscribers(self) -> bool:
+        return True
+
+    async def broadcast_generation_started(self, job_id, started_data) -> None:
+        return None
+
+    async def broadcast_progress(self, job_id, progress_data) -> None:
+        self.updates.append(progress_data)
+
+    async def broadcast_generation_complete(self, job_id, complete_data) -> None:
+        return None
+
+
+async def _websocket_progress(
+    delivery_service: DeliveryService,
+    job_id: str,
+    move_to_final_state: Callable[[], None],
 ) -> float:
+    """Return the last progress the WebSocket reports for ``job_id``.
+
+    The monitor first sees the job active, then once more after
+    ``move_to_final_state``, which finishes it (the final progress update)
+    or leaves it active.
+    """
+
     @contextmanager
     def session_factory():
         yield delivery_service.repository.session
 
+    broadcaster = _RecordingBroadcaster()
     monitor = JobProgressMonitor(
+        broadcaster=broadcaster,
         repository=DeliveryJobStateRepository(session_factory=session_factory),
-        poll_interval=0.0,
+        generation=_LiveProgressClient(),
+        interval_seconds=0.0,
     )
-    updates: List[ProgressUpdate] = []
-    first_update = asyncio.Event()
-
-    async def on_progress(update: ProgressUpdate) -> None:
-        updates.append(update)
-        first_update.set()
-
-    async def on_complete(message) -> None:
-        return None
-
-    task = await monitor.start(job_id, _LiveProgressClient(), on_progress, on_complete)
-    try:
-        await asyncio.wait_for(first_update.wait(), timeout=1.0)
-    finally:
-        monitor.stop(job_id)
-        await asyncio.gather(task, return_exceptions=True)
-    return updates[0].progress
+    await monitor.tick()
+    move_to_final_state()
+    await monitor.tick()
+    updates = [update for update in broadcaster.updates if update.job_id == job_id]
+    return updates[-1].progress
 
 
 @pytest.mark.anyio
@@ -110,18 +129,22 @@ async def test_rest_and_websocket_report_the_same_fraction(
     stored_progress: Optional[float],
     expected: float,
 ) -> None:
-    job = delivery_service.create_job("Prompt", "sdnext", {})
+    job = delivery_service.create_job(
+        "Prompt", "sdnext", {"generation_params": {"prompt": "Prompt"}}
+    )
     result = {} if stored_progress is None else {"progress": stored_progress}
     if status != "pending":
         set_job_status(delivery_service, job.id, "running")
-        if status != "running" or result:
+
+    def move_to_final_state() -> None:
+        if status not in {"pending", "running"} or result:
             set_job_status(delivery_service, job.id, status, result or None)
 
-    coordinator = GenerationCoordinator(
-        delivery_service, WebSocketService(), GenerationService()
+    websocket_progress = await _websocket_progress(
+        delivery_service, job.id, move_to_final_state
     )
+    coordinator = GenerationCoordinator(delivery_service, GenerationService())
     rest_progress = build_active_job(job, coordinator).progress
-    websocket_progress = await _first_websocket_progress(delivery_service, job.id)
 
     assert rest_progress == pytest.approx(expected)
     assert websocket_progress == pytest.approx(expected)

@@ -46,10 +46,12 @@ async def schedule_generation_job(
     return_format: str,
     client_ref: Optional[str] = None,
 ) -> DeliveryCreateResponse:
-    """Queue a generation job for background processing."""
-    coordinator = services.generation_coordinator
+    """Queue a generation job for background processing.
+
+    Progress reaches WebSocket clients through the lifespan's job monitor.
+    """
     job = await run_in_threadpool(
-        coordinator.schedule_generation_job,
+        services.generation_coordinator.schedule_generation_job,
         generation_params,
         backend=backend,
         mode=mode,
@@ -58,8 +60,6 @@ async def schedule_generation_job(
         background_tasks=background_tasks,
         client_ref=client_ref,
     )
-
-    await coordinator.broadcast_job_started(job.id, generation_params)
     return DeliveryCreateResponse(delivery_id=job.id)
 
 

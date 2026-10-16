@@ -72,7 +72,6 @@ class SDNextGenerationBackend(GenerationBackend):
     ) -> None:
         """Initialize SDNext backend."""
         self.timeout = settings.SDNEXT_TIMEOUT
-        self.poll_interval = settings.SDNEXT_POLL_INTERVAL
 
         if session is not None:
             self._session = session

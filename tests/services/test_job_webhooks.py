@@ -15,7 +15,6 @@ from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.generation import GenerationCoordinator, GenerationService
 from backend.services.job_webhooks import JobWebhookNotifier
 from backend.services.queue import QueueBackend, QueueOrchestrator
-from backend.services.websocket import WebSocketService
 from backend.workers.delivery_runner import DeliveryRunner
 
 
@@ -167,9 +166,7 @@ def _schedule_and_build_runner(
         DeliveryJobRepository(db_session),
         queue_orchestrator=QueueOrchestrator(primary_backend=_SilentQueue()),
     )
-    coordinator = GenerationCoordinator(
-        deliveries, WebSocketService(), GenerationService()
-    )
+    coordinator = GenerationCoordinator(deliveries, GenerationService())
     job = coordinator.schedule_generation_job(
         SDNextGenerationParams(prompt="webhook test"),
         client_ref=client_ref,

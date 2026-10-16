@@ -1,7 +1,7 @@
 """Contract between the progress WebSocket and the SPA's message parser.
 
 The messages captured here come from the real WebSocket service, connection
-manager, job monitor and generation coordinator, and must equal
+manager and job progress monitor, and must equal
 ``tests/fixtures/generation_websocket_contract.json``. The frontend spec
 ``tests/vue/services/generation/websocketContract.spec.ts`` replays that file
 through the browser's WebSocket manager, so a change on either side fails one
@@ -18,9 +18,9 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import pytest
 from fastapi import WebSocketDisconnect
@@ -30,10 +30,11 @@ from backend.schemas import (
     SDNextGenerationResult,
     WebSocketSubscription,
 )
-from backend.services.generation import GenerationCoordinator
 from backend.services.websocket import (
     ConnectionManager,
+    JobObservation,
     JobProgressMonitor,
+    PersistedJob,
     WebSocketService,
 )
 
@@ -73,18 +74,34 @@ class _ClientWebSocket:
         self._inbox.put_nowait(None)
 
 
-class _ScriptedGenerationService:
-    """Return a scripted sequence of SD.Next progress results per job."""
+GENERATION_PARAMS = {
+    "generation_params": SDNextGenerationParams(
+        prompt="a lighthouse at dusk"
+    ).model_dump(),
+    "backend": "sdnext",
+}
+CLAIMED_AT = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
-    def __init__(self, script: Dict[str, List[SDNextGenerationResult]]) -> None:
-        self._script = script
-        self.release = asyncio.Event()
 
-    async def check_progress(self, job_id: str) -> SDNextGenerationResult:
-        # Hold the first poll until the job-started broadcast is out, so the
-        # captured order matches what a client sees in practice.
-        await self.release.wait()
-        return self._script[job_id].pop(0)
+class _ScriptedRepository:
+    """Return one scripted set of stored jobs per monitor tick."""
+
+    def __init__(self, ticks: List[List[PersistedJob]]) -> None:
+        self._ticks = ticks
+
+    def load_jobs(
+        self, *, finished_since: Optional[datetime], job_ids: Sequence[str]
+    ) -> JobObservation:
+        return JobObservation(observed_at=CLAIMED_AT, jobs=self._ticks.pop(0))
+
+
+class _SDNext:
+    """SD.Next halfway through the running job."""
+
+    async def check_generation_progress(
+        self, job_id: str, backend_name: str = "sdnext"
+    ) -> SDNextGenerationResult:
+        return SDNextGenerationResult(job_id=job_id, status="running", progress=0.5)
 
 
 async def _wait_until(predicate: Callable[[], bool], timeout: float = 2.0) -> None:
@@ -105,35 +122,43 @@ def _normalize(message: Dict[str, Any]) -> Dict[str, Any]:
 
 
 async def _capture_contract() -> Dict[str, Any]:
-    service = WebSocketService(
-        connection_manager=ConnectionManager(),
-        job_monitor=JobProgressMonitor(poll_interval=0.0),
-    )
-    generation = _ScriptedGenerationService({
-        "job-completed": [
-            SDNextGenerationResult(
-                job_id="job-completed", status="running", progress=0.5
-            ),
-            SDNextGenerationResult(
-                job_id="job-completed",
-                status="completed",
-                progress=1.0,
-                images=[PNG_BASE64],
-                generation_info={"seed": 1234},
-            ),
+    service = WebSocketService(connection_manager=ConnectionManager())
+    # The rows the monitor reads on three ticks: "job-completed" is claimed,
+    # then succeeds; "job-failed" is claimed and fails between two ticks.
+    repository = _ScriptedRepository([
+        [PersistedJob("job-completed", "running", "sdnext", GENERATION_PARAMS)],
+        [
+            PersistedJob(
+                "job-completed",
+                "succeeded",
+                "sdnext",
+                GENERATION_PARAMS,
+                result={
+                    "status": "completed",
+                    "images": [PNG_BASE64],
+                    "generation_info": {"seed": 1234},
+                },
+            )
         ],
-        "job-failed": [
-            SDNextGenerationResult(
-                job_id="job-failed",
-                status="failed",
-                error_message="SD.Next returned no images",
-            ),
+        [
+            PersistedJob(
+                "job-failed",
+                "failed",
+                "sdnext",
+                GENERATION_PARAMS,
+                result={
+                    "status": "failed",
+                    "error_message": "SD.Next returned no images",
+                },
+                started_at=CLAIMED_AT,
+            )
         ],
-    })
-    coordinator = GenerationCoordinator(
-        deliveries=None,  # not used when broadcasting
-        websocket=service,
-        generation_service=generation,
+    ])
+    monitor = JobProgressMonitor(
+        broadcaster=service.manager,
+        repository=repository,
+        generation=_SDNext(),
+        interval_seconds=0.0,
     )
 
     subscription = WebSocketSubscription(job_ids=None).model_dump()
@@ -141,20 +166,10 @@ async def _capture_contract() -> Dict[str, Any]:
     connection = asyncio.create_task(service.handle_connection(client))
     client.client_send(subscription)
     await _wait_until(lambda: bool(service.manager.global_subscribers))
+    await _wait_until(lambda: len(client.sent) == 2)
 
-    def _completed(job_id: str) -> bool:
-        return any(
-            msg["type"] == "generation_complete" and msg["data"]["job_id"] == job_id
-            for msg in client.sent
-        )
-
-    for job_id in ("job-completed", "job-failed"):
-        generation.release.clear()
-        await coordinator.broadcast_job_started(
-            job_id, SDNextGenerationParams(prompt="a lighthouse at dusk")
-        )
-        generation.release.set()
-        await _wait_until(lambda job_id=job_id: _completed(job_id))
+    for _ in range(3):
+        await monitor.tick()
 
     client.client_close()
     await asyncio.wait_for(connection, timeout=2.0)

@@ -1,24 +1,21 @@
-"""Persistence adapters used by WebSocket job monitoring."""
+"""Database access for the job progress monitor."""
 
 from __future__ import annotations
 
 from contextlib import AbstractContextManager
-from typing import Callable, Optional
+from datetime import datetime
+from typing import Callable, Optional, Sequence
 
-import structlog
 from sqlmodel import Session
 
 from backend.core.database import get_session_context
-from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
 
-from .job_monitor import JobStateRepository, PersistedJobState
-
-logger = structlog.get_logger(__name__)
+from .job_monitor import JobObservation, JobStateRepository, PersistedJob
 
 
 class DeliveryJobStateRepository(JobStateRepository):
-    """Load delivery job state using the DeliveryService API."""
+    """Load the delivery jobs the monitor tracks, one session per call."""
 
     def __init__(
         self,
@@ -29,23 +26,33 @@ class DeliveryJobStateRepository(JobStateRepository):
         """Store the session factory used to access delivery data."""
         self._session_factory = session_factory
 
-    def get_job_state(self, job_id: str) -> Optional[PersistedJobState]:
-        """Return persisted state for ``job_id`` using a service context."""
+    def load_jobs(
+        self,
+        *,
+        finished_since: Optional[datetime],
+        job_ids: Sequence[str],
+    ) -> JobObservation:
+        """Return active jobs, jobs finished since a time and ``job_ids``."""
         with self._session_factory() as session:
             repository = DeliveryJobRepository(session)
-            service = DeliveryService(repository)
-            job = service.get_job(job_id)
-            if job is None:
-                return None
-
-            result_payload = service.get_job_result(job)
-            payload = result_payload if isinstance(result_payload, dict) else None
-
-            return PersistedJobState(
-                status=job.status,
-                result=payload,
-                started_at=job.started_at,
-                finished_at=job.finished_at,
+            observed_at = repository.mapper.now()
+            jobs = repository.list_monitored_jobs(
+                finished_since=finished_since, job_ids=job_ids
+            )
+            return JobObservation(
+                observed_at=observed_at,
+                jobs=[
+                    PersistedJob(
+                        job_id=job.id,
+                        status=job.status,
+                        mode=job.mode,
+                        params=repository.get_job_params(job),
+                        result=repository.get_job_result(job),
+                        started_at=job.started_at,
+                        finished_at=job.finished_at,
+                    )
+                    for job in jobs
+                ],
             )
 
 

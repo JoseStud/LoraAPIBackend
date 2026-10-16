@@ -54,10 +54,6 @@ async def compose(
                 return_format=sdnext_config.return_format,
                 background_tasks=background_tasks,
             )
-            await services.generation_coordinator.broadcast_job_started(
-                job.id,
-                generation_params,
-            )
         else:
             job = await run_in_threadpool(
                 services.deliveries.schedule_job,

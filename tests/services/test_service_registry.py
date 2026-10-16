@@ -10,15 +10,17 @@ import pytest
 from backend.services import ServiceFactories, ServiceRegistry
 from backend.services.analytics import AnalyticsService
 from backend.services.analytics_repository import AnalyticsRepository
+from backend.services.composition import ComposeService
 from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
-from backend.services.providers.websocket import default_websocket_service_factory
+from backend.services.generation import GenerationCoordinator, GenerationService
 from backend.services.queue import QueueOrchestrator
 from backend.services.service_container_builder import ServiceContainerBuilder
 from backend.services.service_registry import (
     make_adapter_service,
     make_storage_service,
 )
+from backend.services.websocket import get_websocket_service, websocket_service
 
 
 def _counting_factories() -> tuple[ServiceFactories, dict[str, MagicMock]]:
@@ -40,14 +42,23 @@ def _full_registry(db_session, factories: ServiceFactories) -> ServiceRegistry:
     )
 
 
-def test_default_factories_are_the_provider_functions() -> None:
+def test_default_factories_are_the_classes_or_make_functions() -> None:
     factories = ServiceFactories()
 
     assert factories.storage is make_storage_service
     assert factories.adapter is make_adapter_service
-    assert factories.websocket is default_websocket_service_factory
+    assert factories.compose is ComposeService
+    assert factories.generation is GenerationService
+    assert factories.generation_coordinator is GenerationCoordinator
+    assert factories.websocket is get_websocket_service
     assert factories.analytics is AnalyticsService
     assert factories.delivery is DeliveryService
+
+
+def test_registry_shares_the_process_wide_websocket_service(db_session) -> None:
+    registry = ServiceRegistry(db_session)
+
+    assert registry.websocket is websocket_service
 
 
 def test_services_are_built_once_and_shared_between_dependents(db_session) -> None:
@@ -77,7 +88,6 @@ def test_services_are_built_once_and_shared_between_dependents(db_session) -> No
     mocks["system"].assert_called_once_with(registry.deliveries)
     mocks["generation_coordinator"].assert_called_once_with(
         registry.deliveries,
-        registry.websocket,
         registry.generation,
     )
     mocks["recommendation_jobs"].assert_called_once_with(

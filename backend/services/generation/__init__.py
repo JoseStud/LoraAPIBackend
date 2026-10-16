@@ -5,14 +5,9 @@ from typing import Any, Dict, List, Optional
 
 from backend.delivery import get_delivery_registry, get_generation_backend
 from backend.models import DeliveryJob
-from backend.schemas import (
-    GenerationStarted,
-    SDNextGenerationParams,
-    SDNextGenerationResult,
-)
+from backend.schemas import SDNextGenerationParams, SDNextGenerationResult
 from backend.services.deliveries import DeliveryService
 from backend.services.queue import TaskScheduler
-from backend.services.websocket import WebSocketService
 from backend.utils.progress import to_progress_fraction
 
 from .statuses import NormalizedGenerationStatus, normalize_status
@@ -25,10 +20,6 @@ def normalize_generation_status(status: Optional[str]) -> str:
 
 class GenerationService:
     """Service for image generation operations."""
-
-    def __init__(self):
-        """Initialize GenerationService."""
-        pass
 
     @staticmethod
     def _with_normalized_status(
@@ -189,12 +180,10 @@ class GenerationCoordinator:
     def __init__(
         self,
         deliveries: DeliveryService,
-        websocket: WebSocketService,
         generation_service: GenerationService,
     ) -> None:
         """Store dependencies used to orchestrate generation jobs."""
         self._deliveries = deliveries
-        self._websocket = websocket
         self._generation_service = generation_service
 
     def schedule_generation_job(
@@ -293,32 +282,15 @@ class GenerationCoordinator:
         """Cancel an active job; ``False`` when it is not active.
 
         A running job's generation is interrupted too. The runner then finds
-        the job cancelled and discards whatever the backend returns.
+        the job cancelled and discards whatever the backend returns, and the
+        progress monitor stops reporting the job without a completion message.
         """
         previous_status = await asyncio.to_thread(self._deliveries.cancel_job, job_id)
         if previous_status is None:
             return False
 
-        self._websocket.stop_job_monitoring(job_id)
         if previous_status == "running":
             job = await asyncio.to_thread(self._deliveries.get_job, job_id)
             backend_name = job.mode if job is not None else "sdnext"
             await self._generation_service.interrupt(backend_name)
         return True
-
-    async def broadcast_job_started(
-        self,
-        job_id: str,
-        generation_params: SDNextGenerationParams,
-    ) -> None:
-        """Kick off monitoring and fan out job start notifications."""
-        await self._websocket.start_job_monitoring(job_id, self._generation_service)
-
-        started_notification = GenerationStarted(
-            job_id=job_id,
-            params=generation_params,
-        )
-        await self._websocket.manager.broadcast_generation_started(
-            job_id,
-            started_notification,
-        )

@@ -35,10 +35,11 @@ sequenceDiagram
     API->>DB: insert DeliveryJob (pending)
     API->>Q: enqueue_delivery(job_id)
     Q->>R: enqueue process_delivery(job_id) with Retry
-    API->>API: start JobProgressMonitor, broadcast generation_started
     API-->>SPA: {delivery_id}
     R->>W: process_delivery(job_id)
     W->>DB: claim_job: pending → running
+    API->>DB: monitor tick sees running
+    API-->>SPA: WS generation_started, then progress_update each tick
     W->>SD: (pre-generate command) then POST /sdapi/v1/txt2img
     SD-->>W: base64 images + info
     W->>FS: save PNGs
@@ -66,9 +67,9 @@ Step by step, with the code that does it:
    `QueueUnavailableError`, `DeliveryService.enqueue_job` fails the
    still-pending job, and the API answers 503. Always enqueue through the
    orchestrator so both rules hold.
-3. **Monitor.** The handler calls `broadcast_job_started`, which starts a
-   `JobProgressMonitor` task in the API process and broadcasts
-   `generation_started` to WebSocket subscribers.
+3. **Respond.** The handler returns the job id. It starts nothing else: the
+   lifespan-owned `JobProgressMonitor` picks the job up from the database on
+   its next tick (see [Live progress](#live-progress-over-websocket)).
 4. **Run.** The RQ task `backend.workers.tasks.process_delivery`
    ([`workers/tasks.py`](../../backend/workers/tasks.py)) calls
    `DeliveryRunner.process_delivery_job`
@@ -81,8 +82,9 @@ Step by step, with the code that does it:
 5. **Finish.** The runner records the outcome with `finish_job` and, for
    `succeeded`/`failed`, sends the job-finished webhook
    ([`services/job_webhooks.py`](../../backend/services/job_webhooks.py)).
-6. **Report.** The monitor reads the persisted status, broadcasts
-   `generation_complete`, and stops. Polling clients see the same through
+6. **Report.** The monitor's next tick finds the job finished and
+   broadcasts a final `progress_update` and `generation_complete` built from
+   the stored row. Polling clients see the same through
    `GET /v1/generation/jobs/active` and `/jobs/{id}`.
 
 ## Status transitions
@@ -151,7 +153,9 @@ Don't add retry loops at call sites; the RQ policy is the one retry mechanism.
 1. `DeliveryService.cancel_job` moves the job to `cancelled` from whichever
    active status it had (404 for an unknown job, 400 if it had already
    finished).
-2. The WebSocket monitor for the job is stopped.
+2. Nothing stops in the WebSocket monitor: its next tick sees the job
+   `cancelled` and drops it without a `generation_complete` (the SPA would
+   read one as a failure, and it already removed the job itself).
 3. If the job was `running`, `GenerationService.interrupt` calls SDNext's
    `/sdapi/v1/interrupt`. SDNext's interrupt is global: it stops whatever is
    rendering, which is this job because only one runs at a time.
@@ -224,13 +228,40 @@ on the same runner, behind generation jobs. See
 
 ## Live progress over WebSocket
 
-`JobProgressMonitor` ([`services/websocket/job_monitor.py`](../../backend/services/websocket/job_monitor.py))
-polls every 2 seconds (its `poll_interval` default) and combines two sources:
+One `JobProgressMonitor` ([`services/websocket/job_monitor.py`](../../backend/services/websocket/job_monitor.py)),
+started and stopped by the lifespan like `JobRecovery`, turns persisted job
+state into socket messages. It does not depend on the request that created a
+job, so jobs run by the RQ worker, jobs requeued by recovery and jobs already
+running when the API restarted are reported the same way.
 
-- the **persisted job** (authoritative for status and completion), and
-- SDNext's `/sdapi/v1/progress`, which is process-global and ignores the job
-  id. Its value is used only while the persisted status is `running`; a queued
-  job reports its stored progress or 0.
+Every `SDNEXT_POLL_INTERVAL` seconds (default 2) a tick:
+
+1. returns at once, without a database query or SDNext call, when no
+   WebSocket connection is subscribed (`ConnectionManager.has_subscribers()`),
+   and forgets what it tracked;
+2. loads, in one query in a worker thread
+   (`DeliveryJobRepository.list_monitored_jobs`), the active generation jobs
+   (`pending`/`retrying`/`running`), the jobs that finished since the previous
+   tick (a watermark with a few seconds of overlap) and the jobs it tracks;
+3. sends `generation_started` for a job it sees `running` that it last saw in
+   another status or not at all, i.e. when a runner claims it (again on a
+   retry's re-claim), with params from the stored `generation_params`;
+4. sends `progress_update` for every active job. SDNext's
+   `/sdapi/v1/progress` is process-global and ignores the job id, so it is
+   polled once, only for the job whose persisted status is `running` (the most
+   recently started, should several be); a queued job reports its stored
+   progress or 0;
+5. sends a final `progress_update` and `generation_complete` for a job that
+   left the active set as `succeeded` or `failed`, built from its stored row.
+   A job that ran and finished between two ticks gets `generation_started`
+   first if a runner claimed it. A `cancelled` job is dropped silently.
+
+The first tick after startup (or after a time without subscribers) seeds the
+tracking from the active jobs only: jobs already running get progress and a
+completion, and jobs that finished before it are not announced. Tests stub
+`JobProgressMonitor.start` with an autouse fixture in
+[`tests/conftest.py`](../../tests/conftest.py) and drive `tick()` directly
+(`tests/test_job_monitor.py`).
 
 Progress is a fraction in [0, 1] (1 is complete) on the socket and in the
 REST queue (`GET /v1/generation/jobs/active`) alike, and both report the same
@@ -250,8 +281,9 @@ checked from both sides (`tests/test_websocket_contract.py` and the frontend
 deliberate backend change, then update
 `app/frontend/src/features/generation/services/websocketMessages.ts`.
 
-The monitor and the connection manager live in the API process's module
-globals, which is the main reason the API runs as a single process. More
+The connection manager lives in the API process's module globals and the
+monitor broadcasts through it, which is the main reason the API runs as a
+single process. More
 background: [WEBSOCKET_IMPLEMENTATION.md](../WEBSOCKET_IMPLEMENTATION.md).
 
 ## Job-finished webhook

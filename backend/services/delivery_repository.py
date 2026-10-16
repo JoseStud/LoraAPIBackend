@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
-from sqlalchemy import Integer, case, func, update
+from sqlalchemy import Integer, case, func, or_, update
 from sqlmodel import Session, select
 
 from backend.models import DeliveryJob
@@ -465,6 +465,29 @@ class DeliveryJobRepository:
             select(DeliveryJob)
             .where(DeliveryJob.status == status)
             .where(DeliveryJob.started_at < cutoff)
+        )
+        return list(self._session.exec(query).all())
+
+    def list_monitored_jobs(
+        self,
+        *,
+        finished_since: Optional[datetime] = None,
+        job_ids: Sequence[str] = (),
+    ) -> List[DeliveryJob]:
+        """Return, in one query, the jobs the progress monitor looks at.
+
+        These are every active job, every job finished at or after
+        ``finished_since`` and the jobs named in ``job_ids`` whatever their
+        status, oldest first.
+        """
+        conditions = [DeliveryJob.status.in_(tuple(_ACTIVE_STATUSES))]
+        if finished_since is not None:
+            conditions.append(DeliveryJob.finished_at >= finished_since)
+        if job_ids:
+            conditions.append(DeliveryJob.id.in_([str(job_id) for job_id in job_ids]))
+
+        query = (
+            select(DeliveryJob).where(or_(*conditions)).order_by(DeliveryJob.created_at)
         )
         return list(self._session.exec(query).all())
 

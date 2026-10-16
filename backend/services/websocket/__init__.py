@@ -2,23 +2,22 @@
 
 from .connection_manager import ConnectionManager
 from .job_monitor import (
-    CompletionCallback,
+    JobObservation,
     JobProgressMonitor,
     JobStateRepository,
-    PersistedJobState,
-    ProgressCallback,
+    PersistedJob,
 )
 from .persistence import DeliveryJobStateRepository
-from .service import WebSocketService, websocket_service
+from .service import WebSocketService, get_websocket_service, websocket_service
 
 __all__ = [
-    "CompletionCallback",
     "ConnectionManager",
     "DeliveryJobStateRepository",
+    "JobObservation",
     "JobProgressMonitor",
     "JobStateRepository",
-    "PersistedJobState",
-    "ProgressCallback",
+    "PersistedJob",
     "WebSocketService",
+    "get_websocket_service",
     "websocket_service",
 ]

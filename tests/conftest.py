@@ -22,7 +22,6 @@ from backend.services.composition import ComposeService
 from backend.services.deliveries import DeliveryService
 from backend.services.delivery_repository import DeliveryJobRepository
 from backend.services.in_process_jobs import get_in_process_job_runner
-from backend.services.providers.generation import make_compose_service
 from backend.services.queue import create_queue_orchestrator
 from tests.util.in_process_jobs import InProcessJobGate
 from tests.util.service_container import reset_service_container_builder
@@ -57,6 +56,19 @@ def no_lifespan_job_recovery(monkeypatch):
     from backend.services.job_recovery import JobRecovery
 
     monkeypatch.setattr(JobRecovery, "start", lambda self: None)
+
+
+@pytest.fixture(autouse=True)
+def no_lifespan_job_monitor(monkeypatch):
+    """Keep the lifespan's job progress monitor loop from running.
+
+    It would poll the configured database and SD.Next in the background of
+    tests that enter the real lifespan. ``tests/test_job_monitor.py`` drives
+    :class:`JobProgressMonitor` one tick at a time.
+    """
+    from backend.services.websocket import JobProgressMonitor
+
+    monkeypatch.setattr(JobProgressMonitor, "start", lambda self: None)
 
 
 @pytest.fixture(autouse=True)
@@ -163,7 +175,7 @@ def delivery_service(db_session: Session, mock_storage) -> DeliveryService:
 @pytest.fixture
 def compose_service() -> ComposeService:
     """ComposeService fixture using the new modular service."""
-    return make_compose_service()
+    return ComposeService()
 
 
 @pytest.fixture
