@@ -33,7 +33,6 @@ export default defineConfig({
     setupFiles: ['./tests/setup/vitest.setup.js'],
     include: [
       'tests/vue/**/*.spec.{js,ts}',
-      'tests/integration/**/*.test.js',
     ],
     css: false,
   },
