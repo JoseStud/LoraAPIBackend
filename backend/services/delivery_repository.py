@@ -174,9 +174,14 @@ class DeliveryJobRepository:
         self._session.refresh(job)
         return job
 
-    def get_job(self, job_id: str) -> Optional[DeliveryJob]:
-        """Retrieve a delivery job by identifier."""
-        return self._session.get(DeliveryJob, job_id)
+    def get_job(self, job_id: str, *, refresh: bool = False) -> Optional[DeliveryJob]:
+        """Retrieve a delivery job by identifier.
+
+        The session returns a job it already loaded without querying again;
+        ``refresh`` reloads it, so a caller polling for another process's
+        status change sees the change.
+        """
+        return self._session.get(DeliveryJob, job_id, populate_existing=refresh)
 
     def list_jobs(
         self,

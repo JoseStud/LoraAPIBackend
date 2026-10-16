@@ -16,6 +16,25 @@ from backend.services.queue import TaskScheduler
 
 from .statuses import NormalizedGenerationStatus, normalize_status
 
+TERMINAL_JOB_STATUSES = frozenset({"succeeded", "failed", "cancelled"})
+"""Delivery statuses a job never leaves."""
+
+
+class GenerationWaitTimeout(Exception):
+    """A blocking generation request stopped waiting for its job.
+
+    The job itself is not affected: it stays queued or running and can be
+    followed at ``/v1/generation/jobs/{job_id}``.
+    """
+
+    def __init__(self, job_id: str, timeout_seconds: float) -> None:
+        """Record which job was still unfinished after ``timeout_seconds``."""
+        super().__init__(
+            f"Generation job {job_id} did not finish within {timeout_seconds:g}s"
+        )
+        self.job_id = job_id
+        self.timeout_seconds = timeout_seconds
+
 
 def normalize_generation_status(status: Optional[str]) -> str:
     """Convert a delivery/job status into the UI vocabulary."""
@@ -34,42 +53,6 @@ class GenerationService:
             return result
 
         return result.model_copy(update={"status": normalized_status})
-
-    async def generate_image(
-        self,
-        prompt: str,
-        backend_name: str = "sdnext",
-        generation_params: Optional[SDNextGenerationParams] = None,
-        **kwargs,
-    ) -> SDNextGenerationResult:
-        """Generate an image using the specified backend.
-
-        Args:
-            prompt: The prompt to generate from
-            backend_name: Name of the generation backend
-            generation_params: Generation parameters
-            **kwargs: Additional backend-specific parameters
-
-        Returns:
-            SDNextGenerationResult with generation status and results
-
-        """
-        try:
-            backend = get_generation_backend(backend_name)
-        except ValueError as e:
-            return SDNextGenerationResult(
-                job_id="unknown",
-                status="failed",
-                error_message=str(e),
-            )
-
-        # Prepare parameters
-        params = kwargs.copy()
-        if generation_params:
-            params["generation_params"] = generation_params.model_dump()
-
-        backend_result = await backend.generate_image(prompt, params)
-        return self._with_normalized_status(backend_result)
 
     async def check_generation_progress(
         self,
@@ -237,6 +220,35 @@ class GenerationCoordinator:
             params=delivery_params,
             **schedule_kwargs,
         )
+
+    async def wait_for_job(
+        self,
+        job_id: str,
+        *,
+        timeout_seconds: float,
+        poll_interval_seconds: float,
+    ) -> Optional[DeliveryJob]:
+        """Wait until ``job_id`` reaches a terminal status and return it.
+
+        The job row is re-read in a worker thread every
+        ``poll_interval_seconds``, so the event loop stays free while the
+        queue (RQ worker or in-process runner) runs the job. Returns ``None``
+        when the job no longer exists. Raises :class:`GenerationWaitTimeout`
+        when it is still unfinished after ``timeout_seconds``; the job keeps
+        running.
+        """
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout_seconds
+        while True:
+            job = await asyncio.to_thread(
+                self._deliveries.get_job, job_id, refresh=True
+            )
+            if job is None or job.status in TERMINAL_JOB_STATUSES:
+                return job
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                raise GenerationWaitTimeout(job_id, timeout_seconds)
+            await asyncio.sleep(min(poll_interval_seconds, remaining))
 
     def serialize_delivery_job(self, job: DeliveryJob) -> SerializedGenerationJob:
         """Return a job's generation parameters and stored result, normalised."""

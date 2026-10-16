@@ -4,10 +4,15 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from http import HTTPStatus
+from typing import Any, Dict
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from fastapi.utils import is_body_allowed_for_status_code
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend.api.v1 import (
     adapters,
@@ -15,6 +20,7 @@ from backend.api.v1 import (
     compose,
     dashboard,
     deliveries,
+    frontend,
     generation,
     import_export,
     recommendations,
@@ -27,6 +33,7 @@ from backend.core.database import init_db
 from backend.core.logging import setup_logging
 from backend.core.security import get_api_key
 from backend.delivery import ensure_delivery_system
+from backend.services.generation import GenerationWaitTimeout
 from backend.services.in_process_jobs import get_in_process_job_runner
 from backend.services.job_recovery import JobRecovery
 from backend.services.queue import QueueUnavailableError
@@ -146,10 +153,13 @@ def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(title="LoRA Manager Backend (MVP)", lifespan=lifespan)
 
+    # The only CORS configuration: app.main mounts this app at /api and its
+    # SPA files are same-origin. Credentials cannot go with a wildcard origin.
+    cors_origins = list(settings.CORS_ORIGINS)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
-        allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+        allow_origins=cors_origins,
+        allow_credentials=settings.CORS_ALLOW_CREDENTIALS and "*" not in cors_origins,
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -177,6 +187,9 @@ def create_app() -> FastAPI:
         import_export.router, prefix="/v1", dependencies=[Depends(get_api_key)]
     )
     app.include_router(dashboard.router, prefix="/v1")
+    # Keyless: the SPA loads its settings, the key included, before any
+    # authenticated request (README, "Security model").
+    app.include_router(frontend.router, prefix="/v1")
     app.include_router(system.router, prefix="/v1")
     # Keyless: <img> tags cannot send X-API-Key (README, "Security model").
     app.include_router(generation_images.router, prefix="/v1")
@@ -191,15 +204,9 @@ def create_app() -> FastAPI:
         """Return a simple health status used by tests and readiness checks."""
         return {"status": "ok"}
 
-    @app.exception_handler(HTTPException)
-    async def http_exception_handler(request: Request, exc: HTTPException):
-        """Format HTTPException as an RFC7807 problem detail response."""
-        problem = {
-            "type": "about:blank",
-            "title": exc.detail if isinstance(exc.detail, str) else "HTTP error",
-            "status": exc.status_code,
-        }
-        return JSONResponse(status_code=exc.status_code, content=problem)
+    # Registered for Starlette's HTTPException (FastAPI's subclasses it), so
+    # the router's own 404/405 get the same shape as the handlers' errors.
+    app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 
     @app.exception_handler(QueueUnavailableError)
     async def queue_unavailable_handler(request: Request, exc: QueueUnavailableError):
@@ -217,6 +224,26 @@ def create_app() -> FastAPI:
             "detail": "The job could not be queued. Try again once Redis is reachable.",
         }
         return JSONResponse(status_code=503, content=problem)
+
+    @app.exception_handler(GenerationWaitTimeout)
+    async def generation_wait_timeout_handler(
+        request: Request, exc: GenerationWaitTimeout
+    ):
+        """Name the still-running job of a blocking generation request (504)."""
+        job_url = request.url_for("get_generation_job", job_id=exc.job_id).path
+        problem = {
+            "type": "about:blank",
+            "title": "Generation still running",
+            "status": 504,
+            "detail": (
+                f"Generation job {exc.job_id} did not finish within "
+                f"{exc.timeout_seconds:g} seconds. It is still queued or running; "
+                f"follow it at {job_url}."
+            ),
+            "job_id": exc.job_id,
+            "job_url": job_url,
+        }
+        return JSONResponse(status_code=504, content=problem)
 
     @app.exception_handler(Exception)
     async def generic_exception_handler(request: Request, exc: Exception):
@@ -240,6 +267,38 @@ def create_app() -> FastAPI:
         return JSONResponse(status_code=500, content=problem)
 
     return app
+
+
+def _status_phrase(status_code: int) -> str:
+    try:
+        return HTTPStatus(status_code).phrase
+    except ValueError:
+        return "HTTP error"
+
+
+async def http_exception_handler(
+    request: Request, exc: StarletteHTTPException
+) -> Response:
+    """Format an HTTPException as an RFC 7807 problem detail response.
+
+    A string ``detail`` is the problem's ``title``. Any other ``detail`` (a
+    list or dict a handler raised on purpose) keeps its structure in the
+    ``errors`` member, under the status phrase as the title. The exception's
+    headers (``Allow`` on a 405, ``WWW-Authenticate``) are kept, and statuses
+    that forbid a body (204, 304) get none.
+    """
+    headers = getattr(exc, "headers", None)
+    if not is_body_allowed_for_status_code(exc.status_code):
+        return Response(status_code=exc.status_code, headers=headers)
+
+    problem: Dict[str, Any] = {"type": "about:blank", "status": exc.status_code}
+    if isinstance(exc.detail, str) and exc.detail:
+        problem["title"] = exc.detail
+    else:
+        problem["title"] = _status_phrase(exc.status_code)
+        if exc.detail is not None:
+            problem["errors"] = jsonable_encoder(exc.detail)
+    return JSONResponse(status_code=exc.status_code, content=problem, headers=headers)
 
 
 def app() -> FastAPI:

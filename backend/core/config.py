@@ -84,6 +84,11 @@ class Settings(BaseSettings):
     JOB_RUNNING_TIMEOUT_SECONDS: Optional[int] = Field(default=None, gt=0)
     # How often the API looks for such jobs; 0 checks only at startup.
     JOB_RECOVERY_INTERVAL_SECONDS: int = Field(default=60, ge=0)
+    # How long POST /generation/generate and /generation/compose-and-generate
+    # wait for their queued job to finish before answering 504 with the job id
+    # (the job keeps running). Unset allows one job ahead in the queue plus
+    # this one: twice JOB_RUNNING_TIMEOUT_SECONDS.
+    GENERATION_WAIT_TIMEOUT_SECONDS: Optional[int] = Field(default=None, gt=0)
     # RQ retries of a queued job whose runner raised (network error, crash);
     # a generation SDNext reports as failed is not retried. Retry n waits
     # DELIVERY_RETRY_INTERVAL_SECONDS * 2**(n-1); an interval above 0 needs
@@ -154,6 +159,13 @@ class Settings(BaseSettings):
         if self.JOB_RUNNING_TIMEOUT_SECONDS is not None:
             return self.JOB_RUNNING_TIMEOUT_SECONDS
         return self.SDNEXT_TIMEOUT + self.SDNEXT_PRE_GENERATE_TIMEOUT + 120
+
+    @property
+    def generation_wait_timeout_seconds(self) -> int:
+        """Return how long a blocking generation request waits for its job."""
+        if self.GENERATION_WAIT_TIMEOUT_SECONDS is not None:
+            return self.GENERATION_WAIT_TIMEOUT_SECONDS
+        return 2 * self.job_running_timeout_seconds
 
     @property
     def delivery_retry_intervals(self) -> List[int]:

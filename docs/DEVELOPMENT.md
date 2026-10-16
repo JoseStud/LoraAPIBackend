@@ -162,11 +162,12 @@ issues or reproducing CI environments:
    lockfiles; edit `requirements.in` / `dev-requirements.in` and run
    `make deps-lock` to change them.
 2. Install Node dependencies with `npm install`.
-3. Launch `uvicorn backend.main:app --reload --port 8000` for the API.
+3. Launch `uvicorn app.main:app --reload --port 8000` for the API (served under
+   `/api/v1`).
 4. Start `npm run dev` for the frontend. `npm run dev:full` and
    `npm run dev:backend` remain available convenience scripts.【F:package.json†L5-L31】
 
-The backend still emits `/frontend/settings` so the SPA receives consistent
+The backend serves `/api/v1/frontend/settings` so the SPA receives consistent
 configuration in both Docker and manual setups. Use `npm run prod:build` when
 you need an optimized bundle; the script relies on `cross-env` so production
 flags are applied consistently across shells.【F:package.json†L12-L24】

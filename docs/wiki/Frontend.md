@@ -13,7 +13,7 @@ client-side routes); see [Troubleshooting](Troubleshooting.md#the-built-spa-is-n
 
 ```
 app/frontend/src/
-  main.ts              Bootstrap: Pinia, router, load /frontend/settings, mount
+  main.ts              Bootstrap: Pinia, router, load /api/v1/frontend/settings, mount
   App.vue              Shell (layout, notifications, dialogs)
   router/index.ts      Routes, all lazily loaded
   views/               Route-level pages that assemble feature packages
@@ -138,7 +138,7 @@ Related contracts: [orchestrator store](../frontend/generation-orchestrator.md),
 - `stores/orchestrator/transportModule.ts` holds transport state and commands
   and routes adapter callbacks into the store.
 - Polling intervals come from `config/polling.ts`, which reads the
-  `generationPolling` block of `/frontend/settings`
+  `generationPolling` block of `/api/v1/frontend/settings`
   (`GENERATION_*_INTERVAL_MS` on the backend).
 - `/system/status` has exactly one poller per backend,
   `stores/systemStatusController.ts`, shared by the Studio and the dashboard
@@ -182,7 +182,8 @@ Validate responses with Zod before they reach a store: shared schemas in
 
 ## Settings and environment
 
-`main.ts` loads `/frontend/settings` into the settings store
+`main.ts` loads `/api/v1/frontend/settings` (`FrontendSettings` in the
+generated API types) into the settings store
 ([`stores/settings.ts`](../../app/frontend/src/stores/settings.ts)) before
 mounting. It provides `backendUrl`, `backendApiKey` and `generationPolling`.
 `getResolvedBackendUrl()` and `getResolvedBackendApiKey()` read it from

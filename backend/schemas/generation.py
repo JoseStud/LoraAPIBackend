@@ -61,9 +61,14 @@ class SDNextDeliveryParams(BaseModel):
 class SDNextGenerationResult(BaseModel):
     """Result of SDNext generation operation."""
 
+    # A generation backend returns this from ``generate_image`` (``job_id`` is
+    # then its own output id and ``images`` what its storage produced); the
+    # API's ``/generate``, ``/compose-and-generate`` and ``/progress`` answer
+    # with it for a delivery job (``job_id`` is the job's id, ``status`` the UI
+    # vocabulary and ``images`` browser-loadable sources).
     job_id: str
-    status: str  # "pending", "running", "completed", "failed"
-    images: Optional[List[str]] = None  # base64 or file paths
+    status: str
+    images: Optional[List[str]] = None
     progress: Optional[float] = Field(
         default=None, ge=0.0, le=1.0, description=PROGRESS_DESCRIPTION
     )

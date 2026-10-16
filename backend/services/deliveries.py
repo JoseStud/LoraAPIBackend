@@ -116,9 +116,9 @@ class DeliveryService:
         """Create and persist a DeliveryJob record."""
         return self._repository.create_job(prompt, mode, params)
 
-    def get_job(self, job_id: str) -> Optional[DeliveryJob]:
-        """Get a delivery job by ID."""
-        return self._repository.get_job(job_id)
+    def get_job(self, job_id: str, *, refresh: bool = False) -> Optional[DeliveryJob]:
+        """Get a delivery job by ID; ``refresh`` reloads it from the database."""
+        return self._repository.get_job(job_id, refresh=refresh)
 
     def list_jobs(
         self,

@@ -91,6 +91,28 @@ Step by step, with the code that does it:
    the stored row. Polling clients see the same through
    `GET /v1/generation/jobs/active` and `/jobs/{id}`.
 
+### Blocking generation
+
+`POST /v1/generation/generate` and `POST /v1/generation/compose-and-generate`
+([`api/v1/generation/live.py`](../../backend/api/v1/generation/live.py),
+`controllers/live.py`) answer with the finished result, but they run the job
+on the same queue: they create it through
+`GenerationCoordinator.schedule_generation_job` (with `mode` `immediate`,
+`save_images` on and image references) and then
+`GenerationCoordinator.wait_for_job` re-reads the row in a worker thread every
+`SDNEXT_POLL_INTERVAL` until it is `succeeded`, `failed` or `cancelled`. They
+never call SDNext themselves, so a blocking render cannot overlap a queued one,
+and the job has a row for the progress monitor, recovery and cancellation like
+any other. The response is the stored result as `SDNextGenerationResult`
+(`job_id` is the job's id, images are result image URLs). After
+`GENERATION_WAIT_TIMEOUT_SECONDS` (default twice `JOB_RUNNING_TIMEOUT_SECONDS`,
+room for one job ahead plus this one) the request answers 504 with the job id;
+the job keeps running and can be followed at `/v1/generation/jobs/{id}`.
+
+`GET /v1/generation/progress/{job_id}` reports one job from its row with the
+REST queue's progress rule; it asks SDNext for live progress only while that
+job is the one being rendered and has no stored progress.
+
 ## Status transitions
 
 ```mermaid
@@ -219,8 +241,8 @@ on the same runner, behind generation jobs. See
   references. For queued jobs `return_format` is otherwise ignored
   (`stored_return_format`), with one exception: a job queued with
   `save_images=false` and `return_format=base64` writes no file, so its result
-  keeps the base64 data. For the immediate endpoints (`/generate`,
-  `/compose-and-generate`) `return_format` shapes the response.
+  keeps the base64 data. The blocking endpoints (`/generate`,
+  `/compose-and-generate`) always save their images.
 - API responses and WebSocket messages convert references to browser-loadable
   sources (`backend/utils/images.py`): the keyless
   `GET /v1/generation/results/{job_id}/images/{index}` route for files, a
