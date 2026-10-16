@@ -27,6 +27,7 @@ from backend.core.database import init_db
 from backend.core.logging import setup_logging
 from backend.core.security import get_api_key
 from backend.delivery import ensure_delivery_system
+from backend.services.generation import GenerationWaitTimeout
 from backend.services.in_process_jobs import get_in_process_job_runner
 from backend.services.job_recovery import JobRecovery
 from backend.services.queue import QueueUnavailableError
@@ -217,6 +218,26 @@ def create_app() -> FastAPI:
             "detail": "The job could not be queued. Try again once Redis is reachable.",
         }
         return JSONResponse(status_code=503, content=problem)
+
+    @app.exception_handler(GenerationWaitTimeout)
+    async def generation_wait_timeout_handler(
+        request: Request, exc: GenerationWaitTimeout
+    ):
+        """Name the still-running job of a blocking generation request (504)."""
+        job_url = request.url_for("get_generation_job", job_id=exc.job_id).path
+        problem = {
+            "type": "about:blank",
+            "title": "Generation still running",
+            "status": 504,
+            "detail": (
+                f"Generation job {exc.job_id} did not finish within "
+                f"{exc.timeout_seconds:g} seconds. It is still queued or running; "
+                f"follow it at {job_url}."
+            ),
+            "job_id": exc.job_id,
+            "job_url": job_url,
+        }
+        return JSONResponse(status_code=504, content=problem)
 
     @app.exception_handler(Exception)
     async def generic_exception_handler(request: Request, exc: Exception):

@@ -56,9 +56,22 @@ service runs without the wrapper in `app/main.py`). Routes are implemented under
 - `POST /v1/deliveries` – Persist a delivery job and enqueue it through the
   queue orchestrator. `GET /v1/deliveries/{id}` retrieves job metadata.
 - `GET /v1/generation/backends` – List registered generation backends.
-- `POST /v1/generation/generate` – Run an immediate SDNext request.
-- `POST /v1/generation/compose-and-generate` – Compose adapters and trigger a
-  generation in one call.
+- `POST /v1/generation/generate` – Generate and wait for the result. The
+  request body is `SDNextGenerationParams`; the only query parameter is
+  `backend` (default `sdnext`). The route creates a job exactly as
+  `/queue-generation` does and blocks until the queue (RQ worker, or the
+  in-process runner without Redis) has finished it, without calling SDNext
+  itself. It answers `SDNextGenerationResult`: `job_id` is the job's id,
+  `status` is `completed` or `failed` (a cancelled job is `failed`),
+  `progress` is 1.0 once completed, `images` are result image route URLs
+  (never base64) and `error_message` carries a failed job's message (still
+  200). A job unfinished after `GENERATION_WAIT_TIMEOUT_SECONDS` (default
+  twice `JOB_RUNNING_TIMEOUT_SECONDS`) answers 504 with a problem detail
+  whose `job_id` and `job_url` (`/v1/generation/jobs/{job_id}`) let the
+  client follow the job, which keeps running. A rejected enqueue answers 503.
+- `POST /v1/generation/compose-and-generate` – Compose the active adapters
+  into the prompt (body `{compose_request, generation_params}`; 400 when no
+  adapter is active), then behave as `/generate`.
 - `POST /v1/generation/queue-generation` – Queue a deferred generation job and
   start WebSocket monitoring.
 - `GET /v1/generation/jobs/active` – Return normalized telemetry for jobs in
@@ -89,13 +102,17 @@ service runs without the wrapper in `app/main.py`). Routes are implemented under
   a stored result as a file, or 404. Mounted **without** the API key (see the
   README "Security model") so `<img>` tags can load it; it only serves files
   inside `SDNEXT_OUTPUT_DIR`.
-- `GET /v1/generation/progress/{job_id}` – Poll SDNext progress directly.
+- `GET /v1/generation/progress/{job_id}` – One job's status and progress as
+  `SDNextGenerationResult`, read from its job row (404 for an unknown job).
+  Progress follows the REST queue's rule: the stored fraction, 1.0 once
+  completed. SDNext's live progress is used only while the job is the running
+  one SDNext is rendering and nothing is stored, as in the progress monitor.
 
-Queued jobs store each image saved to disk as a file reference,
+Jobs store each image saved to disk as a file reference,
 `output://<path relative to SDNEXT_OUTPUT_DIR>`, in `result.images`, never as
-base64; `return_format` only shapes the response of immediate requests
-(`/generate`, `/compose-and-generate`). The WebSocket `generation_complete`
-message carries the same browser-loadable sources as `image_url`.
+base64. `/generate` and `/compose-and-generate` always save their images. The
+WebSocket `generation_complete` message carries the same browser-loadable
+sources as `image_url`.
 
 ### Recommendations (`/v1/recommendations`)
 

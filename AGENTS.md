@@ -145,6 +145,12 @@ Read these before changing the matching subsystem:
   sends jobs to Redis/RQ when `REDIS_URL` is set and to
   `BackgroundTaskQueueBackend` only when it is not. Enqueue through
   `QueueOrchestrator.enqueue_delivery()` (or `DeliveryService.enqueue_job`).
+  Only the delivery runner calls a generation backend's `generate_image`:
+  the blocking `POST /v1/generation/generate` and `/compose-and-generate`
+  schedule a job like `/queue-generation` and wait for it with
+  `GenerationCoordinator.wait_for_job` (bounded by
+  `generation_wait_timeout_seconds`, then 504 naming the job), so no render
+  bypasses the queue or lacks a job row.
   With Redis configured a failed enqueue never moves the job in-process, where
   it would run beside the RQ worker and recovery would never requeue it: the
   orchestrator raises `QueueUnavailableError`, `DeliveryService.enqueue_job`

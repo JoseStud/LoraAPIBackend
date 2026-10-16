@@ -32,7 +32,8 @@ All routers are mounted under `/v1` in `create_app()`. Most carry
 - the progress WebSocket `/v1/ws/progress`.
 
 The generation router is a package split by concern: `jobs.py` (queue, list,
-cancel), `live.py` (immediate generation, progress, backends), `results.py`,
+cancel), `live.py` (blocking generation through the queue, per-job progress,
+backends), `results.py`,
 `exports.py` and `images.py`. Route modules stay thin and delegate to
 `controllers/` (call services) and `presenters/` (shape responses).
 
@@ -132,8 +133,8 @@ it never leaks across async tasks. It exists only for tests and scripts.
 | `AdapterService` | `services/adapters/` | CRUD, search, tags, activation/ordinals, bulk actions, statistics. |
 | `ComposeService` | `services/composition.py` | Builds a prompt from the active adapters as `<lora:NAME:weight>` tokens, which SDNext resolves against file names. |
 | `DeliveryService` | `services/deliveries.py` | Job rows: create, schedule, `claim_job` / `finish_job` / `cancel_job`, results, ratings and favourites, archives and downloads. |
-| `GenerationService` | `services/generation/__init__.py` | Talks to a generation backend: generate, progress, interrupt, validate params. |
-| `GenerationCoordinator` | same module | Ties deliveries and generation together: schedule, serialise, cancel (with the backend interrupt). |
+| `GenerationService` | `services/generation/__init__.py` | Talks to a generation backend: progress, interrupt, validate params. Generation itself only runs in the delivery runner. |
+| `GenerationCoordinator` | same module | Ties deliveries and generation together: schedule, wait for a job to finish (blocking routes), serialise, cancel (with the backend interrupt). |
 | `WebSocketService` | `services/websocket/` | Connection manager and subscriptions. Module-global instance. The lifespan-owned `JobProgressMonitor` (same package) broadcasts through its manager; see [Generation pipeline](Generation-Pipeline.md#live-progress-over-websocket). |
 | `SystemService` | `services/system.py` | `/system/status` payload: queue counts, SDNext and importer health, thresholds. |
 | `AnalyticsService` | `services/analytics/` | KPIs, time series and insights from delivery history (via `AnalyticsRepository`). |

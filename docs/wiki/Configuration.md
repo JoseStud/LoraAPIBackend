@@ -48,6 +48,7 @@ In Docker, values come from `.env.docker` (or `.env.docker.example`) through
 | --- | --- | --- |
 | `JOB_RUNNING_TIMEOUT_SECONDS` | unset → `SDNEXT_TIMEOUT + SDNEXT_PRE_GENERATE_TIMEOUT + 120` | A job `running` longer than this has lost its runner and is failed by recovery. Also the RQ job timeout. |
 | `JOB_RECOVERY_INTERVAL_SECONDS` | `60` | How often recovery runs; `0` runs it only at startup. |
+| `GENERATION_WAIT_TIMEOUT_SECONDS` | unset → `2 × JOB_RUNNING_TIMEOUT_SECONDS` | How long `POST /generation/generate` and `/compose-and-generate` wait for their queued job before answering 504 with the job id. The job keeps running. |
 | `DELIVERY_MAX_RETRIES` | `2` | RQ retries when the runner raises. `0` disables. In-process jobs never retry. |
 | `DELIVERY_RETRY_INTERVAL_SECONDS` | `10` | Retry *n* waits this × 2^(n-1). Above 0 needs `rq worker --with-scheduler`. |
 

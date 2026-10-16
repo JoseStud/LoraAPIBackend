@@ -342,7 +342,12 @@ export interface paths {
         put?: never;
         /**
          * Generate Image
-         * @description Generate an image using the specified backend.
+         * @description Queue a generation job and wait for its result.
+         *
+         *     The job runs on the generation queue like ``/queue-generation``; this
+         *     request only waits for it. ``job_id`` in the response is the job's id and
+         *     ``images`` are result image URLs. A failed or cancelled job answers 200
+         *     with ``status`` ``failed`` and its ``error_message``.
          */
         post: operations["generate_image_v1_generation_generate_post"];
         delete?: never;
@@ -360,7 +365,7 @@ export interface paths {
         };
         /**
          * Check Generation Progress
-         * @description Check the progress of a generation job.
+         * @description Report a generation job's status and progress (a 0–1 fraction).
          */
         get: operations["check_generation_progress_v1_generation_progress__job_id__get"];
         put?: never;
@@ -382,7 +387,7 @@ export interface paths {
         put?: never;
         /**
          * Compose And Generate
-         * @description Compose LoRA prompt and immediately generate images.
+         * @description Compose the active adapters into the prompt, then generate as ``/generate``.
          */
         post: operations["compose_and_generate_v1_generation_compose_and_generate_post"];
         delete?: never;
@@ -3020,9 +3025,6 @@ export interface operations {
         parameters: {
             query?: {
                 backend?: string;
-                mode?: components["schemas"]["GenerationMode"];
-                save_images?: boolean;
-                return_format?: components["schemas"]["GenerationResultFormat"];
             };
             header?: never;
             path?: never;
@@ -3052,13 +3054,25 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description The job queue (Redis) rejected the job. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job did not finish within GENERATION_WAIT_TIMEOUT_SECONDS. It keeps running; the problem detail's `job_id` and `job_url` point at /v1/generation/jobs/{job_id}. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     check_generation_progress_v1_generation_progress__job_id__get: {
         parameters: {
-            query?: {
-                backend?: string;
-            };
+            query?: never;
             header?: never;
             path: {
                 job_id: string;
@@ -3091,9 +3105,6 @@ export interface operations {
         parameters: {
             query?: {
                 backend?: string;
-                mode?: components["schemas"]["GenerationMode"];
-                save_images?: boolean;
-                return_format?: components["schemas"]["GenerationResultFormat"];
             };
             header?: never;
             path?: never;
@@ -3122,6 +3133,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description The job queue (Redis) rejected the job. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job did not finish within GENERATION_WAIT_TIMEOUT_SECONDS. It keeps running; the problem detail's `job_id` and `job_url` point at /v1/generation/jobs/{job_id}. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

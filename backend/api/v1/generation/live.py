@@ -1,4 +1,4 @@
-"""HTTP routes for live generation operations."""
+"""HTTP routes for blocking generation and per-job progress."""
 
 from __future__ import annotations
 
@@ -9,8 +9,6 @@ from fastapi import APIRouter, Depends
 from backend.core.dependencies import get_services
 from backend.schemas import (
     ComposeRequest,
-    GenerationMode,
-    GenerationResultFormat,
     SDNextGenerationParams,
     SDNextGenerationResult,
 )
@@ -20,6 +18,17 @@ from .controllers import live as controller
 
 router = APIRouter()
 
+_BLOCKING_RESPONSES = {
+    504: {
+        "description": (
+            "The job did not finish within GENERATION_WAIT_TIMEOUT_SECONDS. It "
+            "keeps running; the problem detail's `job_id` and `job_url` point "
+            "at /v1/generation/jobs/{job_id}."
+        )
+    },
+    503: {"description": "The job queue (Redis) rejected the job."},
+}
+
 
 @router.get("/backends", response_model=Dict[str, bool])
 def list_generation_backends():
@@ -27,22 +36,26 @@ def list_generation_backends():
     return controller.list_generation_backends()
 
 
-@router.post("/generate", response_model=SDNextGenerationResult)
+@router.post(
+    "/generate",
+    response_model=SDNextGenerationResult,
+    responses=_BLOCKING_RESPONSES,
+)
 async def generate_image(
     generation_params: SDNextGenerationParams,
     backend: str = "sdnext",
-    mode: GenerationMode = GenerationMode.IMMEDIATE,
-    save_images: bool = True,
-    return_format: GenerationResultFormat = GenerationResultFormat.BASE64,
     services: ServiceRegistry = Depends(get_services),
 ):
-    """Generate an image using the specified backend."""
+    """Queue a generation job and wait for its result.
+
+    The job runs on the generation queue like ``/queue-generation``; this
+    request only waits for it. ``job_id`` in the response is the job's id and
+    ``images`` are result image URLs. A failed or cancelled job answers 200
+    with ``status`` ``failed`` and its ``error_message``.
+    """
     return await controller.generate_image(
         generation_params=generation_params,
         backend=backend,
-        mode=mode,
-        save_images=save_images,
-        return_format=return_format,
         services=services,
     )
 
@@ -50,29 +63,27 @@ async def generate_image(
 @router.get("/progress/{job_id}", response_model=SDNextGenerationResult)
 async def check_generation_progress(
     job_id: str,
-    backend: str = "sdnext",
+    services: ServiceRegistry = Depends(get_services),
 ):
-    """Check the progress of a generation job."""
-    return await controller.check_generation_progress(job_id=job_id, backend=backend)
+    """Report a generation job's status and progress (a 0–1 fraction)."""
+    return await controller.check_generation_progress(job_id=job_id, services=services)
 
 
-@router.post("/compose-and-generate", response_model=SDNextGenerationResult)
+@router.post(
+    "/compose-and-generate",
+    response_model=SDNextGenerationResult,
+    responses=_BLOCKING_RESPONSES,
+)
 async def compose_and_generate(
     compose_request: ComposeRequest,
     generation_params: SDNextGenerationParams,
     backend: str = "sdnext",
-    mode: GenerationMode = GenerationMode.IMMEDIATE,
-    save_images: bool = True,
-    return_format: GenerationResultFormat = GenerationResultFormat.BASE64,
     services: ServiceRegistry = Depends(get_services),
 ):
-    """Compose LoRA prompt and immediately generate images."""
+    """Compose the active adapters into the prompt, then generate as ``/generate``."""
     return await controller.compose_and_generate(
         compose_request=compose_request,
         generation_params=generation_params,
         backend=backend,
-        mode=mode,
-        save_images=save_images,
-        return_format=return_format,
         services=services,
     )
