@@ -1,6 +1,6 @@
 import { provide, inject, ref, type Ref } from 'vue';
 
-import type { ActiveTab } from '@/features/import-export/public';
+import type { ActiveTab } from '../types';
 
 import { useBackupWorkflow } from './useBackupWorkflow';
 import { useExportWorkflow, type NotifyType } from './useExportWorkflow';

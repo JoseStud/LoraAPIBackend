@@ -13,7 +13,7 @@ stops at the first failure:
 
 | # | Step | Catches |
 | --- | --- | --- |
-| 1 | Repository guardrails | Legacy frontend paths (`@/components/import-export`, `GenerationStudio.vue`, `@/providers`), deep cross-feature imports, `cancelGenerationJob` called outside the generation services, generation `stores/results` or `stores/queue` imported outside the feature. Also lints the fixtures in `tests/guardrails/`, which **must fail** lint; if one passes, a boundary rule has stopped working. Never "fix" those fixtures. |
+| 1 | Repository guardrails | Legacy frontend paths (`@/components/import-export`, `@/composables/import-export`, `@/services/generation`, `GenerationStudio.vue`, `@/providers`), deep cross-feature imports, `cancelGenerationJob` called outside the generation services, generation `stores/results` or `stores/queue` imported outside the feature. Also lints the fixtures in `tests/guardrails/`, which **must fail** lint; if one passes, a boundary rule has stopped working. Never "fix" those fixtures. |
 | 2 | `ruff format --check .` and `ruff check .` | Formatting and lint, including docstrings. Ruff is pinned because `format.preview` output changes between releases. |
 | 3 | `pytest` | The full backend suite. |
 | 4 | `npm run lint` | ESLint, including the import-boundary rules. |

@@ -1,6 +1,11 @@
-export { default as ImportExport } from './ui/ImportExport';
-export type { ActiveTab } from './ui/ImportExport';
-export { default as ImportExportContainer } from './ui/ImportExportContainer';
-export { default as ImportExportSkeleton } from './ui/ImportExportSkeleton';
+/**
+ * Public surface for the import/export feature. Consumers outside the feature should import from
+ * this module instead of reaching into nested folders.
+ */
+export { default as ImportExport } from './components/ImportExport.vue';
+export { default as ImportExportContainer } from './components/ImportExportContainer.vue';
+export { default as ImportExportSkeleton } from './components/ImportExportSkeleton.vue';
 
-export * from '../../composables/import-export';
+export type { ActiveTab } from './types';
+
+export * from './composables';

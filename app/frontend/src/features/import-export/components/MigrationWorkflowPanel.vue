@@ -68,9 +68,9 @@
 </template>
 
 <script setup lang="ts">
-import type { MigrationConfig } from '@/composables/import-export';
+import type { MigrationConfig } from '../composables';
 
-import { useImportExportContext } from '@/composables/import-export';
+import { useImportExportContext } from '../composables';
 
 type MigrationConfigKey = keyof MigrationConfig;
 

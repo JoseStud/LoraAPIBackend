@@ -92,7 +92,7 @@
 </template>
 
 <script setup lang="ts">
-import { useImportExportContext } from '@/composables/import-export';
+import { useImportExportContext } from '../composables';
 
 const {
   backupWorkflow: { backupHistory: history },

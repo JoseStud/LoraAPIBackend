@@ -12,7 +12,7 @@ import {
   resolveBackendUrl,
   resolveGenerationBaseUrl,
   startGeneration,
-} from '@/services/generation/generationService'
+} from '@/features/generation/services/generationService'
 import { useSettingsStore } from '@/stores/settings'
 
 const createGenerationPayload = (): GenerationRequestPayload => ({

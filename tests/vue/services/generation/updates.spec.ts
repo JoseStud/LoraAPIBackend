@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createGenerationQueueClient } from '@/services/generation/queueClient';
+import { createGenerationQueueClient } from '@/features/generation/services/queueClient';
 import type { BackendHttpClient } from '@/services/shared/http';
 import type { ApiResponseMeta } from '@/types';
 

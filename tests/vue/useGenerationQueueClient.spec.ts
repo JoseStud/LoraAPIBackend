@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { useGenerationQueueClient } from '@/features/generation/composables/useGenerationQueueClient';
-import type { GenerationQueueClient } from '@/services/generation/queueClient';
+import type { GenerationQueueClient } from '@/features/generation/services/queueClient';
 import { ApiError } from '@/types';
 import type { GenerationJobStatus, GenerationResult, SystemStatusPayload } from '@/types';
 

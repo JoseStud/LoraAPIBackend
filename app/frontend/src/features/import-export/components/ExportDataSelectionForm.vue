@@ -170,7 +170,7 @@
 </template>
 
 <script setup lang="ts">
-import { useExportConfigFields } from '@/composables/import-export';
+import { useExportConfigFields } from '../composables';
 import type { ExportConfig } from '@/types';
 
 type UpdateConfigEmitter<TConfig> = {

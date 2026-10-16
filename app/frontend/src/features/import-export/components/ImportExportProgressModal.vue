@@ -47,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { useImportExportContext } from '@/composables/import-export';
+import { useImportExportContext } from '../composables';
 
 const {
   progress: { show, title, value, currentStep, messages },

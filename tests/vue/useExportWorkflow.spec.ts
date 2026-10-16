@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { nextTick } from 'vue';
 
-import { useExportWorkflow, type ProgressCallbacks } from '../../app/frontend/src/composables/import-export/useExportWorkflow';
+import { useExportWorkflow, type ProgressCallbacks } from '@/features/import-export/composables/useExportWorkflow';
 import type { BackendHttpClient } from '@/services/shared/http';
 
 const postJson = vi.fn();

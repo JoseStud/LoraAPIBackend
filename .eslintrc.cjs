@@ -70,6 +70,16 @@ const restrictedImportRuleConfig = {
       message:
         'Import the import/export feature through "@/features/import-export/public" instead of the legacy components path.',
     },
+    {
+      name: '@/composables/import-export',
+      message:
+        'Import the import/export feature through "@/features/import-export/public" instead of the legacy composables path.',
+    },
+    {
+      name: '@/services/generation',
+      message:
+        'Generation services live in the generation feature. Import them through "@/features/generation/public".',
+    },
     backendClientRestriction,
     requestConfiguredJsonRestriction,
   ],
@@ -80,7 +90,8 @@ const restrictedImportRuleConfig = {
     },
     {
       group: ['@/services/generation/*'],
-      message: "Import from the generation services barrel: '@/services/generation'.",
+      message:
+        'Generation services live in the generation feature. Import them through "@/features/generation/public".',
     },
     {
       group: [
@@ -132,9 +143,6 @@ const createFeatureOverride = (feature) => {
 
 const backendClientAllowedFiles = [
   'app/frontend/src/components/dashboard/DashboardGenerationSummary.vue',
-  'app/frontend/src/composables/import-export/useBackupWorkflow.ts',
-  'app/frontend/src/composables/import-export/useExportWorkflow.ts',
-  'app/frontend/src/composables/import-export/useImportWorkflow.ts',
   'app/frontend/src/features/analytics/services/analyticsService.ts',
   'app/frontend/src/features/analytics/stores/performanceAnalytics.ts',
   'app/frontend/src/features/generation/services/generationBackendClient.ts',
@@ -142,6 +150,9 @@ const backendClientAllowedFiles = [
   'app/frontend/src/features/history/composables/useGenerationHistory.ts',
   'app/frontend/src/features/history/composables/useHistoryActions.ts',
   'app/frontend/src/features/history/services/historyService.ts',
+  'app/frontend/src/features/import-export/composables/useBackupWorkflow.ts',
+  'app/frontend/src/features/import-export/composables/useExportWorkflow.ts',
+  'app/frontend/src/features/import-export/composables/useImportWorkflow.ts',
   'app/frontend/src/features/lora/composables/lora-gallery/useLoraCardActions.ts',
   'app/frontend/src/features/lora/services/lora/loraService.ts',
   'app/frontend/src/features/lora/stores/adapterCatalog.ts',
@@ -202,9 +213,9 @@ module.exports = {
       'warn',
       { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
     ],
-    // Enforce barrel imports for composables and generation services
-    // Prefer: '@/composables/<feature>' and '@/services/generation'
-    // Avoid: '@/composables/<feature>/SomeFile' and '@/services/generation/<file>'
+    // Enforce barrel imports for composables and feature public surfaces
+    // Prefer: '@/composables/<feature>' and '@/features/<feature>/public'
+    // Avoid: '@/composables/<feature>/SomeFile' and legacy paths such as '@/services/generation'
     'no-restricted-imports': ['error', restrictedImportRuleConfig],
   },
   overrides: [

@@ -21,7 +21,7 @@ import ExportWorkflowActions from './ExportWorkflowActions.vue';
 
 import type { ExportConfig } from '@/types';
 
-import { useImportExportContext } from '@/composables/import-export';
+import { useImportExportContext } from '../composables';
 
 const {
   exportWorkflow: { exportConfig: config, estimatedSize, estimatedTime },
