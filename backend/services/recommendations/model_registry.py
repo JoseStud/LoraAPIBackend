@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-import logging
 from threading import Lock
 from typing import Optional
+
+from structlog.stdlib import BoundLogger
+
+from backend.core.logging import get_logger
 
 from .encoders import TriggerEmbedder
 from .engine import LoRARecommendationEngine
@@ -32,12 +35,12 @@ class RecommendationModelRegistry:
         self,
         *,
         gpu_enabled: bool,
-        logger: Optional[logging.Logger] = None,
+        logger: Optional[BoundLogger] = None,
     ) -> None:
         """Initialise registry state for the GPU or CPU device."""
         self.gpu_enabled = bool(gpu_enabled)
         self.device = "cuda" if self.gpu_enabled else "cpu"
-        self._logger = logger or logging.getLogger(__name__)
+        self._logger = logger or get_logger(__name__)
 
     def _ensure_ready(self) -> None:
         cls = type(self)

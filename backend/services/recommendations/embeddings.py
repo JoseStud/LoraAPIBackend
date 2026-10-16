@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import pickle
 import time
 from datetime import datetime, timezone
@@ -11,13 +10,14 @@ from typing import Any, Callable, Dict, Optional, Sequence
 
 import numpy as np
 
+from backend.core.logging import get_logger
 from backend.models import Adapter
 from backend.schemas.recommendations import IndexRebuildResponse
 
 from .model_registry import RecommendationModelRegistry
 from .repository import RecommendationRepository
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class EmbeddingService:

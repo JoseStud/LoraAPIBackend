@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Coroutine, Optional, TypeVar
 
 from sqlmodel import Session
 
+from backend.core.logging import setup_logging
 from backend.delivery import (
     ensure_delivery_system,
     get_delivery_registry,
@@ -46,6 +48,20 @@ def _default_async_runner(coro: Coroutine[Any, Any, T]) -> T:
         "An event loop is already running; provide a custom async_runner to the "
         "WorkerContext to schedule background work.",
     )
+
+
+def setup_worker_logging() -> None:
+    """Configure logging in a worker process, which runs no FastAPI lifespan.
+
+    ``rq worker`` gives its own ``rq.worker`` logger stdout/stderr handlers
+    when the root logger has none; those keep printing RQ's lines, so they
+    stop propagating to the root handler added here instead of appearing
+    twice.
+    """
+    setup_logging()
+    rq_logger = logging.getLogger("rq.worker")
+    if rq_logger.handlers:
+        rq_logger.propagate = False
 
 
 @dataclass
@@ -101,9 +117,11 @@ class WorkerContext:
     ) -> "WorkerContext":
         """Create a context using the shared queue backend factory.
 
-        Registers the built-in delivery backends first, so a worker process
-        starts with the same registry the API process sets up in its lifespan.
+        Configures logging and registers the built-in delivery backends first,
+        so a worker process starts with the same logging and registry the API
+        process sets up in its lifespan.
         """
+        setup_worker_logging()
         ensure_delivery_system()
         return cls(
             queue_orchestrator=queue_orchestrator or create_queue_orchestrator(),

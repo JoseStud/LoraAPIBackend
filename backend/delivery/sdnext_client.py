@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from backend.core.config import settings
+from backend.core.logging import get_logger
 
 from .http_client import DeliveryHTTPClient
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

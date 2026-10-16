@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Set
 
 from sqlmodel import Session
 
 from backend.core.database import get_session_context
+from backend.core.logging import get_logger
 from backend.delivery import run_with_fresh_loop
 from backend.delivery.base import DeliveryRegistry
 from backend.delivery.storage import remove_stored_images, stored_return_format
@@ -23,7 +23,7 @@ if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
     from backend.services.deliveries import DeliveryService
 
 _SUCCESS_STATUSES = {"ok", "completed", 200}
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 DeliveryServiceFactory = Callable[[Session], "DeliveryService"]
 

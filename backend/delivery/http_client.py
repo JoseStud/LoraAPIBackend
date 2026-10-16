@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import threading
 from typing import Any, Callable, Dict, Iterable, Optional
 
 import aiohttp
 
-logger = logging.getLogger(__name__)
+from backend.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class DeliveryHTTPClient:

@@ -1,12 +1,12 @@
 """Abstract base classes and interfaces for delivery system."""
 
-import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
+from backend.core.logging import get_logger
 from backend.schemas.generation import SDNextGenerationResult
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DeliveryBackend(ABC):

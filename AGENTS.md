@@ -218,6 +218,13 @@ Read these before changing the matching subsystem:
 - **Configuration**: runtime settings live only in `backend/core/config.py`, so
   startup validation and the frontend `/frontend/settings` payload stay
   consistent.
+- **Logging**: backend modules take their logger from
+  `get_logger(__name__)` (`backend/core/logging.py`), a structlog logger
+  over the stdlib logger of that name, so levels, handlers and `caplog` work
+  as usual. Pass `%s` arguments or keyword fields, never hand-built JSON, and
+  don't attach handlers in modules. `setup_logging()` configures the process:
+  the lifespan calls it for the API and `WorkerContext.build_default` for RQ
+  workers.
 - **Generated API types**: `app/frontend/src/types/generated/backend.ts` is
   generated from `backend.main.create_app().openapi()`, exported without a
   server by `scripts/export_openapi.py` (`npm run generate:api-types`). Only

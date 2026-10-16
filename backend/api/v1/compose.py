@@ -4,16 +4,16 @@ This module exposes a single POST /compose endpoint that builds a prompt
 from active adapters and optionally schedules a delivery.
 """
 
-import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends
 from fastapi.concurrency import run_in_threadpool
 
 from backend.core.dependencies import get_services
+from backend.core.logging import get_logger
 from backend.schemas import ComposeRequest, ComposeResponse
 from backend.schemas.generation import SDNextGenerationParams
 from backend.services import ServiceRegistry
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter()
 

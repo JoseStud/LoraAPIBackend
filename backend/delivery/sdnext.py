@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import shlex
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from backend.core.config import settings
+from backend.core.logging import get_logger
 from backend.schemas import SDNextGenerationResult
 from backend.utils.progress import to_progress_fraction
 
@@ -18,7 +18,7 @@ from .http_client import DeliveryHTTPClient
 from .sdnext_client import SDNextSession
 from .storage import FileSystemImageStorage, ImageStorage
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 async def run_pre_generate_command() -> None:

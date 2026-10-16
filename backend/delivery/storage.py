@@ -4,18 +4,18 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, List, Optional
 
+from backend.core.logging import get_logger
 from backend.utils.images import (
     make_output_reference,
     parse_output_reference,
     resolve_output_dir,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 REFERENCE_FORMAT = "reference"
 """Internal ``return_format``: save each image and return its output reference.

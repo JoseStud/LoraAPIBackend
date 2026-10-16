@@ -1,11 +1,12 @@
 """GPU detection and configuration utilities."""
 
-import logging
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-logger = logging.getLogger(__name__)
+from backend.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 DRM_ROOT = Path("/sys/class/drm")
 PCI_IDS_PATHS = (Path("/usr/share/hwdata/pci.ids"), Path("/usr/share/misc/pci.ids"))

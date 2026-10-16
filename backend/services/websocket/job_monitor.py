@@ -41,9 +41,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Protocol, Sequence, Set
 
-import structlog
 from pydantic import ValidationError
 
+from backend.core.logging import get_logger
 from backend.schemas import (
     DeliveryJobParams,
     DeliveryJobResult,
@@ -56,7 +56,7 @@ from backend.schemas import (
 from backend.utils.images import to_browser_image_src
 from backend.utils.progress import to_progress_fraction
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ACTIVE_STATUSES = frozenset({"pending", "retrying", "running"})
 """Delivery statuses of a job that has not finished."""

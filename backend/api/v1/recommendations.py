@@ -1,11 +1,11 @@
 """HTTP routes for LoRA recommendations."""
 
-import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.core.dependencies import get_services
+from backend.core.logging import get_logger
 from backend.schemas.recommendations import (
     BatchEmbeddingRequest,
     EmbeddingStatus,
@@ -21,7 +21,7 @@ from backend.schemas.recommendations import (
 from backend.services import ServiceRegistry
 from backend.services.recommendations import DEFAULT_WEIGHTS
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 router = APIRouter()
 
 

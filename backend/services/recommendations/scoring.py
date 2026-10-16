@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
+from structlog.stdlib import BoundLogger
+
+from backend.core.logging import get_logger
 
 
 class ScoreCalculator:
@@ -24,9 +26,9 @@ class ScoreCalculator:
         "concept",
     ]
 
-    def __init__(self, *, logger: logging.Logger | None = None) -> None:
+    def __init__(self, *, logger: BoundLogger | None = None) -> None:
         """Initialise the score calculator with an optional logger."""
-        self._logger = logger or logging.getLogger(__name__)
+        self._logger = logger or get_logger(__name__)
 
     def compute(self, lora: Any) -> Dict[str, Any]:
         """Calculate heuristic scoring data for ``lora``."""
