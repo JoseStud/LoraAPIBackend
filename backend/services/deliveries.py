@@ -12,11 +12,17 @@ from .delivery_repository import (
     DeliveryJobRepository,
 )
 from .delivery_results import DeliveryResultManager, ResultArchive, ResultDownload
+from .queue import QueueUnavailableError
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
     from .generation import GenerationCoordinator
     from .queue import QueueOrchestrator, TaskScheduler
     from .storage import StorageService
+
+QUEUE_UNAVAILABLE_RESULT: Dict[str, Any] = {
+    "status": "failed",
+    "error_message": "The job queue was unavailable, so the job was never queued",
+}
 
 
 class DeliveryService:
@@ -80,13 +86,27 @@ class DeliveryService:
         background_tasks: Optional[TaskScheduler] = None,
         **enqueue_kwargs: Any,
     ) -> None:
-        """Enqueue an existing job using the configured queue orchestrator."""
+        """Enqueue an existing job using the configured queue orchestrator.
+
+        When the queue rejects the job it is failed, if it is still pending,
+        and :class:`QueueUnavailableError` is re-raised; otherwise nothing
+        would ever run it and it would stay pending.
+        """
         orchestrator = self._require_orchestrator()
-        orchestrator.enqueue_delivery(
-            job_id,
-            background_tasks=background_tasks,
-            **enqueue_kwargs,
-        )
+        try:
+            orchestrator.enqueue_delivery(
+                job_id,
+                background_tasks=background_tasks,
+                **enqueue_kwargs,
+            )
+        except QueueUnavailableError:
+            self._repository.transition_job_status(
+                job_id,
+                "failed",
+                from_statuses=("pending",),
+                result=QUEUE_UNAVAILABLE_RESULT,
+            )
+            raise
 
     def create_job(
         self,

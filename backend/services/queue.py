@@ -4,7 +4,17 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from concurrent.futures import Future
-from typing import Any, Callable, List, Optional, Protocol, Sequence, Tuple, Type
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    List,
+    Optional,
+    Protocol,
+    Sequence,
+    Tuple,
+    Type,
+)
 
 import structlog
 
@@ -14,11 +24,22 @@ from backend.services.in_process_jobs import (
     InProcessJobRunner,
     get_in_process_job_runner,
 )
-from backend.workers.delivery_runner import DeliveryRunner
+
+if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
+    from backend.workers.delivery_runner import DeliveryRunner
 
 logger = structlog.get_logger(__name__)
 
 PrimaryFallbackQueues = Tuple[Optional["QueueBackend"], "QueueBackend"]
+
+
+class QueueUnavailableError(RuntimeError):
+    """The configured durable queue could not accept a job.
+
+    Raised instead of running the job in-process: with Redis configured an RQ
+    worker owns SDNext, so an in-process job would overlap with its jobs, and
+    job recovery would never requeue it after a restart.
+    """
 
 
 class TaskScheduler(Protocol):
@@ -256,6 +277,17 @@ class BackgroundTaskQueueBackend(QueueBackend):
         return job_runner.submit(self._runner, job_id)
 
 
+def _default_delivery_runner() -> DeliveryRunner:
+    """Build the runner for in-process jobs on the shared delivery registry.
+
+    Imported lazily: the runner module imports ``backend.services``, which
+    imports this module.
+    """
+    from backend.workers.delivery_runner import DeliveryRunner
+
+    return DeliveryRunner(get_delivery_registry())
+
+
 class QueueOrchestrator:
     """Coordinate selection and usage of queue backends."""
 
@@ -273,8 +305,8 @@ class QueueOrchestrator:
         self._primary_backend = primary_backend
         self._fallback_backend = fallback_backend
         self._redis_url_factory = redis_url_factory
-        self._delivery_runner_factory = delivery_runner_factory or (
-            lambda: DeliveryRunner(get_delivery_registry())
+        self._delivery_runner_factory = (
+            delivery_runner_factory or _default_delivery_runner
         )
         self._delivery_runner: Optional[DeliveryRunner] = None
 
@@ -295,29 +327,16 @@ class QueueOrchestrator:
         background_tasks: Optional[TaskScheduler] = None,
         **enqueue_kwargs: Any,
     ) -> Any:
-        """Enqueue ``job_id`` using the configured queue strategy."""
+        """Enqueue ``job_id`` on the primary queue, or in-process without one.
+
+        The fallback runs jobs only when no primary queue is configured. When
+        the primary queue fails the job is not moved to the fallback, which
+        would run it beside the RQ worker; :class:`QueueUnavailableError` is
+        raised instead.
+        """
         primary, fallback = self.get_backends()
 
-        last_error: Optional[Exception] = None
-        if primary is not None:
-            try:
-                return primary.enqueue_delivery(
-                    job_id,
-                    background_tasks=background_tasks,
-                    **enqueue_kwargs,
-                )
-            except Exception as exc:  # pragma: no cover - defensive branch
-                last_error = exc
-                logger.warning(
-                    "queue_orchestrator.fallback",  # structured log key
-                    job_id=job_id,
-                    reason="primary_error",
-                    primary_backend=type(primary).__name__,
-                    fallback_backend=type(fallback).__name__,
-                    error=str(exc),
-                    error_type=type(exc).__name__,
-                )
-        else:
+        if primary is None:
             logger.warning(
                 "queue_orchestrator.fallback",
                 job_id=job_id,
@@ -325,17 +344,29 @@ class QueueOrchestrator:
                 primary_backend=None,
                 fallback_backend=type(fallback).__name__,
             )
-
-        try:
             return fallback.enqueue_delivery(
                 job_id,
                 background_tasks=background_tasks,
                 **enqueue_kwargs,
             )
-        except Exception as fallback_exc:
-            if last_error is not None:
-                raise last_error from fallback_exc
-            raise
+
+        try:
+            return primary.enqueue_delivery(
+                job_id,
+                background_tasks=background_tasks,
+                **enqueue_kwargs,
+            )
+        except Exception as exc:
+            logger.error(
+                "queue_orchestrator.primary_error",  # structured log key
+                job_id=job_id,
+                primary_backend=type(primary).__name__,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+            raise QueueUnavailableError(
+                f"Could not enqueue job {job_id} on {type(primary).__name__}"
+            ) from exc
 
     def has_durable_queue(self) -> bool:
         """Return whether jobs go to a queue that outlives this process.

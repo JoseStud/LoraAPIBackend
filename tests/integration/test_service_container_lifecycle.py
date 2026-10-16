@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Optional
 
+import pytest
 from fastapi import BackgroundTasks
 from redis.exceptions import ConnectionError as RedisConnectionError
 
@@ -14,6 +15,7 @@ from backend.services.queue import (
     BackgroundTaskQueueBackend,
     QueueBackend,
     QueueOrchestrator,
+    QueueUnavailableError,
 )
 from backend.services.service_container_builder import ServiceContainerBuilder
 from tests.util.in_process_jobs import drain_in_process_jobs
@@ -118,8 +120,8 @@ class _FailingRedisBackend(QueueBackend):
         raise RedisConnectionError("redis connection lost")
 
 
-def test_queue_fallback_recovers_from_redis_errors(db_session) -> None:
-    """Queue orchestrator should fall back to in-process jobs and survive resets."""
+def test_redis_errors_never_reach_the_fallback_across_resets(db_session) -> None:
+    """Redis errors are reported, not run in-process, before and after a reset."""
     scheduled_jobs: list[str] = []
     job_runner = InProcessJobRunner()
 
@@ -141,7 +143,6 @@ def test_queue_fallback_recovers_from_redis_errors(db_session) -> None:
     )
 
     try:
-        # First build - primary fails and the fallback runs the job.
         registry_one = builder.build(
             db_session,
             analytics_repository=AnalyticsRepository(db_session),
@@ -149,15 +150,12 @@ def test_queue_fallback_recovers_from_redis_errors(db_session) -> None:
         )
         deliveries_one = registry_one.deliveries
         background_tasks_one = BackgroundTasks()
-        deliveries_one.enqueue_job("job-1", background_tasks=background_tasks_one)
+        with pytest.raises(QueueUnavailableError):
+            deliveries_one.enqueue_job("job-1", background_tasks=background_tasks_one)
 
         orchestrator_one = deliveries_one.queue_orchestrator
-        call_log_one = orchestrator_one._test_call_log
-        assert call_log_one == ["job-1"]
-        # Request-scoped tasks would let in-process jobs overlap.
+        assert orchestrator_one._test_call_log == ["job-1"]
         assert background_tasks_one.tasks == []
-        drain_in_process_jobs(job_runner)
-        assert scheduled_jobs == ["job-1"]
 
         # Reset caches to simulate an application reload.
         reset_service_container_builder(builder)
@@ -171,12 +169,13 @@ def test_queue_fallback_recovers_from_redis_errors(db_session) -> None:
         orchestrator_two = deliveries_two.queue_orchestrator
 
         assert orchestrator_two is not orchestrator_one
-        call_log_two = orchestrator_two._test_call_log
-        assert call_log_two == []
+        assert orchestrator_two._test_call_log == []
 
-        deliveries_two.enqueue_job("job-2", background_tasks=BackgroundTasks())
-        assert call_log_two == ["job-2"]
+        with pytest.raises(QueueUnavailableError):
+            deliveries_two.enqueue_job("job-2", background_tasks=BackgroundTasks())
+        assert orchestrator_two._test_call_log == ["job-2"]
+
         drain_in_process_jobs(job_runner)
-        assert scheduled_jobs == ["job-1", "job-2"]
+        assert scheduled_jobs == []
     finally:
         job_runner.stop()

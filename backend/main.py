@@ -29,6 +29,7 @@ from backend.core.security import get_api_key
 from backend.delivery import ensure_delivery_system
 from backend.services.in_process_jobs import get_in_process_job_runner
 from backend.services.job_recovery import JobRecovery
+from backend.services.queue import QueueUnavailableError
 from backend.services.recommendations import EmbeddingService
 
 
@@ -195,6 +196,23 @@ def create_app() -> FastAPI:
             "status": exc.status_code,
         }
         return JSONResponse(status_code=exc.status_code, content=problem)
+
+    @app.exception_handler(QueueUnavailableError)
+    async def queue_unavailable_handler(request: Request, exc: QueueUnavailableError):
+        """Report a job the durable queue rejected as a 503 problem detail."""
+        logging.getLogger("lora.api").error(
+            "Job queue unavailable during %s %s",
+            request.method,
+            request.url.path,
+            exc_info=exc,
+        )
+        problem = {
+            "type": "about:blank",
+            "title": "Job queue unavailable",
+            "status": 503,
+            "detail": "The job could not be queued. Try again once Redis is reachable.",
+        }
+        return JSONResponse(status_code=503, content=problem)
 
     @app.exception_handler(Exception)
     async def generic_exception_handler(request: Request, exc: Exception):
