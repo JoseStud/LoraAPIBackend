@@ -84,11 +84,24 @@ const toHeadersInit = (accumulator: Map<string, HeaderEntry>): HeadersInit => {
   return record;
 };
 
+const collectHeaders = (sources: Array<HeadersInit | undefined>): Map<string, HeaderEntry> => {
+  const accumulator = new Map<string, HeaderEntry>();
+  sources.forEach((source) => applyHeaderSource(accumulator, source));
+  return accumulator;
+};
+
+/** Merges header sources left to right, matching names case-insensitively. Adds no auth. */
+export const mergeHeaders = (...sources: Array<HeadersInit | undefined>): HeadersInit =>
+  toHeadersInit(collectHeaders(sources));
+
+/**
+ * Merges header sources like {@link mergeHeaders} and adds the active API key unless a source
+ * already set it. The shared HTTP client (`services/shared/http`) is the only caller in the app.
+ */
 export const buildAuthenticatedHeaders = (
   ...sources: Array<HeadersInit | undefined>
 ): HeadersInit => {
-  const accumulator = new Map<string, HeaderEntry>();
-  sources.forEach((source) => applyHeaderSource(accumulator, source));
+  const accumulator = collectHeaders(sources);
 
   if (!accumulator.has(normaliseKey(API_AUTH_HEADER))) {
     const apiKey = getActiveApiKey();

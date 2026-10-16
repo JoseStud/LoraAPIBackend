@@ -10,14 +10,15 @@ import type {
   SDNextGenerationParams,
   SDNextGenerationResult,
 } from '@/types';
-import { ensureData, getFilenameFromContentDisposition } from '@/services/shared/http';
 import {
   createBackendPathResolver,
+  ensureData,
+  getFilenameFromContentDisposition,
+  resolveBackendClient as resolveClient,
   resolveBackendPath,
-  resolveClient,
-  withSameOrigin,
-  type BackendClientInput,
-} from '@/services/shared/backendHelpers';
+  type BackendHttpClientInput,
+} from '@/services/shared/http';
+import { withSameOrigin } from '@/utils/backend';
 import { DeliveryCreateResponseSchema, GenerationRequestPayloadSchema } from '@/schemas';
 import { parseGenerationJobStatuses } from './validation';
 
@@ -29,7 +30,7 @@ export type GenerationRequestBody = SDNextGenerationParams & {
   loras?: CompositionEntry[];
 };
 
-type GenerationClientInput = BackendClientInput;
+type GenerationClientInput = BackendHttpClientInput;
 
 const generationPaths = createBackendPathResolver('generation');
 const generationPath = generationPaths.path;

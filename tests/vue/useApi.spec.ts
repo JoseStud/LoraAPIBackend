@@ -2,6 +2,8 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { effectScope } from 'vue';
 
 import { useApi, ApiError } from '@/composables/shared/useApi';
+import { resetBackendSettings, updateBackendSettings } from '@/config/backendSettings';
+import { API_AUTH_HEADER } from '@/utils/httpAuth';
 
 const originalFetch = global.fetch;
 
@@ -29,6 +31,7 @@ afterEach(() => {
     global.fetch = originalFetch;
   }
   vi.clearAllMocks();
+  resetBackendSettings();
 });
 
 describe('useApi composable', () => {
@@ -49,6 +52,34 @@ describe('useApi composable', () => {
     expect(error.value).toBeNull();
     expect(isLoading.value).toBe(false);
     expect(fetchMock).toHaveBeenCalledWith('/api/test', expect.objectContaining({ credentials: 'same-origin' }));
+  });
+
+  it('sends the caller headers plus the API key added by the shared client', async () => {
+    updateBackendSettings({ backendApiKey: 'secret-key' });
+    const fetchMock = vi.fn().mockResolvedValue(createJsonResponse({ ok: true })) as unknown as typeof fetch;
+    global.fetch = fetchMock;
+
+    const { fetchData } = useApi('/api/test', { headers: { 'X-Base': 'base' } });
+    await fetchData({ headers: { 'x-base': 'override', 'X-Extra': 'extra' } });
+
+    const [, init] = vi.mocked(fetchMock).mock.calls[0] ?? [];
+    const headers = new Headers(init?.headers as HeadersInit);
+    expect(headers.get('X-Base')).toBe('override');
+    expect(headers.get('X-Extra')).toBe('extra');
+    expect(headers.get(API_AUTH_HEADER)).toBe('secret-key');
+  });
+
+  it('does not retry a 4xx response', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(createJsonResponse({ detail: 'Forbidden' }, { ok: false, status: 403, statusText: 'Forbidden' }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { fetchData, error } = useApi('/api/forbidden');
+
+    await expect(fetchData()).rejects.toBeInstanceOf(ApiError);
+    expect((error.value as ApiError).status).toBe(403);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('throws an ApiError and stores the payload when the response is not ok', async () => {

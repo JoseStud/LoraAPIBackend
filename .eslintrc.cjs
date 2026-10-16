@@ -156,7 +156,6 @@ const backendClientAllowedFiles = [
   'app/frontend/src/features/lora/composables/lora-gallery/useLoraCardActions.ts',
   'app/frontend/src/features/lora/services/lora/loraService.ts',
   'app/frontend/src/features/lora/stores/adapterCatalog.ts',
-  'app/frontend/src/services/shared/backendHelpers.ts',
   'app/frontend/src/services/system/systemService.ts',
 ];
 

@@ -1,10 +1,10 @@
-import type { BackendHttpClient } from '@/services/shared/http';
 import {
   createBackendPathResolver,
-  resolveClient,
-  withSameOrigin,
-  type BackendClientInput,
-} from '@/services/shared/backendHelpers';
+  resolveBackendClient as resolveClient,
+  type BackendHttpClient,
+  type BackendHttpClientInput,
+} from '@/services/shared/http';
+import { withSameOrigin } from '@/utils/backend';
 import { SystemStatusPayloadSchema } from '@/schemas';
 import type {
   GenerationJobStatus,
@@ -20,7 +20,7 @@ const generationPath = generationPaths.path;
 
 const resolveBackendInput = (
   options: GenerationBackendClientOptions,
-): BackendClientInput => {
+): BackendHttpClientInput => {
   const resolvedClient = options.resolveBackendClient?.();
   if (resolvedClient) {
     return resolvedClient;
