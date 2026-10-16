@@ -1,8 +1,11 @@
-// Vitest setup for Vue SFCs and DOM
+// Vitest setup for Vue SFCs and DOM.
+//
+// Keep this file free of app imports (`@/...`): anything it loads is cached before a spec's
+// vi.mock() runs, and the mock silently stops applying. Module state such as
+// `@/config/backendSettings` is isolated per spec file, so the specs that change it reset it
+// themselves.
 import '@testing-library/jest-dom';
 import { createPinia, setActivePinia } from 'pinia';
-
-import { resetBackendSettings } from '@/config/backendSettings';
 
 // No spec may reach the network. A spec that needs HTTP mocks the service module the code under
 // test imports, or stubs `fetch` / `WebSocket` itself (vi.stubGlobal or assignment). Anything that
@@ -55,10 +58,9 @@ beforeEach(() => {
 
 afterEach(() => {
   // Dispose the test's stores so their watchers and backend-refresh subscriptions do not react to
-  // later tests (e.g. the backend settings reset below).
+  // later tests.
   pinia?._s.forEach((store) => store.$dispose());
   pinia = null;
-  resetBackendSettings();
 
   if (unexpectedNetworkCalls.length > 0) {
     const calls = unexpectedNetworkCalls.splice(0);
